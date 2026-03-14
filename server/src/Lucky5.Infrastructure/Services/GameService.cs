@@ -10,7 +10,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
 {
     private const decimal CashInUnit = 200_000m;
     private const decimal MaxSessionCashIn = 1_000_000m;
-    private const decimal MachineCloseCredits = 50_000_000m;
+    private static readonly EngineConfig EngineCfg = EngineConfig.Default;
+    private static readonly decimal MachineCloseCredits = EngineCfg.CloseThreshold;
 
     private static readonly Dictionary<string, decimal> Rules = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -128,6 +129,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
                 CreditsIn = ledger.CapitalIn,
                 CreditsOut = ledger.CapitalOut,
                 BaseCreditsOut = ledger.BaseCapitalOut,
+                JackpotCreditsOut = ledger.JackpotCapitalOut,
+                DoubleUpCreditsOut = ledger.DoubleUpCapitalOut,
                 TargetRtp = ledger.TargetRtp,
                 RoundCount = ledger.RoundCount,
                 ConsecutiveLosses = ledger.ConsecutiveLosses,
@@ -154,11 +157,7 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
                 _ => DistributionMode.Neutral
             };
             ledger.ActiveFourOfAKindSlot = (ledger.RoundCount % 2 == 0) ? (int)(seed % 2) : 1 - (int)(seed % 2);
-            var cfg = EngineConfig.Default;
-            ledger.JackpotFourOfAKindA = Math.Min(ledger.JackpotFourOfAKindA + 150, cfg.JackpotFourOfAKindCap);
-            ledger.JackpotFourOfAKindB = Math.Min(ledger.JackpotFourOfAKindB + 150, cfg.JackpotFourOfAKindCap);
-            ledger.JackpotFullHouse = Math.Min(ledger.JackpotFullHouse + 100, cfg.JackpotFullHouseCap);
-            ledger.JackpotStraightFlush = Math.Min(ledger.JackpotStraightFlush + 150, cfg.JackpotStraightFlushCap);
+            ApplyJackpotContributions(ledger, EngineCfg);
             ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
         }
 
@@ -236,11 +235,7 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
         {
             var ledger = RequireMachineLedger(round.MachineId);
             ledger.CapitalIn += round.BetAmount;
-            var cfg = EngineConfig.Default;
-            ledger.JackpotFourOfAKindA = Math.Min(ledger.JackpotFourOfAKindA + 150, cfg.JackpotFourOfAKindCap);
-            ledger.JackpotFourOfAKindB = Math.Min(ledger.JackpotFourOfAKindB + 150, cfg.JackpotFourOfAKindCap);
-            ledger.JackpotFullHouse = Math.Min(ledger.JackpotFullHouse + 100, cfg.JackpotFullHouseCap);
-            ledger.JackpotStraightFlush = Math.Min(ledger.JackpotStraightFlush + 150, cfg.JackpotStraightFlushCap);
+            ApplyJackpotContributions(ledger, EngineCfg);
             ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
         }
 
@@ -276,6 +271,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
                 CreditsIn = ledger.CapitalIn,
                 CreditsOut = ledger.CapitalOut,
                 BaseCreditsOut = ledger.BaseCapitalOut,
+                JackpotCreditsOut = ledger.JackpotCapitalOut,
+                DoubleUpCreditsOut = ledger.DoubleUpCapitalOut,
                 TargetRtp = ledger.TargetRtp,
                 RoundCount = ledger.RoundCount,
                 ConsecutiveLosses = ledger.ConsecutiveLosses,
@@ -286,14 +283,6 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
             };
             var scaleResult = MachinePolicy.ResolvePayoutScale(scaleState, round.RoundEntropySeed);
             payoutScale = scaleResult.ForTier(MachinePolicy.ClassifyHand(evaluation.Category));
-            if (session.CounterplayScore >= 6)
-            {
-                payoutScale = Math.Min(4.0m, payoutScale + 0.10m);
-            }
-            else if (session.CounterplayScore >= 3)
-            {
-                payoutScale = Math.Min(4.0m, payoutScale + 0.04m);
-            }
             ledger.LastPayoutScale = payoutScale;
         }
 
@@ -322,36 +311,34 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
                     ledger.RoundsSinceMediumWin = 0;
                 ledger.CooldownRoundsRemaining = MachinePolicy.ComputeCooldownLength(evaluation.Category, round.RoundEntropySeed);
 
-                var jpCfg = EngineConfig.Default;
-                if (evaluation.Category == HandCategory.FullHouse && evaluation.Tiebreak[0] == ledger.JackpotFullHouseRank)
+                if (evaluation.Category == HandCategory.FullHouse
+                    && evaluation.Tiebreak[0] == ledger.JackpotFullHouseRank
+                    && ledger.JackpotFullHouse > payout)
                 {
                     jackpotWon = ledger.JackpotFullHouse;
-                    ledger.JackpotFullHouse = jpCfg.JackpotFullHouseStart;
+                    ledger.JackpotFullHouse = EngineCfg.JackpotFullHouseStart;
                 }
-                else if (evaluation.Category == HandCategory.FourOfAKind)
+                else if (evaluation.Category == HandCategory.FourOfAKind && round.ActiveFourOfAKindSlotAtDeal == 0 && ledger.JackpotFourOfAKindA > payout)
                 {
-                    if (round.ActiveFourOfAKindSlotAtDeal == 0)
-                    {
-                        jackpotWon = ledger.JackpotFourOfAKindA;
-                        ledger.JackpotFourOfAKindA = jpCfg.JackpotFourOfAKindStart;
-                    }
-                    else
-                    {
-                        jackpotWon = ledger.JackpotFourOfAKindB;
-                        ledger.JackpotFourOfAKindB = jpCfg.JackpotFourOfAKindStart;
-                    }
+                    jackpotWon = ledger.JackpotFourOfAKindA;
+                    ledger.JackpotFourOfAKindA = EngineCfg.JackpotFourOfAKindStart;
                 }
-                else if (evaluation.Category == HandCategory.StraightFlush)
+                else if (evaluation.Category == HandCategory.FourOfAKind && round.ActiveFourOfAKindSlotAtDeal == 1 && ledger.JackpotFourOfAKindB > payout)
+                {
+                    jackpotWon = ledger.JackpotFourOfAKindB;
+                    ledger.JackpotFourOfAKindB = EngineCfg.JackpotFourOfAKindStart;
+                }
+                else if (evaluation.Category == HandCategory.StraightFlush && ledger.JackpotStraightFlush > payout)
                 {
                     jackpotWon = ledger.JackpotStraightFlush;
-                    ledger.JackpotStraightFlush = jpCfg.JackpotStraightFlushStart;
+                    ledger.JackpotStraightFlush = EngineCfg.JackpotStraightFlushStart;
                 }
 
-                // Replace mode: jackpot replaces base payout if larger (not additive)
                 if (jackpotWon > 0)
                 {
-                    var netJackpot = Math.Max(0m, jackpotWon - payout);
+                    var netJackpot = jackpotWon - payout;
                     ledger.CapitalOut += netJackpot;
+                    ledger.JackpotCapitalOut += netJackpot;
                     ledger.LastWinChannel = WinChannel.Jackpot;
                 }
                 ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
@@ -368,8 +355,7 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
             }
         }
 
-        // Replace mode: jackpot replaces base payout if larger
-        if (jackpotWon > 0 && jackpotWon > payout)
+        if (jackpotWon > 0)
         {
             payout = (int)jackpotWon;
         }
@@ -392,6 +378,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
                     CreditsIn = ledger.CapitalIn,
                     CreditsOut = ledger.CapitalOut,
                     BaseCreditsOut = ledger.BaseCapitalOut,
+                    JackpotCreditsOut = ledger.JackpotCapitalOut,
+                    DoubleUpCreditsOut = ledger.DoubleUpCapitalOut,
                     TargetRtp = ledger.TargetRtp,
                     RoundCount = ledger.RoundCount,
                     ConsecutiveLosses = ledger.ConsecutiveLosses,
@@ -468,7 +456,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
             round.RoundEntropySeed,
             FiveCardDrawEngine.ShuffleDeck(round.RoundEntropySeed, "double-up", alteredDeck),
             (int)round.WinAmount,
-            machineCreditBaseline);
+            machineCreditBaseline,
+            new Lucky5DoubleUpOptions(MaxCreditLimit: Decimal.ToInt32(EngineCfg.CloseThreshold)));
 
         round.DoubleUpSession = session;
         round.EnteredDoubleUp = true;
@@ -721,6 +710,8 @@ switch (resolution.Outcome)
             ledger.CapitalIn = 0;
             ledger.CapitalOut = 0;
             ledger.BaseCapitalOut = 0;
+            ledger.JackpotCapitalOut = 0;
+            ledger.DoubleUpCapitalOut = 0;
             ledger.RoundCount = 0;
             ledger.ConsecutiveLosses = 0;
             ledger.RoundsSinceMediumWin = 0;
@@ -728,13 +719,14 @@ switch (resolution.Outcome)
             ledger.NetSinceLastClose = 0;
             ledger.LastCloseRoundNumber = 0;
             ledger.RoundsSinceLucky5Hit = 0;
-            ledger.LastPayoutScale = 2.37m;
+            ledger.TargetRtp = EngineCfg.TargetRtp;
+            ledger.LastPayoutScale = EngineCfg.DefaultPayoutScale;
             ledger.LastDistributionMode = DistributionMode.Neutral;
-            ledger.JackpotFullHouse = 5_000_000m;
+            ledger.JackpotFullHouse = EngineCfg.JackpotFullHouseStart;
             ledger.JackpotFullHouseRank = 14;
-            ledger.JackpotFourOfAKindA = 200_000m;
-            ledger.JackpotFourOfAKindB = 200_000m;
-            ledger.JackpotStraightFlush = 4_000_000m;
+            ledger.JackpotFourOfAKindA = EngineCfg.JackpotFourOfAKindStart;
+            ledger.JackpotFourOfAKindB = EngineCfg.JackpotFourOfAKindStart;
+            ledger.JackpotStraightFlush = EngineCfg.JackpotStraightFlushStart;
             ledger.ActiveFourOfAKindSlot = 0;
         }
         return Task.FromResult<object>(new { success = true, message = "Machine state reset" });
@@ -751,11 +743,27 @@ switch (resolution.Outcome)
         lock (store.LedgerSync)
         {
             var ledger = RequireMachineLedger(round.MachineId);
-            if (ledgerDelta != 0) ledger.CapitalOut += ledgerDelta;
-            if (cashoutCredits > round.OriginalWinAmount) ledger.LastWinChannel = WinChannel.DoubleUp;
-            else if (round.JackpotWinAmount > 0) ledger.LastWinChannel = WinChannel.Jackpot;
-            else if (cashoutCredits > 0) ledger.LastWinChannel = WinChannel.BaseGame;
-            else ledger.LastWinChannel = WinChannel.None;
+            if (ledgerDelta != 0)
+            {
+                ledger.CapitalOut += ledgerDelta;
+                ledger.DoubleUpCapitalOut += ledgerDelta;
+            }
+            if (cashoutCredits <= 0)
+            {
+                ledger.LastWinChannel = WinChannel.None;
+            }
+            else if (cashoutCredits > round.OriginalWinAmount)
+            {
+                ledger.LastWinChannel = WinChannel.DoubleUp;
+            }
+            else if (round.JackpotWinAmount > 0)
+            {
+                ledger.LastWinChannel = WinChannel.Jackpot;
+            }
+            else
+            {
+                ledger.LastWinChannel = WinChannel.BaseGame;
+            }
             ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
         }
         store.Ledger.Add(new WalletLedgerEntry
@@ -778,6 +786,14 @@ switch (resolution.Outcome)
 
     private static JackpotInfoDto SnapshotJackpots(MachineLedgerState ledger) =>
         new(ledger.JackpotFullHouse, ledger.JackpotFullHouseRank, ledger.JackpotFourOfAKindA, ledger.JackpotFourOfAKindB, ledger.ActiveFourOfAKindSlot, ledger.JackpotStraightFlush);
+
+    private static void ApplyJackpotContributions(MachineLedgerState ledger, EngineConfig cfg)
+    {
+        ledger.JackpotFourOfAKindA = Math.Min(ledger.JackpotFourOfAKindA + cfg.JackpotFourOfAKindContribution, cfg.JackpotFourOfAKindCap);
+        ledger.JackpotFourOfAKindB = Math.Min(ledger.JackpotFourOfAKindB + cfg.JackpotFourOfAKindContribution, cfg.JackpotFourOfAKindCap);
+        ledger.JackpotFullHouse = Math.Min(ledger.JackpotFullHouse + cfg.JackpotFullHouseContribution, cfg.JackpotFullHouseCap);
+        ledger.JackpotStraightFlush = Math.Min(ledger.JackpotStraightFlush + cfg.JackpotStraightFlushContribution, cfg.JackpotStraightFlushCap);
+    }
 
     private static PokerCardDto ToDto(PokerCard c) => new(c.Rank, c.Suit, c.Code);
     private static PokerCardDto ToCleanRoomDto(CleanRoomCard c)

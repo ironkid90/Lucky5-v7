@@ -1,9 +1,11 @@
 namespace Lucky5.Domain.Entities;
 
+using Lucky5.Domain.Game.CleanRoom;
+
 public sealed class MachineLedgerState
 {
     public int MachineId { get; init; }
-    public decimal TargetRtp { get; set; } = 0.875m;
+    public decimal TargetRtp { get; set; } = EngineConfig.Default.TargetRtp;
     public decimal CapitalIn { get; set; }
     public decimal CapitalOut { get; set; }
     public int RoundCount { get; set; }
@@ -12,15 +14,17 @@ public sealed class MachineLedgerState
     public DistributionMode LastDistributionMode { get; set; } = DistributionMode.Neutral;
     public DateTime LastRoundUtc { get; set; } = DateTime.UtcNow;
 
-    public decimal JackpotFullHouse { get; set; } = 25_000_000m;
+    public decimal JackpotFullHouse { get; set; } = EngineConfig.Default.JackpotFullHouseStart;
     public int JackpotFullHouseRank { get; set; } = 14;
-    public decimal JackpotFourOfAKindA { get; set; } = 999_999m;
-    public decimal JackpotFourOfAKindB { get; set; } = 999_999m;
+    public decimal JackpotFourOfAKindA { get; set; } = EngineConfig.Default.JackpotFourOfAKindStart;
+    public decimal JackpotFourOfAKindB { get; set; } = EngineConfig.Default.JackpotFourOfAKindStart;
     public int ActiveFourOfAKindSlot { get; set; }
-    public decimal JackpotStraightFlush { get; set; } = 20_000_000m;
+    public decimal JackpotStraightFlush { get; set; } = EngineConfig.Default.JackpotStraightFlushStart;
 
     public decimal BaseCapitalOut { get; set; }
-    public decimal LastPayoutScale { get; set; } = 2.37m;
+    public decimal JackpotCapitalOut { get; set; }
+    public decimal DoubleUpCapitalOut { get; set; }
+    public decimal LastPayoutScale { get; set; } = EngineConfig.Default.DefaultPayoutScale;
 
     public int ConsecutiveLosses { get; set; }
     public int RoundsSinceMediumWin { get; set; }

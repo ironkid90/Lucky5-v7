@@ -1,6 +1,7 @@
 namespace Lucky5.Infrastructure.Services;
 
 using Lucky5.Domain.Entities;
+using Lucky5.Domain.Game.CleanRoom;
 
 public sealed class InMemoryDataStore
 {
@@ -11,13 +12,7 @@ public sealed class InMemoryDataStore
             MachineLedgers[machine.Id] = new MachineLedgerState
             {
                 MachineId = machine.Id,
-                TargetRtp = machine.Id switch
-                {
-                    1 => 0.875m,
-                    2 => 0.875m,
-                    3 => 0.875m,
-                    _ => 0.875m
-                }
+                TargetRtp = EngineConfig.Default.TargetRtp
             };
         }
 

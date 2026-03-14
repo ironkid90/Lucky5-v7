@@ -8,7 +8,7 @@ public static class Lucky5DoubleUpEngine
         int machineCreditBaseline = 0,
         Lucky5DoubleUpOptions? options = null)
     {
-        var resolvedOptions = options ?? new Lucky5DoubleUpOptions();
+        var resolvedOptions = options ?? new Lucky5DoubleUpOptions(MaxCreditLimit: Decimal.ToInt32(EngineConfig.Default.CloseThreshold));
         var deck = FiveCardDrawEngine.ShuffleDeck(seedRoot, "double-up");
         return CreateSessionFromDeck(seedRoot, deck, openingAmount, machineCreditBaseline, resolvedOptions);
     }
@@ -25,7 +25,7 @@ public static class Lucky5DoubleUpEngine
             throw new ArgumentOutOfRangeException(nameof(openingAmount), openingAmount, "Opening amount must be positive.");
         }
 
-        var resolvedOptions = options ?? new Lucky5DoubleUpOptions();
+        var resolvedOptions = options ?? new Lucky5DoubleUpOptions(MaxCreditLimit: Decimal.ToInt32(EngineConfig.Default.CloseThreshold));
         var deckArray = deck.ToArray();
         if (deckArray.Length < 2)
         {

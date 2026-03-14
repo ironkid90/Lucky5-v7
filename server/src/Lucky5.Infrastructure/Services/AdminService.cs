@@ -5,6 +5,7 @@ using Lucky5.Application.Contracts;
 using Lucky5.Application.Dtos;
 using Lucky5.Application.Requests;
 using Lucky5.Domain.Entities;
+using Lucky5.Domain.Game.CleanRoom;
 
 public sealed class AdminService(InMemoryDataStore store) : IAdminService
 {
@@ -82,13 +83,17 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
 
         lock (store.LedgerSync)
         {
+            var cfg = EngineConfig.Default;
             ledger.CapitalIn = 0;
             ledger.CapitalOut = 0;
             ledger.BaseCapitalOut = 0;
+            ledger.JackpotCapitalOut = 0;
+            ledger.DoubleUpCapitalOut = 0;
             ledger.RoundCount = 0;
+            ledger.TargetRtp = cfg.TargetRtp;
             ledger.LastDistributionMode = DistributionMode.Neutral;
             ledger.LastRoundUtc = DateTime.UtcNow;
-            ledger.LastPayoutScale = 2.37m;
+            ledger.LastPayoutScale = cfg.DefaultPayoutScale;
             ledger.ConsecutiveLosses = 0;
             ledger.RoundsSinceMediumWin = 0;
             ledger.CooldownRoundsRemaining = 0;
@@ -96,12 +101,12 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
             ledger.LastCloseRoundNumber = 0;
             ledger.LastWinChannel = WinChannel.None;
             ledger.RoundsSinceLucky5Hit = 0;
-            ledger.JackpotFullHouse = 5_000_000m;
+            ledger.JackpotFullHouse = cfg.JackpotFullHouseStart;
             ledger.JackpotFullHouseRank = 14;
-            ledger.JackpotFourOfAKindA = 200_000m;
-            ledger.JackpotFourOfAKindB = 200_000m;
+            ledger.JackpotFourOfAKindA = cfg.JackpotFourOfAKindStart;
+            ledger.JackpotFourOfAKindB = cfg.JackpotFourOfAKindStart;
             ledger.ActiveFourOfAKindSlot = 0;
-            ledger.JackpotStraightFlush = 4_000_000m;
+            ledger.JackpotStraightFlush = cfg.JackpotStraightFlushStart;
         }
 
         store.Ledger.Add(new WalletLedgerEntry
@@ -125,6 +130,7 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
 
     private AdminMachineDto ToAdminMachineDto(Machine machine)
     {
+        var cfg = EngineConfig.Default;
         store.MachineLedgers.TryGetValue(machine.Id, out var ledger);
         var sessions = store.MachineSessions.Values
             .Where(s => s.MachineId == machine.Id)
@@ -149,7 +155,7 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
             machine.MinBet,
             machine.MaxBet,
             ledger?.ObservedRtp ?? 0m,
-            ledger?.TargetRtp ?? 0.875m,
+            ledger?.TargetRtp ?? cfg.TargetRtp,
             baseRtp,
             ledger?.LastDistributionMode.ToString() ?? "Neutral",
             ledger?.LastPayoutScale ?? 0m,
@@ -160,12 +166,12 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
             ledger?.NetSinceLastClose ?? 0m,
             ledger?.RoundsSinceLucky5Hit ?? 0,
             ledger?.LastRoundUtc ?? DateTime.UtcNow,
-            ledger?.JackpotFullHouse ?? 25_000_000m,
+            ledger?.JackpotFullHouse ?? cfg.JackpotFullHouseStart,
             ledger?.JackpotFullHouseRank ?? 14,
-            ledger?.JackpotFourOfAKindA ?? 999_999m,
-            ledger?.JackpotFourOfAKindB ?? 999_999m,
+            ledger?.JackpotFourOfAKindA ?? cfg.JackpotFourOfAKindStart,
+            ledger?.JackpotFourOfAKindB ?? cfg.JackpotFourOfAKindStart,
             ledger?.ActiveFourOfAKindSlot ?? 0,
-            ledger?.JackpotStraightFlush ?? 20_000_000m,
+            ledger?.JackpotStraightFlush ?? cfg.JackpotStraightFlushStart,
             activeRounds,
             activePlayers,
             sessions);

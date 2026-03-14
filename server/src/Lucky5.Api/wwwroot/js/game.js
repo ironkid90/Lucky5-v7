@@ -1172,7 +1172,6 @@ async function doDoubleUp(guess) {
                     showMessage('MACHINE CLOSED - CASHING OUT...', 'win');
                     try {
                         await cashOutMachine();
-                        updateCredits();
                         showMessage('CASHED OUT - MACHINE READY', 'win');
                     } catch (_) {
                         showMessage('MACHINE CLOSED - USE MENU TO CASH OUT', 'win');

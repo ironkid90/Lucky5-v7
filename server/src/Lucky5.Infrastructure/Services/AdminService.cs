@@ -1,0 +1,185 @@
+namespace Lucky5.Infrastructure.Services;
+
+using System.Text;
+using Lucky5.Application.Contracts;
+using Lucky5.Application.Dtos;
+using Lucky5.Application.Requests;
+using Lucky5.Domain.Entities;
+
+public sealed class AdminService(InMemoryDataStore store) : IAdminService
+{
+    public Task<IReadOnlyList<AdminUserDto>> ListUsersAsync(CancellationToken cancellationToken)
+    {
+        var users = store.Users.Values
+            .OrderBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
+            .Select(ToAdminUserDto)
+            .ToArray();
+        return Task.FromResult<IReadOnlyList<AdminUserDto>>(users);
+    }
+
+    public Task<IReadOnlyList<AdminUserDto>> SearchUsersAsync(string query, CancellationToken cancellationToken)
+    {
+        var q = query.Trim();
+        var users = store.Users.Values
+            .Where(user => user.Username.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || (store.Profiles.TryGetValue(user.Id, out var p) && (
+                    p.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    p.PhoneNumber.Contains(q, StringComparison.OrdinalIgnoreCase))))
+            .OrderBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
+            .Select(ToAdminUserDto)
+            .ToArray();
+        return Task.FromResult<IReadOnlyList<AdminUserDto>>(users);
+    }
+
+    public Task<AdminUserDto> GetUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        if (!store.Users.TryGetValue(userId, out var user))
+            throw new KeyNotFoundException("User not found");
+        return Task.FromResult(ToAdminUserDto(user));
+    }
+
+    public Task<WalletLedgerEntryDto> AdminCreditAsync(Guid adminId, AdminCreditRequest request, CancellationToken cancellationToken)
+    {
+        if (!store.Profiles.TryGetValue(request.TargetUserId, out var profile))
+            throw new KeyNotFoundException("Target user not found");
+        if (request.Amount == 0) throw new InvalidOperationException("Amount must be non-zero");
+        if (string.IsNullOrWhiteSpace(request.Reason)) throw new InvalidOperationException("Reason is required");
+        if (profile.WalletBalance + request.Amount < 0) throw new InvalidOperationException("Insufficient wallet balance for debit");
+
+        profile.WalletBalance += request.Amount;
+        var row = new WalletLedgerEntry
+        {
+            UserId = request.TargetUserId,
+            Amount = request.Amount,
+            Type = request.Amount > 0 ? "AdminCredit" : "AdminDebit",
+            Reference = $"admin:{adminId:N}:{Slug(request.Reason)}",
+            BalanceAfter = profile.WalletBalance,
+            CreatedUtc = DateTime.UtcNow
+        };
+        store.Ledger.Add(row);
+        return Task.FromResult(new WalletLedgerEntryDto(row.Id, row.Amount, row.BalanceAfter, row.Type, row.Reference, row.CreatedUtc));
+    }
+
+    public Task<IReadOnlyList<AdminMachineDto>> ListMachinesAsync(CancellationToken cancellationToken)
+    {
+        var machines = store.Machines.OrderBy(m => m.Id).Select(ToAdminMachineDto).ToArray();
+        return Task.FromResult<IReadOnlyList<AdminMachineDto>>(machines);
+    }
+
+    public Task<AdminMachineDto> GetMachineAsync(int machineId, CancellationToken cancellationToken)
+    {
+        var machine = store.Machines.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
+        return Task.FromResult(ToAdminMachineDto(machine));
+    }
+
+    public Task<AdminMachineDto> ResetMachineAsync(Guid adminId, int machineId, CancellationToken cancellationToken)
+    {
+        var machine = store.Machines.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
+        if (store.ActiveRounds.Values.Any(r => r.MachineId == machineId && !r.IsCompleted))
+            throw new InvalidOperationException("Cannot reset machine with active rounds");
+        if (!store.MachineLedgers.TryGetValue(machineId, out var ledger))
+            throw new KeyNotFoundException("Machine ledger not found");
+
+        lock (store.LedgerSync)
+        {
+            ledger.CapitalIn = 0;
+            ledger.CapitalOut = 0;
+            ledger.BaseCapitalOut = 0;
+            ledger.RoundCount = 0;
+            ledger.LastDistributionMode = DistributionMode.Neutral;
+            ledger.LastRoundUtc = DateTime.UtcNow;
+            ledger.LastPayoutScale = 2.37m;
+            ledger.ConsecutiveLosses = 0;
+            ledger.RoundsSinceMediumWin = 0;
+            ledger.CooldownRoundsRemaining = 0;
+            ledger.NetSinceLastClose = 0;
+            ledger.LastCloseRoundNumber = 0;
+            ledger.LastWinChannel = WinChannel.None;
+            ledger.RoundsSinceLucky5Hit = 0;
+            ledger.JackpotFullHouse = 5_000_000m;
+            ledger.JackpotFullHouseRank = 14;
+            ledger.JackpotFourOfAKindA = 200_000m;
+            ledger.JackpotFourOfAKindB = 200_000m;
+            ledger.ActiveFourOfAKindSlot = 0;
+            ledger.JackpotStraightFlush = 4_000_000m;
+        }
+
+        store.Ledger.Add(new WalletLedgerEntry
+        {
+            UserId = adminId,
+            Amount = 0,
+            Type = "AdminMachineReset",
+            Reference = $"machine:{machineId}:reset",
+            BalanceAfter = store.Profiles.TryGetValue(adminId, out var p) ? p.WalletBalance : 0,
+            CreatedUtc = DateTime.UtcNow
+        });
+
+        return Task.FromResult(ToAdminMachineDto(machine));
+    }
+
+    private AdminUserDto ToAdminUserDto(User user)
+    {
+        store.Profiles.TryGetValue(user.Id, out var profile);
+        return new AdminUserDto(user.Id, user.Username, profile?.DisplayName ?? user.Username, user.PhoneNumber, profile?.WalletBalance ?? 0, user.Role, user.CreatedUtc, profile?.LastSeenUtc ?? user.CreatedUtc);
+    }
+
+    private AdminMachineDto ToAdminMachineDto(Machine machine)
+    {
+        store.MachineLedgers.TryGetValue(machine.Id, out var ledger);
+        var sessions = store.MachineSessions.Values
+            .Where(s => s.MachineId == machine.Id)
+            .OrderByDescending(s => s.LastUpdatedUtc)
+            .Select(s => new AdminMachineSessionDto(
+                s.SessionId,
+                s.UserId,
+                store.Profiles.TryGetValue(s.UserId, out var p) ? p.Username : s.UserId.ToString("N"),
+                s.MachineCredits,
+                s.TotalCashIn,
+                s.IsMachineClosed,
+                s.CounterplayScore,
+                s.LastUpdatedUtc))
+            .ToArray();
+        var baseRtp = ledger is null || ledger.CapitalIn <= 0m ? 0m : decimal.Round(ledger.BaseCapitalOut / ledger.CapitalIn, 4);
+        var activeRounds = store.ActiveRounds.Values.Count(r => r.MachineId == machine.Id && !r.IsCompleted);
+        var activePlayers = store.ActiveRounds.Values.Where(r => r.MachineId == machine.Id && !r.IsCompleted).Select(r => r.UserId).Distinct().Count();
+        return new AdminMachineDto(
+            machine.Id,
+            machine.Name,
+            machine.IsOpen,
+            machine.MinBet,
+            machine.MaxBet,
+            ledger?.ObservedRtp ?? 0m,
+            ledger?.TargetRtp ?? 0.875m,
+            baseRtp,
+            ledger?.LastDistributionMode.ToString() ?? "Neutral",
+            ledger?.LastPayoutScale ?? 0m,
+            ledger?.RoundCount ?? 0,
+            ledger?.ConsecutiveLosses ?? 0,
+            ledger?.RoundsSinceMediumWin ?? 0,
+            ledger?.CooldownRoundsRemaining ?? 0,
+            ledger?.NetSinceLastClose ?? 0m,
+            ledger?.RoundsSinceLucky5Hit ?? 0,
+            ledger?.LastRoundUtc ?? DateTime.UtcNow,
+            ledger?.JackpotFullHouse ?? 25_000_000m,
+            ledger?.JackpotFullHouseRank ?? 14,
+            ledger?.JackpotFourOfAKindA ?? 999_999m,
+            ledger?.JackpotFourOfAKindB ?? 999_999m,
+            ledger?.ActiveFourOfAKindSlot ?? 0,
+            ledger?.JackpotStraightFlush ?? 20_000_000m,
+            activeRounds,
+            activePlayers,
+            sessions);
+    }
+
+    private static string Slug(string value)
+    {
+        var sb = new StringBuilder();
+        foreach (var ch in value.Trim())
+        {
+            if (char.IsLetterOrDigit(ch)) sb.Append(char.ToLowerInvariant(ch));
+            else if (sb.Length == 0 || sb[^1] != '-') sb.Append('-');
+        }
+        var slug = sb.ToString().Trim('-');
+        return slug.Length == 0 ? "note" : slug[..Math.Min(slug.Length, 40)];
+    }
+}

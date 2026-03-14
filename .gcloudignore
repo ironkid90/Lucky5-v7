@@ -1,0 +1,8 @@
+*
+!Dockerfile
+!.dockerignore
+!.gcloudignore
+!README.md
+!docs/
+!scripts/
+!server/

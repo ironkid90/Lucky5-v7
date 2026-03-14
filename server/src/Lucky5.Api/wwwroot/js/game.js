@@ -941,13 +941,17 @@ function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
 
     // Pagination: fit cards into pages of DU_PAGE_SIZE slots.
     // When a page is full, the last card of the current page becomes
-    // the first card of the next page.
+    // the first card of the next page (carry-over).
     const DU_PAGE_SIZE = 4;
     const extraCount = (challengerCard || showShuffle) ? 1 : 0;
     const maxTrailOnPage = DU_PAGE_SIZE - extraCount;
     let startIndex = 0;
+    // Only paginate when trail exceeds one page; guard maxTrailOnPage > 1
+    // to avoid zero step (edge case when page is entirely the extra card).
     if (duCardTrail.length > maxTrailOnPage && maxTrailOnPage > 1) {
+        // step = new cards each page adds (capacity minus the carry-over card)
         const step = maxTrailOnPage - 1;
+        // overshoot = how many cards spill beyond the first page
         const overshoot = duCardTrail.length - maxTrailOnPage;
         const pages = Math.ceil(overshoot / step);
         startIndex = pages * step;
@@ -1217,6 +1221,8 @@ function animateJackpotFill(amount, startBalance, handName) {
         let resetValue = 0;
 
         if (handName === 'FullHouse') {
+            // FH jackpot has no visible counter (center counter now shows SF);
+            // animation is reflected only through credits/win-indicator.
             counterEl = null;
             resetValue = 5_000_000;
         } else if (handName === 'FourOfAKind') {

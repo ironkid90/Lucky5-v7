@@ -326,7 +326,6 @@ public sealed record EngineConfig(
     decimal JackpotFourOfAKindCap = 1_200_000m,
     decimal JackpotFullHouseCap = 750_000m,
     decimal JackpotStraightFlushCap = 8_500_000m,
-    int JackpotContributionPerRound = 725,
     int JackpotFourOfAKindContribution = 175,
     int JackpotFullHouseContribution = 120,
     int JackpotStraightFlushContribution = 255,

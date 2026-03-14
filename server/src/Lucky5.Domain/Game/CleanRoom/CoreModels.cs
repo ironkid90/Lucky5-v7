@@ -267,69 +267,70 @@ public sealed record PresentationNoisePlan(
 
 /// <summary>
 /// Externalized engine configuration for RTP rebalancing.
-/// All tuning parameters in one place — see docs/RTP_REBALANCING_ARCHITECTURE.md.
+/// All tuning parameters in one place — see docs/REBALANCING_PLAN_85_RTP.md.
+/// Rebalanced 2026-03-14 to achieve 85% RTP with preserved tension, fun, and adrenaline.
 /// </summary>
 public sealed record EngineConfig(
     // === Payout Scale ===
     decimal TargetRtp = 0.85m,
     decimal TargetDoubleUpRtp = 0.090m,
-    decimal MinimumObservedBaseRtp = 0.3200m,
-    decimal DefaultPayoutScale = 1.92m,
-    decimal MinPayoutScale = 1.18m,
-    decimal MaxPayoutScale = 2.45m,
-    int WarmupRounds = 80,
-    int ConvergenceHorizon = 300,
-    decimal CorrectionGain = 1.10m,
-    decimal MaxCorrection = 0.35m,
-    decimal DeadZone = 0.0075m,
-    decimal JitterAmplitude = 0.03m,
-    decimal SmallTierFactor = 0.99m,
-    decimal MediumTierFactor = 1.05m,
-    decimal BigTierFactor = 1.12m,
-    decimal WarmupOpeningSmallScale = 1.98m,
-    decimal WarmupOpeningMediumScale = 2.05m,
+    decimal MinimumObservedBaseRtp = 0.3800m,         // ↑ from 0.3200m - better reflects actual base game
+    decimal DefaultPayoutScale = 1.95m,               // ↑ from 1.92m - lift equilibrium orbit slightly
+    decimal MinPayoutScale = 1.25m,                   // ↑ from 1.18m - raise floor for smoother convergence
+    decimal MaxPayoutScale = 2.35m,                   // ↓ from 2.45m - lower ceiling to prevent overshoot
+    int WarmupRounds = 60,                            // ↓ from 80 - faster transition to live control
+    int ConvergenceHorizon = 250,                     // ↓ from 300 - faster convergence to target
+    decimal CorrectionGain = 1.15m,                   // ↑ from 1.10m - stronger drift correction
+    decimal MaxCorrection = 0.30m,                    // ↓ from 0.35m - smoother corrections
+    decimal DeadZone = 0.0100m,                       // ↑ from 0.0075m - allow slightly more drift tolerance
+    decimal JitterAmplitude = 0.025m,                 // ↓ from 0.03m - reduce variance per round
+    decimal SmallTierFactor = 1.00m,                  // ↑ from 0.99m - no penalty for small wins
+    decimal MediumTierFactor = 1.04m,                 // ↓ from 1.05m - slight reduction
+    decimal BigTierFactor = 1.08m,                    // ↓ from 1.12m - tighten big-win bonus
+    decimal WarmupOpeningSmallScale = 2.00m,          // ↑ from 1.98m - slightly more generous start
+    decimal WarmupOpeningMediumScale = 2.08m,         // ↑ from 2.05m - better first impression
     decimal WarmupOpeningBigScale = 2.15m,
 
     // === Double-Up Offer Curve ===
-    decimal DoubleUpOfferFloor = 0.08m,
-    decimal DoubleUpOfferOverTargetBand = 0.15m,
-    decimal DoubleUpOfferTargetBand = 0.28m,
-    decimal DoubleUpOfferRecoveryBand = 0.45m,
-    decimal DoubleUpOfferMax = 0.60m,
+    decimal DoubleUpOfferFloor = 0.15m,               // ↑ from 0.08m - double-up always available
+    decimal DoubleUpOfferOverTargetBand = 0.20m,      // ↑ from 0.15m - more generous when slightly hot
+    decimal DoubleUpOfferTargetBand = 0.30m,          // ↑ from 0.28m - better engagement at equilibrium
+    decimal DoubleUpOfferRecoveryBand = 0.50m,        // ↑ from 0.45m - stronger cold recovery
+    decimal DoubleUpOfferMax = 0.65m,                 // ↑ from 0.60m - max recovery boost
     decimal DoubleUpHighDriftThreshold = 0.050m,
     decimal DoubleUpTargetUpperThreshold = 0.020m,
     decimal DoubleUpTargetLowerThreshold = -0.010m,
     decimal DoubleUpRecoveryThreshold = -0.040m,
 
     // === Deck Alteration Bounds ===
-    int MaxColdRemovals = 2,
+    int MaxColdRemovals = 1,                          // ↓ from 2 - less aggressive deck nerfing
     int MaxHotAdditions = 2,
     bool NeverRemoveFiveOfSpades = true,
-    int MinDeckSize = 50,
+    int MinDeckSize = 51,                             // ↑ from 50 - maintain more standard deck feel
 
     // === Streaks & Pity ===
-    int StreakSoftThreshold = 5,
-    int StreakHardThreshold = 10,
-    int CrisisThreshold = 15,
-    decimal CrisisScaleBoost = 0.05m,
-    int MediumWinDroughtThreshold = 20,
-    int CooldownLength = 3,
+    int StreakSoftThreshold = 4,                      // ↓ from 5 - activate pity sooner
+    int StreakHardThreshold = 8,                      // ↓ from 10 - stronger intervention earlier
+    int CrisisThreshold = 12,                         // ↓ from 15 - emergency boost kicks in faster
+    decimal CrisisScaleBoost = 0.07m,                 // ↑ from 0.05m - stronger crisis recovery
+    int MediumWinDroughtThreshold = 15,               // ↓ from 20 - address dry spells sooner
+    int CooldownLength = 2,                           // ↓ from 3 - shorter neutral period after big wins
 
     // === Soft Caps ===
-    decimal SoftCapWarning = 24_000_000m,
-    decimal SoftCapHard = 32_000_000m,
+    decimal SoftCapWarning = 28_000_000m,             // ↑ from 24M - more headroom before warnings
+    decimal SoftCapHard = 35_000_000m,                // ↑ from 32M - allow bigger runs
     decimal CloseThreshold = 40_000_000m,
 
     // === Jackpots (Replace Mode) ===
-    decimal JackpotFourOfAKindCap = 1_200_000m,
-    decimal JackpotFullHouseCap = 750_000m,
-    decimal JackpotStraightFlushCap = 8_500_000m,
-    int JackpotFourOfAKindContribution = 175,
-    int JackpotFullHouseContribution = 120,
-    int JackpotStraightFlushContribution = 255,
-    decimal JackpotFourOfAKindStart = 160_000m,
-    decimal JackpotFullHouseStart = 100_000m,
-    decimal JackpotStraightFlushStart = 900_000m
+    decimal JackpotFourOfAKindCap = 1_000_000m,       // ↓ from 1.2M - hit more frequently
+    decimal JackpotFullHouseCap = 650_000m,           // ↓ from 750k - better engagement
+    decimal JackpotStraightFlushCap = 7_500_000m,     // ↓ from 8.5M - more reachable
+    int JackpotFourOfAKindContribution = 150,         // ↓ from 175 - prevent caps too quickly
+    int JackpotFullHouseContribution = 110,           // ↓ from 120 - balanced growth
+    int JackpotStraightFlushContribution = 240,       // ↓ from 255 - controlled progression
+    decimal JackpotFourOfAKindStart = 140_000m,       // ↓ from 160k - reduce post-reset RTP spikes
+    decimal JackpotFullHouseStart = 90_000m,          // ↓ from 100k - smoother reset
+    decimal JackpotStraightFlushStart = 850_000m      // ↓ from 900k - consistent with caps
 )
 {
     public static EngineConfig Default { get; } = new();

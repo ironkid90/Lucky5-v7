@@ -272,8 +272,6 @@ public sealed record PresentationNoisePlan(
 public sealed record EngineConfig(
     // === Payout Scale ===
     decimal TargetRtp = 0.85m,
-    decimal TargetScaledBaseRtp = 0.725m,
-    decimal TargetJackpotRtp = 0.035m,
     decimal TargetDoubleUpRtp = 0.090m,
     decimal MinimumObservedBaseRtp = 0.3200m,
     decimal DefaultPayoutScale = 1.92m,

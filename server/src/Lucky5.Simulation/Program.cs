@@ -2,7 +2,6 @@ using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
 
 const int Bet = 5_000;
-const decimal StartingSessionCredits = 1_000_000m;
 
 var cfg = EngineConfig.Default;
 var paytable = PaytableProfile.Lebanese;

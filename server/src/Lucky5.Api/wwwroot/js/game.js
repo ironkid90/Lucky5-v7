@@ -18,6 +18,7 @@ let duSwitchesRemaining = 0;
 let duIsNoLoseActive = false;
 let duSessionStarted = false;
 let duDealerCard = null;
+let duCardTrail = [];
 let roundDoubleUpAvailable = false;
 let takeHalfUsedThisRound = false;
 let jackpots = null;
@@ -545,6 +546,11 @@ async function doSwitchDealer() {
         winAmount = result.currentAmount;
         duDealerCard = result.dealerCard;
 
+        // Update the last trail entry with the new dealer card after switch
+        if (duCardTrail.length > 0) {
+            duCardTrail[duCardTrail.length - 1] = {card: duDealerCard, label: 'DEALER'};
+        }
+
         const isLucky5 = result.status === 'Lucky5';
         if (isLucky5) {
             triggerLucky5Flash();
@@ -822,7 +828,7 @@ async function doDeal() {
             });
             cards = result.cards;
             winAmount = result.winAmount;
-            balance = result.walletBalanceAfterRound - (result.jackpotWon || 0);
+            balance = result.walletBalanceAfterRound;
             if (result.jackpots) updateJackpotDisplay(result.jackpots);
             updateCredits();
 
@@ -856,10 +862,6 @@ async function doDeal() {
                 if (winAmount > 0) {
                     const jackpotWon = result.jackpotWon || 0;
                     const finalMachineCredits = result.walletBalanceAfterRound;
-                    if (jackpotWon > 0) {
-                        balance = finalMachineCredits - jackpotWon;
-                        updateCredits();
-                    }
                     let msg = `${HAND_DISPLAY[handName] || handName} - WIN ${formatNum(winAmount)}!`;
                     if (jackpotWon > 0) {
                         msg += ` JACKPOT +${formatNum(jackpotWon)}!`;
@@ -875,9 +877,7 @@ async function doDeal() {
 
                     const proceedToDoubleUp = async () => {
                         if (jackpotWon > 0) {
-                            await animateJackpotFill(jackpotWon, finalMachineCredits - jackpotWon, handName);
-                            balance = finalMachineCredits;
-                            updateCredits();
+                            await animateJackpotFill(jackpotWon, balance, handName);
                             if (result.jackpots) updateJackpotDisplay(result.jackpots);
                         }
                         setTimeout(() => {
@@ -939,23 +939,24 @@ function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
 
     stopShuffle();
 
-    const dealerSlot = document.createElement('div');
-    dealerSlot.className = 'du-card-slot';
-    const dealerLabel = document.createElement('div');
-    dealerLabel.className = 'du-card-label';
-    dealerLabel.textContent = 'DEALER';
-    const dealerFrame = document.createElement('div');
-    dealerFrame.className = 'du-card-frame dealer-card';
-    const isLucky = dealerCard && dealerCard.code === '5S';
-    if (isLucky) dealerFrame.classList.add('lucky5-glow');
-    dealerFrame.innerHTML = `<img src="${cardImagePath(dealerCard)}" alt="dealer">`;
-    dealerSlot.appendChild(dealerLabel);
-    dealerSlot.appendChild(dealerFrame);
-    area.appendChild(dealerSlot);
-
-    const spacer = document.createElement('div');
-    spacer.className = 'du-spacer';
-    area.appendChild(spacer);
+    // Render all trail cards (oldest first, left to right)
+    for (let i = 0; i < duCardTrail.length; i++) {
+        const entry = duCardTrail[i];
+        const slot = document.createElement('div');
+        slot.className = 'du-card-slot du-trail-card';
+        const label = document.createElement('div');
+        label.className = 'du-card-label';
+        label.textContent = entry.label || '';
+        const frame = document.createElement('div');
+        frame.className = 'du-card-frame';
+        if (i === duCardTrail.length - 1) frame.classList.add('dealer-card');
+        const isLucky = entry.card && entry.card.code === '5S';
+        if (isLucky) frame.classList.add('lucky5-glow');
+        frame.innerHTML = `<img src="${cardImagePath(entry.card)}" alt="card">`;
+        slot.appendChild(label);
+        slot.appendChild(frame);
+        area.appendChild(slot);
+    }
 
     if (challengerCard) {
         const challSlot = document.createElement('div');
@@ -987,6 +988,9 @@ function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
         area.appendChild(challSlot);
         startShuffle();
     }
+
+    // Scroll trail to show the rightmost (newest) cards
+    area.scrollLeft = area.scrollWidth;
 }
 
 let shuffleRAF = null;
@@ -1045,6 +1049,7 @@ async function startDoubleUpFlow() {
         duSwitchesRemaining = result.switchesRemaining;
         duIsNoLoseActive = result.isNoLoseActive;
         duDealerCard = result.dealerCard;
+        duCardTrail = [{card: duDealerCard, label: 'DEALER'}];
         gameState = 'doubleup';
 
         showDuInfo();
@@ -1097,6 +1102,8 @@ async function doDoubleUp(guess) {
 
                 setTimeout(() => {
                     if (gameState === 'doubleup') {
+                        // Add the winning challenger to the trail with the guess label
+                        duCardTrail.push({card: result.challengerCard, label: guess.toUpperCase()});
                         duDealerCard = result.dealerCard;
                         renderDoubleUpCards(duDealerCard, true, null);
                         duSwitchesRemaining = result.switchesRemaining;
@@ -1166,6 +1173,7 @@ function exitDoubleUp() {
     duSessionStarted = false;
     duIsNoLoseActive = false;
     duDealerCard = null;
+    duCardTrail = [];
     clearLucky5Effects();
     updateWinAmountDisplay(0);
 

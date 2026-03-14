@@ -366,31 +366,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
         round.OriginalWinAmount = payout;
         round.JackpotWinAmount = jackpotWon;
 
-        // Quantum offer gate: decide if double-up is available this round
+        // Double-up is always available on every win
         bool doubleUpAvailable = payout > 0;
-        if (doubleUpAvailable)
-        {
-            lock (store.LedgerSync)
-            {
-                var ledger = RequireMachineLedger(round.MachineId);
-                var offerState = new MachinePolicyState
-                {
-                    CreditsIn = ledger.CapitalIn,
-                    CreditsOut = ledger.CapitalOut,
-                    BaseCreditsOut = ledger.BaseCapitalOut,
-                    JackpotCreditsOut = ledger.JackpotCapitalOut,
-                    DoubleUpCreditsOut = ledger.DoubleUpCapitalOut,
-                    TargetRtp = ledger.TargetRtp,
-                    RoundCount = ledger.RoundCount,
-                    ConsecutiveLosses = ledger.ConsecutiveLosses,
-                    RoundsSinceMediumWin = ledger.RoundsSinceMediumWin,
-                    CooldownRoundsRemaining = ledger.CooldownRoundsRemaining,
-                    NetSinceLastClose = ledger.NetSinceLastClose,
-                    RoundsSinceLucky5Hit = ledger.RoundsSinceLucky5Hit
-                };
-                doubleUpAvailable = MachinePolicy.ShouldOfferDoubleUp(offerState, round.RoundEntropySeed);
-            }
-        }
         round.DoubleUpOffered = doubleUpAvailable;
 
         JackpotInfoDto jackpots;

@@ -19,7 +19,9 @@ public sealed class MachinePolicyState
     public decimal CreditsIn { get; set; }
     public decimal CreditsOut { get; set; }
     public decimal BaseCreditsOut { get; set; }
-    public decimal TargetRtp { get; set; } = 0.875m;
+    public decimal JackpotCreditsOut { get; set; }
+    public decimal DoubleUpCreditsOut { get; set; }
+    public decimal TargetRtp { get; set; } = 0.85m;
     public int RoundCount { get; set; }
 
     public int ConsecutiveLosses { get; set; }
@@ -30,8 +32,9 @@ public sealed class MachinePolicyState
     public int RoundsSinceLucky5Hit { get; set; }
 
     public decimal ObservedRtp => CreditsIn <= 0m ? TargetRtp : decimal.Round(CreditsOut / CreditsIn, 4);
-    public decimal BaseRtp => CreditsIn <= 0m ? 0.38m : decimal.Round(BaseCreditsOut / CreditsIn, 4);
-    public decimal JackpotRtp => CreditsIn <= 0m ? 0m : decimal.Round(Math.Max(CreditsOut - BaseCreditsOut, 0m) / CreditsIn, 4);
+    public decimal BaseRtp => CreditsIn <= 0m ? 0.3200m : decimal.Round(BaseCreditsOut / CreditsIn, 4);
+    public decimal JackpotRtp => CreditsIn <= 0m ? 0m : decimal.Round(JackpotCreditsOut / CreditsIn, 4);
+    public decimal DoubleUpRtp => CreditsIn <= 0m ? 0m : decimal.Round(DoubleUpCreditsOut / CreditsIn, 4);
     public decimal Drift => ObservedRtp - TargetRtp;
 }
 
@@ -57,7 +60,7 @@ public static class MachinePolicy
     // All tuning constants now come from EngineConfig; these are convenience accessors for the default.
     private static EngineConfig Cfg => EngineConfig.Default;
 
-    public const decimal CloseThreshold = 50_000_000m;
+    public static decimal CloseThreshold => Cfg.CloseThreshold;
 
     public static PayoutTier ClassifyHand(HandCategory category) => category switch
     {
@@ -134,25 +137,36 @@ public static class MachinePolicy
         EngineConfig? config = null)
     {
         var cfg = config ?? Cfg;
+        var rng = new SplitMix64Rng(DeterministicSeed.Derive(entropySeed, "payout-scale"));
+        var jitter = (decimal)((rng.NextUnit() - 0.5) * (double)cfg.JitterAmplitude);
+
+        var liveScale = ResolveLivePayoutScale(state, jitter, cfg);
 
         if (state.RoundCount < cfg.WarmupRounds)
         {
-            return new PayoutScaleResult(cfg.DefaultPayoutScale, cfg.DefaultPayoutScale * 1.15m, cfg.DefaultPayoutScale * 1.25m);
+            var warmupProgress = cfg.WarmupRounds <= 1
+                ? 1m
+                : Math.Clamp((state.RoundCount - 1m) / (cfg.WarmupRounds - 1m), 0m, 1m);
+
+            return new PayoutScaleResult(
+                Lerp(cfg.WarmupOpeningSmallScale, liveScale.SmallScale, warmupProgress),
+                Lerp(cfg.WarmupOpeningMediumScale, liveScale.MediumScale, warmupProgress),
+                Lerp(cfg.WarmupOpeningBigScale, liveScale.BigScale, warmupProgress));
         }
 
-        var baseRtp = state.BaseRtp;
-        if (baseRtp <= 0m)
-        {
-            return new PayoutScaleResult(cfg.MaxPayoutScale, cfg.MaxPayoutScale, cfg.MaxPayoutScale);
-        }
+        return liveScale;
+    }
 
-        var jackpotRtp = state.JackpotRtp;
-        var targetBaseRtp = Math.Max(0.10m, state.TargetRtp - jackpotRtp);
-        var requiredScale = targetBaseRtp / baseRtp;
+    private static PayoutScaleResult ResolveLivePayoutScale(MachinePolicyState state, decimal jitter, EngineConfig cfg)
+    {
+        var observedBaseRtp = Math.Max(state.BaseRtp, cfg.MinimumObservedBaseRtp);
+        var targetBaseRtp = Math.Max(0.10m, cfg.TargetRtp - cfg.TargetDoubleUpRtp - state.JackpotRtp);
+        var equilibriumScale = targetBaseRtp / observedBaseRtp;
+        var rampFactor = cfg.ConvergenceHorizon <= 0
+            ? 1m
+            : Math.Min(1m, state.RoundCount / (decimal)cfg.ConvergenceHorizon);
         var drift = state.Drift;
 
-        // Symmetric correction — same gain in both directions, clamped to ±MaxCorrection.
-        // Dead zone: no correction when |drift| <= DeadZone (prevents hunting).
         decimal correction;
         if (Math.Abs(drift) <= cfg.DeadZone)
         {
@@ -160,25 +174,26 @@ public static class MachinePolicy
         }
         else
         {
-            correction = Math.Clamp(-drift * cfg.CorrectionGain, -cfg.MaxCorrection, cfg.MaxCorrection);
+            correction = Math.Clamp(-drift * cfg.CorrectionGain * rampFactor, -cfg.MaxCorrection, cfg.MaxCorrection);
         }
 
-        // Crisis scale boost for extreme loss streaks
         decimal crisisBoost = 0m;
         if (state.ConsecutiveLosses >= cfg.CrisisThreshold)
             crisisBoost = cfg.CrisisScaleBoost;
 
-        var rng = new SplitMix64Rng(DeterministicSeed.Derive(entropySeed, "payout-scale"));
-        var jitter = (decimal)((rng.NextUnit() - 0.5) * (double)cfg.JitterAmplitude);
+        var warmupBias = 0m;
+        if (state.RoundCount > 0 && state.RoundCount <= cfg.WarmupRounds)
+        {
+            var decay = cfg.WarmupRounds <= 1
+                ? 0m
+                : 1m - ((state.RoundCount - 1m) / (cfg.WarmupRounds - 1m));
+            warmupBias = Math.Max(0m, decay) * 0.08m;
+        }
 
-        var baseScale = requiredScale + correction + jitter + crisisBoost;
-
-        // Hot-state win chunking: suppress BigScale when cooling down
-        var bigMultiplier = state.CooldownRoundsRemaining > 0 ? 1.02m : 1.08m;
-
-        var smallScale = baseScale * 0.96m;
-        var mediumScale = baseScale * 1.02m;
-        var bigScale = baseScale * bigMultiplier;
+        var rawScale = equilibriumScale + correction + warmupBias + jitter + crisisBoost;
+        var smallScale = rawScale * cfg.SmallTierFactor;
+        var mediumScale = rawScale * cfg.MediumTierFactor;
+        var bigScale = rawScale * cfg.BigTierFactor;
 
         return new PayoutScaleResult(
             Math.Clamp(smallScale, cfg.MinPayoutScale, cfg.MaxPayoutScale),
@@ -192,35 +207,40 @@ public static class MachinePolicy
         return tiered.SmallScale;
     }
 
-    // ---------- Double-Up Quantum Offer Gate ----------
+    // ---------- Double-Up Offer Curve ----------
 
-    /// <summary>
-    /// Computes the probability that the player is offered double-up on this round.
-    /// When RTP is above target, the offer is suppressed. When below, it opens up.
-    /// This is the primary RTP control lever for the unlimited DU system.
-    /// </summary>
     public static decimal ComputeDoubleUpOfferRate(MachinePolicyState state, EngineConfig? config = null)
     {
         var cfg = config ?? Cfg;
         var drift = state.Drift;
 
-        if (drift > cfg.DeadZone)
+        if (drift >= cfg.DoubleUpHighDriftThreshold)
         {
-            // Over target — suppress DU offers strongly (RTP too high)
-            return 0m;
+            return cfg.DoubleUpOfferFloor;
         }
 
-        if (Math.Abs(drift) <= cfg.DeadZone)
+        if (drift >= cfg.DoubleUpTargetUpperThreshold)
         {
-            // At target — offer at baseline
-            return cfg.DoubleUpOfferAtTarget;
+            var overTargetT = (drift - cfg.DoubleUpTargetUpperThreshold)
+                / (cfg.DoubleUpHighDriftThreshold - cfg.DoubleUpTargetUpperThreshold);
+
+            return Lerp(cfg.DoubleUpOfferOverTargetBand, cfg.DoubleUpOfferFloor, Math.Clamp(overTargetT, 0m, 1m));
         }
 
-        // Under target — ramp up offers linearly toward OfferMax
-        var underTarget = -drift - cfg.DeadZone;
-        var rampRange = 0.10m; // full ramp over 10% undershoot
-        var t = Math.Min(underTarget / rampRange, 1.0m);
-        return cfg.DoubleUpOfferAtTarget + t * (cfg.DoubleUpOfferMax - cfg.DoubleUpOfferAtTarget);
+        if (drift >= cfg.DoubleUpTargetLowerThreshold)
+        {
+            return cfg.DoubleUpOfferTargetBand;
+        }
+
+        if (drift >= cfg.DoubleUpRecoveryThreshold)
+        {
+            var recoveryT = (cfg.DoubleUpTargetLowerThreshold - drift)
+                / (cfg.DoubleUpTargetLowerThreshold - cfg.DoubleUpRecoveryThreshold);
+
+            return Lerp(cfg.DoubleUpOfferTargetBand, cfg.DoubleUpOfferRecoveryBand, Math.Clamp(recoveryT, 0m, 1m));
+        }
+
+        return cfg.DoubleUpOfferMax;
     }
 
     /// <summary>
@@ -302,6 +322,9 @@ public static class MachinePolicy
 
         return boost;
     }
+
+    private static decimal Lerp(decimal start, decimal end, decimal amount)
+        => start + ((end - start) * Math.Clamp(amount, 0m, 1m));
 
     // ---------- Deck Alteration (bounded: ±2 cards) ----------
 

@@ -228,7 +228,7 @@ public sealed record Lucky5DoubleUpOptions(
     int MaxSwitchesPerRound = 2,
     int FirstLuckyMultiplier = 4,
     int RepeatLuckyMultiplier = 2,
-    int MaxCreditLimit = 50_000_000,
+    int MaxCreditLimit = 40_000_000,
     bool AceCountsHiOrLo = true);
 
 public sealed record Lucky5DoubleUpSession(
@@ -272,18 +272,36 @@ public sealed record PresentationNoisePlan(
 public sealed record EngineConfig(
     // === Payout Scale ===
     decimal TargetRtp = 0.85m,
-    decimal DefaultPayoutScale = 1.72m,
-    decimal MinPayoutScale = 0.85m,
-    decimal MaxPayoutScale = 2.00m,
-    int WarmupRounds = 50,
-    decimal CorrectionGain = 0.80m,
-    decimal MaxCorrection = 0.25m,
-    decimal DeadZone = 0.01m,
-    decimal JitterAmplitude = 0.02m,
+    decimal TargetScaledBaseRtp = 0.725m,
+    decimal TargetJackpotRtp = 0.035m,
+    decimal TargetDoubleUpRtp = 0.090m,
+    decimal MinimumObservedBaseRtp = 0.3200m,
+    decimal DefaultPayoutScale = 1.92m,
+    decimal MinPayoutScale = 1.18m,
+    decimal MaxPayoutScale = 2.45m,
+    int WarmupRounds = 80,
+    int ConvergenceHorizon = 300,
+    decimal CorrectionGain = 1.10m,
+    decimal MaxCorrection = 0.35m,
+    decimal DeadZone = 0.0075m,
+    decimal JitterAmplitude = 0.03m,
+    decimal SmallTierFactor = 0.99m,
+    decimal MediumTierFactor = 1.05m,
+    decimal BigTierFactor = 1.12m,
+    decimal WarmupOpeningSmallScale = 1.98m,
+    decimal WarmupOpeningMediumScale = 2.05m,
+    decimal WarmupOpeningBigScale = 2.15m,
 
-    // === Double-Up Quantum Gate ===
-    decimal DoubleUpOfferAtTarget = 0.05m,
-    decimal DoubleUpOfferMax = 0.35m,
+    // === Double-Up Offer Curve ===
+    decimal DoubleUpOfferFloor = 0.08m,
+    decimal DoubleUpOfferOverTargetBand = 0.15m,
+    decimal DoubleUpOfferTargetBand = 0.28m,
+    decimal DoubleUpOfferRecoveryBand = 0.45m,
+    decimal DoubleUpOfferMax = 0.60m,
+    decimal DoubleUpHighDriftThreshold = 0.050m,
+    decimal DoubleUpTargetUpperThreshold = 0.020m,
+    decimal DoubleUpTargetLowerThreshold = -0.010m,
+    decimal DoubleUpRecoveryThreshold = -0.040m,
 
     // === Deck Alteration Bounds ===
     int MaxColdRemovals = 2,
@@ -300,18 +318,21 @@ public sealed record EngineConfig(
     int CooldownLength = 3,
 
     // === Soft Caps ===
-    decimal SoftCapWarning = 30_000_000m,
-    decimal SoftCapHard = 40_000_000m,
-    decimal CloseThreshold = 50_000_000m,
+    decimal SoftCapWarning = 24_000_000m,
+    decimal SoftCapHard = 32_000_000m,
+    decimal CloseThreshold = 40_000_000m,
 
     // === Jackpots (Replace Mode) ===
-    decimal JackpotFourOfAKindCap = 250_000m,
-    decimal JackpotFullHouseCap = 200_000m,
-    decimal JackpotStraightFlushCap = 1_500_000m,
-    int JackpotContributionPerRound = 550,
-    decimal JackpotFourOfAKindStart = 80_000m,
-    decimal JackpotFullHouseStart = 50_000m,
-    decimal JackpotStraightFlushStart = 300_000m
+    decimal JackpotFourOfAKindCap = 1_200_000m,
+    decimal JackpotFullHouseCap = 750_000m,
+    decimal JackpotStraightFlushCap = 8_500_000m,
+    int JackpotContributionPerRound = 725,
+    int JackpotFourOfAKindContribution = 175,
+    int JackpotFullHouseContribution = 120,
+    int JackpotStraightFlushContribution = 255,
+    decimal JackpotFourOfAKindStart = 160_000m,
+    decimal JackpotFullHouseStart = 100_000m,
+    decimal JackpotStraightFlushStart = 900_000m
 )
 {
     public static EngineConfig Default { get; } = new();

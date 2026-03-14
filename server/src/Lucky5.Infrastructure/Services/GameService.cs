@@ -717,6 +717,9 @@ switch (resolution.Outcome)
             ledger.JackpotFourOfAKindB = EngineCfg.JackpotFourOfAKindStart;
             ledger.JackpotStraightFlush = EngineCfg.JackpotStraightFlushStart;
             ledger.ActiveFourOfAKindSlot = 0;
+        }
+        lock (store.MachineSessions)
+        {
             foreach (var session in store.MachineSessions.Values.Where(s => s.MachineId == machineId))
             {
                 session.IsMachineClosed = false;

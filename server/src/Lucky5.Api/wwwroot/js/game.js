@@ -47,6 +47,13 @@ const RANK_NAMES = {
 
 const JACKPOT_HANDS = ['FourOfAKind', 'FullHouse', 'StraightFlush'];
 
+// Jackpot reset values must mirror EngineConfig defaults on the server.
+const JACKPOT_RESET = {
+    FullHouse:     100_000,
+    FourOfAKind:   160_000,
+    StraightFlush: 900_000
+};
+
 const HAND_DISPLAY = {
     'RoyalFlush': 'ROYAL FLUSH',
     'StraightFlush': 'STRAIGHT FLUSH',
@@ -1224,21 +1231,18 @@ function animateJackpotFill(amount, startBalance, handName) {
             // FH jackpot has no visible counter (center counter now shows SF);
             // animation is reflected only through credits/win-indicator.
             counterEl = null;
-            resetValue = 5_000_000;
         } else if (handName === 'FourOfAKind') {
             // slot 0 = counter-a, slot 1 = counter-b
-            if (active4kSlot === 0) {
-                counterEl = document.querySelector('#jp-counter-a .jp-cval');
-            } else {
-                counterEl = document.querySelector('#jp-counter-b .jp-cval');
-            }
-            resetValue = 200_000;
+            counterEl = document.querySelector(
+                active4kSlot === 0 ? '#jp-counter-a .jp-cval' : '#jp-counter-b .jp-cval'
+            );
         } else if (handName === 'StraightFlush') {
             counterEl = document.querySelector('#jp-counter-center .jp-cval');
-            resetValue = 4_000_000;
         }
+        resetValue = JACKPOT_RESET[handName] || 0;
 
-        const jackpotStart = resetValue + amount;
+        // Pre-win counter value equals the full amount won (entire jackpot is awarded).
+        const jackpotStart = amount;
         let startTime = null;
 
         function frame(ts) {

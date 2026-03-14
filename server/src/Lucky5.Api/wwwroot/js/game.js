@@ -18,6 +18,8 @@ let duSwitchesRemaining = 0;
 let duIsNoLoseActive = false;
 let duSessionStarted = false;
 let duDealerCard = null;
+let roundDoubleUpAvailable = false;
+let takeHalfUsedThisRound = false;
 let jackpots = null;
 let shuffleInterval = null;
 let takeScoreAnimating = false;
@@ -198,6 +200,28 @@ function showMessage(text, type) {
     const msg = $('#game-message');
     msg.textContent = text;
     msg.className = type || '';
+}
+
+function canStartDoubleUpFromWin() {
+    return gameState === 'win' && roundDoubleUpAvailable && winAmount > 0 && !duSessionStarted;
+}
+
+function showWinActionMessage() {
+    if (winAmount <= 0) {
+        return;
+    }
+
+    if (roundDoubleUpAvailable) {
+        showMessage(`WIN: ${formatNum(winAmount)} - DOUBLE UP`, 'win');
+        return;
+    }
+
+    if (takeHalfUsedThisRound) {
+        showMessage(`WIN: ${formatNum(winAmount)} - TAKE SCORE`, 'win');
+        return;
+    }
+
+    showMessage(`WIN: ${formatNum(winAmount)} - TAKE SCORE OR TAKE HALF`, 'win');
 }
 
 function updateWinIndicator(amount) {
@@ -468,10 +492,10 @@ function setButtonStates() {
     betBtn.disabled = !(gameState === 'idle' || gameState === 'doubleup');
     dealBtn.disabled = !(gameState === 'idle' || gameState === 'hold');
     cancelBtn.disabled = gameState !== 'hold';
-    bigBtn.disabled = !(gameState === 'doubleup' || gameState === 'win');
-    smallBtn.disabled = !(gameState === 'doubleup' || gameState === 'win');
+    bigBtn.disabled = !(gameState === 'doubleup' || canStartDoubleUpFromWin());
+    smallBtn.disabled = !(gameState === 'doubleup' || canStartDoubleUpFromWin());
     takeScoreBtn.disabled = !(gameState === 'win' || gameState === 'doubleup');
-    takeHalfBtn.disabled = !(gameState === 'win' || gameState === 'doubleup');
+    takeHalfBtn.disabled = !(gameState === 'win' || gameState === 'doubleup') || takeHalfUsedThisRound;
 
     holdBtns.forEach((btn, i) => {
         if (i === 0 && canAdjustJackpotRank()) {
@@ -738,6 +762,11 @@ async function doDeal() {
         updateWinIndicator(0);
         hideDuInfo();
         hideIdleTitle();
+        roundDoubleUpAvailable = false;
+        takeHalfUsedThisRound = false;
+        duSessionStarted = false;
+        duIsNoLoseActive = false;
+        duDealerCard = null;
 
         try {
             const result = await apiCall('POST', '/api/Game/cards/deal', {
@@ -818,6 +847,7 @@ async function doDeal() {
             setTimeout(() => {
                 const handName = result.handRank || 'Nothing';
                 currentHandRank = handName !== 'Nothing' ? handName : null;
+                roundDoubleUpAvailable = Boolean(result.doubleUpAvailable);
                 updatePaytable(currentHandRank);
                 handsPlayed++;
                 betResetPending = true;
@@ -856,7 +886,12 @@ async function doDeal() {
                                     showMessage('MACHINE CLOSED - TAKE SCORE / CASH OUT', 'win');
                                     return;
                                 }
-                                startDoubleUpFlow();
+                                if (roundDoubleUpAvailable) {
+                                    startDoubleUpFlow();
+                                } else {
+                                    showWinActionMessage();
+                                    setButtonStates();
+                                }
                             }
                         }, 500);
                     };
@@ -998,6 +1033,11 @@ function stopShuffle() {
 
 async function startDoubleUpFlow() {
     if (gameState !== 'win') return;
+    if (!roundDoubleUpAvailable || winAmount <= 0) {
+        showWinActionMessage();
+        setButtonStates();
+        return;
+    }
 
     try {
         const result = await apiCall('POST', '/api/Game/double-up/start', { roundId });
@@ -1020,6 +1060,13 @@ async function startDoubleUpFlow() {
         renderDoubleUpCards(duDealerCard, true, null);
         setButtonStates();
     } catch (e) {
+        if ((e.message || '').toLowerCase().includes('not available')) {
+            roundDoubleUpAvailable = false;
+            showWinActionMessage();
+            setButtonStates();
+            return;
+        }
+
         showMessage(e.message, 'lose');
     }
 }
@@ -1058,6 +1105,7 @@ async function doDoubleUp(guess) {
                     }
                 }, 900);
             } else if (result.status === 'SafeFail') {
+                roundDoubleUpAvailable = false;
                 triggerLucky5Flash();
                 winAmount = result.currentAmount;
                 balance = result.walletBalance;
@@ -1068,6 +1116,7 @@ async function doDoubleUp(guess) {
                 gameState = 'win';
                 setTimeout(() => exitDoubleUp(), 1200);
             } else if (result.status === 'MachineClosed') {
+                roundDoubleUpAvailable = false;
                 const closedAmount = result.currentAmount;
                 balance = result.walletBalance - closedAmount;
                 updateCredits();
@@ -1094,6 +1143,7 @@ async function doDoubleUp(guess) {
                     showMessage('PLACE YOUR BET');
                 }, 1200);
             } else {
+                roundDoubleUpAvailable = false;
                 winAmount = 0;
                 balance = result.walletBalance;
                 updateCredits();
@@ -1122,9 +1172,11 @@ function exitDoubleUp() {
     if (winAmount > 0) {
         gameState = 'win';
         setButtonStates();
-        showMessage(`WIN: ${formatNum(winAmount)} - TAKE OR DOUBLE`, 'win');
+        showWinActionMessage();
         showIdleTitle();
     } else {
+        roundDoubleUpAvailable = false;
+        takeHalfUsedThisRound = false;
         currentHandRank = null;
         gameState = 'idle';
         setButtonStates();
@@ -1255,6 +1307,8 @@ async function mainTakeScore() {
     stopShuffle();
     hideDuInfo();
     duSessionStarted = false;
+    roundDoubleUpAvailable = false;
+    takeHalfUsedThisRound = false;
     clearLucky5Effects();
 
     const amount = winAmount;
@@ -1295,6 +1349,7 @@ async function mainTakeHalf() {
         balance = result.walletBalance;
         updateCredits();
         winAmount = result.currentAmount;
+        takeHalfUsedThisRound = true;
         updateWinIndicator(winAmount);
 
         if (winAmount <= 0) {
@@ -1322,7 +1377,12 @@ async function mainTakeHalf() {
                 setButtonStates();
                 setTimeout(() => {
                     if (gameState === 'win') {
-                        startDoubleUpFlow();
+                        if (roundDoubleUpAvailable) {
+                            startDoubleUpFlow();
+                        } else {
+                            showWinActionMessage();
+                            setButtonStates();
+                        }
                     }
                 }, 800);
             }

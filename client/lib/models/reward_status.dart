@@ -15,7 +15,9 @@ class RewardStatus {
     return RewardStatus(
       roundId: json["roundId"] as String,
       status: json["status"] as String,
-      payoutAmount: (json["payoutAmount"] as num).toDouble(),
+      payoutAmount:
+          ((json["updatedWinAmount"] ?? json["payoutAmount"]) as num)
+              .toDouble(),
       walletBalance: (json["walletBalance"] as num).toDouble(),
     );
   }

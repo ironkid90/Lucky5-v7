@@ -416,6 +416,15 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
 
     public async Task<RewardStatusDto> DoubleUpAsync(Guid userId, DoubleUpRequest request, CancellationToken cancellationToken)
     {
+        if (!store.ActiveRounds.TryGetValue(request.RoundId, out var round) || round.UserId != userId)
+            throw new KeyNotFoundException("Round not found");
+
+        var sessionBank = RequireMachineSession(userId, round.MachineId, createIfMissing: false);
+        if (round.DoubleUpSession is null && !round.DoubleUpOffered)
+        {
+            return new RewardStatusDto(request.RoundId, "Unavailable", round.WinAmount, sessionBank.MachineCredits);
+        }
+
         var result = await GuessDoubleUpAsync(userId, request.RoundId, request.Guess, cancellationToken);
         var status = result.Status switch
         {
@@ -431,6 +440,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
     {
         if (!store.ActiveRounds.TryGetValue(roundId, out var round) || round.UserId != userId)
             throw new KeyNotFoundException("Round not found");
+        if (round.IsPayoutSettled)
+            throw new InvalidOperationException("Payout already settled");
         if (!round.IsCompleted || round.WinAmount <= 0)
             throw new InvalidOperationException("No win to double up");
         if (!round.DoubleUpOffered)
@@ -512,6 +523,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
     {
         if (!store.ActiveRounds.TryGetValue(roundId, out var round) || round.UserId != userId)
             throw new KeyNotFoundException("Round not found");
+        if (round.IsPayoutSettled)
+            throw new InvalidOperationException("Payout already settled");
         if (round.DoubleUpSession is null)
         {
             _ = await StartDoubleUpAsync(userId, roundId, cancellationToken);
@@ -624,6 +637,10 @@ switch (resolution.Outcome)
     {
         if (!store.ActiveRounds.TryGetValue(roundId, out var round) || round.UserId != userId)
             throw new KeyNotFoundException("Round not found");
+        if (round.IsPayoutSettled)
+            throw new InvalidOperationException("Payout already settled");
+        if (round.TakeHalfUsed)
+            throw new InvalidOperationException("Take-half already used this round");
         var session = RequireMachineSession(userId, round.MachineId, createIfMissing: false);
         var currentAmount = round.DoubleUpSession != null ? round.DoubleUpSession.CurrentAmount : (int)round.WinAmount;
         if (currentAmount <= 1) throw new InvalidOperationException("Amount too small to split");
@@ -634,6 +651,7 @@ switch (resolution.Outcome)
         session.LastUpdatedUtc = DateTime.UtcNow;
         session.IsMachineClosed = session.MachineCredits >= MachineCloseCredits;
         round.SettledAmount += half;
+        round.TakeHalfUsed = true;
         if (round.DoubleUpSession != null) round.DoubleUpSession = round.DoubleUpSession with { CurrentAmount = remaining };
         else round.WinAmount = remaining;
 

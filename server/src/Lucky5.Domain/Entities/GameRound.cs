@@ -18,6 +18,7 @@ public sealed class GameRound
     public bool IsPayoutSettled { get; set; }
     public bool IsCompleted { get; set; }
     public bool EnteredDoubleUp { get; set; }
+    public bool TakeHalfUsed { get; set; }
     public PokerCard? DoubleUpCard { get; set; }
     public DistributionMode DistributionMode { get; set; } = DistributionMode.Neutral;
     public ulong RoundEntropySeed { get; set; }

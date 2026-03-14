@@ -7,6 +7,7 @@ class DrawResult {
     required this.handRank,
     required this.winAmount,
     required this.walletBalanceAfterRound,
+    required this.doubleUpAvailable,
   });
 
   final String roundId;
@@ -14,6 +15,7 @@ class DrawResult {
   final String handRank;
   final double winAmount;
   final double walletBalanceAfterRound;
+  final bool doubleUpAvailable;
 
   factory DrawResult.fromJson(Map<String, dynamic> json) {
     return DrawResult(
@@ -24,6 +26,7 @@ class DrawResult {
       handRank: json["handRank"] as String,
       winAmount: (json["winAmount"] as num).toDouble(),
       walletBalanceAfterRound: (json["walletBalanceAfterRound"] as num).toDouble(),
+      doubleUpAvailable: json["doubleUpAvailable"] as bool? ?? true,
     );
   }
 }

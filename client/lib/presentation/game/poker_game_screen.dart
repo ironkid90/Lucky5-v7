@@ -199,7 +199,9 @@ class _PokerGameScreenState extends State<PokerGameScreen>
         _walletBalance = result.walletBalanceAfterRound;
         _loading = false;
         _message = result.winAmount > 0
-            ? "${result.handRank} pays ${result.winAmount.toStringAsFixed(0)} credits."
+            ? result.doubleUpAvailable
+                ? "${result.handRank} pays ${result.winAmount.toStringAsFixed(0)} credits. Double-up is available on supported cabinets."
+                : "${result.handRank} pays ${result.winAmount.toStringAsFixed(0)} credits. Cash out to continue."
             : "No win this hand.";
       });
     });
@@ -350,7 +352,9 @@ class _PokerGameScreenState extends State<PokerGameScreen>
         _walletBalance = result.walletBalanceAfterRound;
         _loading = false;
         _message = result.winAmount > 0
-            ? "${result.handRank} pays ${result.winAmount.toStringAsFixed(0)} credits."
+            ? result.doubleUpAvailable
+                ? "${result.handRank} pays ${result.winAmount.toStringAsFixed(0)} credits. Double-up is available on supported cabinets."
+                : "${result.handRank} pays ${result.winAmount.toStringAsFixed(0)} credits. Cash out to continue."
             : "No win this hand.";
       });
       unawaited(_restoreRealtimeSession());

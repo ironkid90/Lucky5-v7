@@ -3,10 +3,10 @@
 ## Context
 
 - **Playbook:** Mobile Polish
-- **Agent:** {{AGENT_NAME}}
-- **Project:** {{AGENT_PATH}}
-- **Auto Run Folder:** {{AUTORUN_FOLDER}}
-- **Loop:** {{LOOP_NUMBER}}
+- **Agent:** Opencode-02
+- **Project:** C:\Users\Gabi\Documents\GitHub\Lucky5-v7
+- **Auto Run Folder:** C:\Users\Gabi\Documents\GitHub\Lucky5-v7/.maestro/playbooks
+- **Loop:** 00001
 
 ## Objective
 
@@ -18,11 +18,11 @@ Analyze the React-based website to understand its current mobile-readiness state
 2. **Assess current mobile support** - Check viewport meta tag, responsive CSS, mobile testing setup
 3. **Identify navigation patterns** - Locate header/navbar components, understand current navigation structure
 4. **Document mobile-critical areas** - Forms, images, interactive elements, data tables
-5. **Output assessment report** to `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_MOBILE_ASSESSMENT.md`
+5. **Output assessment report** to `C:\Users\Gabi\Documents\GitHub\Lucky5-v7/.maestro/playbooks/LOOP_00001_MOBILE_ASSESSMENT.md`
 
 ## Analysis Checklist
 
-- [ ] **Assess mobile readiness (if needed)**: First check if `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_MOBILE_ASSESSMENT.md` already exists with tech stack and baseline assessment. If it does, skip the analysis and mark this task complete—the assessment is already in place. If it doesn't exist, examine the project structure, identify frameworks and libraries, check for existing mobile optimizations, and document current state.
+- [ ] **Assess mobile readiness (if needed)**: First check if `C:\Users\Gabi\Documents\GitHub\Lucky5-v7/.maestro/playbooks/LOOP_00001_MOBILE_ASSESSMENT.md` already exists with tech stack and baseline assessment. If it does, skip the analysis and mark this task complete—the assessment is already in place. If it doesn't exist, examine the project structure, identify frameworks and libraries, check for existing mobile optimizations, and document current state.
 
 ## What to Identify
 
@@ -79,10 +79,10 @@ Identify components that need mobile optimization:
 
 ## Output Format
 
-Create `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_MOBILE_ASSESSMENT.md` with:
+Create `C:\Users\Gabi\Documents\GitHub\Lucky5-v7/.maestro/playbooks/LOOP_00001_MOBILE_ASSESSMENT.md` with:
 
 ```markdown
-# Mobile Assessment Report - Loop {{LOOP_NUMBER}}
+# Mobile Assessment Report - Loop 00001
 
 ## Tech Stack
 

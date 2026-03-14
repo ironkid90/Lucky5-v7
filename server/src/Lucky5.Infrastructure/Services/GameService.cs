@@ -748,10 +748,22 @@ switch (resolution.Outcome)
                 ledger.CapitalOut += ledgerDelta;
                 ledger.DoubleUpCapitalOut += ledgerDelta;
             }
-            if (cashoutCredits > round.OriginalWinAmount) ledger.LastWinChannel = WinChannel.DoubleUp;
-            else if (round.JackpotWinAmount > 0) ledger.LastWinChannel = WinChannel.Jackpot;
-            else if (cashoutCredits > 0) ledger.LastWinChannel = WinChannel.BaseGame;
-            else ledger.LastWinChannel = WinChannel.None;
+            if (cashoutCredits <= 0)
+            {
+                ledger.LastWinChannel = WinChannel.None;
+            }
+            else if (cashoutCredits > round.OriginalWinAmount)
+            {
+                ledger.LastWinChannel = WinChannel.DoubleUp;
+            }
+            else if (round.JackpotWinAmount > 0)
+            {
+                ledger.LastWinChannel = WinChannel.Jackpot;
+            }
+            else
+            {
+                ledger.LastWinChannel = WinChannel.BaseGame;
+            }
             ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
         }
         store.Ledger.Add(new WalletLedgerEntry

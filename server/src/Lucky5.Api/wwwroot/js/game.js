@@ -1707,6 +1707,7 @@ async function loadWalletHistory() {
 }
 
 function formatTransactionType(type) {
+    if (!type) return 'UNKNOWN';
     const map = {
         'Bet': 'BET',
         'Win': 'WIN',
@@ -1792,15 +1793,19 @@ async function adminAdjustWallet(userId, isDebit) {
     if (!amount || amount <= 0) return;
     const reason = prompt('Reason / note:', isDebit ? 'manual debit' : 'manual credit');
     if (!reason) return;
-    await apiCall('POST', '/api/Admin/users/credit', {
-        targetUserId: userId,
-        amount: isDebit ? -amount : amount,
-        reason
-    });
-    loadAdminUsers(document.getElementById('admin-user-search')?.value || '');
-    const profile = await apiCall('GET', '/api/Auth/GetUserById');
-    walletBalance = profile.walletBalance;
-    updateLobbyBalance();
+    try {
+        await apiCall('POST', '/api/Admin/users/credit', {
+            targetUserId: userId,
+            amount: isDebit ? -amount : amount,
+            reason
+        });
+        loadAdminUsers(document.getElementById('admin-user-search')?.value || '');
+        const profile = await apiCall('GET', '/api/Auth/GetUserById');
+        walletBalance = profile.walletBalance;
+        updateLobbyBalance();
+    } catch (e) {
+        alert('Failed: ' + e.message);
+    }
 }
 
 async function loadAdminMachines() {
@@ -1817,13 +1822,21 @@ async function loadAdminMachines() {
         adminMachines.forEach(machine => {
             const row = document.createElement('div');
             row.className = 'wallet-history-row';
+            const obsRtp = (Number(machine.observedRtp || 0) * 100).toFixed(2);
+            const tgtRtp = (Number(machine.targetRtp || 0) * 100).toFixed(2);
+            const sessionsHtml = (machine.sessions || []).map(s =>
+                `<div class="wallet-history-date">\u25B6 ${(s.username || 'unknown').toUpperCase()} \u2022 ${formatNum(s.machineCredits)} CR \u2022 IN ${formatNum(s.totalCashIn)}${s.isMachineClosed ? ' \u2022 CLOSED' : ''}</div>`
+            ).join('');
             row.innerHTML = `
                 <div class="wallet-history-info">
-                    <div class="wallet-history-type">#${machine.machineId} ${machine.name}</div>
-                    <div class="wallet-history-date">RTP ${(Number(machine.observedRtp || 0) * 100).toFixed(2)}% / TARGET ${(Number(machine.targetRtp || 0) * 100).toFixed(2)}% / ${machine.phase}</div>
-                    <div class="wallet-history-date">NET ${formatNum(machine.netSinceLastClose || 0)} • 5♠ DROUGHT ${machine.roundsSinceLucky5Hit || 0} • LIVE ${machine.activeRounds || 0}</div>
-                    <div class="wallet-history-date">FH ${formatNum(machine.jackpotFullHouse || 0)} (${RANK_NAMES[machine.jackpotFullHouseRank] || 'A'}) • 4K ${formatNum(machine.jackpotFourOfAKindA || 0)} / ${formatNum(machine.jackpotFourOfAKindB || 0)} • SF ${formatNum(machine.jackpotStraightFlush || 0)}</div>
-                    ${(machine.sessions || []).map(s => `<div class="wallet-history-date">PLAYER ${s.username} • CREDITS ${formatNum(s.machineCredits)} • CASH IN ${formatNum(s.totalCashIn)}${s.isMachineClosed ? ' • CLOSED' : ''}</div>`).join('')}
+                    <div class="wallet-history-type">#${machine.machineId} ${machine.name || 'MACHINE'}</div>
+                    <div class="wallet-history-date">RTP ${obsRtp}% / TGT ${tgtRtp}% / ${machine.phase || 'N/A'}</div>
+                    <div class="wallet-history-date">NET ${formatNum(machine.netSinceLastClose || 0)}</div>
+                    <div class="wallet-history-date">5\u2660 DROUGHT ${machine.roundsSinceLucky5Hit || 0} \u2022 LIVE ${machine.activeRounds || 0}</div>
+                    <div class="wallet-history-date">FH ${formatNum(machine.jackpotFullHouse || 0)} (${RANK_NAMES[machine.jackpotFullHouseRank] || 'A'})</div>
+                    <div class="wallet-history-date">4K-A ${formatNum(machine.jackpotFourOfAKindA || 0)} / 4K-B ${formatNum(machine.jackpotFourOfAKindB || 0)}</div>
+                    <div class="wallet-history-date">SF ${formatNum(machine.jackpotStraightFlush || 0)}</div>
+                    ${sessionsHtml}
                 </div>
                 <div style="display:flex;align-items:flex-start;">
                     <button class="lobby-btn lobby-btn-sm" data-reset-machine="${machine.machineId}">RESET</button>

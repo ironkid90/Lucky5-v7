@@ -330,12 +330,12 @@ public sealed record EngineConfig(
     int JackpotStraightFlushContribution = 210,       // ↓ from 255→240→210 - controlled progression
     decimal JackpotFourOfAKindStart = 140_000m,       // ↓ from 160k - reduce post-reset RTP spikes
     decimal JackpotFullHouseStart = 90_000m,          // ↓ from 100k - smoother reset
-    decimal JackpotStraightFlushStart = 850_000m      // ↓ from 900k - consistent with caps
+    decimal JackpotStraightFlushStart = 850_000m,     // ↓ from 900k - consistent with caps
+    decimal TargetJackpotRtp = 0.035m                  // 3.5% from jackpots, now externally tunable
 )
 {
     public static EngineConfig Default { get; } = new();
 
     // Computed properties for convenience
     public decimal TargetScaledBaseRtp => TargetRtp - TargetJackpotRtp - TargetDoubleUpRtp;
-    public decimal TargetJackpotRtp => 0.035m;  // 3.5% from jackpots
 }

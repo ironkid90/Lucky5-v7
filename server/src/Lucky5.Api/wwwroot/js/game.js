@@ -1169,7 +1169,15 @@ async function doDoubleUp(guess) {
                     currentHandRank = null;
                     showIdleTitle();
                     setButtonStates();
-                    showMessage('PLACE YOUR BET');
+                    showMessage('MACHINE CLOSED - CASHING OUT...', 'win');
+                    try {
+                        const session = await cashOutMachine();
+                        balance = session.walletBalance;
+                        updateCredits();
+                        showMessage('CASHED OUT - MACHINE READY', 'win');
+                    } catch (_) {
+                        showMessage('MACHINE CLOSED - PLEASE CASH OUT', 'win');
+                    }
                 }, 1200);
             } else {
                 roundDoubleUpAvailable = false;
@@ -1348,6 +1356,7 @@ async function mainTakeScore() {
     currentHandRank = null;
     showIdleTitle();
 
+    let machineClosed = false;
     try {
         const result = await apiCall('POST', '/api/Game/double-up/cashout', { roundId });
         const cashoutAmount = result.currentAmount;
@@ -1355,13 +1364,26 @@ async function mainTakeScore() {
         await animateDrainToCredits(cashoutAmount, balance);
         balance = result.walletBalance;
         updateCredits();
+
+        if (result.status === 'MachineClosed') {
+            machineClosed = true;
+            showMessage('MACHINE CLOSED - CASHING OUT...', 'win');
+            try {
+                const session = await cashOutMachine();
+                balance = session.walletBalance;
+                updateCredits();
+                showMessage('CASHED OUT - MACHINE READY', 'win');
+            } catch (_) {
+                showMessage('MACHINE CLOSED - PLEASE CASH OUT', 'win');
+            }
+        }
     } catch (e) {
         balance += amount;
         updateCredits();
     }
 
     setButtonStates();
-    showMessage('PLACE YOUR BET');
+    if (!machineClosed) showMessage('PLACE YOUR BET');
 }
 
 async function mainTakeHalf() {

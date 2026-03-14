@@ -109,6 +109,11 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
             ledger.JackpotStraightFlush = cfg.JackpotStraightFlushStart;
         }
 
+        foreach (var session in store.MachineSessions.Values.Where(s => s.MachineId == machineId))
+        {
+            session.IsMachineClosed = false;
+        }
+
         store.Ledger.Add(new WalletLedgerEntry
         {
             UserId = adminId,

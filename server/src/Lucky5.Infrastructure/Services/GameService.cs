@@ -86,12 +86,23 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
         if (!CanCashOut(session))
             throw new InvalidOperationException("Cash out requires machine closed or at least 2x your total cash-in");
 
+        var wasClosed = session.IsMachineClosed;
         var amount = session.MachineCredits;
         profile.WalletBalance += amount;
         session.MachineCredits = 0;
         session.TotalCashIn = 0;
         session.IsMachineClosed = false;
         session.LastUpdatedUtc = DateTime.UtcNow;
+
+        if (wasClosed)
+        {
+            lock (store.LedgerSync)
+            {
+                var ledger = RequireMachineLedger(machineId);
+                ledger.NetSinceLastClose = 0;
+                ledger.LastCloseRoundNumber = ledger.RoundCount;
+            }
+        }
 
         store.Ledger.Add(new WalletLedgerEntry
         {
@@ -596,7 +607,8 @@ switch (resolution.Outcome)
             });
         }
 
-        return Task.FromResult(new DoubleUpResultDto(roundId, "Cashout", cashoutAmount, session.MachineCredits));
+        var status = session.IsMachineClosed ? "MachineClosed" : "Cashout";
+        return Task.FromResult(new DoubleUpResultDto(roundId, status, cashoutAmount, session.MachineCredits));
     }
 
     public Task<DoubleUpResultDto> TakeHalfAsync(Guid userId, Guid roundId, CancellationToken cancellationToken)
@@ -705,6 +717,10 @@ switch (resolution.Outcome)
             ledger.JackpotFourOfAKindB = EngineCfg.JackpotFourOfAKindStart;
             ledger.JackpotStraightFlush = EngineCfg.JackpotStraightFlushStart;
             ledger.ActiveFourOfAKindSlot = 0;
+        }
+        foreach (var session in store.MachineSessions.Values.Where(s => s.MachineId == machineId))
+        {
+            session.IsMachineClosed = false;
         }
         return Task.FromResult<object>(new { success = true, message = "Machine state reset" });
     }

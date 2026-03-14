@@ -26,7 +26,7 @@ body {
 #game-container {
     width: 100%;
     height: 100%;
-    max-width: 480px;
+    max-width: 540px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -1935,4 +1935,248 @@ body {
     color: #fff;
     font-family: 'Press Start 2P', monospace;
     font-size: 8px;
+}
+
+.admin-input-lite::placeholder {
+    color: #666;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+}
+
+/* ── Admin panel improvements ── */
+.admin-body .wallet-deposit-withdraw {
+    flex-wrap: wrap;
+}
+
+.admin-body .wallet-history-title {
+    margin-top: 8px;
+}
+
+.admin-body .wallet-history-row {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.admin-body .wallet-history-row > div:last-child {
+    align-self: flex-end;
+}
+
+.admin-body .wallet-history-date {
+    font-size: 6px;
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+/* ── Safe-area insets for notched devices ── */
+.lobby-top-bar,
+.wallet-header {
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+}
+
+.lobby-nav-bar {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+#game-back-bar {
+    top: max(4px, env(safe-area-inset-top));
+    left: max(4px, env(safe-area-inset-left));
+}
+
+/* ── Lobby game grid visual improvements ── */
+.game-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    background: radial-gradient(ellipse at 50% 20%, rgba(255,215,0,0.04) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+/* ── Desktop-wide layouts (≥768px) ── */
+@media (min-width: 768px) {
+    #game-container {
+        max-width: 540px;
+    }
+
+    #lobby-screen,
+    #wallet-screen,
+    #admin-screen {
+        background:
+            radial-gradient(ellipse at 50% 10%, rgba(139,105,20,0.08) 0%, transparent 50%),
+            #0a0a0a;
+    }
+
+    .admin-body {
+        padding: 24px 32px;
+    }
+
+    .admin-body .wallet-deposit-withdraw {
+        flex-wrap: nowrap;
+    }
+
+    .admin-body .wallet-history-row {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .admin-body .wallet-history-row > div:last-child {
+        align-self: center;
+    }
+
+    .admin-body .wallet-history-date {
+        font-size: 7px;
+    }
+
+    .lobby-top-bar {
+        padding: 16px 32px;
+    }
+
+    .wallet-header {
+        padding: 16px 32px;
+    }
+
+    .game-card {
+        min-height: 180px;
+        padding: 20px 16px;
+    }
+
+    .game-card-icon {
+        width: 72px;
+        height: 72px;
+        font-size: 40px;
+    }
+
+    .game-card-name {
+        font-size: 10px;
+    }
+}
+
+/* ── Small mobile tweaks (≤420px) ── */
+@media (max-width: 420px) {
+    .lobby-top-bar {
+        padding: 10px 12px;
+    }
+
+    .lobby-body {
+        padding: 12px;
+        gap: 14px;
+    }
+
+    .lobby-game-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .game-card {
+        min-height: 140px;
+        padding: 12px 8px;
+    }
+
+    .game-card-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 28px;
+    }
+
+    .game-card-name {
+        font-size: 7px;
+    }
+
+    .game-card-badge {
+        font-size: 5px;
+        padding: 3px 6px;
+    }
+
+    .wallet-deposit-withdraw {
+        flex-direction: column;
+    }
+
+    .admin-body .wallet-deposit-withdraw {
+        gap: 8px;
+    }
+
+    .admin-input-lite {
+        font-size: 7px;
+        padding: 8px 10px;
+    }
+}
+
+/* ── Very small screens (≤320px) ── */
+@media (max-width: 320px) {
+    .lobby-balance-value,
+    .lobby-wallet-bal-value {
+        font-size: 10px;
+    }
+
+    .lobby-username {
+        max-width: 60px;
+        font-size: 6px;
+    }
+
+    .lobby-btn {
+        font-size: 7px;
+        padding: 8px 12px;
+        min-height: 38px;
+    }
+
+    .lobby-btn-sm {
+        font-size: 6px;
+        padding: 6px 10px;
+        min-height: 38px;
+    }
+
+    .wallet-balance-amount {
+        font-size: 14px;
+    }
+
+    .lobby-nav-label {
+        font-size: 6px;
+    }
+
+    .lobby-nav-icon {
+        font-size: 14px;
+    }
+}
+
+/* ── Landscape phone orientation ── */
+@media (max-height: 500px) and (orientation: landscape) {
+    #card-area {
+        height: 20vh;
+        max-height: 130px;
+    }
+
+    .cab-hold {
+        height: 42px;
+    }
+
+    .cab-big, .cab-small, .cab-cancel, .cab-deal, .cab-bet {
+        height: 48px;
+    }
+
+    .cab-takehalf, .cab-takescore {
+        height: 48px;
+    }
+
+    .cab-menu {
+        width: 40px;
+        height: 40px;
+        font-size: 14px !important;
+    }
+
+    #paytable {
+        padding: 2px 10px 0;
+    }
+
+    .pay-row {
+        font-size: 8px;
+        line-height: 1.3;
+    }
+
+    #controls {
+        padding: 4px 10px 6px;
+        gap: 4px;
+    }
 }

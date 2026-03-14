@@ -267,12 +267,12 @@ function updateJackpotDisplay(jp) {
     }
     if (!jackpots) return;
 
-    // New machine-info-block jackpot counters
+    // Machine-info-block jackpot counters: 4K-A (left), SF (center), 4K-B (right)
     const jpA = document.querySelector('#jp-counter-a .jp-cval');
     const jpCenter = document.querySelector('#jp-counter-center .jp-cval');
     const jpB = document.querySelector('#jp-counter-b .jp-cval');
     if (jpA) jpA.textContent = formatNum(jackpots.fourOfAKindA || 0);
-    if (jpCenter) jpCenter.textContent = formatNum(jackpots.fullHouse || 0);
+    if (jpCenter) jpCenter.textContent = formatNum(jackpots.straightFlush || 0);
     if (jpB) jpB.textContent = formatNum(jackpots.fourOfAKindB || 0);
 
     // Machine serial (sum of jackpots as stand-in)
@@ -939,8 +939,22 @@ function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
 
     stopShuffle();
 
-    // Render all trail cards (oldest first, left to right)
-    for (let i = 0; i < duCardTrail.length; i++) {
+    // Pagination: fit cards into pages of DU_PAGE_SIZE slots.
+    // When a page is full, the last card of the current page becomes
+    // the first card of the next page.
+    const DU_PAGE_SIZE = 4;
+    const extraCount = (challengerCard || showShuffle) ? 1 : 0;
+    const maxTrailOnPage = DU_PAGE_SIZE - extraCount;
+    let startIndex = 0;
+    if (duCardTrail.length > maxTrailOnPage && maxTrailOnPage > 1) {
+        const step = maxTrailOnPage - 1;
+        const overshoot = duCardTrail.length - maxTrailOnPage;
+        const pages = Math.ceil(overshoot / step);
+        startIndex = pages * step;
+    }
+
+    // Render visible trail cards (current page only)
+    for (let i = startIndex; i < duCardTrail.length; i++) {
         const entry = duCardTrail[i];
         const slot = document.createElement('div');
         slot.className = 'du-card-slot du-trail-card';
@@ -988,9 +1002,6 @@ function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
         area.appendChild(challSlot);
         startShuffle();
     }
-
-    // Scroll trail to show the rightmost (newest) cards
-    area.scrollLeft = area.scrollWidth;
 }
 
 let shuffleRAF = null;
@@ -1206,7 +1217,7 @@ function animateJackpotFill(amount, startBalance, handName) {
         let resetValue = 0;
 
         if (handName === 'FullHouse') {
-            counterEl = document.querySelector('#jp-counter-center .jp-cval');
+            counterEl = null;
             resetValue = 5_000_000;
         } else if (handName === 'FourOfAKind') {
             // slot 0 = counter-a, slot 1 = counter-b
@@ -1217,10 +1228,8 @@ function animateJackpotFill(amount, startBalance, handName) {
             }
             resetValue = 200_000;
         } else if (handName === 'StraightFlush') {
-            // StraightFlush jackpot is not shown in the three main counters;
-            // animation is reflected only through credits/win-indicator
-            counterEl = null;
-            resetValue = 0;
+            counterEl = document.querySelector('#jp-counter-center .jp-cval');
+            resetValue = 4_000_000;
         }
 
         const jackpotStart = resetValue + amount;

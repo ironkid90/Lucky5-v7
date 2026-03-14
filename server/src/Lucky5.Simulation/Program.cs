@@ -525,14 +525,16 @@ enum PlayerBehavior
 
 sealed class SessionState
 {
+    private const decimal DefaultStartingSessionCredits = 1_000_000m;
+
     public decimal MachineCredits { get; set; }
     public decimal SessionCashIn { get; set; }
     public bool PendingReset { get; set; }
 
     public void StartNewSession()
     {
-        MachineCredits = StartingSessionCredits;
-        SessionCashIn = StartingSessionCredits;
+        MachineCredits = DefaultStartingSessionCredits;
+        SessionCashIn = DefaultStartingSessionCredits;
         PendingReset = false;
     }
 

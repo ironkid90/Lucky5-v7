@@ -275,7 +275,7 @@ public sealed record EngineConfig(
     decimal TargetRtp = 0.85m,
     decimal TargetDoubleUpRtp = 0.090m,
     decimal MinimumObservedBaseRtp = 0.3800m,         // ↑ from 0.3200m - better reflects actual base game
-    decimal DefaultPayoutScale = 1.95m,               // ↑ from 1.92m - lift equilibrium orbit slightly
+    decimal DefaultPayoutScale = 2.00m,               // ↑ from 1.92→1.95→2.00 - optimal equilibrium orbit
     decimal MinPayoutScale = 1.25m,                   // ↑ from 1.18m - raise floor for smoother convergence
     decimal MaxPayoutScale = 2.35m,                   // ↓ from 2.45m - lower ceiling to prevent overshoot
     int WarmupRounds = 60,                            // ↓ from 80 - faster transition to live control
@@ -325,13 +325,17 @@ public sealed record EngineConfig(
     decimal JackpotFourOfAKindCap = 1_000_000m,       // ↓ from 1.2M - hit more frequently
     decimal JackpotFullHouseCap = 650_000m,           // ↓ from 750k - better engagement
     decimal JackpotStraightFlushCap = 7_500_000m,     // ↓ from 8.5M - more reachable
-    int JackpotFourOfAKindContribution = 150,         // ↓ from 175 - prevent caps too quickly
-    int JackpotFullHouseContribution = 110,           // ↓ from 120 - balanced growth
-    int JackpotStraightFlushContribution = 240,       // ↓ from 255 - controlled progression
+    int JackpotFourOfAKindContribution = 125,         // ↓ from 175→150→125 - target 3.5% jackpot RTP
+    int JackpotFullHouseContribution = 95,            // ↓ from 120→110→95 - balanced growth toward 3.5%
+    int JackpotStraightFlushContribution = 210,       // ↓ from 255→240→210 - controlled progression
     decimal JackpotFourOfAKindStart = 140_000m,       // ↓ from 160k - reduce post-reset RTP spikes
     decimal JackpotFullHouseStart = 90_000m,          // ↓ from 100k - smoother reset
     decimal JackpotStraightFlushStart = 850_000m      // ↓ from 900k - consistent with caps
 )
 {
     public static EngineConfig Default { get; } = new();
+
+    // Computed properties for convenience
+    public decimal TargetScaledBaseRtp => TargetRtp - TargetJackpotRtp - TargetDoubleUpRtp;
+    public decimal TargetJackpotRtp => 0.035m;  // 3.5% from jackpots
 }

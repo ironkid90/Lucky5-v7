@@ -1,7 +1,7 @@
 # Lucky5 Game Rebalancing Plan - 85% RTP Target
 
 **Date**: 2026-03-14
-**Status**: Proposal for Review
+**Status**: Historical proposal (see CoreModels.EngineConfig for current defaults)
 **Target**: 85% RTP with preserved tension, fun, and adrenaline
 
 ---
@@ -436,6 +436,7 @@ public sealed record EngineConfig(
     decimal CloseThreshold = 40_000_000m,           // ✓ unchanged
 
     // === Jackpots (Replace Mode) ===
+    // NOTE: Historical proposal snapshot. Current EngineConfig defaults in CoreModels.cs are the source of truth and may differ.
     decimal JackpotFourOfAKindCap = 1_000_000m,     // ↓ from 1_200_000m
     decimal JackpotFullHouseCap = 650_000m,         // ↓ from 750_000m
     decimal JackpotStraightFlushCap = 7_500_000m,   // ↓ from 8_500_000m

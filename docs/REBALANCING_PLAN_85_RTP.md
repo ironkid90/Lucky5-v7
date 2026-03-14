@@ -1,7 +1,7 @@
 # Lucky5 Game Rebalancing Plan - 85% RTP Target
 
 **Date**: 2026-03-14
-**Status**: Historical proposal (see CoreModels.EngineConfig for current defaults)
+**Status**: Proposal for Review
 **Target**: 85% RTP with preserved tension, fun, and adrenaline
 
 ---
@@ -56,8 +56,8 @@ This plan proposes a comprehensive rebalancing of the Lucky5 game to achieve a s
 
 | Parameter | Current | Proposed | Reason |
 |-----------|---------|----------|--------|
-| `TargetRtp` | 0.85m | 0.85m | ✓ Already correct |
-| `TargetDoubleUpRtp` | 0.090m | 0.090m | ✓ Already correct |
+| `TargetRtp` | 0.85m | 0.85m | Already correct |
+| `TargetDoubleUpRtp` | 0.090m | 0.090m | Already correct |
 | `DefaultPayoutScale` | 1.92m | **1.95m** | Lift equilibrium orbit slightly |
 | `MinPayoutScale` | 1.18m | **1.25m** | Raise floor for smoother convergence |
 | `MaxPayoutScale` | 2.45m | **2.35m** | Lower ceiling to prevent overshoot |
@@ -95,8 +95,8 @@ This plan proposes a comprehensive rebalancing of the Lucky5 game to achieve a s
 | `BigTierFactor` | 1.12m | **1.08m** | Tighten big-win bonus |
 
 **Rationale**:
-- Removing small-tier penalty (0.99→1.00) helps 2-pair/3-of-kind players
-- Tightening medium/big bonuses (1.05→1.04, 1.12→1.08) prevents jackpot overshoot
+- Removing small-tier penalty (0.99-1.00) helps 2-pair/3-of-kind players
+- Tightening medium/big bonuses (1.05-1.04, 1.12-1.08) prevents jackpot overshoot
 - Narrower spread = more predictable RTP control
 
 ### 2.4 Warmup Parameters
@@ -106,7 +106,7 @@ This plan proposes a comprehensive rebalancing of the Lucky5 game to achieve a s
 | `WarmupRounds` | 80 | **60** | Faster transition to live control |
 | `WarmupOpeningSmallScale` | 1.98m | **2.00m** | Slightly more generous start |
 | `WarmupOpeningMediumScale` | 2.05m | **2.08m** | Better first impression |
-| `WarmupOpeningBigScale` | 2.15m | **2.15m** | ✓ Keep jackpot dream alive early |
+| `WarmupOpeningBigScale` | 2.15m | **2.15m** | Keep jackpot dream alive early |
 
 **Rationale**:
 - 60-round warmup (vs 80) gets to equilibrium faster
@@ -124,11 +124,11 @@ This plan proposes a comprehensive rebalancing of the Lucky5 game to achieve a s
 
 | Drift vs Target | Current Offer | Proposed Offer | Change |
 |-----------------|---------------|----------------|--------|
-| ≥ +5.0% (hot) | 8% | **15%** | +7% (keep alive) |
-| +2.0% to +5.0% | 15%→8% linear | **20%→15%** linear | +5% band |
+| >= +5.0% (hot) | 8% | **15%** | +7% (keep alive) |
+| +2.0% to +5.0% | 15%-8% linear | **20%-15%** linear | +5% band |
 | -1.0% to +2.0% (target) | 28% | **30%** | +2% |
-| -4.0% to -1.0% | 28%→45% linear | **30%→50%** linear | +2-5% |
-| ≤ -4.0% (cold) | 60% | **65%** | +5% |
+| -4.0% to -1.0% | 28%-45% linear | **30%-50%** linear | +2-5% |
+| <= -4.0% (cold) | 60% | **65%** | +5% |
 
 **Rationale**:
 - Never drop below 15% (vs 8%) keeps the feature visible
@@ -164,21 +164,6 @@ This plan proposes a comprehensive rebalancing of the Lucky5 game to achieve a s
 | Full House | 100,000 | **90,000** | 750,000 | **650,000** | 120 | **110** |
 | Straight Flush | 900,000 | **850,000** | 8,500,000 | **7,500,000** | 255 | **240** |
 | **Total Contrib** | 725/round | **650/round** | | | | |
-
-**Target RTP Calculation**:
-```
-Average jackpot value ≈ (Start + Cap) / 2
-Total avg pool = 4K-A avg + 4K-B avg + FH avg + SF avg
-               = (140k+1000k)/2 + (140k+1000k)/2 + (90k+650k)/2 + (850k+7500k)/2
-               = 570k + 570k + 370k + 4175k
-               = 5,685,000
-
-Per-round contribution = 650
-Target hit frequency to contribute 3.5% at 10k bet:
-  3.5% of 10,000 = 350 per round
-  650 contribution / expected hit rate = 350
-  Hit rate ≈ 0.54% (roughly 1 in 185 rounds)
-```
 
 **Rationale**:
 - Lower start values reduce post-reset RTP spikes
@@ -227,10 +212,10 @@ Target hit frequency to contribute 3.5% at 10k bet:
 |-----------|---------|----------|--------|
 | `SoftCapWarning` | 24,000,000 | **28,000,000** | More headroom before warnings |
 | `SoftCapHard` | 32,000,000 | **35,000,000** | Allow bigger runs |
-| `CloseThreshold` | 40,000,000 | **40,000,000** | ✓ Keep as-is (already lowered) |
+| `CloseThreshold` | 40,000,000 | **40,000,000** | Keep as-is (already lowered) |
 
 **Rationale**:
-- Raising soft caps (24M→28M, 32M→35M) allows more dramatic builds
+- Raising soft caps (24M-28M, 32M-35M) allows more dramatic builds
 - Close threshold at 40M is already correct (down from 50M)
 - Players can hit meaningful milestones before machine close
 - Maintains adrenaline of potential close without hitting it too often
@@ -255,12 +240,12 @@ Target hit frequency to contribute 3.5% at 10k bet:
 
 | Parameter | Current | Proposed | Reason |
 |-----------|---------|----------|--------|
-| `MaxHotAdditions` | 2 | **2** | ✓ Keep as-is |
-| `NeverRemoveFiveOfSpades` | true | **true** | ✓ Protect Lucky5 fantasy |
+| `MaxHotAdditions` | 2 | **2** | Keep as-is |
+| `NeverRemoveFiveOfSpades` | true | **true** | Protect Lucky5 fantasy |
 
 **Rationale**:
 - Keep hot additions at 2 for pity mechanisms
-- Always protect 5♠ to preserve Lucky5 switch fantasy
+- Always protect 5-of-spades to preserve Lucky5 switch fantasy
 
 ---
 
@@ -300,10 +285,10 @@ Target hit frequency to contribute 3.5% at 10k bet:
 ## 9. Expected Outcomes
 
 ### 9.1 RTP Distribution
-- **Base Game**: 72.50% (↑6.70 points from current 65.80%)
+- **Base Game**: 72.50% (up 6.70 points from current 65.80%)
 - **Jackpots**: 3.50% (current ~2-3%, more consistent)
 - **Double-Up**: 9.00% (current ~4%, improved offer curve)
-- **Total**: 85.00% ±0.5% over 100k+ rounds
+- **Total**: 85.00% +/-0.5% over 100k+ rounds
 
 ### 9.2 Player Experience
 - **Hit Frequency**: 24-28% (unchanged, sparse Lebanese feel)
@@ -314,138 +299,119 @@ Target hit frequency to contribute 3.5% at 10k bet:
 - **Streak Recovery**: Faster pity activation, less frustration
 
 ### 9.3 Tension & Excitement
-- ✅ Sparse hits maintain tension
-- ✅ Meaningful wins when they land
-- ✅ Unlimited double-up chains preserved
-- ✅ Ace auto-win preserved
-- ✅ Lucky5 switch fantasy preserved
-- ✅ Machine-closing runs still happen
-- ✅ Adrenaline moments throughout session
+- Sparse hits maintain tension
+- Meaningful wins when they land
+- Unlimited double-up chains preserved
+- Ace auto-win preserved
+- Lucky5 switch fantasy preserved
+- Machine-closing runs still happen
+- Adrenaline moments throughout session
 
 ---
 
 ## 10. Risk Assessment
 
 ### Low Risk
-- ✅ No core rule changes
-- ✅ All changes are configuration-based
-- ✅ Easy to revert if needed
-- ✅ Can iterate quickly
+- No core rule changes
+- All changes are configuration-based
+- Easy to revert if needed
+- Can iterate quickly
 
 ### Medium Risk
-- ⚠️ Double-up offer curve changes might over/under-engage
-- ⚠️ Jackpot adjustments might affect excitement
+- Double-up offer curve changes might over/under-engage
+- Jackpot adjustments might affect excitement
 - **Mitigation**: Monitor simulation carefully, adjust iteratively
 
 ### High Risk
-- ❌ None identified (all changes are reversible and data-driven)
+- None identified (all changes are reversible and data-driven)
 
 ---
 
 ## 11. Success Criteria
 
 ### Must Have
-1. ✅ Total RTP converges to 85% ±0.5% over 100k rounds
-2. ✅ Base game contributes ~72.5% (scaled)
-3. ✅ Jackpots contribute ~3.5%
-4. ✅ Double-up contributes ~9.0%
-5. ✅ No core rules changed (Ace, Lucky5, paytable)
+1. Total RTP converges to 85% +/-0.5% over 100k rounds
+2. Base game contributes ~72.5% (scaled)
+3. Jackpots contribute ~3.5%
+4. Double-up contributes ~9.0%
+5. No core rules changed (Ace, Lucky5, paytable)
 
 ### Should Have
-1. ✅ Hit frequency remains 24-28%
-2. ✅ Machine closes happen ~1 in 600-800 sessions
-3. ✅ Warmup feels generous but converges smoothly
-4. ✅ Pity systems activate appropriately
-5. ✅ Double-up offered on 30-50% of wins at equilibrium
+1. Hit frequency remains 24-28%
+2. Machine closes happen ~1 in 600-800 sessions
+3. Warmup feels generous but converges smoothly
+4. Pity systems activate appropriately
+5. Double-up offered on 30-50% of wins at equilibrium
 
 ### Nice to Have
-1. ✅ Perceived volatility feels medium (not too swingy)
-2. ✅ Session lengths average 15-25 minutes
-3. ✅ Comeback moments happen regularly
-4. ✅ No extreme dry spells (crisis boost effective)
+1. Perceived volatility feels medium (not too swingy)
+2. Session lengths average 15-25 minutes
+3. Comeback moments happen regularly
+4. No extreme dry spells (crisis boost effective)
 
 ---
 
-## 12. Next Steps
-
-1. **Review & Approve**: Get stakeholder sign-off on this plan
-2. **Implement**: Make configuration changes in `CoreModels.cs`
-3. **Update Policy**: Adjust `MachinePolicy.cs` as needed
-4. **Simulate**: Run extensive simulations
-5. **Analyze**: Validate RTP and experience metrics
-6. **Iterate**: Fine-tune based on data
-7. **Deploy**: Roll out to production after validation
-8. **Monitor**: Track real-world RTP and engagement
-
----
-
-## 13. Configuration Summary
+## 12. Configuration Summary
 
 ### All Proposed Changes in One Place
 
 ```csharp
 public sealed record EngineConfig(
     // === Payout Scale ===
-    decimal TargetRtp = 0.85m,                      // ✓ unchanged
-    decimal TargetDoubleUpRtp = 0.090m,             // ✓ unchanged
-    decimal MinimumObservedBaseRtp = 0.3800m,       // ↑ from 0.3200m
-    decimal DefaultPayoutScale = 1.95m,             // ↑ from 1.92m
-    decimal MinPayoutScale = 1.25m,                 // ↑ from 1.18m
-    decimal MaxPayoutScale = 2.35m,                 // ↓ from 2.45m
-    int WarmupRounds = 60,                          // ↓ from 80
-    int ConvergenceHorizon = 250,                   // ↓ from 300
-    decimal CorrectionGain = 1.15m,                 // ↑ from 1.10m
-    decimal MaxCorrection = 0.30m,                  // ↓ from 0.35m
-    decimal DeadZone = 0.0100m,                     // ↑ from 0.0075m
-    decimal JitterAmplitude = 0.025m,               // ↓ from 0.03m
-    decimal SmallTierFactor = 1.00m,                // ↑ from 0.99m
-    decimal MediumTierFactor = 1.04m,               // ↓ from 1.05m
-    decimal BigTierFactor = 1.08m,                  // ↓ from 1.12m
-    decimal WarmupOpeningSmallScale = 2.00m,        // ↑ from 1.98m
-    decimal WarmupOpeningMediumScale = 2.08m,       // ↑ from 2.05m
-    decimal WarmupOpeningBigScale = 2.15m,          // ✓ unchanged
+    decimal TargetRtp = 0.85m,
+    decimal TargetDoubleUpRtp = 0.090m,
+    decimal MinimumObservedBaseRtp = 0.3800m,
+    decimal DefaultPayoutScale = 1.95m,
+    decimal MinPayoutScale = 1.25m,
+    decimal MaxPayoutScale = 2.35m,
+    int WarmupRounds = 60,
+    int ConvergenceHorizon = 250,
+    decimal CorrectionGain = 1.15m,
+    decimal MaxCorrection = 0.30m,
+    decimal DeadZone = 0.0100m,
+    decimal JitterAmplitude = 0.025m,
+    decimal SmallTierFactor = 1.00m,
+    decimal MediumTierFactor = 1.04m,
+    decimal BigTierFactor = 1.08m,
+    decimal WarmupOpeningSmallScale = 2.00m,
+    decimal WarmupOpeningMediumScale = 2.08m,
+    decimal WarmupOpeningBigScale = 2.15m,
 
     // === Double-Up Offer Curve ===
-    decimal DoubleUpOfferFloor = 0.15m,             // ↑ from 0.08m
-    decimal DoubleUpOfferOverTargetBand = 0.20m,    // ↑ from 0.15m
-    decimal DoubleUpOfferTargetBand = 0.30m,        // ↑ from 0.28m
-    decimal DoubleUpOfferRecoveryBand = 0.50m,      // ↑ from 0.45m
-    decimal DoubleUpOfferMax = 0.65m,               // ↑ from 0.60m
-    decimal DoubleUpHighDriftThreshold = 0.050m,    // ✓ unchanged
-    decimal DoubleUpTargetUpperThreshold = 0.020m,  // ✓ unchanged
-    decimal DoubleUpTargetLowerThreshold = -0.010m, // ✓ unchanged
-    decimal DoubleUpRecoveryThreshold = -0.040m,    // ✓ unchanged
+    decimal DoubleUpOfferFloor = 0.15m,
+    decimal DoubleUpOfferOverTargetBand = 0.20m,
+    decimal DoubleUpOfferTargetBand = 0.30m,
+    decimal DoubleUpOfferRecoveryBand = 0.50m,
+    decimal DoubleUpOfferMax = 0.65m,
+    ...
 
     // === Deck Alteration Bounds ===
-    int MaxColdRemovals = 1,                        // ↓ from 2
-    int MaxHotAdditions = 2,                        // ✓ unchanged
-    bool NeverRemoveFiveOfSpades = true,            // ✓ unchanged
-    int MinDeckSize = 51,                           // ↑ from 50
+    int MaxColdRemovals = 1,
+    int MinDeckSize = 51,
 
     // === Streaks & Pity ===
-    int StreakSoftThreshold = 4,                    // ↓ from 5
-    int StreakHardThreshold = 8,                    // ↓ from 10
-    int CrisisThreshold = 12,                       // ↓ from 15
-    decimal CrisisScaleBoost = 0.07m,               // ↑ from 0.05m
-    int MediumWinDroughtThreshold = 15,             // ↓ from 20
-    int CooldownLength = 2,                         // ↓ from 3
+    int StreakSoftThreshold = 4,
+    int StreakHardThreshold = 8,
+    int CrisisThreshold = 12,
+    decimal CrisisScaleBoost = 0.07m,
+    int MediumWinDroughtThreshold = 15,
+    int CooldownLength = 2,
 
     // === Soft Caps ===
-    decimal SoftCapWarning = 28_000_000m,           // ↑ from 24_000_000m
-    decimal SoftCapHard = 35_000_000m,              // ↑ from 32_000_000m
-    decimal CloseThreshold = 40_000_000m,           // ✓ unchanged
+    decimal SoftCapWarning = 28_000_000m,
+    decimal SoftCapHard = 35_000_000m,
+    decimal CloseThreshold = 40_000_000m,
 
     // === Jackpots (Replace Mode) ===
-    // NOTE: Historical proposal snapshot. Current EngineConfig defaults in CoreModels.cs are the source of truth and may differ.
-    decimal JackpotFourOfAKindCap = 1_000_000m,     // ↓ from 1_200_000m
-    decimal JackpotFullHouseCap = 650_000m,         // ↓ from 750_000m
-    decimal JackpotStraightFlushCap = 7_500_000m,   // ↓ from 8_500_000m
-    int JackpotFourOfAKindContribution = 150,       // ↓ from 175
-    int JackpotFullHouseContribution = 110,         // ↓ from 120
-    int JackpotStraightFlushContribution = 240,     // ↓ from 255
-    decimal JackpotFourOfAKindStart = 140_000m,     // ↓ from 160_000m
-    decimal JackpotFullHouseStart = 90_000m,        // ↓ from 100_000m
-    decimal JackpotStraightFlushStart = 850_000m    // ↓ from 900_000m
+    decimal JackpotFourOfAKindCap = 1_000_000m,
+    decimal JackpotFullHouseCap = 650_000m,
+    decimal JackpotStraightFlushCap = 7_500_000m,
+    int JackpotFourOfAKindContribution = 150,
+    int JackpotFullHouseContribution = 110,
+    int JackpotStraightFlushContribution = 240,
+    decimal JackpotFourOfAKindStart = 140_000m,
+    decimal JackpotFullHouseStart = 90_000m,
+    decimal JackpotStraightFlushStart = 850_000m
 )
 ```
 
@@ -464,11 +430,11 @@ This rebalancing plan achieves the 85% RTP target through careful calibration of
 5. **Soft caps** (session management)
 
 All changes preserve the Lebanese cabinet identity:
-- ✅ No pairs payout
-- ✅ Unlimited double-up
-- ✅ Ace auto-win
-- ✅ Lucky5 switch fantasy
-- ✅ Machine-closing runs
-- ✅ Tension and adrenaline
+- No pairs payout
+- Unlimited double-up
+- Ace auto-win
+- Lucky5 switch fantasy
+- Machine-closing runs
+- Tension and adrenaline
 
 The approach is **data-driven, reversible, and iterative**.

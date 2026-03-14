@@ -38,7 +38,7 @@ let adminUsers = [];
 let adminMachines = [];
 let lucky5FlashResetTimer = null;
 
-const MACHINE_CREDIT_LIMIT = 50000000;
+const MACHINE_CREDIT_LIMIT = 40000000;
 
 const RANK_NAMES = {
     2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 10: '10',
@@ -49,9 +49,9 @@ const JACKPOT_HANDS = ['FourOfAKind', 'FullHouse', 'StraightFlush'];
 
 // Jackpot reset values must mirror EngineConfig defaults on the server.
 const JACKPOT_RESET = {
-    FullHouse:     100_000,
-    FourOfAKind:   160_000,
-    StraightFlush: 900_000
+    FullHouse:     90_000,
+    FourOfAKind:   140_000,
+    StraightFlush: 850_000
 };
 
 const HAND_DISPLAY = {
@@ -497,8 +497,10 @@ function setButtonStates() {
         return;
     }
 
-    betBtn.disabled = !(gameState === 'idle' || gameState === 'doubleup');
-    dealBtn.disabled = !(gameState === 'idle' || gameState === 'hold');
+    const machineClosed = balance >= MACHINE_CREDIT_LIMIT;
+
+    betBtn.disabled = !(gameState === 'idle' || gameState === 'doubleup') || machineClosed;
+    dealBtn.disabled = !(gameState === 'idle' || gameState === 'hold') || machineClosed;
     cancelBtn.disabled = gameState !== 'hold';
     bigBtn.disabled = !(gameState === 'doubleup' || canStartDoubleUpFromWin());
     smallBtn.disabled = !(gameState === 'doubleup' || canStartDoubleUpFromWin());
@@ -889,8 +891,8 @@ async function doDeal() {
                         }
                         setTimeout(() => {
                             if (gameState === 'win') {
-                                if (finalMachineCredits >= MACHINE_CREDIT_LIMIT) {
-                                    showMessage('MACHINE CLOSED - TAKE SCORE / CASH OUT', 'win');
+                                if (finalMachineCredits + winAmount >= MACHINE_CREDIT_LIMIT) {
+                                    showMessage('MACHINE CLOSED - TAKE SCORE & CASH OUT FROM MENU', 'win');
                                     return;
                                 }
                                 if (roundDoubleUpAvailable) {
@@ -1169,7 +1171,15 @@ async function doDoubleUp(guess) {
                     currentHandRank = null;
                     showIdleTitle();
                     setButtonStates();
-                    showMessage('PLACE YOUR BET');
+                    showMessage('MACHINE CLOSED - CASHING OUT...', 'win');
+                    try {
+                        const session = await cashOutMachine();
+                        balance = session.walletBalance;
+                        updateCredits();
+                        showMessage('CASHED OUT - MACHINE READY', 'win');
+                    } catch (_) {
+                        showMessage('MACHINE CLOSED - USE MENU TO CASH OUT', 'win');
+                    }
                 }, 1200);
             } else {
                 roundDoubleUpAvailable = false;
@@ -1348,6 +1358,7 @@ async function mainTakeScore() {
     currentHandRank = null;
     showIdleTitle();
 
+    let machineClosed = false;
     try {
         const result = await apiCall('POST', '/api/Game/double-up/cashout', { roundId });
         const cashoutAmount = result.currentAmount;
@@ -1355,13 +1366,33 @@ async function mainTakeScore() {
         await animateDrainToCredits(cashoutAmount, balance);
         balance = result.walletBalance;
         updateCredits();
+
+        if (result.status === 'MachineClosed') {
+            machineClosed = true;
+            showMessage('MACHINE CLOSED - CASHING OUT...', 'win');
+            try {
+                const session = await cashOutMachine();
+                balance = session.walletBalance;
+                updateCredits();
+                showMessage('CASHED OUT - MACHINE READY', 'win');
+            } catch (_) {
+                showMessage('MACHINE CLOSED - USE MENU TO CASH OUT', 'win');
+            }
+        }
     } catch (e) {
         balance += amount;
         updateCredits();
     }
 
     setButtonStates();
-    showMessage('PLACE YOUR BET');
+
+    if (!machineClosed) {
+        if (balance >= MACHINE_CREDIT_LIMIT) {
+            showMessage('MACHINE CLOSED - CASH OUT FROM MENU TO CONTINUE', 'win');
+        } else {
+            showMessage('PLACE YOUR BET');
+        }
+    }
 }
 
 async function mainTakeHalf() {
@@ -1480,6 +1511,7 @@ function clearToken() {
     sessionStorage.removeItem('lucky5_token');
     sessionStorage.removeItem('lucky5_username');
     sessionStorage.removeItem('lucky5_role');
+    sessionStorage.removeItem('lucky5_machineId');
 }
 
 async function setupSignalR() {
@@ -1676,6 +1708,7 @@ function openGame(gameId, selectedMachineId) {
     if (selectedMachineId) {
         machineId = selectedMachineId;
     }
+    sessionStorage.setItem('lucky5_machineId', machineId);
 
     // All our games are Lucky 5 machines, so just open the game screen
     if (gameId.startsWith('machine-')) {
@@ -1915,6 +1948,9 @@ function backToLobbyFromGame() {
     if (gameState !== 'idle' && gameState !== 'win') {
         if (!confirm('Leave the game? Any current round may be affected.')) return;
     }
+    const menuPanel = document.getElementById('menu-panel');
+    if (menuPanel) menuPanel.style.display = 'none';
+    sessionStorage.removeItem('lucky5_machineId');
     if (machineJoined && machineId > 0) {
         leaveMachine(machineId);
     }
@@ -2188,7 +2224,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const profile = await apiCall('GET', '/api/Auth/GetUserById');
                 walletBalance = profile.walletBalance;
                 storeUserInfo(profile.username, profile.role);
-                showLobby();
+                const savedMachine = sessionStorage.getItem('lucky5_machineId');
+                if (savedMachine) {
+                    machineId = parseInt(savedMachine, 10);
+                    $('#lobby-screen').classList.remove('active');
+                    $('#game-screen').classList.add('active');
+                    initGame();
+                } else {
+                    showLobby();
+                }
             } catch (e) {
                 clearToken();
                 authScreen.style.display = '';

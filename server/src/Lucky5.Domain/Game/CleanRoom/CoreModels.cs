@@ -267,8 +267,8 @@ public sealed record PresentationNoisePlan(
 
 /// <summary>
 /// Externalized engine configuration for RTP rebalancing.
-/// All tuning parameters in one place — this record is the source of truth for implemented defaults; see the RTP rebalancing docs for historical plans and analysis.
-/// Parameters last rebalanced 2026-03-14 to achieve 85% RTP with preserved tension, fun, and adrenaline.
+/// All tuning parameters in one place — see docs/REBALANCING_PLAN_85_RTP.md.
+/// Rebalanced 2026-03-14 to achieve 85% RTP with preserved tension, fun, and adrenaline.
 /// </summary>
 public sealed record EngineConfig(
     // === Payout Scale ===
@@ -330,12 +330,12 @@ public sealed record EngineConfig(
     int JackpotStraightFlushContribution = 210,       // ↓ from 255→240→210 - controlled progression
     decimal JackpotFourOfAKindStart = 140_000m,       // ↓ from 160k - reduce post-reset RTP spikes
     decimal JackpotFullHouseStart = 90_000m,          // ↓ from 100k - smoother reset
-    decimal JackpotStraightFlushStart = 850_000m,     // ↓ from 900k - consistent with caps
-    decimal TargetJackpotRtp = 0.035m                  // 3.5% from jackpots, now externally tunable
+    decimal JackpotStraightFlushStart = 850_000m      // ↓ from 900k - consistent with caps
 )
 {
     public static EngineConfig Default { get; } = new();
 
     // Computed properties for convenience
     public decimal TargetScaledBaseRtp => TargetRtp - TargetJackpotRtp - TargetDoubleUpRtp;
+    public decimal TargetJackpotRtp => 0.035m;  // 3.5% from jackpots
 }

@@ -107,6 +107,11 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
             ledger.JackpotFourOfAKindB = cfg.JackpotFourOfAKindStart;
             ledger.ActiveFourOfAKindSlot = 0;
             ledger.JackpotStraightFlush = cfg.JackpotStraightFlushStart;
+
+            foreach (var session in store.MachineSessions.Values.Where(s => s.MachineId == machineId))
+            {
+                session.IsMachineClosed = false;
+            }
         }
 
         store.Ledger.Add(new WalletLedgerEntry

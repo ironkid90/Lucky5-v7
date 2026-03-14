@@ -720,14 +720,23 @@ switch (resolution.Outcome)
             ledger.JackpotFourOfAKindB = EngineCfg.JackpotFourOfAKindStart;
             ledger.JackpotStraightFlush = EngineCfg.JackpotStraightFlushStart;
             ledger.ActiveFourOfAKindSlot = 0;
-        }
-        lock (store.MachineSessions)
-        {
+
+            // Clear IsMachineClosed on all sessions for this machine (inside lock)
             foreach (var session in store.MachineSessions.Values.Where(s => s.MachineId == machineId))
             {
                 session.IsMachineClosed = false;
+                session.MachineCredits = 0;
+                session.TotalCashIn = 0;
+                session.CounterplayScore = 0;
+                session.LastUpdatedUtc = DateTime.UtcNow;
             }
         }
+
+        // Clear active rounds for this machine
+        var staleRounds = store.ActiveRounds.Where(r => r.Value.MachineId == machineId).Select(r => r.Key).ToList();
+        foreach (var key in staleRounds)
+            store.ActiveRounds.Remove(key);
+
         return Task.FromResult<object>(new { success = true, message = "Machine state reset" });
     }
 

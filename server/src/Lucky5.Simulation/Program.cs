@@ -2,7 +2,6 @@ using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
 
 const int Bet = 5_000;
-const decimal StartingSessionCredits = 1_000_000m;
 
 var cfg = EngineConfig.Default;
 var paytable = PaytableProfile.Lebanese;
@@ -525,14 +524,16 @@ enum PlayerBehavior
 
 sealed class SessionState
 {
+    private const decimal DefaultStartingSessionCredits = 1_000_000m;
+
     public decimal MachineCredits { get; set; }
     public decimal SessionCashIn { get; set; }
     public bool PendingReset { get; set; }
 
     public void StartNewSession()
     {
-        MachineCredits = StartingSessionCredits;
-        SessionCashIn = StartingSessionCredits;
+        MachineCredits = DefaultStartingSessionCredits;
+        SessionCashIn = DefaultStartingSessionCredits;
         PendingReset = false;
     }
 

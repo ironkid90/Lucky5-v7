@@ -1797,10 +1797,7 @@ body {
 }
 
 #game-back-bar {
-    position: absolute;
-    top: 4px;
-    left: 4px;
-    z-index: 50;
+    display: none;
 }
 
 @media (min-width: 768px) {
@@ -1992,10 +1989,7 @@ body {
     padding-bottom: env(safe-area-inset-bottom);
 }
 
-#game-back-bar {
-    top: max(4px, env(safe-area-inset-top));
-    left: max(4px, env(safe-area-inset-left));
-}
+/* game-back-bar removed — lobby button is now in menu panel */
 
 /* ── Lobby game grid visual improvements ── */
 .game-card::before {

@@ -367,13 +367,13 @@ The rebalancing has **successfully achieved the 85% RTP target** for the mainstr
 See `docs/REBALANCING_PLAN_85_RTP.md` for full configuration details.
 
 **Key Parameters:**
-- `DefaultPayoutScale`: 1.95m
+- `DefaultPayoutScale`: 2.00m (was 1.95m pre–fine-tune)
 - `MinPayoutScale`: 1.25m
 - `MaxPayoutScale`: 2.35m
 - `DoubleUpOfferFloor`: 0.15m (up from 0.08m)
-- `JackpotFourOfAKindContribution`: 150 (down from 175)
-- `JackpotFullHouseContribution`: 110 (down from 120)
-- `JackpotStraightFlushContribution`: 240 (down from 255)
+- `JackpotFourOfAKindContribution`: 125 (was 150 pre–fine-tune)
+- `JackpotFullHouseContribution`: 95 (was 110 pre–fine-tune)
+- `JackpotStraightFlushContribution`: 210 (was 240 pre–fine-tune)
 - `StreakSoftThreshold`: 4 (down from 5)
 - `StreakHardThreshold`: 8 (down from 10)
 - `CrisisThreshold`: 12 (down from 15)

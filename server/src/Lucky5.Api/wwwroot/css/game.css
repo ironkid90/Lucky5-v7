@@ -708,8 +708,16 @@ body {
 }
 
 #card-area.du-mode {
-    gap: 10px;
-    justify-content: center;
+    gap: 6px;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+}
+
+#card-area.du-mode::-webkit-scrollbar {
+    display: none;
 }
 
 .card-slot {
@@ -889,11 +897,16 @@ body {
 
 .du-card-slot {
     position: relative;
-    width: 28%;
-    max-width: 130px;
+    width: 22%;
+    min-width: 60px;
+    max-width: 120px;
     height: 100%;
     text-align: center;
     flex-shrink: 0;
+}
+
+.du-trail-card {
+    opacity: 1;
 }
 
 .du-spacer { width: 14px; flex-shrink: 0; }

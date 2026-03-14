@@ -717,10 +717,10 @@ switch (resolution.Outcome)
             ledger.JackpotFourOfAKindB = EngineCfg.JackpotFourOfAKindStart;
             ledger.JackpotStraightFlush = EngineCfg.JackpotStraightFlushStart;
             ledger.ActiveFourOfAKindSlot = 0;
-        }
-        foreach (var session in store.MachineSessions.Values.Where(s => s.MachineId == machineId))
-        {
-            session.IsMachineClosed = false;
+            foreach (var session in store.MachineSessions.Values.Where(s => s.MachineId == machineId))
+            {
+                session.IsMachineClosed = false;
+            }
         }
         return Task.FromResult<object>(new { success = true, message = "Machine state reset" });
     }

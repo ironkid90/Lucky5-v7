@@ -1176,7 +1176,7 @@ async function doDoubleUp(guess) {
                         updateCredits();
                         showMessage('CASHED OUT - MACHINE READY', 'win');
                     } catch (_) {
-                        showMessage('MACHINE CLOSED - PLEASE CASH OUT', 'win');
+                        showMessage('MACHINE CLOSED - USE MENU TO CASH OUT', 'win');
                     }
                 }, 1200);
             } else {
@@ -1374,7 +1374,7 @@ async function mainTakeScore() {
                 updateCredits();
                 showMessage('CASHED OUT - MACHINE READY', 'win');
             } catch (_) {
-                showMessage('MACHINE CLOSED - PLEASE CASH OUT', 'win');
+                showMessage('MACHINE CLOSED - USE MENU TO CASH OUT', 'win');
             }
         }
     } catch (e) {

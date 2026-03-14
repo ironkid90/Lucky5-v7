@@ -47,6 +47,13 @@ const RANK_NAMES = {
 
 const JACKPOT_HANDS = ['FourOfAKind', 'FullHouse', 'StraightFlush'];
 
+// Jackpot reset values must mirror EngineConfig defaults on the server.
+const JACKPOT_RESET = {
+    FullHouse:     100_000,
+    FourOfAKind:   160_000,
+    StraightFlush: 900_000
+};
+
 const HAND_DISPLAY = {
     'RoyalFlush': 'ROYAL FLUSH',
     'StraightFlush': 'STRAIGHT FLUSH',
@@ -267,12 +274,12 @@ function updateJackpotDisplay(jp) {
     }
     if (!jackpots) return;
 
-    // New machine-info-block jackpot counters
+    // Machine-info-block jackpot counters: 4K-A (left), SF (center), 4K-B (right)
     const jpA = document.querySelector('#jp-counter-a .jp-cval');
     const jpCenter = document.querySelector('#jp-counter-center .jp-cval');
     const jpB = document.querySelector('#jp-counter-b .jp-cval');
     if (jpA) jpA.textContent = formatNum(jackpots.fourOfAKindA || 0);
-    if (jpCenter) jpCenter.textContent = formatNum(jackpots.fullHouse || 0);
+    if (jpCenter) jpCenter.textContent = formatNum(jackpots.straightFlush || 0);
     if (jpB) jpB.textContent = formatNum(jackpots.fourOfAKindB || 0);
 
     // Machine serial (sum of jackpots as stand-in)
@@ -939,8 +946,26 @@ function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
 
     stopShuffle();
 
-    // Render all trail cards (oldest first, left to right)
-    for (let i = 0; i < duCardTrail.length; i++) {
+    // Pagination: fit cards into pages of DU_PAGE_SIZE slots.
+    // When a page is full, the last card of the current page becomes
+    // the first card of the next page (carry-over).
+    const DU_PAGE_SIZE = 4;
+    const extraCount = (challengerCard || showShuffle) ? 1 : 0;
+    const maxTrailOnPage = DU_PAGE_SIZE - extraCount;
+    let startIndex = 0;
+    // Only paginate when trail exceeds one page; guard maxTrailOnPage > 1
+    // to avoid zero step (edge case when page is entirely the extra card).
+    if (duCardTrail.length > maxTrailOnPage && maxTrailOnPage > 1) {
+        // step = new cards each page adds (capacity minus the carry-over card)
+        const step = maxTrailOnPage - 1;
+        // overshoot = how many cards spill beyond the first page
+        const overshoot = duCardTrail.length - maxTrailOnPage;
+        const pages = Math.ceil(overshoot / step);
+        startIndex = pages * step;
+    }
+
+    // Render visible trail cards (current page only)
+    for (let i = startIndex; i < duCardTrail.length; i++) {
         const entry = duCardTrail[i];
         const slot = document.createElement('div');
         slot.className = 'du-card-slot du-trail-card';
@@ -988,9 +1013,6 @@ function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
         area.appendChild(challSlot);
         startShuffle();
     }
-
-    // Scroll trail to show the rightmost (newest) cards
-    area.scrollLeft = area.scrollWidth;
 }
 
 let shuffleRAF = null;
@@ -1206,24 +1228,21 @@ function animateJackpotFill(amount, startBalance, handName) {
         let resetValue = 0;
 
         if (handName === 'FullHouse') {
-            counterEl = document.querySelector('#jp-counter-center .jp-cval');
-            resetValue = 5_000_000;
+            // FH jackpot has no visible counter (center counter now shows SF);
+            // animation is reflected only through credits/win-indicator.
+            counterEl = null;
         } else if (handName === 'FourOfAKind') {
             // slot 0 = counter-a, slot 1 = counter-b
-            if (active4kSlot === 0) {
-                counterEl = document.querySelector('#jp-counter-a .jp-cval');
-            } else {
-                counterEl = document.querySelector('#jp-counter-b .jp-cval');
-            }
-            resetValue = 200_000;
+            counterEl = document.querySelector(
+                active4kSlot === 0 ? '#jp-counter-a .jp-cval' : '#jp-counter-b .jp-cval'
+            );
         } else if (handName === 'StraightFlush') {
-            // StraightFlush jackpot is not shown in the three main counters;
-            // animation is reflected only through credits/win-indicator
-            counterEl = null;
-            resetValue = 0;
+            counterEl = document.querySelector('#jp-counter-center .jp-cval');
         }
+        resetValue = JACKPOT_RESET[handName] || 0;
 
-        const jackpotStart = resetValue + amount;
+        // Pre-win counter value equals the full amount won (entire jackpot is awarded).
+        const jackpotStart = amount;
         let startTime = null;
 
         function frame(ts) {

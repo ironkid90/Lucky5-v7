@@ -1171,8 +1171,7 @@ async function doDoubleUp(guess) {
                     setButtonStates();
                     showMessage('MACHINE CLOSED - CASHING OUT...', 'win');
                     try {
-                        const session = await cashOutMachine();
-                        balance = session.walletBalance;
+                        await cashOutMachine();
                         updateCredits();
                         showMessage('CASHED OUT - MACHINE READY', 'win');
                     } catch (_) {

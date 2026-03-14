@@ -67,3 +67,5 @@ AI commits MUST include:
 ```
 Co-Authored-By: GPT-5 Codex <noreply@openai.com>
 ```
+
+Arguments: User wants the whole Lucky5 codebase and docs studied and stored as permanent memory in Roo Code, then multiple fixes: machine close/reset/cashout invalid error after 40M+, continuous game state for prolonged sessions, move go-back-to-lobby into existing menu, and verify all lobby/game buttons work.

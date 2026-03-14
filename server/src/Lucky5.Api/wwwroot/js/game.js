@@ -1543,32 +1543,37 @@ async function addDemoCredits() {
     return Promise.resolve();
 }
 
-const AVAILABLE_GAMES = [
-    {
-        id: 'lucky5',
-        name: 'LUCKY 5',
-        icon: '/assets/images/lucky5.png',
-        status: 'playable'
-    },
-    {
-        id: 'blackjack',
-        name: 'BLACKJACK',
-        iconText: '&#9824;',
-        status: 'coming-soon'
-    },
-    {
-        id: 'slots',
-        name: 'MEGA SLOTS',
-        iconText: '&#9733;',
-        status: 'coming-soon'
-    },
-    {
-        id: 'roulette',
-        name: 'ROULETTE',
-        iconText: '&#9679;',
-        status: 'coming-soon'
+// Available games will be populated from backend machines
+let AVAILABLE_GAMES = [];
+
+async function loadAvailableMachines() {
+    try {
+        const machineData = await apiCall('GET', '/api/Game/games/machines');
+        // Convert machines to game cards
+        AVAILABLE_GAMES = machineData.map(machine => ({
+            id: `machine-${machine.id}`,
+            machineId: machine.id,
+            name: machine.name.toUpperCase(),
+            icon: '/assets/images/lucky5.png',
+            status: machine.isOpen ? 'playable' : 'unavailable',
+            minBet: machine.minBet,
+            maxBet: machine.maxBet
+        }));
+        return AVAILABLE_GAMES;
+    } catch (e) {
+        console.error('Failed to load machines:', e);
+        // Fallback to single game if API fails
+        AVAILABLE_GAMES = [{
+            id: 'machine-1',
+            machineId: 1,
+            name: 'LUCKY 5',
+            icon: '/assets/images/lucky5.png',
+            status: 'playable'
+        }];
+        return AVAILABLE_GAMES;
     }
-];
+}
+
 
 function updateLobbyBalance() {
     const fmt = formatNum(walletBalance);
@@ -1610,24 +1615,43 @@ function renderGameGrid() {
         nameDiv.className = 'game-card-name';
         nameDiv.textContent = game.name;
 
+        // Show bet range if available
+        const betInfo = document.createElement('div');
+        betInfo.className = 'game-card-bet-info';
+        betInfo.style.fontSize = '8px';
+        betInfo.style.color = '#888';
+        betInfo.style.marginTop = '4px';
+        if (game.minBet && game.maxBet) {
+            betInfo.textContent = `BET: ${formatNum(game.minBet)} - ${formatNum(game.maxBet)}`;
+        }
+
         const badge = document.createElement('div');
         badge.className = 'game-card-badge ' + (game.status === 'playable' ? 'playable' : 'coming-soon');
-        badge.textContent = game.status === 'playable' ? 'PLAY NOW' : 'COMING SOON';
+        badge.textContent = game.status === 'playable' ? 'PLAY NOW' : game.status === 'unavailable' ? 'CLOSED' : 'COMING SOON';
 
         card.appendChild(iconDiv);
         card.appendChild(nameDiv);
+        if (game.minBet && game.maxBet) {
+            card.appendChild(betInfo);
+        }
         card.appendChild(badge);
 
         if (game.status === 'playable') {
-            card.addEventListener('click', () => openGame(game.id));
+            card.addEventListener('click', () => openGame(game.id, game.machineId));
         }
 
         grid.appendChild(card);
     });
 }
 
-function openGame(gameId) {
-    if (gameId === 'lucky5') {
+function openGame(gameId, selectedMachineId) {
+    // If a machine ID was provided, set it as the current machine
+    if (selectedMachineId) {
+        machineId = selectedMachineId;
+    }
+
+    // All our games are Lucky 5 machines, so just open the game screen
+    if (gameId.startsWith('machine-')) {
         $('#lobby-screen').classList.remove('active');
         $('#wallet-screen').classList.remove('active');
         const adminScreen = document.getElementById('admin-screen');
@@ -1637,7 +1661,7 @@ function openGame(gameId) {
     }
 }
 
-function showLobby() {
+async function showLobby() {
     $('#game-screen').classList.remove('active');
     $('#wallet-screen').classList.remove('active');
     const adminScreen = document.getElementById('admin-screen');
@@ -1645,6 +1669,8 @@ function showLobby() {
     $('#lobby-screen').classList.add('active');
     updateLobbyBalance();
     updateLobbyUsername();
+    // Load machines from backend before rendering
+    await loadAvailableMachines();
     renderGameGrid();
     document.querySelectorAll('.lobby-nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('nav-lobby').classList.add('active');

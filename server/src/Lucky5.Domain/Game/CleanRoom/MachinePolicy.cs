@@ -160,7 +160,8 @@ public static class MachinePolicy
     private static PayoutScaleResult ResolveLivePayoutScale(MachinePolicyState state, decimal jitter, EngineConfig cfg)
     {
         var observedBaseRtp = Math.Max(state.BaseRtp, cfg.MinimumObservedBaseRtp);
-        var targetBaseRtp = Math.Max(0.10m, cfg.TargetRtp - cfg.TargetDoubleUpRtp - state.JackpotRtp);
+        var targetRtp = state.TargetRtp == 0m ? cfg.TargetRtp : state.TargetRtp;
+        var targetBaseRtp = Math.Max(0.10m, targetRtp - cfg.TargetDoubleUpRtp - state.JackpotRtp);
         var equilibriumScale = targetBaseRtp / observedBaseRtp;
         var rampFactor = cfg.ConvergenceHorizon <= 0
             ? 1m

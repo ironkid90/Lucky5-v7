@@ -575,7 +575,10 @@ switch (resolution.Outcome)
         var session = RequireMachineSession(userId, round.MachineId, createIfMissing: false);
         var cashoutAmount = round.DoubleUpSession != null ? round.DoubleUpSession.CurrentAmount : (int)round.WinAmount;
         if (round.IsPayoutSettled)
-            return Task.FromResult(new DoubleUpResultDto(roundId, "Cashout", 0, session.MachineCredits));
+        {
+            var status = session.IsMachineClosed ? "MachineClosed" : "Cashout";
+            return Task.FromResult(new DoubleUpResultDto(roundId, status, 0, session.MachineCredits));
+        }
 
         if (round.DoubleUpSession != null && !round.DoubleUpSession.IsTerminal)
         {

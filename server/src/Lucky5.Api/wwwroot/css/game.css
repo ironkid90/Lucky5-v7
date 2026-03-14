@@ -713,6 +713,7 @@ body {
     overflow-x: auto;
     overflow-y: hidden;
     scroll-behavior: smooth;
+    scrollbar-width: none;
 }
 
 #card-area.du-mode::-webkit-scrollbar {

@@ -267,8 +267,8 @@ public sealed record PresentationNoisePlan(
 
 /// <summary>
 /// Externalized engine configuration for RTP rebalancing.
-/// All tuning parameters in one place — see docs/REBALANCING_PLAN_85_RTP.md.
-/// Rebalanced 2026-03-14 to achieve 85% RTP with preserved tension, fun, and adrenaline.
+/// All tuning parameters in one place — this record is the source of truth for implemented defaults; see the RTP rebalancing docs for historical plans and analysis.
+/// Parameters last rebalanced 2026-03-14 to achieve 85% RTP with preserved tension, fun, and adrenaline.
 /// </summary>
 public sealed record EngineConfig(
     // === Payout Scale ===

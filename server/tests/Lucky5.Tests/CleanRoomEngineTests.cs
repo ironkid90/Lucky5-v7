@@ -118,6 +118,62 @@ public static class CleanRoomEngineTests
         Assert(failures, "Machine close should happen only after the next winning resolution", postSwitchMachineClose.Outcome == Lucky5DoubleUpOutcome.MachineClosed);
         Assert(failures, "Machine close after a Lucky 5 switch should cash out the real post-win amount", postSwitchMachineClose.CashoutCredits == 80);
 
+        var defaultConfig = EngineConfig.Default;
+        Assert(failures, "Approved RTP target should default to 85%", defaultConfig.TargetRtp == 0.85m);
+        Assert(failures, "Approved close threshold should default to 40,000,000", defaultConfig.CloseThreshold == 40_000_000m);
+        Assert(failures, "Approved payout-scale defaults should match the architecture", defaultConfig.DefaultPayoutScale == 1.92m && defaultConfig.MinPayoutScale == 1.18m && defaultConfig.MaxPayoutScale == 2.45m);
+
+        var defaultCloseSession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
+            seedRoot: seed,
+            deck: FiveCardDrawEngine.ParseCards(["9H", "AS", "4C", "2D"]),
+            openingAmount: 1_000_000,
+            machineCreditBaseline: 39_500_000);
+        var defaultCloseResolution = Lucky5DoubleUpEngine.ResolveGuess(defaultCloseSession, BigSmallGuess.Big);
+        Assert(failures, "Default double-up options should use the approved 40M close threshold", defaultCloseResolution.Outcome == Lucky5DoubleUpOutcome.MachineClosed);
+
+        var unlimitedChainSession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
+            seedRoot: seed,
+            deck: FiveCardDrawEngine.ParseCards(["9H", "AS", "2D", "AH", "3C", "AD"]),
+            openingAmount: 10);
+        var unlimitedChainWin1 = Lucky5DoubleUpEngine.ResolveGuess(unlimitedChainSession, BigSmallGuess.Big);
+        var unlimitedChainWin2 = Lucky5DoubleUpEngine.ResolveGuess(unlimitedChainWin1.Session, BigSmallGuess.Small);
+        var unlimitedChainWin3 = Lucky5DoubleUpEngine.ResolveGuess(unlimitedChainWin2.Session, BigSmallGuess.Big);
+        Assert(failures, "Unlimited chaining should allow multiple consecutive winning guesses", unlimitedChainWin1.Outcome == Lucky5DoubleUpOutcome.Win && unlimitedChainWin2.Outcome == Lucky5DoubleUpOutcome.Win && unlimitedChainWin3.Outcome == Lucky5DoubleUpOutcome.Win);
+        Assert(failures, "Unlimited chaining should continue doubling the amount across repeated wins", unlimitedChainWin3.NextAmount == 80 && !unlimitedChainWin3.Session.IsTerminal);
+
+        var warmupScale = MachinePolicy.ResolvePayoutScale(
+            new MachinePolicyState
+            {
+                TargetRtp = defaultConfig.TargetRtp,
+                RoundCount = 1
+            },
+            seed);
+        Assert(failures, "Warmup payout scales should open at the approved generous values", warmupScale.SmallScale == defaultConfig.WarmupOpeningSmallScale && warmupScale.MediumScale == defaultConfig.WarmupOpeningMediumScale && warmupScale.BigScale == defaultConfig.WarmupOpeningBigScale);
+
+        var equilibriumScale = MachinePolicy.ResolvePayoutScale(
+            new MachinePolicyState
+            {
+                CreditsIn = 1_000_000m,
+                CreditsOut = 850_000m,
+                BaseCreditsOut = 386_825m,
+                JackpotCreditsOut = 35_000m,
+                DoubleUpCreditsOut = 90_000m,
+                TargetRtp = defaultConfig.TargetRtp,
+                RoundCount = defaultConfig.ConvergenceHorizon
+            },
+            seed);
+        Assert(failures, "Equilibrium payout scales should sit inside the approved controller band", equilibriumScale.SmallScale is >= 1.80m and <= 1.95m && equilibriumScale.MediumScale is >= 1.90m and <= 2.05m && equilibriumScale.BigScale is >= 2.00m and <= 2.20m);
+
+        var overTargetOfferRate = MachinePolicy.ComputeDoubleUpOfferRate(
+            new MachinePolicyState
+            {
+                CreditsIn = 1_000m,
+                CreditsOut = 950m,
+                TargetRtp = defaultConfig.TargetRtp,
+                RoundCount = defaultConfig.ConvergenceHorizon
+            });
+        Assert(failures, "Double-up offer rate should keep a nonzero floor when RTP is above target", overTargetOfferRate == defaultConfig.DoubleUpOfferFloor);
+
         var noiseA = PresentationNoiseGenerator.Build(seed, 4);
         var noiseB = PresentationNoiseGenerator.Build(seed, 4);
         var noiseC = PresentationNoiseGenerator.Build(seed, 5);

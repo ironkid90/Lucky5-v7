@@ -1,427 +1,455 @@
+using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
 
-const int ROUNDS = 200_000;
-const int BET = 5000;
+const int Bet = 5_000;
+const decimal StartingSessionCredits = 1_000_000m;
+
+var cfg = EngineConfig.Default;
 var paytable = PaytableProfile.Lebanese;
 
 Console.WriteLine("=== Lucky5 RTP Monte Carlo Simulation ===");
-Console.WriteLine($"Rounds: {ROUNDS:N0} | Bet: {BET:N0} | Paytable: {paytable.Name}");
+Console.WriteLine($"Bet: {Bet:N0} | Paytable: {paytable.Name}");
+Console.WriteLine($"Target RTP: {cfg.TargetRtp:P2} = Base {cfg.TargetScaledBaseRtp:P2} + Jackpot {cfg.TargetJackpotRtp:P2} + Double-Up {cfg.TargetDoubleUpRtp:P2}");
+Console.WriteLine($"Machine close threshold: {cfg.CloseThreshold:N0} | Double-up offer floor: {cfg.DoubleUpOfferFloor:P0} | Offer ceiling: {cfg.DoubleUpOfferMax:P0}");
 Console.WriteLine();
 
-SimulateBaseGame();
-SimulateWithPayoutScale();
-SimulateFullSystemWithScale();
-SimulateRtpConvergence();
-SimulateExcitementMetrics();
+var balanced10kSamples = Enumerable.Range(0, 9)
+    .Select(sample => RunSimulation(10_000, PlayerBehavior.Balanced, sample))
+    .OrderBy(result => result.TotalRtp)
+    .ToArray();
+var balanced10kMedian = balanced10kSamples[balanced10kSamples.Length / 2];
+var balanced100k = RunSimulation(100_000, PlayerBehavior.Balanced, 0);
+var balanced1M = RunSimulation(1_000_000, PlayerBehavior.Balanced, 1);
 
-void SimulateBaseGame()
+Console.WriteLine("--- Balanced calibration windows ---");
+PrintSummary("10K median across 9 samples", balanced10kMedian);
+PrintSummary("100K single run", balanced100k);
+PrintSummary("1M single run", balanced1M);
+Console.WriteLine();
+
+Console.WriteLine("--- 100K behavior comparison ---");
+foreach (var behavior in Enum.GetValues<PlayerBehavior>())
 {
-    Console.WriteLine("--- 1. BASE GAME (no policy, no scale, standard deck) ---");
-    long totalIn = 0;
-    long totalOut = 0;
-    var handCounts = new Dictionary<string, int>();
-
-    for (int i = 0; i < ROUNDS; i++)
-    {
-        var seed = DeterministicSeed.FromString($"base-sim-{i}");
-        var deck = FiveCardDrawEngine.ShuffleDeck(seed, "hand");
-        var hand = deck.Take(5).ToArray();
-        var state = FiveCardDrawState.Create(seed, deck, hand);
-
-        var holdMask = ComputeOptimalHolds(hand);
-        state = FiveCardDrawEngine.Reduce(state, new RoundAction(RoundActionKind.SetHoldMask, HoldMask: holdMask));
-        state = FiveCardDrawEngine.Reduce(state, new RoundAction(RoundActionKind.Draw));
-
-        var eval = FiveCardDrawEngine.EvaluateHand(state.Hand);
-        var payout = paytable.ResolvePayout(eval, BET);
-
-        totalIn += 2 * BET;
-        totalOut += payout;
-        handCounts[eval.Category.ToString()] = handCounts.GetValueOrDefault(eval.Category.ToString()) + 1;
-    }
-
-    var rtp = (decimal)totalOut / totalIn;
-    Console.WriteLine($"  RTP (vs 2×bet cost): {rtp:P4}");
-    Console.WriteLine($"  RTP (vs 1×bet):      {(decimal)totalOut / (ROUNDS * (long)BET):P4}");
-    PrintHandDist(handCounts, ROUNDS);
+    var result = RunSimulation(100_000, behavior, 2);
+    PrintSummary(DescribeBehavior(behavior), result);
 }
 
-void SimulateWithPayoutScale()
+SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIndex)
 {
-    Console.WriteLine("\n--- 2. WITH PAYOUT SCALE + POLICY (target 87.5%) ---");
-    long totalIn = 0;
-    long totalOut = 0;
-    var handCounts = new Dictionary<string, int>();
-    int hotCount = 0, coldCount = 0, neutralCount = 0;
-    decimal scaleSum = 0;
+    var ledger = new MachineLedgerState { MachineId = 1, TargetRtp = cfg.TargetRtp };
+    var session = new SessionState();
+    session.StartNewSession();
 
-    var policyState = new MachinePolicyState
+    var result = new SimulationResult(behavior, rounds)
     {
-        CreditsIn = 0,
-        CreditsOut = 0,
-        TargetRtp = 0.875m,
-        RoundCount = 0
+        SessionsStarted = 1
     };
 
-    for (int i = 0; i < ROUNDS; i++)
+    for (var roundIndex = 0; roundIndex < rounds; roundIndex++)
     {
-        var seed = DeterministicSeed.FromString($"scale-sim-{i}");
-
-        policyState.RoundsSinceMediumWin++;
-        if (policyState.CooldownRoundsRemaining > 0) policyState.CooldownRoundsRemaining--;
-
-        var mode = MachinePolicy.ResolveDistributionMode(policyState, seed);
-        switch (mode)
+        if (session.PendingReset || session.MachineCredits < Bet * 2m)
         {
-            case PolicyDistributionMode.Hot: hotCount++; break;
-            case PolicyDistributionMode.Cold: coldCount++; break;
-            default: neutralCount++; break;
+            session.StartNewSession();
+            result.SessionsStarted++;
         }
 
+        session.BeginRound();
+
+        var seed = DeterministicSeed.FromString($"rtp-{DescribeBehavior(behavior)}-{rounds}-{sampleIndex}-{roundIndex}");
+        var policyState = BuildPolicyState(ledger);
+        var policyMode = MachinePolicy.ResolveDistributionMode(policyState, seed);
+
+        ledger.CapitalIn += Bet;
+        ledger.RoundCount++;
+        ledger.RoundsSinceMediumWin++;
+        ledger.RoundsSinceLucky5Hit++;
+        if (ledger.CooldownRoundsRemaining > 0)
+        {
+            ledger.CooldownRoundsRemaining--;
+        }
+
+        ledger.LastDistributionMode = policyMode switch
+        {
+            PolicyDistributionMode.Cold => DistributionMode.Cold,
+            PolicyDistributionMode.Hot => DistributionMode.Hot,
+            _ => DistributionMode.Neutral
+        };
+        ledger.ActiveFourOfAKindSlot = (ledger.RoundCount % 2 == 0) ? (int)(seed % 2) : 1 - (int)(seed % 2);
+        ApplyJackpotContributions(ledger);
+        ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
+        session.MachineCredits -= Bet;
+
+        ledger.CapitalIn += Bet;
+        ApplyJackpotContributions(ledger);
+        ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
+        session.MachineCredits -= Bet;
+
+        result.TotalIn += Bet * 2m;
+
         var standardDeck = FiveCardDrawEngine.BuildStandardDeck();
-        var alteredDeck = MachinePolicy.AlterDeck(standardDeck, mode, seed, policyState.ConsecutiveLosses);
+        var alteredDeck = MachinePolicy.AlterDeck(standardDeck, policyMode, seed, ledger.ConsecutiveLosses);
         var shuffledDeck = FiveCardDrawEngine.ShuffleDeck(seed, "hand", alteredDeck);
         var hand = shuffledDeck.Take(5).ToArray();
-        var state = FiveCardDrawState.Create(seed, shuffledDeck, hand);
-
+        var drawState = FiveCardDrawState.Create(seed, shuffledDeck, hand);
         var holdMask = ComputeOptimalHolds(hand);
-        state = FiveCardDrawEngine.Reduce(state, new RoundAction(RoundActionKind.SetHoldMask, HoldMask: holdMask));
-        state = FiveCardDrawEngine.Reduce(state, new RoundAction(RoundActionKind.Draw));
+        drawState = FiveCardDrawEngine.Reduce(drawState, new RoundAction(RoundActionKind.SetHoldMask, HoldMask: holdMask));
+        drawState = FiveCardDrawEngine.Reduce(drawState, new RoundAction(RoundActionKind.Draw));
 
-        var eval = FiveCardDrawEngine.EvaluateHand(state.Hand);
-        var basePayout = paytable.ResolvePayout(eval, BET);
+        var evaluation = FiveCardDrawEngine.EvaluateHand(drawState.Hand);
+        var basePayout = FiveCardDrawEngine.ResolvePayout(evaluation, Bet, paytable);
+        var scaleState = BuildPolicyState(ledger);
+        var payoutScale = MachinePolicy.ResolvePayoutScale(scaleState, seed).ForTier(MachinePolicy.ClassifyHand(evaluation.Category));
+        ledger.LastPayoutScale = payoutScale;
+        result.PayoutScaleSum += payoutScale;
+        result.PayoutScaleSamples++;
 
-        var scaleResult = MachinePolicy.ResolvePayoutScale(policyState, seed);
-        var tier = MachinePolicy.ClassifyHand(eval.Category);
-        var payoutScale = scaleResult.ForTier(tier);
-        scaleSum += payoutScale;
-        var payout = basePayout > 0 ? (int)Math.Round(basePayout * payoutScale, MidpointRounding.AwayFromZero) : 0;
+        var scaledBasePayout = basePayout > 0
+            ? (int)Math.Round(basePayout * payoutScale, MidpointRounding.AwayFromZero)
+            : 0;
 
-        policyState.CreditsIn += 2 * BET;
-        policyState.CreditsOut += payout;
-        policyState.BaseCreditsOut += basePayout;
-        policyState.RoundCount++;
-        if (payout > 0)
+        var payout = scaledBasePayout;
+        decimal jackpotOverlay = 0m;
+        if (scaledBasePayout > 0)
         {
-            policyState.ConsecutiveLosses = 0;
-            if (tier >= PayoutTier.Medium) policyState.RoundsSinceMediumWin = 0;
-            policyState.CooldownRoundsRemaining = MachinePolicy.ComputeCooldownLength(eval.Category);
+            ledger.CapitalOut += scaledBasePayout;
+            ledger.BaseCapitalOut += basePayout;
+            ledger.ConsecutiveLosses = 0;
+            ledger.LastWinChannel = WinChannel.BaseGame;
+            if (MachinePolicy.ClassifyHand(evaluation.Category) >= PayoutTier.Medium)
+            {
+                ledger.RoundsSinceMediumWin = 0;
+            }
+
+            ledger.CooldownRoundsRemaining = MachinePolicy.ComputeCooldownLength(evaluation.Category, seed);
+
+            var jackpotWon = ResolveJackpot(ref ledger, evaluation, scaledBasePayout);
+            if (jackpotWon > 0)
+            {
+                jackpotOverlay = jackpotWon - scaledBasePayout;
+                ledger.CapitalOut += jackpotOverlay;
+                ledger.JackpotCapitalOut += jackpotOverlay;
+                ledger.LastWinChannel = WinChannel.Jackpot;
+                payout = (int)jackpotWon;
+            }
         }
         else
         {
-            policyState.ConsecutiveLosses++;
+            ledger.ConsecutiveLosses++;
+            ledger.LastWinChannel = WinChannel.None;
         }
-        totalIn += 2 * BET;
-        totalOut += payout;
-        handCounts[eval.Category.ToString()] = handCounts.GetValueOrDefault(eval.Category.ToString()) + 1;
-    }
 
-    Console.WriteLine($"  RTP:         {(decimal)totalOut / totalIn:P4}");
-    Console.WriteLine($"  Obs RTP:     {policyState.ObservedRtp:P4}");
-    Console.WriteLine($"  Base RTP:    {policyState.BaseRtp:P4}");
-    Console.WriteLine($"  Drift:       {policyState.Drift:+0.0000;-0.0000}");
-    Console.WriteLine($"  Avg Scale:   {scaleSum / ROUNDS:F4}");
-    Console.WriteLine($"  Modes:       Hot={hotCount} Neutral={neutralCount} Cold={coldCount}");
-    PrintHandDist(handCounts, ROUNDS);
-}
+        ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
 
-void SimulateFullSystemWithScale()
-{
-    Console.WriteLine("\n--- 3. FULL SYSTEM (scale + policy + jackpots + double-up) ---");
-    long totalIn = 0;
-    long totalOut = 0;
-    decimal jackpotPool4K = 200_000;
-    decimal jackpotPoolFH = 25_000_000;
-    decimal jackpotPoolSF = 5_000_000;
-    long jackpotsPaid = 0;
-    int jackpotWins = 0;
-    int doubleUpAttempts = 0, doubleUpWins = 0, doubleUpLosses = 0;
+        result.ScaledBaseOut += scaledBasePayout;
+        result.JackpotOverlayOut += jackpotOverlay;
 
-    var policyState = new MachinePolicyState
-    {
-        CreditsIn = 0,
-        CreditsOut = 0,
-        TargetRtp = 0.875m,
-        RoundCount = 0
-    };
-
-    for (int i = 0; i < ROUNDS; i++)
-    {
-        var seed = DeterministicSeed.FromString($"full-sim-{i}");
-
-        policyState.RoundsSinceMediumWin++;
-        if (policyState.CooldownRoundsRemaining > 0) policyState.CooldownRoundsRemaining--;
-
-        var mode = MachinePolicy.ResolveDistributionMode(policyState, seed);
-        var standardDeck = FiveCardDrawEngine.BuildStandardDeck();
-        var alteredDeck = MachinePolicy.AlterDeck(standardDeck, mode, seed, policyState.ConsecutiveLosses);
-        var shuffledDeck = FiveCardDrawEngine.ShuffleDeck(seed, "hand", alteredDeck);
-        var hand = shuffledDeck.Take(5).ToArray();
-        var state = FiveCardDrawState.Create(seed, shuffledDeck, hand);
-
-        var holdMask = ComputeOptimalHolds(hand);
-        state = FiveCardDrawEngine.Reduce(state, new RoundAction(RoundActionKind.SetHoldMask, HoldMask: holdMask));
-        state = FiveCardDrawEngine.Reduce(state, new RoundAction(RoundActionKind.Draw));
-
-        var eval = FiveCardDrawEngine.EvaluateHand(state.Hand);
-        var basePayout = paytable.ResolvePayout(eval, BET);
-        var scaleResult3 = MachinePolicy.ResolvePayoutScale(policyState, seed);
-        var tier3 = MachinePolicy.ClassifyHand(eval.Category);
-        var payoutScale = scaleResult3.ForTier(tier3);
-        var payout = basePayout > 0 ? (int)Math.Round(basePayout * payoutScale, MidpointRounding.AwayFromZero) : 0;
-
-        var jackpotContrib = BET * 0.01m;
-        jackpotPool4K = Math.Min(jackpotPool4K + jackpotContrib / 3, 999_999);
-        jackpotPoolFH += jackpotContrib / 3;
-        jackpotPoolSF = Math.Min(jackpotPoolSF + jackpotContrib / 3, 20_000_000);
-
-        long roundPayout = payout;
         if (payout > 0)
         {
-            if (eval.Category == HandCategory.FourOfAKind)
+            result.DirectPayingSpins++;
+            if (MachinePolicy.ClassifyHand(evaluation.Category) >= PayoutTier.Medium)
             {
-                roundPayout += (long)jackpotPool4K;
-                jackpotsPaid += (long)jackpotPool4K;
-                jackpotPool4K = 200_000;
-                jackpotWins++;
+                result.MediumOrBetterSpins++;
             }
-            else if (eval.Category == HandCategory.StraightFlush)
+
+            result.PreDoubleUpWinCredits += payout;
+            result.EligibleWinningRounds++;
+
+            var offerState = BuildPolicyState(ledger);
+            var offered = MachinePolicy.ShouldOfferDoubleUp(offerState, seed);
+            if (offered)
             {
-                roundPayout += (long)jackpotPoolSF;
-                jackpotsPaid += (long)jackpotPoolSF;
-                jackpotPoolSF = 5_000_000;
-                jackpotWins++;
+                result.OfferedWinningRounds++;
             }
-        }
 
-        policyState.CreditsIn += 2 * BET;
-        policyState.CreditsOut += roundPayout;
-        policyState.BaseCreditsOut += basePayout;
-        policyState.RoundCount++;
-        if (payout > 0)
-        {
-            policyState.ConsecutiveLosses = 0;
-            if (tier3 >= PayoutTier.Medium) policyState.RoundsSinceMediumWin = 0;
-            policyState.CooldownRoundsRemaining = MachinePolicy.ComputeCooldownLength(eval.Category);
-        }
-        else
-        {
-            policyState.ConsecutiveLosses++;
-        }
-        totalIn += 2 * BET;
-
-        if (roundPayout > 0 && (seed % 3 == 0))
-        {
-            doubleUpAttempts++;
-            var duSession = Lucky5DoubleUpEngine.Start((int)roundPayout, seed);
-            var guess = duSession.DealerCard.Rank <= 8 ? BigSmallGuess.Big : BigSmallGuess.Small;
-            var resolution = Lucky5DoubleUpEngine.ResolveGuess(duSession, guess);
-
-            if (resolution.Outcome == Lucky5DoubleUpOutcome.Win || resolution.Outcome == Lucky5DoubleUpOutcome.MachineClosed)
+            if (offered && ShouldEnterDoubleUp(behavior, seed, payout, session.MachineCredits))
             {
-                var duDelta = resolution.NextAmount - roundPayout;
-                totalOut += resolution.NextAmount;
-                policyState.CreditsOut += duDelta;
-                doubleUpWins++;
-            }
-            else if (resolution.Outcome == Lucky5DoubleUpOutcome.SafeFail)
-            {
-                totalOut += resolution.CashoutCredits;
-                doubleUpWins++;
+                result.EnteredDoubleUpChains++;
+                result.EnteredTriggerCredits += payout;
+
+                var chainResult = PlayDoubleUpChain(seed, policyMode, behavior, session, payout, result);
+                result.DoubleUpOverlayOut += chainResult.Delta;
+                ledger.CapitalOut += chainResult.Delta;
+                ledger.DoubleUpCapitalOut += chainResult.Delta;
+                ledger.LastWinChannel = chainResult.Delta > 0m ? WinChannel.DoubleUp : ledger.LastWinChannel;
+
+                if (chainResult.ContinuedAfterTakeHalf && session.MachineCredits >= 50_000_000m)
+                {
+                    result.Over50MViaTakeHalfContinuation++;
+                }
             }
             else
             {
-                totalOut += 0;
-                policyState.CreditsOut -= roundPayout;
-                doubleUpLosses++;
+                BankCredits(session, payout, result);
             }
         }
-        else
+
+        if (!session.PendingReset && ShouldCashOutSession(behavior, session))
         {
-            totalOut += roundPayout;
+            session.PendingReset = true;
         }
     }
 
-    Console.WriteLine($"  Total In:        {totalIn:N0}");
-    Console.WriteLine($"  Total Out:       {totalOut:N0}");
-    Console.WriteLine($"  RTP:             {(decimal)totalOut / totalIn:P4}");
-    Console.WriteLine($"  Jackpots paid:   {jackpotsPaid:N0} ({jackpotWins} wins)");
-    Console.WriteLine($"  Double-up:       {doubleUpAttempts} attempts, {doubleUpWins} wins, {doubleUpLosses} losses ({(doubleUpAttempts > 0 ? (double)doubleUpWins / doubleUpAttempts : 0):P1} win rate)");
+    result.FinalObservedRtp = ledger.ObservedRtp;
+    result.FinalBaseRtp = ledger.CapitalIn <= 0m ? 0m : decimal.Round(result.ScaledBaseOut / ledger.CapitalIn, 4);
+    result.FinalJackpotRtp = ledger.CapitalIn <= 0m ? 0m : decimal.Round(result.JackpotOverlayOut / ledger.CapitalIn, 4);
+    result.FinalDoubleUpRtp = ledger.CapitalIn <= 0m ? 0m : decimal.Round(result.DoubleUpOverlayOut / ledger.CapitalIn, 4);
+    return result;
 }
 
-void SimulateRtpConvergence()
+static MachinePolicyState BuildPolicyState(MachineLedgerState ledger) => new()
 {
-    Console.WriteLine("\n--- 4. RTP CONVERGENCE OVER TIME ---");
-    var policyState = new MachinePolicyState
+    CreditsIn = ledger.CapitalIn,
+    CreditsOut = ledger.CapitalOut,
+    BaseCreditsOut = ledger.BaseCapitalOut,
+    JackpotCreditsOut = ledger.JackpotCapitalOut,
+    DoubleUpCreditsOut = ledger.DoubleUpCapitalOut,
+    TargetRtp = ledger.TargetRtp,
+    RoundCount = ledger.RoundCount,
+    ConsecutiveLosses = ledger.ConsecutiveLosses,
+    RoundsSinceMediumWin = ledger.RoundsSinceMediumWin,
+    CooldownRoundsRemaining = ledger.CooldownRoundsRemaining,
+    NetSinceLastClose = ledger.NetSinceLastClose,
+    RoundsSinceLucky5Hit = ledger.RoundsSinceLucky5Hit
+};
+
+decimal ResolveJackpot(ref MachineLedgerState ledger, HandEvaluation evaluation, int scaledBasePayout)
+{
+    if (evaluation.Category == HandCategory.FullHouse
+        && evaluation.Tiebreak[0] == ledger.JackpotFullHouseRank
+        && ledger.JackpotFullHouse > scaledBasePayout)
     {
-        CreditsIn = 0,
-        CreditsOut = 0,
-        TargetRtp = 0.875m,
-        RoundCount = 0
-    };
-
-    var checkpoints = new[] { 100, 500, 1000, 5000, 10000, 50000, 100000, 200000, 500000 };
-    int cpIdx = 0;
-
-    for (int i = 0; i < ROUNDS; i++)
-    {
-        var seed = DeterministicSeed.FromString($"conv-sim-{i}");
-
-        policyState.RoundsSinceMediumWin++;
-        if (policyState.CooldownRoundsRemaining > 0) policyState.CooldownRoundsRemaining--;
-
-        var mode = MachinePolicy.ResolveDistributionMode(policyState, seed);
-        var standardDeck = FiveCardDrawEngine.BuildStandardDeck();
-        var alteredDeck = MachinePolicy.AlterDeck(standardDeck, mode, seed, policyState.ConsecutiveLosses);
-        var shuffledDeck = FiveCardDrawEngine.ShuffleDeck(seed, "hand", alteredDeck);
-        var hand = shuffledDeck.Take(5).ToArray();
-        var state = FiveCardDrawState.Create(seed, shuffledDeck, hand);
-
-        var holdMask = ComputeOptimalHolds(hand);
-        state = FiveCardDrawEngine.Reduce(state, new RoundAction(RoundActionKind.SetHoldMask, HoldMask: holdMask));
-        state = FiveCardDrawEngine.Reduce(state, new RoundAction(RoundActionKind.Draw));
-
-        var eval = FiveCardDrawEngine.EvaluateHand(state.Hand);
-        var basePayout = paytable.ResolvePayout(eval, BET);
-        var scaleResult4 = MachinePolicy.ResolvePayoutScale(policyState, seed);
-        var tier4 = MachinePolicy.ClassifyHand(eval.Category);
-        var payoutScale = scaleResult4.ForTier(tier4);
-        var payout = basePayout > 0 ? (int)Math.Round(basePayout * payoutScale, MidpointRounding.AwayFromZero) : 0;
-
-        policyState.CreditsIn += 2 * BET;
-        policyState.CreditsOut += payout;
-        policyState.BaseCreditsOut += basePayout;
-        policyState.RoundCount++;
-        if (payout > 0)
-        {
-            policyState.ConsecutiveLosses = 0;
-            if (tier4 >= PayoutTier.Medium) policyState.RoundsSinceMediumWin = 0;
-            policyState.CooldownRoundsRemaining = MachinePolicy.ComputeCooldownLength(eval.Category);
-        }
-        else
-        {
-            policyState.ConsecutiveLosses++;
-        }
-
-        if (cpIdx < checkpoints.Length && (i + 1) == checkpoints[cpIdx])
-        {
-            var scale = MachinePolicy.ResolvePayoutScale(policyState, seed);
-            Console.WriteLine($"  Round {checkpoints[cpIdx],7:N0}: RTP={policyState.ObservedRtp:P2} Drift={policyState.Drift:+0.00;-0.00}% Scale={scale.SmallScale:F3}/{scale.MediumScale:F3}/{scale.BigScale:F3} Mode={mode} Streak={policyState.ConsecutiveLosses}");
-            cpIdx++;
-        }
+        var jackpot = ledger.JackpotFullHouse;
+        ledger.JackpotFullHouse = cfg.JackpotFullHouseStart;
+        return jackpot;
     }
-}
 
-void PrintHandDist(Dictionary<string, int> handCounts, int rounds)
-{
-    var order = new[] { "RoyalFlush", "StraightFlush", "FourOfAKind", "FullHouse", "Flush", "Straight", "ThreeOfAKind", "TwoPair", "OnePair", "HighCard" };
-    Console.WriteLine("  Hand Distribution:");
-    foreach (var h in order)
+    if (evaluation.Category == HandCategory.FourOfAKind && ledger.ActiveFourOfAKindSlot == 0 && ledger.JackpotFourOfAKindA > scaledBasePayout)
     {
-        var count = handCounts.GetValueOrDefault(h);
-        if (count > 0)
-            Console.WriteLine($"    {h,-16} {count,7} ({(double)count / rounds:P3})");
+        var jackpot = ledger.JackpotFourOfAKindA;
+        ledger.JackpotFourOfAKindA = cfg.JackpotFourOfAKindStart;
+        return jackpot;
     }
+
+    if (evaluation.Category == HandCategory.FourOfAKind && ledger.ActiveFourOfAKindSlot == 1 && ledger.JackpotFourOfAKindB > scaledBasePayout)
+    {
+        var jackpot = ledger.JackpotFourOfAKindB;
+        ledger.JackpotFourOfAKindB = cfg.JackpotFourOfAKindStart;
+        return jackpot;
+    }
+
+    if (evaluation.Category == HandCategory.StraightFlush && ledger.JackpotStraightFlush > scaledBasePayout)
+    {
+        var jackpot = ledger.JackpotStraightFlush;
+        ledger.JackpotStraightFlush = cfg.JackpotStraightFlushStart;
+        return jackpot;
+    }
+
+    return 0m;
 }
 
-void SimulateExcitementMetrics()
+DoubleUpChainResult PlayDoubleUpChain(
+    ulong roundSeed,
+    PolicyDistributionMode policyMode,
+    PlayerBehavior behavior,
+    SessionState bank,
+    int openingAmount,
+    SimulationResult result)
 {
-    Console.WriteLine("\n--- 5. EXCITEMENT METRICS (player experience analysis) ---");
-    var policyState = new MachinePolicyState
+    var duDeck = MachinePolicy.BuildDoubleUpDeck(
+        FiveCardDrawEngine.BuildStandardDeck(),
+        roundSeed,
+        0,
+        0m,
+        policyMode);
+
+    var session = Lucky5DoubleUpEngine.CreateSessionFromDeck(
+        roundSeed,
+        FiveCardDrawEngine.ShuffleDeck(roundSeed, "double-up", duDeck),
+        openingAmount,
+        machineCreditBaseline: Decimal.ToInt32(Math.Min(bank.MachineCredits, int.MaxValue)),
+        options: new Lucky5DoubleUpOptions(MaxCreditLimit: Decimal.ToInt32(cfg.CloseThreshold)));
+
+    var settledCredits = 0;
+    var continuedAfterTakeHalf = false;
+    var takeHalfUsed = false;
+
+    for (var step = 0; step < 16; step++)
     {
-        CreditsIn = 0,
-        CreditsOut = 0,
-        TargetRtp = 0.875m,
-        RoundCount = 0
-    };
-
-    var lossStreaks = new List<int>();
-    int currentLossStreak = 0;
-    int maxLossStreak = 0;
-    int smallWins = 0, mediumWins = 0, bigWins = 0, totalWins = 0;
-    long smallPayout = 0, mediumPayout = 0, bigPayout = 0;
-    var gapsBetweenWins = new List<int>();
-    int roundsSinceLastWin = 0;
-
-    for (int i = 0; i < ROUNDS; i++)
-    {
-        var seed = DeterministicSeed.FromString($"excitement-sim-{i}");
-
-        policyState.RoundsSinceMediumWin++;
-        if (policyState.CooldownRoundsRemaining > 0) policyState.CooldownRoundsRemaining--;
-
-        var mode = MachinePolicy.ResolveDistributionMode(policyState, seed);
-        var standardDeck = FiveCardDrawEngine.BuildStandardDeck();
-        var alteredDeck = MachinePolicy.AlterDeck(standardDeck, mode, seed, policyState.ConsecutiveLosses);
-        var shuffledDeck = FiveCardDrawEngine.ShuffleDeck(seed, "hand", alteredDeck);
-        var hand = shuffledDeck.Take(5).ToArray();
-        var state = FiveCardDrawState.Create(seed, shuffledDeck, hand);
-
-        var holdMask = ComputeOptimalHolds(hand);
-        state = FiveCardDrawEngine.Reduce(state, new RoundAction(RoundActionKind.SetHoldMask, HoldMask: holdMask));
-        state = FiveCardDrawEngine.Reduce(state, new RoundAction(RoundActionKind.Draw));
-
-        var eval = FiveCardDrawEngine.EvaluateHand(state.Hand);
-        var basePayout = paytable.ResolvePayout(eval, BET);
-        var scaleResult = MachinePolicy.ResolvePayoutScale(policyState, seed);
-        var tier = MachinePolicy.ClassifyHand(eval.Category);
-        var payoutScale = scaleResult.ForTier(tier);
-        var payout = basePayout > 0 ? (int)Math.Round(basePayout * payoutScale, MidpointRounding.AwayFromZero) : 0;
-
-        policyState.CreditsIn += 2 * BET;
-        policyState.CreditsOut += payout;
-        policyState.BaseCreditsOut += basePayout;
-        policyState.RoundCount++;
-
-        roundsSinceLastWin++;
-
-        if (payout > 0)
+        if (!takeHalfUsed && ShouldTakeHalf(behavior, roundSeed, step, openingAmount, bank.MachineCredits, session.CurrentAmount))
         {
-            totalWins++;
-            gapsBetweenWins.Add(roundsSinceLastWin);
-            roundsSinceLastWin = 0;
+            var half = session.CurrentAmount / 2;
+            var remaining = session.CurrentAmount - half;
+            settledCredits += half;
+            BankCredits(bank, half, result);
+            session = session with { CurrentAmount = remaining };
+            takeHalfUsed = true;
+        }
 
-            if (currentLossStreak > 0)
+        if (ShouldCashoutDoubleUp(behavior, roundSeed, step, openingAmount, bank.PendingReset, takeHalfUsed, bank.MachineCredits, session.CurrentAmount))
+        {
+            settledCredits += session.CurrentAmount;
+            BankCredits(bank, session.CurrentAmount, result);
+            return new DoubleUpChainResult(settledCredits - openingAmount, takeHalfUsed && continuedAfterTakeHalf);
+        }
+
+        while (session.SwitchCountInRound < session.Options.MaxSwitchesPerRound
+            && ShouldSwitchDealer(behavior, roundSeed, step, session))
+        {
+            session = Lucky5DoubleUpEngine.SwitchDealer(session);
+            if (session.DealerCard.Rank == 5 && session.DealerCard.Suit == 'S')
             {
-                lossStreaks.Add(currentLossStreak);
-                if (currentLossStreak > maxLossStreak) maxLossStreak = currentLossStreak;
+                result.LuckySwitchHits++;
             }
-            currentLossStreak = 0;
 
-            switch (tier)
+            if (takeHalfUsed)
             {
-                case PayoutTier.Small: smallWins++; smallPayout += payout; break;
-                case PayoutTier.Medium: mediumWins++; mediumPayout += payout; break;
-                case PayoutTier.Big: bigWins++; bigPayout += payout; break;
+                continuedAfterTakeHalf = true;
             }
 
-            policyState.ConsecutiveLosses = 0;
-            if (tier >= PayoutTier.Medium) policyState.RoundsSinceMediumWin = 0;
-            policyState.CooldownRoundsRemaining = MachinePolicy.ComputeCooldownLength(eval.Category);
+            if (!ShouldSwitchDealer(behavior, roundSeed, step + session.SwitchCountInRound, session))
+            {
+                break;
+            }
         }
-        else
+
+        var resolution = Lucky5DoubleUpEngine.ResolveGuess(session, ChooseGuess(session));
+        if (takeHalfUsed)
         {
-            currentLossStreak++;
-            policyState.ConsecutiveLosses++;
+            continuedAfterTakeHalf = true;
+        }
+
+        switch (resolution.Outcome)
+        {
+            case Lucky5DoubleUpOutcome.Win:
+                result.DoubleUpResolutionWins++;
+                session = resolution.Session;
+                continue;
+
+            case Lucky5DoubleUpOutcome.MachineClosed:
+                result.DoubleUpResolutionWins++;
+                settledCredits += resolution.CashoutCredits;
+                BankCredits(bank, resolution.CashoutCredits, result);
+                return new DoubleUpChainResult(settledCredits - openingAmount, takeHalfUsed && continuedAfterTakeHalf);
+
+            case Lucky5DoubleUpOutcome.SafeFail:
+                result.DoubleUpResolutionLosses++;
+                settledCredits += resolution.CashoutCredits;
+                BankCredits(bank, resolution.CashoutCredits, result);
+                return new DoubleUpChainResult(settledCredits - openingAmount, takeHalfUsed && continuedAfterTakeHalf);
+
+            default:
+                result.DoubleUpResolutionLosses++;
+                return new DoubleUpChainResult(settledCredits - openingAmount, takeHalfUsed && continuedAfterTakeHalf);
         }
     }
 
-    if (currentLossStreak > 0) lossStreaks.Add(currentLossStreak);
+    settledCredits += session.CurrentAmount;
+    BankCredits(bank, session.CurrentAmount, result);
+    return new DoubleUpChainResult(settledCredits - openingAmount, takeHalfUsed && continuedAfterTakeHalf);
+}
 
-    var avgGap = gapsBetweenWins.Count > 0 ? gapsBetweenWins.Average() : 0;
-    var medianGap = gapsBetweenWins.Count > 0 ? gapsBetweenWins.OrderBy(x => x).ElementAt(gapsBetweenWins.Count / 2) : 0;
-    var p90Gap = gapsBetweenWins.Count > 0 ? gapsBetweenWins.OrderBy(x => x).ElementAt((int)(gapsBetweenWins.Count * 0.90)) : 0;
-    var p99Gap = gapsBetweenWins.Count > 0 ? gapsBetweenWins.OrderBy(x => x).ElementAt((int)(gapsBetweenWins.Count * 0.99)) : 0;
-    var avgLossStreak = lossStreaks.Count > 0 ? lossStreaks.Average() : 0;
-    var streaksOver10 = lossStreaks.Count(s => s > 10);
-    var streaksOver15 = lossStreaks.Count(s => s > 15);
+void BankCredits(SessionState bank, int amount, SimulationResult result)
+{
+    if (amount <= 0)
+    {
+        return;
+    }
 
-    Console.WriteLine($"  Win Rate:         {(double)totalWins / ROUNDS:P1} ({totalWins:N0} wins in {ROUNDS:N0} rounds)");
-    Console.WriteLine($"  Win Tier Split:   Small={smallWins} ({(double)smallWins / totalWins:P1})  Medium={mediumWins} ({(double)mediumWins / totalWins:P1})  Big={bigWins} ({(double)bigWins / totalWins:P1})");
-    Console.WriteLine($"  Avg Payout/Tier:  Small={smallPayout / Math.Max(smallWins, 1):N0}  Medium={mediumPayout / Math.Max(mediumWins, 1):N0}  Big={bigPayout / Math.Max(bigWins, 1):N0}");
-    Console.WriteLine($"  Rounds Between Wins: avg={avgGap:F1} median={medianGap} p90={p90Gap} p99={p99Gap}");
-    Console.WriteLine($"  Loss Streaks:     avg={avgLossStreak:F1} max={maxLossStreak} over10={streaksOver10} over15={streaksOver15}");
-    Console.WriteLine($"  Final RTP:        {policyState.ObservedRtp:P2}");
+    var before = bank.MachineCredits;
+    bank.MachineCredits += amount;
+    if (!bank.PendingReset && before < cfg.CloseThreshold && bank.MachineCredits >= cfg.CloseThreshold)
+    {
+        bank.PendingReset = true;
+        result.MachineCloses40M++;
+    }
+}
+
+static bool ShouldEnterDoubleUp(PlayerBehavior behavior, ulong seed, int payout, decimal machineCredits)
+{
+    return behavior switch
+    {
+        PlayerBehavior.ConservativeCollectFirst => false,
+        PlayerBehavior.Balanced => machineCredits + payout < EngineConfig.Default.CloseThreshold
+            && Roll(seed, "accept-balanced", payout, 0.78m),
+        PlayerBehavior.AggressiveCabinetClosing => machineCredits + payout < 50_000_000m || payout < 2_000_000,
+        _ => false
+    };
+}
+
+static bool ShouldTakeHalf(PlayerBehavior behavior, ulong seed, int step, int openingAmount, decimal machineCredits, int currentAmount)
+{
+    return behavior switch
+    {
+        PlayerBehavior.Balanced => currentAmount >= Math.Max(openingAmount * 4, 500_000)
+            && machineCredits + currentAmount < EngineConfig.Default.CloseThreshold
+            && Roll(seed, "take-half-balanced", step, 0.35m),
+        PlayerBehavior.AggressiveCabinetClosing => currentAmount >= Math.Max(openingAmount * 8, 1_000_000)
+            && machineCredits + currentAmount >= EngineConfig.Default.CloseThreshold * 0.65m
+            && Roll(seed, "take-half-aggressive", step, 0.60m),
+        _ => false
+    };
+}
+
+static bool ShouldCashoutDoubleUp(
+    PlayerBehavior behavior,
+    ulong seed,
+    int step,
+    int openingAmount,
+    bool machineAlreadyClosed,
+    bool takeHalfUsed,
+    decimal machineCredits,
+    int currentAmount)
+{
+    if (machineAlreadyClosed && behavior != PlayerBehavior.AggressiveCabinetClosing)
+    {
+        return true;
+    }
+
+    return behavior switch
+    {
+        PlayerBehavior.Balanced => step > 0 && (
+            takeHalfUsed
+            || currentAmount >= Math.Max(openingAmount * 2, 250_000)
+            || Roll(seed, "cashout-balanced", step, 0.70m)),
+        PlayerBehavior.AggressiveCabinetClosing => (machineCredits + currentAmount >= EngineConfig.Default.CloseThreshold && step > 0)
+            || currentAmount >= Math.Max(openingAmount * 32, 8_000_000)
+            || step >= 7,
+        _ => true
+    };
+}
+
+static bool ShouldSwitchDealer(PlayerBehavior behavior, ulong seed, int step, Lucky5DoubleUpSession session)
+{
+    var dealerRank = session.DealerCard.Rank;
+    return behavior switch
+    {
+        PlayerBehavior.Balanced => session.SwitchCountInRound == 0
+            && dealerRank is 7 or 8
+            && Roll(seed, "switch-balanced", step, 0.25m),
+        PlayerBehavior.AggressiveCabinetClosing => dealerRank is >= 6 and <= 9
+            && Roll(seed, "switch-aggressive", step + session.SwitchCountInRound, session.SwitchCountInRound == 0 ? 0.60m : 0.35m),
+        _ => false
+    };
+}
+
+static bool ShouldCashOutSession(PlayerBehavior behavior, SessionState session)
+{
+    return behavior switch
+    {
+        PlayerBehavior.ConservativeCollectFirst => session.MachineCredits >= session.SessionCashIn * 2m,
+        PlayerBehavior.Balanced => session.MachineCredits >= Math.Max(session.SessionCashIn * 2.5m, 2_000_000m)
+            && session.MachineCredits < EngineConfig.Default.CloseThreshold * 0.85m,
+        _ => false
+    };
+}
+
+static BigSmallGuess ChooseGuess(Lucky5DoubleUpSession session)
+    => session.DealerCard.Rank <= 8 ? BigSmallGuess.Big : BigSmallGuess.Small;
+
+static bool Roll(ulong seed, string stream, int salt, decimal threshold)
+{
+    var rng = new SplitMix64Rng(DeterministicSeed.Derive(seed, stream, salt));
+    return (decimal)rng.NextUnit() < threshold;
 }
 
 bool[] ComputeOptimalHolds(CleanRoomCard[] hand)
@@ -442,30 +470,116 @@ bool[] ComputeOptimalHolds(CleanRoomCard[] hand)
         case HandCategory.ThreeOfAKind:
         {
             var tripRank = hand.GroupBy(c => c.Rank).First(g => g.Count() == 3).Key;
-            for (int j = 0; j < 5; j++) holds[j] = hand[j].Rank == tripRank;
+            for (var index = 0; index < 5; index++) holds[index] = hand[index].Rank == tripRank;
             return holds;
         }
+
         case HandCategory.TwoPair:
         {
             var pairRanks = hand.GroupBy(c => c.Rank).Where(g => g.Count() == 2).Select(g => g.Key).ToHashSet();
-            for (int j = 0; j < 5; j++) holds[j] = pairRanks.Contains(hand[j].Rank);
+            for (var index = 0; index < 5; index++) holds[index] = pairRanks.Contains(hand[index].Rank);
             return holds;
         }
+
         case HandCategory.OnePair:
         {
             var pairRank = hand.GroupBy(c => c.Rank).First(g => g.Count() == 2).Key;
-            for (int j = 0; j < 5; j++) holds[j] = hand[j].Rank == pairRank;
+            for (var index = 0; index < 5; index++) holds[index] = hand[index].Rank == pairRank;
             return holds;
         }
+
         default:
-        {
-            var highCards = hand.Select((c, idx) => (c, idx))
-                .OrderByDescending(x => x.c.Rank)
-                .Take(2)
-                .Select(x => x.idx)
-                .ToHashSet();
-            for (int j = 0; j < 5; j++) holds[j] = highCards.Contains(j);
-            return holds;
-        }
+            return [false, false, false, false, false];
     }
 }
+
+void ApplyJackpotContributions(MachineLedgerState ledger)
+{
+    ledger.JackpotFourOfAKindA = Math.Min(ledger.JackpotFourOfAKindA + cfg.JackpotFourOfAKindContribution, cfg.JackpotFourOfAKindCap);
+    ledger.JackpotFourOfAKindB = Math.Min(ledger.JackpotFourOfAKindB + cfg.JackpotFourOfAKindContribution, cfg.JackpotFourOfAKindCap);
+    ledger.JackpotFullHouse = Math.Min(ledger.JackpotFullHouse + cfg.JackpotFullHouseContribution, cfg.JackpotFullHouseCap);
+    ledger.JackpotStraightFlush = Math.Min(ledger.JackpotStraightFlush + cfg.JackpotStraightFlushContribution, cfg.JackpotStraightFlushCap);
+}
+
+static void PrintSummary(string label, SimulationResult result)
+{
+    Console.WriteLine($"{label,-32} | RTP {result.TotalRtp:P2} | Base {result.BaseRtp:P2} | Jackpot {result.JackpotRtp:P2} | DU {result.DoubleUpRtp:P2}");
+    Console.WriteLine($"  Paying spins {result.DirectPayingSpinFrequency:P2} | Medium+ {result.MediumOrBetterFrequency:P2} | DU offer/win {result.OfferRateOnWinningRounds:P2} | Accept {result.AcceptRate:P2}");
+    Console.WriteLine($"  Entered DU gain {result.RealizedIncrementalGainPerEnteredChain:P2} of trigger win | Avg scale {result.AveragePayoutScale:F3} | 40M closes {result.MachineCloses40M:N0} | 50M take-half+continue {result.Over50MViaTakeHalfContinuation:N0}");
+}
+
+static string DescribeBehavior(PlayerBehavior behavior) => behavior switch
+{
+    PlayerBehavior.ConservativeCollectFirst => "Conservative collect-first",
+    PlayerBehavior.Balanced => "Balanced",
+    PlayerBehavior.AggressiveCabinetClosing => "Aggressive cabinet-closing",
+    _ => behavior.ToString()
+};
+
+enum PlayerBehavior
+{
+    ConservativeCollectFirst = 0,
+    Balanced = 1,
+    AggressiveCabinetClosing = 2
+}
+
+sealed class SessionState
+{
+    public decimal MachineCredits { get; set; }
+    public decimal SessionCashIn { get; set; }
+    public bool PendingReset { get; set; }
+
+    public void StartNewSession()
+    {
+        MachineCredits = StartingSessionCredits;
+        SessionCashIn = StartingSessionCredits;
+        PendingReset = false;
+    }
+
+    public void BeginRound()
+    {
+        // No-op placeholder for symmetry with the live flow.
+    }
+}
+
+sealed class SimulationResult(PlayerBehavior behavior, int rounds)
+{
+    public PlayerBehavior Behavior { get; } = behavior;
+    public int Rounds { get; } = rounds;
+    public decimal TotalIn { get; set; }
+    public decimal ScaledBaseOut { get; set; }
+    public decimal JackpotOverlayOut { get; set; }
+    public decimal DoubleUpOverlayOut { get; set; }
+    public decimal PreDoubleUpWinCredits { get; set; }
+    public decimal EnteredTriggerCredits { get; set; }
+    public decimal PayoutScaleSum { get; set; }
+    public int PayoutScaleSamples { get; set; }
+    public int DirectPayingSpins { get; set; }
+    public int MediumOrBetterSpins { get; set; }
+    public int EligibleWinningRounds { get; set; }
+    public int OfferedWinningRounds { get; set; }
+    public int EnteredDoubleUpChains { get; set; }
+    public int DoubleUpResolutionWins { get; set; }
+    public int DoubleUpResolutionLosses { get; set; }
+    public int LuckySwitchHits { get; set; }
+    public int MachineCloses40M { get; set; }
+    public int Over50MViaTakeHalfContinuation { get; set; }
+    public int SessionsStarted { get; set; }
+    public decimal FinalObservedRtp { get; set; }
+    public decimal FinalBaseRtp { get; set; }
+    public decimal FinalJackpotRtp { get; set; }
+    public decimal FinalDoubleUpRtp { get; set; }
+
+    public decimal TotalRtp => TotalIn <= 0m ? 0m : decimal.Round((ScaledBaseOut + JackpotOverlayOut + DoubleUpOverlayOut) / TotalIn, 4);
+    public decimal BaseRtp => TotalIn <= 0m ? 0m : decimal.Round(ScaledBaseOut / TotalIn, 4);
+    public decimal JackpotRtp => TotalIn <= 0m ? 0m : decimal.Round(JackpotOverlayOut / TotalIn, 4);
+    public decimal DoubleUpRtp => TotalIn <= 0m ? 0m : decimal.Round(DoubleUpOverlayOut / TotalIn, 4);
+    public decimal DirectPayingSpinFrequency => Rounds <= 0 ? 0m : decimal.Round((decimal)DirectPayingSpins / Rounds, 4);
+    public decimal MediumOrBetterFrequency => Rounds <= 0 ? 0m : decimal.Round((decimal)MediumOrBetterSpins / Rounds, 4);
+    public decimal OfferRateOnWinningRounds => EligibleWinningRounds <= 0 ? 0m : decimal.Round((decimal)OfferedWinningRounds / EligibleWinningRounds, 4);
+    public decimal AcceptRate => OfferedWinningRounds <= 0 ? 0m : decimal.Round((decimal)EnteredDoubleUpChains / OfferedWinningRounds, 4);
+    public decimal RealizedIncrementalGainPerEnteredChain => EnteredTriggerCredits <= 0m ? 0m : decimal.Round(DoubleUpOverlayOut / EnteredTriggerCredits, 4);
+    public decimal AveragePayoutScale => PayoutScaleSamples <= 0 ? 0m : decimal.Round(PayoutScaleSum / PayoutScaleSamples, 4);
+}
+
+readonly record struct DoubleUpChainResult(decimal Delta, bool ContinuedAfterTakeHalf);

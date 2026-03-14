@@ -26,9 +26,13 @@ This architecture therefore does **not** try to suppress generosity further. It 
 This document also supersedes the previous cap-based rewrite. Per the latest product direction, the final design now preserves:
 
 - unlimited double-up chains
-- ace auto-win behavior
-- Lucky5 switch-only no-lose behavior
+- ace hi/lo auto-win behavior exactly as the shipped cabinet rule
+- 5♠ Lucky5 switch-only no-lose behavior exactly as the shipped cabinet rule
 - jackpot plus double-up cabinet-closing fantasy
+
+The governing rule constraint for this revision is simple:
+
+> **RTP must be rebalanced by policy and configuration, not by changing Ace hi/lo or the 5♠ Lucky5 rule set.**
 
 The only structural gameplay threshold change recommended here is lowering machine close from **50,000,000** to **40,000,000** credits so closes happen more often without changing the visible rules.
 
@@ -43,11 +47,21 @@ It assumed the problem was overshoot and therefore leaned on tight double-up sup
 ### Final product-direction decisions
 
 1. **Double-up remains uncapped**
-2. **Ace auto-win remains enabled**
+2. **Ace hi/lo auto-win remains enabled**
 3. **Lucky5 remains switch-only with 4x first and 2x repeat multipliers**
 4. **Jackpot-sized wins remain eligible to feed the double-up fantasy**
 5. **Machine close is recommended at 40,000,000 credits instead of 50,000,000**
 6. **RTP is lifted upward mainly through scale plus a softer always-on double-up offer curve, not by capping the feature players love most**
+
+### 2.1 Hard rule constraints preserved by this architecture
+
+The following rules are treated as **non-negotiable** and must not be altered by the implementation pass:
+
+1. **Ace remains hi/lo always in double-up**
+2. **5♠ Lucky5 remains switch-only**
+3. **Lucky5 retains 4x first-hit and 2x repeat-hit multipliers**
+4. **Lucky5 SafeFail / no-lose identity remains intact**
+5. **Double-up outcomes remain deterministic from the pre-shuffled deck rather than post-choice rigging**
 
 This is the governing architecture for the next implementation pass.
 
@@ -125,6 +139,8 @@ That exactly closes the measured gap.
 - **Payout scale** becomes the dominant convergence controller
 - **Double-up** stays powerful, but its availability curve stays soft and never fully disappears
 - **Jackpots** stay visible and reachable, but their reset values and caps must finally be internally consistent
+- **Deck pressure and pity pressure** remain bounded secondary levers only
+- **Ace hi/lo and 5♠ Lucky5 rules are not used as balancing levers**
 
 ---
 
@@ -212,6 +228,7 @@ Therefore the next implementation pass must:
 1. remove hardcoded counterplay scale bonuses that bypass the controller
 2. keep all scale tuning in config only
 3. continue subtracting observed jackpot pressure from the base-game controller target
+4. avoid using Ace or Lucky5 rule changes as hidden substitute tuning knobs
 
 ---
 
@@ -229,7 +246,7 @@ This is an explicit product-direction override. The architecture is no longer tr
 |---|---|
 | Max attempts | **Unlimited** |
 | Per-attempt win probability | Preserve current natural behavior around **76.1%** |
-| Ace auto-win | **Keep enabled** |
+| Ace hi/lo auto-win | **Keep enabled exactly as-is** |
 | Max collectible per chain | **No chain cap** |
 | Lucky5 no-lose | **Keep** on switch-only path |
 | Lucky5 first multiplier | `4x` |
@@ -237,6 +254,8 @@ This is an explicit product-direction override. The architecture is no longer tr
 | Max switches per round | `2` |
 | Double-up deck | Standard shuffled deck by default |
 | Machine close threshold | **40,000,000 credits** recommended |
+
+The intent here is explicit: **do not rebalance RTP by nerfing Ace or Lucky5.** The RTP levers for this architecture are payout scale, jackpot structure, offer rate, bounded deck pressure, and machine-close policy.
 
 ### 6.3 Why unlimited double-up is retained
 
@@ -297,7 +316,9 @@ It does **not**:
 
 - cap attempts at 3 to 5
 - force win rate down to 45 to 48
-- remove ace auto-win
+- remove ace hi/lo auto-win
+- change Lucky5 from switch-only
+- change Lucky5 away from the current 4x first / 2x repeat identity
 - cap collectible value at 50x trigger win
 
 Those ideas are intentionally rejected in this revised architecture.
@@ -335,6 +356,8 @@ Because the paytable stays frozen, the architecture should target:
 This is the key design decision:
 
 > We keep the sparse Lebanese paytable and create excitement through scaled win size, jackpots, and unlimited double-up continuation rather than adding a visible low-tier consolation payout.
+
+That means the machine is rebalanced primarily through **how often** and **how strongly** it pays, not by rewriting the visible double-up rules players already recognize.
 
 ### 7.4 Medium-volatility target
 
@@ -389,6 +412,8 @@ scaled winning hand
 
 That is now a desired behavior, not an accident.
 
+Preserving that path is compatible with the user constraint because it does **not** alter Ace hi/lo logic or the 5♠ Lucky5 rule set; it only changes the overlay economics around them.
+
 ---
 
 ## 9. System flow
@@ -429,7 +454,7 @@ Required changes:
 5. Replace the old two-point double-up offer config with explicit floor, target-band, and max values
 6. Set jackpot starts, caps, and contributions to the values in section 8
 7. Lower close-related thresholds to the new recommended **40,000,000** level
-8. Keep `Lucky5DoubleUpOptions` uncapped and ace-enabled
+8. Keep [`Lucky5DoubleUpOptions`](server/src/Lucky5.Domain/Game/CleanRoom/CoreModels.cs:227) uncapped, ace-enabled, and aligned with the existing 5♠ switch-only 4x/2x behavior
 
 ## 10.2 `server/src/Lucky5.Domain/Game/CleanRoom/Lucky5DoubleUpEngine.cs`
 
@@ -438,8 +463,8 @@ Keep the gameplay loop intact, but make the close threshold configurable and ali
 Required changes:
 
 1. Preserve unlimited chaining
-2. Preserve ace auto-win logic in `IsWinningGuess`
-3. Preserve switch-only Lucky5 activation
+2. Preserve ace hi/lo auto-win logic in [`IsWinningGuess()`](server/src/Lucky5.Domain/Game/CleanRoom/Lucky5DoubleUpEngine.cs:198)
+3. Preserve switch-only Lucky5 activation and existing 4x/2x multipliers
 4. Replace the implicit 50M assumption with the new configured close threshold
 5. Do not add attempt caps
 6. Do not add chain payout clamps
@@ -458,6 +483,7 @@ Required changes:
 5. Replace binary suppression with the new soft offer curve from section 6
 6. Keep `BuildDoubleUpDeck` standard unless a later simulation pass proves additional pressure is needed
 7. Align soft-cap and close thresholds to the recommended 40M close architecture
+8. Keep RTP control focused on scale / offer curve / bounded deck pressure rather than any Ace or Lucky5 rule change
 
 ## 10.4 `server/src/Lucky5.Simulation/Program.cs`
 
@@ -488,8 +514,8 @@ The tests must stop assuming a capped double-up future.
 
 Required changes:
 
-1. Keep regression coverage for ace auto-win
-2. Keep regression coverage for switch-only Lucky5 behavior
+1. Keep regression coverage for ace hi/lo auto-win
+2. Keep regression coverage for switch-only Lucky5 behavior and current 4x/2x multipliers
 3. Add coverage proving unlimited chaining remains valid across repeated wins
 4. Add coverage for the configurable close threshold at **40,000,000**
 5. Add coverage for the nonzero double-up offer floor when the machine is over target
@@ -520,15 +546,24 @@ The next implementation pass must also report:
 ---
 
 ## 12. Final architecture decision
-67tgyy
+
 The corrected design is:
 
 - **85.00% total RTP target**
 - **72.50% scaled base**
 - **3.50% jackpots**
 - **9.00% unlimited double-up overlay**
-- **uncapped ace-friendly double-up preserved**
+- **Ace hi/lo always preserved**
+- **5♠ Lucky5 switch-only 4x/2x behavior preserved**
 - **machine close lowered to 40,000,000 credits**
 - **visible Lebanese paytable preserved**
+
+The revised RTP-control levers are therefore:
+
+1. wider but bounded payout-scale controller tuning
+2. a soft nonzero double-up offer curve
+3. replace-mode jackpots with coherent starts / caps / contributions
+4. bounded deck-pressure policy if later simulation still needs it
+5. machine-close threshold tuning
 
 This is the architecture that should guide the next implementation subtask.

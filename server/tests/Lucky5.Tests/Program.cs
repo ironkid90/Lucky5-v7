@@ -1,6 +1,7 @@
 using Lucky5.Application.Contracts;
 using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game;
+using Lucky5.Domain.Game.CleanRoom;
 using Lucky5.Infrastructure.Services;
 using Lucky5.Application.Requests;
 using Microsoft.Extensions.Configuration;
@@ -70,6 +71,9 @@ var login = await authService.LoginAsync(new LoginRequest("tester", "password"),
 Assert(login.Tokens.AccessToken.Length > 10, "Login should issue access token");
 
 var machine = (await gameService.GetMachinesAsync(CancellationToken.None)).First();
+Assert(EngineConfig.Default.CloseThreshold == 40_000_000m, "Engine config should lower machine close threshold to 40,000,000 credits");
+Assert(store.MachineLedgers[machine.Id].TargetRtp == EngineConfig.Default.TargetRtp, "Machine ledger should inherit the approved 85% RTP target");
+Assert(store.MachineLedgers[machine.Id].JackpotStraightFlush == EngineConfig.Default.JackpotStraightFlushStart, "Machine ledger should inherit the approved straight-flush jackpot reset value");
 var cashIn = await gameService.CashInAsync(profile.UserId, machine.Id, 200_000m, CancellationToken.None);
 Assert(cashIn.MachineCredits == 200_000m, "Cash-in should fund the machine session");
 

@@ -235,11 +235,7 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
         {
             var ledger = RequireMachineLedger(round.MachineId);
             ledger.CapitalIn += round.BetAmount;
-            var cfg = EngineConfig.Default;
-            ledger.JackpotFourOfAKindA = Math.Min(ledger.JackpotFourOfAKindA + 150, cfg.JackpotFourOfAKindCap);
-            ledger.JackpotFourOfAKindB = Math.Min(ledger.JackpotFourOfAKindB + 150, cfg.JackpotFourOfAKindCap);
-            ledger.JackpotFullHouse = Math.Min(ledger.JackpotFullHouse + 100, cfg.JackpotFullHouseCap);
-            ledger.JackpotStraightFlush = Math.Min(ledger.JackpotStraightFlush + 150, cfg.JackpotStraightFlushCap);
+            ApplyJackpotContributions(ledger, EngineCfg);
             ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
         }
 

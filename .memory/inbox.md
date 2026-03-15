@@ -18,3 +18,4 @@
 ## Notes
 
 - Removed stale “confirmed fix” items here to avoid mixing verified open work with historical status notes.
+- Jackpot ambiguity from the 2026-03-15 investigation is resolved: the vanilla cabinet now has a visible Full House jackpot meter, live 4K side highlighting, and backend deal-time capture for the active 4K slot. No jackpot-specific follow-up is currently open in this inbox.

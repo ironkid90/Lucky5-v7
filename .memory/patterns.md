@@ -24,6 +24,12 @@
 - Closed sessions can cash out immediately.
 - Machine reset clears the close flag for all sessions on that machine.
 
+## Jackpot State / Presentation
+
+- Backend pattern: treat `MachineLedger.ActiveFourOfAKindSlot` as live machine state only; copy it into `GameRound.ActiveFourOfAKindSlotAtDeal` while holding `LedgerSync`, and resolve 4K jackpot payouts from the round snapshot.
+- Vanilla cabinet pattern: the visible jackpot block uses live `[data-jackpot-slot]` counters, including a dedicated `#jp-counter-fh` Full House meter and `.jp-counter.jp-active` to highlight the currently active 4K side.
+- Win display pattern: only show A/B slot tags for Four of a Kind jackpot outcomes; do not append a duplicate jackpot amount to the main win message.
+
 ## React Cabinet Scope
 
 - `src/web/components/lucky5-cabinet.tsx` is still the single-component React cabinet; parity work should assume one-file orchestration unless intentionally refactored.

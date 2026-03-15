@@ -16,3 +16,4 @@
 - **ADR-005 — Double-up is always offered on wins:** there is no probabilistic gating on the offer itself.
 - **ADR-006 — Machine closes at 40,000,000 credits:** reaching the close threshold sets `IsMachineClosed = true`, blocks new play, and allows forced cash-out.
 - **ADR-007 — Machine reset clears close state across sessions:** reset is not just a ledger reset; it also clears `IsMachineClosed` for all sessions on the machine.
+- **ADR-008 — 4K jackpot side is captured atomically at deal time:** `GameService.DealAsync()` computes and stores the active Four of a Kind side under the same `LedgerSync` lock that mutates the machine ledger, then copies it into `GameRound.ActiveFourOfAKindSlotAtDeal`. Jackpot payout resolution must use the round snapshot, not the mutable live ledger slot.

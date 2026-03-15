@@ -55,6 +55,8 @@ class _PokerGameScreenState extends State<PokerGameScreen>
   DealResult? _dealResult;
   DrawResult? _drawResult;
   _MachineSnapshot? _machineSnapshot;
+  // TODO(double-up): render dealer card, pot, and switches from this snapshot
+  // once the double-up UI panel is implemented in the cabinet.
   DoubleUpState? _restoredDoubleUp;
 
   bool _loading = false;
@@ -172,7 +174,7 @@ class _PokerGameScreenState extends State<PokerGameScreen>
             ..clear()
             ..addAll(round.heldIndexes);
           _loading = false;
-          _message = "Session restored. Choose holds and press DRAW.";
+          _message = "Session restored. Holds from previous session re-applied — press DRAW when ready.";
         });
 
       case "Drawn":

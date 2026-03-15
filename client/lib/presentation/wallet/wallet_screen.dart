@@ -48,20 +48,8 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
-  Future<void> _moveWinToBalance(double amount) async {
-    try {
-      await widget.authApi.moveWinToBalance(
-        accessToken: widget.accessToken,
-        amount: amount,
-        reference: "wallet-screen-cashout",
-      );
-      await _loadHistory();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.toString())));
-    }
-  }
+  // TODO(wallet): expose a cashout / win-to-balance flow using authApi.moveWinToBalance
+  // once the wallet UI panel is fleshed out.
 
   @override
   Widget build(BuildContext context) {

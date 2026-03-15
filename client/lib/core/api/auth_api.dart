@@ -107,6 +107,7 @@ class AuthApi {
     final json = await _client.post(
       "/api/Auth/MoveWinToBalance",
       accessToken: accessToken,
+      // direction is always "credit" for win-to-balance transfers.
       body: {"amount": amount, "reference": reference, "direction": "credit"},
     );
     final envelope = ApiResponse.fromJson(

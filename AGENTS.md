@@ -37,7 +37,7 @@ In double-up, drawing the 5♠ triggers "no-lose mode": player gets `Lucky5Switc
 All persistence is in-memory dictionaries. Server pre-seeds 3 machines (Beirut, Hamra, VIP), an admin user (`admin/admin123`), and hardcoded OTP `123456`.
 
 ### Credit units are large numbers
-`CashInUnit = 200,000`, `MaxSessionCashIn = 1,000,000`, `MachineCloseCredits = 50,000,000`. Bets range 5,000–10,000. Royal Flush max-coin = 5,000,000.
+`CashInUnit = 200,000`, `MaxSessionCashIn = 1,000,000`, `MachineCloseCredits = 40,000,000`. Bets range 5,000–10,000. Royal Flush max-coin = 5,000,000.
 
 ### SignalR hub is "CarrePokerGameHub"
 Hub route: `/CarrePokerGameHub`. "Carré" is the Lebanese poker term. Auth token passed via `access_token` query parameter for WebSocket connections.

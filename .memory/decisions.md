@@ -19,7 +19,7 @@ Non-CleanRoom `Game/` is legacy/presentation only.
 ## ADR-004: Machine Close at 40M
 
 CloseThreshold = 40,000,000. When credits reach this, IsMachineClosed = true.
-Player must cash out to wallet. ResetMachine now clears both ledger and sessions.
+Player must cash out to wallet. Active reset endpoint resets machine ledger and clears session `IsMachineClosed`; it does not zero session credits/cash-in.
 **Status**: Active (fixed in session 2026-03-15).
 
 ## ADR-005: Double-Up Always Available

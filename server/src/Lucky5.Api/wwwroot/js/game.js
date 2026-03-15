@@ -2002,11 +2002,21 @@ async function initGame() {
         machines = machineData;
         paytable = rulesData.payoutMultipliers;
         if (machines.length > 0) {
-            const selectedMachine = machines.find(m => m.id === machineId) || machines[0];
-            machineId = selectedMachine.id;
+            const selectedMachine = machines.find(m => m.id === machineId);
+            const hasExplicitSelection = Number.isInteger(machineId) && machineId > 0;
+            const activeMachine = selectedMachine || (!hasExplicitSelection ? machines[0] : null);
+
+            if (!activeMachine) {
+                throw new Error(`Selected machine ${machineId} is unavailable`);
+            }
+
+            if (!selectedMachine) {
+                machineId = activeMachine.id;
+            }
+
             sessionStorage.setItem('lucky5_machineId', machineId);
-            if (currentBet < selectedMachine.minBet || currentBet > selectedMachine.maxBet) {
-                currentBet = selectedMachine.minBet;
+            if (currentBet < activeMachine.minBet || currentBet > activeMachine.maxBet) {
+                currentBet = activeMachine.minBet;
             }
         }
 
@@ -2164,6 +2174,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!raw) return;
                 const amount = Number(raw);
                 const session = await cashInMachine(amount);
+                await fetchMachineSession();
                 setButtonStates();
                 menuPanel.style.display = 'none';
                 showMessage(`CASHED IN ${formatNum(amount)} - MACHINE ${formatNum(session.machineCredits)}`, 'win');
@@ -2177,6 +2188,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 if (gameState !== 'idle') throw new Error('Finish the current round first');
                 const session = await cashOutMachine();
+                await fetchMachineSession();
                 setButtonStates();
                 menuPanel.style.display = 'none';
                 showMessage(`CASHED OUT - WALLET ${formatNum(session.walletBalance)}`, 'win');

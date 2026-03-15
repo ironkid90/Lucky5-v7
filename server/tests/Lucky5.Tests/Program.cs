@@ -106,6 +106,7 @@ Assert(modeState is not null, "Machine state should be available");
 // Deterministic Replay Tests
 await Lucky5.Tests.ReplayTests.RunAsync(failures);
 await Lucky5.Tests.CleanRoomEngineTests.RunAsync(failures);
+await Lucky5.Tests.FrontendRegressionTests.RunAsync(failures);
 
 if (draw.WinAmount > 0)
 {

@@ -65,10 +65,8 @@ public static class FrontendRegressionTests
         Assert(
             failures,
             "game.js should map the Full House jackpot value to the live Full House counter",
-            Regex.IsMatch(
-                gameJs,
-                @"const\s+jpFh\s*=\s*document\.querySelector\('#jp-counter-fh \\.jp-cval'\);[\s\S]{0,200}?if\s*\(jpFh\)\s+jpFh\.textContent\s*=\s*formatNum\(jackpots\.fullHouse\s*\|\|\s*0\);",
-                RegexOptions.CultureInvariant));
+            gameJs.Contains("const jpFh = document.querySelector('#jp-counter-fh .jp-cval');", StringComparison.Ordinal)
+                && gameJs.Contains("if (jpFh) jpFh.textContent = formatNum(jackpots.fullHouse || 0);", StringComparison.Ordinal));
 
         Assert(
             failures,

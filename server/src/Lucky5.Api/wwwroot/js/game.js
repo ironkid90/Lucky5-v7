@@ -274,11 +274,13 @@ function updateJackpotDisplay(jp) {
     }
     if (!jackpots) return;
 
-    // Machine-info-block jackpot counters: 4K-A (left), SF (center), 4K-B (right)
+    // Machine-info-block jackpot counters: 4K-A, SF, 4K-B plus a dedicated FH meter.
     const jpA = document.querySelector('#jp-counter-a .jp-cval');
+    const jpFh = document.querySelector('#jp-counter-fh .jp-cval');
     const jpCenter = document.querySelector('#jp-counter-center .jp-cval');
     const jpB = document.querySelector('#jp-counter-b .jp-cval');
     if (jpA) jpA.textContent = formatNum(jackpots.fourOfAKindA || 0);
+    if (jpFh) jpFh.textContent = formatNum(jackpots.fullHouse || 0);
     if (jpCenter) jpCenter.textContent = formatNum(jackpots.straightFlush || 0);
     if (jpB) jpB.textContent = formatNum(jackpots.fourOfAKindB || 0);
 
@@ -311,7 +313,7 @@ function updateJackpotDisplay(jp) {
 }
 
 function updateActive4kHighlight() {
-    const slots = $$('.jackpot-slot.jp-4k');
+    const slots = document.querySelectorAll('[data-jackpot-slot^="4k-"]');
     slots.forEach((slot, i) => {
         if (i === active4kSlot) {
             slot.classList.add('jp-active');
@@ -340,14 +342,31 @@ function updateBonusHandText() {
     }
 }
 
+function getFourOfAKindSlotTag(handRank = currentHandRank) {
+    if (handRank !== 'FourOfAKind') {
+        return '';
+    }
+
+    if (active4kSlot === 0) {
+        return 'A';
+    }
+
+    if (active4kSlot === 1) {
+        return 'B';
+    }
+
+    return '';
+}
+
 function updateWinAmountDisplay(amount, slotTag) {
     const valEl = document.getElementById('win-amount-value');
     const tagEl = document.getElementById('win-slot-tag');
     const container = document.getElementById('win-amount-display');
+    const showSlotTag = slotTag === 'A' || slotTag === 'B';
     if (!valEl || !container) return;
     if (amount > 0) {
         valEl.textContent = formatNum(amount);
-        if (tagEl) tagEl.textContent = slotTag || '';
+        if (tagEl) tagEl.textContent = showSlotTag ? slotTag : '';
         container.classList.add('visible');
     } else {
         valEl.textContent = '';
@@ -360,8 +379,15 @@ function updateBonusBar(handRank, jackpotWon) {
     const el = document.getElementById('bonus-text');
     const handTextEl = document.getElementById('bonus-hand-text');
     if (jackpotWon > 0) {
-        if (el) el.textContent = `JACKPOT WON! +${formatNum(jackpotWon)}`;
-        if (handTextEl) handTextEl.textContent = `JACKPOT WON! +${formatNum(jackpotWon)}`;
+        const slotTag = getFourOfAKindSlotTag(handRank);
+        const handLabel = handRank === 'FullHouse'
+            ? `FH ${RANK_NAMES[jackpotRank] || 'A'}`
+            : handRank === 'FourOfAKind' && slotTag
+                ? `4K ${slotTag}`
+                : HAND_DISPLAY[handRank] || 'JACKPOT';
+        const jackpotMessage = `${handLabel} JACKPOT WON`;
+        if (el) el.textContent = jackpotMessage;
+        if (handTextEl) handTextEl.textContent = jackpotMessage;
     } else if (handRank && JACKPOT_HANDS.includes(handRank)) {
         const msg = handRank === 'FullHouse'
             ? `FH ${RANK_NAMES[jackpotRank]} JACKPOT`
@@ -873,14 +899,14 @@ async function doDeal() {
                     const finalMachineCredits = result.walletBalanceAfterRound;
                     let msg = `${HAND_DISPLAY[handName] || handName} - WIN ${formatNum(winAmount)}!`;
                     if (jackpotWon > 0) {
-                        msg += ` JACKPOT +${formatNum(jackpotWon)}!`;
+                        msg = `${HAND_DISPLAY[handName] || handName} - JACKPOT WON!`;
                     }
                     showMessage(msg, 'win');
                     flashWinCards();
                     updateBonusBar(handName, result.jackpotWon);
                     if (currentHandRank) highlightPaytableDU(currentHandRank, winAmount);
                     updateWinIndicator(winAmount);
-                    updateWinAmountDisplay(winAmount, active4kSlot === 0 ? 'A' : 'B');
+                    updateWinAmountDisplay(winAmount, getFourOfAKindSlotTag(handName));
                     gameState = 'win';
                     setButtonStates();
 
@@ -1083,7 +1109,7 @@ async function startDoubleUpFlow() {
         } else {
             showMessage(`DOUBLE UP - WIN: ${formatNum(result.currentAmount)}`, 'win');
         }
-        updateWinAmountDisplay(result.currentAmount, active4kSlot === 0 ? 'A' : 'B');
+        updateWinAmountDisplay(result.currentAmount, getFourOfAKindSlotTag(currentHandRank));
         updateWinIndicator(result.currentAmount);
         if (currentHandRank) highlightPaytableDU(currentHandRank, result.currentAmount);
         renderDoubleUpCards(duDealerCard, true, null);
@@ -1119,7 +1145,7 @@ async function doDoubleUp(guess) {
                 winAmount = result.currentAmount;
                 updateCredits();
                 updateWinIndicator(winAmount);
-                updateWinAmountDisplay(winAmount, active4kSlot === 0 ? 'A' : 'B');
+                updateWinAmountDisplay(winAmount, getFourOfAKindSlotTag(currentHandRank));
                 if (currentHandRank) highlightPaytableDU(currentHandRank, winAmount);
                 showMessage(`WIN! ${formatNum(winAmount)} - DOUBLE AGAIN?`, 'win');
                 gameState = 'doubleup';
@@ -1144,7 +1170,7 @@ async function doDoubleUp(guess) {
                 balance = result.walletBalance - safeAmount;
                 updateCredits();
                 updateWinIndicator(safeAmount);
-                updateWinAmountDisplay(safeAmount, active4kSlot === 0 ? 'A' : 'B');
+                updateWinAmountDisplay(safeAmount, getFourOfAKindSlotTag(currentHandRank));
                 showMessage(`SAFE! 5\u2660 SAVED ${formatNum(safeAmount)}`, 'win');
                 stopShuffle();
                 hideDuInfo();
@@ -1173,7 +1199,7 @@ async function doDoubleUp(guess) {
                 balance = result.walletBalance - closedAmount;
                 updateCredits();
                 updateWinIndicator(closedAmount);
-                updateWinAmountDisplay(closedAmount, active4kSlot === 0 ? 'A' : 'B');
+                updateWinAmountDisplay(closedAmount, getFourOfAKindSlotTag(currentHandRank));
                 showMessage('MACHINE CLOSED - MAX CREDITS!', 'win');
                 stopShuffle();
                 hideDuInfo();
@@ -1259,9 +1285,7 @@ function animateJackpotFill(amount, startBalance, handName) {
         let resetValue = 0;
 
         if (handName === 'FullHouse') {
-            // FH jackpot has no visible counter (center counter now shows SF);
-            // animation is reflected only through credits/win-indicator.
-            counterEl = null;
+            counterEl = document.querySelector('#jp-counter-fh .jp-cval');
         } else if (handName === 'FourOfAKind') {
             // slot 0 = counter-a, slot 1 = counter-b
             counterEl = document.querySelector(

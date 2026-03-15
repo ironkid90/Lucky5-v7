@@ -1194,9 +1194,9 @@ async function doDoubleUp(guess) {
                     setButtonStates();
                     showMessage('MACHINE CLOSED - CASHING OUT...', 'win');
                     try {
-                        const session = await cashOutMachine();
-                        balance = session.walletBalance;
-                        updateCredits();
+                        await cashOutMachine();
+                        await fetchMachineSession();
+                        setButtonStates();
                         showMessage('CASHED OUT - MACHINE READY', 'win');
                     } catch (_) {
                         showMessage('MACHINE CLOSED - USE MENU TO CASH OUT', 'win');
@@ -1392,9 +1392,9 @@ async function mainTakeScore() {
             machineClosed = true;
             showMessage('MACHINE CLOSED - CASHING OUT...', 'win');
             try {
-                const session = await cashOutMachine();
-                balance = session.walletBalance;
-                updateCredits();
+                await cashOutMachine();
+                await fetchMachineSession();
+                setButtonStates();
                 showMessage('CASHED OUT - MACHINE READY', 'win');
             } catch (_) {
                 showMessage('MACHINE CLOSED - USE MENU TO CASH OUT', 'win');
@@ -2002,8 +2002,12 @@ async function initGame() {
         machines = machineData;
         paytable = rulesData.payoutMultipliers;
         if (machines.length > 0) {
-            machineId = machines[0].id;
-            currentBet = machines[0].minBet;
+            const selectedMachine = machines.find(m => m.id === machineId) || machines[0];
+            machineId = selectedMachine.id;
+            sessionStorage.setItem('lucky5_machineId', machineId);
+            if (currentBet < selectedMachine.minBet || currentBet > selectedMachine.maxBet) {
+                currentBet = selectedMachine.minBet;
+            }
         }
 
         const profile = await apiCall('GET', '/api/Auth/GetUserById');
@@ -2160,6 +2164,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!raw) return;
                 const amount = Number(raw);
                 const session = await cashInMachine(amount);
+                setButtonStates();
                 menuPanel.style.display = 'none';
                 showMessage(`CASHED IN ${formatNum(amount)} - MACHINE ${formatNum(session.machineCredits)}`, 'win');
                 showIdleTitle();
@@ -2172,6 +2177,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 if (gameState !== 'idle') throw new Error('Finish the current round first');
                 const session = await cashOutMachine();
+                setButtonStates();
                 menuPanel.style.display = 'none';
                 showMessage(`CASHED OUT - WALLET ${formatNum(session.walletBalance)}`, 'win');
                 showIdleTitle();

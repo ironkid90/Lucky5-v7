@@ -1,34 +1,18 @@
-# Architecture Decision Records
+# Architecture Decisions
 
-## ADR-001: InMemoryDataStore (no DB yet)
+## Last Reviewed
 
-All persistence is volatile dictionaries. Pre-seeded with 3 machines, admin user, hardcoded OTP.
-**Status**: Active. Migration to real DB deferred.
+2026-03-15
 
-## ADR-002: CleanRoom Separation
+## Core Architecture
 
-Authoritative game logic isolated in `Lucky5.Domain/Game/CleanRoom/`. Pure static methods, reducer pattern.
-Non-CleanRoom `Game/` is legacy/presentation only.
-**Status**: Active. All new game logic must go to CleanRoom.
+- **ADR-001 — Volatile persistence only:** `InMemoryDataStore` remains the active store. Sessions, rounds, ledgers, and profiles are lost on restart. Pre-seeded dev data includes 3 machines, the admin user, and OTP `123456`.
+- **ADR-002 — CleanRoom is authoritative:** all new game rules belong in `Lucky5.Domain/Game/CleanRoom/`. The non-CleanRoom `Game/` directory stays legacy/presentation only.
+- **ADR-003 — Lebanese paytable is default:** `PaytableProfile.Lebanese` uses `MinimumPairRankForPayout = int.MaxValue`, which means all pairs pay.
+- **ADR-004 — Web-first delivery:** the vanilla JS cabinet in `server/src/Lucky5.Api/wwwroot/` is the original implementation; `src/web/` is the active React target. Flutter and Capacitor remain secondary.
 
-## ADR-003: Lebanese Paytable Default
+## Gameplay / Session Rules
 
-`PaytableProfile.Lebanese` pays ALL pairs (MinimumPairRankForPayout = int.MaxValue, threshold unreachable).
-**Status**: Active.
-
-## ADR-004: Machine Close at 40M
-
-CloseThreshold = 40,000,000. When credits reach this, IsMachineClosed = true.
-Player must cash out to wallet. Active reset endpoint resets machine ledger and clears session `IsMachineClosed`; it does not zero session credits/cash-in.
-**Status**: Active (fixed in session 2026-03-15).
-
-## ADR-005: Double-Up Always Available
-
-No probabilistic gating. Every win gets double-up offer. Card trail tracks history.
-**Status**: Active.
-
-## ADR-006: Web-First Priority
-
-Vanilla JS cabinet in wwwroot/ is the original. React/Next.js in src/web/ is active dev target.
-Flutter and mobile work deferred until web playable slice complete.
-**Status**: Active.
+- **ADR-005 — Double-up is always offered on wins:** there is no probabilistic gating on the offer itself.
+- **ADR-006 — Machine closes at 40,000,000 credits:** reaching the close threshold sets `IsMachineClosed = true`, blocks new play, and allows forced cash-out.
+- **ADR-007 — Machine reset clears close state across sessions:** reset is not just a ledger reset; it also clears `IsMachineClosed` for all sessions on the machine.

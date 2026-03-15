@@ -1,37 +1,29 @@
 # Reusable Patterns
 
-## API Call Pattern (Vanilla JS)
+## Last Reviewed
 
-```javascript
-async function apiCall(method, url, body) {
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
-    if (token) opts.headers['Authorization'] = `Bearer ${token}`;
-    if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(API + url, opts);
-    if (!res.ok) throw new Error((await res.json()).message || res.statusText);
-    return res.json();
-}
-```
+2026-03-15
 
-## Screen Navigation Pattern
+## Vanilla JS API Access
 
-```javascript
-function hideAllScreens() { /* remove 'active' class from all */ }
-function showX() { hideAllScreens(); $('#x-screen').classList.add('active'); }
-```
+- The original cabinet uses a shared `apiCall(method, path, body)` helper.
+- Requests send JSON, attach `Authorization: Bearer <token>` when available, and surface API error messages directly.
 
-## Session Key Pattern
+## Session Identity
 
-Backend session key: `{userId:N}:{machineId}` — composite string in dictionary.
+- Machine sessions are keyed by the composite string `{userId:N}:{machineId}` in `InMemoryDataStore`.
 
-## Game State Machine
+## Cash Flow / Settlement
 
-`idle` → `deal` → `draw` → `win`/`lose` → `doubleup` (optional) → `idle`
-
-## Credit Flow
-
-wallet → cashIn → machineCredits → play (bet deduction) → win → takeScore/doubleUp → machineCredits → cashOut → wallet
+- Flow: wallet → cash-in → machine credits → bet deduction → win settlement → take score / double-up → machine credits → cash-out → wallet.
+- Win payout is not added during draw; it settles on take-score or double-up finalization.
 
 ## Machine Close Flow
 
-Credits ≥ 40M → IsMachineClosed=true → block deals → force cashOut → reset session → resume
+- At 40,000,000 credits, `IsMachineClosed` becomes `true`.
+- Closed sessions can cash out immediately.
+- Machine reset clears the close flag for all sessions on that machine.
+
+## React Cabinet Scope
+
+- `src/web/components/lucky5-cabinet.tsx` is still the single-component React cabinet; parity work should assume one-file orchestration unless intentionally refactored.

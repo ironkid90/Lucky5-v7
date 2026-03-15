@@ -1,14 +1,20 @@
-# Inbox — Inferred Items Awaiting Confirmation
+# Inbox — Open Questions / Follow-ups
 
-## Pending
+## Last Reviewed
 
-- [ ] React cabinet missing lobby/game screen separation — may need dedicated Lobby component
-- [ ] React cabinet needs menu overlay parity with vanilla JS
-- [ ] Consider adding session heartbeat for prolonged sessions (InMemory data can be lost on restart)
-- [ ] Admin panel in React cabinet not yet implemented
+2026-03-15
 
-## Confirmed
+## Verified Open Items
 
-- [x] ResetMachine must reset sessions, not just ledger (fixed 2026-03-15)
-- [x] Go-back-to-lobby moved into menu panel (fixed 2026-03-15)
-- [x] MACHINE_CREDIT_LIMIT and CloseThreshold aligned at 40M (confirmed 2026-03-15)
+- [ ] React cabinet still has no separate lobby/game screens; machine selection is integrated into the main cabinet.
+- [ ] React cabinet still has no menu / hamburger overlay parity with the vanilla JS cabinet.
+- [ ] React cabinet still has no game back-to-lobby flow.
+- [ ] React cabinet still has no machine reset / admin parity.
+
+## Candidate Future Work
+
+- [ ] Consider a session heartbeat / resume strategy for long-lived play, because current session state is still fully in-memory and lost on restart.
+
+## Notes
+
+- Removed stale “confirmed fix” items here to avoid mixing verified open work with historical status notes.

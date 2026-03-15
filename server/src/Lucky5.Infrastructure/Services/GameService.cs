@@ -129,6 +129,7 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
             throw new InvalidOperationException("Insufficient machine credits for deal and draw - cash in from wallet first");
 
         ulong seed;
+        int active4kSlot;
         PolicyDistributionMode policyMode;
         MachinePolicyState policyState;
         lock (store.LedgerSync)
@@ -167,7 +168,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
                 PolicyDistributionMode.Hot => DistributionMode.Hot,
                 _ => DistributionMode.Neutral
             };
-            ledger.ActiveFourOfAKindSlot = (ledger.RoundCount % 2 == 0) ? (int)(seed % 2) : 1 - (int)(seed % 2);
+            active4kSlot = (ledger.RoundCount % 2 == 0) ? (int)(seed % 2) : 1 - (int)(seed % 2);
+            ledger.ActiveFourOfAKindSlot = active4kSlot;
             ApplyJackpotContributions(ledger, EngineCfg);
             ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
         }
@@ -182,11 +184,6 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
         session.LastUpdatedUtc = DateTime.UtcNow;
 
         var cards = hand.Select(c => c.ToLegacyPokerCard()).ToList();
-        int active4kSlot;
-        lock (store.LedgerSync)
-        {
-            active4kSlot = RequireMachineLedger(request.MachineId).ActiveFourOfAKindSlot;
-        }
 
         var round = new GameRound
         {

@@ -21,6 +21,7 @@ public interface IGameService
     Task<DoubleUpResultDto> CashoutDoubleUpAsync(Guid userId, Guid roundId, CancellationToken cancellationToken);
     Task<DoubleUpResultDto> TakeHalfAsync(Guid userId, Guid roundId, CancellationToken cancellationToken);
     Task<JackpotInfoDto> ChangeJackpotRankAsync(int machineId, int rank, CancellationToken cancellationToken);
+    Task<ActiveRoundStateDto?> GetActiveRoundAsync(Guid userId, int machineId, CancellationToken cancellationToken);
     Task<object> GetMachineStateAsync(int machineId, CancellationToken cancellationToken);
     Task<object> ResetMachineAsync(Guid userId, int machineId, CancellationToken cancellationToken);
 }

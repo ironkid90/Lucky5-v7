@@ -6,9 +6,17 @@ import "package:flutter/material.dart";
 import "../../core/api/game_api.dart";
 import "../../core/config/app_config.dart";
 import "../../core/network/hub_client.dart";
+import "../../models/active_round_state.dart";
 import "../../models/deal_result.dart";
 import "../../models/draw_result.dart";
 import "../../models/poker_card.dart";
+import "../../routes/app_routes.dart";
+import "../account_settings/account_settings_screen.dart";
+import "../cashier/cashier_screen.dart";
+import "../history/history_screen.dart";
+import "../offers/offers_screen.dart";
+import "../support/support_screen.dart";
+import "../wallet/wallet_screen.dart";
 
 class PokerGameArgs {
   PokerGameArgs({
@@ -47,6 +55,9 @@ class _PokerGameScreenState extends State<PokerGameScreen>
   DealResult? _dealResult;
   DrawResult? _drawResult;
   _MachineSnapshot? _machineSnapshot;
+  // TODO(double-up): render dealer card, pot, and switches from this snapshot
+  // once the double-up UI panel is implemented in the cabinet.
+  DoubleUpState? _restoredDoubleUp;
 
   bool _loading = false;
   bool _hubReady = false;
@@ -106,6 +117,20 @@ class _PokerGameScreenState extends State<PokerGameScreen>
         args: <Object>[widget.machineId],
       );
 
+      // Hydrate active round state from the backend read model so the UI
+      // can resume exactly where it was if the user disconnected mid-round.
+      try {
+        final activeRound = await widget.gameApi.getActiveRound(
+          accessToken: widget.accessToken,
+          machineId: widget.machineId,
+        );
+        if (activeRound != null && mounted) {
+          _applyRestoredRound(activeRound);
+        }
+      } catch (_) {
+        // Active-round hydration is best-effort; don't block hub reconnect.
+      }
+
       if (!mounted) {
         return;
       }
@@ -126,6 +151,86 @@ class _PokerGameScreenState extends State<PokerGameScreen>
         _message =
             "Realtime link unavailable. Cabinet will continue with HTTP fallback.";
       });
+    }
+  }
+
+  /// Reconstructs client state from the [ActiveRoundState] returned by the
+  /// active-round hydration endpoint (Step 1 backend).
+  void _applyRestoredRound(ActiveRoundState round) {
+    final cards = round.cards;
+    switch (round.phase) {
+      case "Dealt":
+        // Restore dealt hand with previously chosen holds.
+        final fakeResult = DealResult(
+          roundId: round.roundId,
+          cards: cards,
+          betAmount: round.betAmount,
+          walletBalanceAfterBet: _walletBalance,
+        );
+        setState(() {
+          _dealResult = fakeResult;
+          _drawResult = null;
+          _holds
+            ..clear()
+            ..addAll(round.heldIndexes);
+          _loading = false;
+          _message = "Session restored. Holds from previous session re-applied — press DRAW when ready.";
+        });
+
+      case "Drawn":
+        // Restore drawn hand; double-up may still be available.
+        final winAmount = round.pendingWinAmount;
+        final fakeDrawResult = DrawResult(
+          roundId: round.roundId,
+          cards: cards,
+          handRank: "Restored",
+          winAmount: winAmount,
+          walletBalanceAfterRound: _walletBalance,
+          doubleUpAvailable: winAmount > 0,
+        );
+        setState(() {
+          _drawResult = fakeDrawResult;
+          _dealResult = DealResult(
+            roundId: round.roundId,
+            cards: cards,
+            betAmount: round.betAmount,
+            walletBalanceAfterBet: _walletBalance,
+          );
+          _holds.clear();
+          _loading = false;
+          _message = winAmount > 0
+              ? "Session restored. Win: ${winAmount.toStringAsFixed(0)}. Double-up available."
+              : "Session restored. No win this hand.";
+        });
+
+      case "DoubleUp":
+        // Restore double-up mid-session.
+        final du = round.doubleUpSession;
+        final winAmount = round.pendingWinAmount;
+        final fakeDrawResult = DrawResult(
+          roundId: round.roundId,
+          cards: cards,
+          handRank: "Restored",
+          winAmount: winAmount,
+          walletBalanceAfterRound: _walletBalance,
+          doubleUpAvailable: true,
+        );
+        setState(() {
+          _drawResult = fakeDrawResult;
+          _dealResult = DealResult(
+            roundId: round.roundId,
+            cards: cards,
+            betAmount: round.betAmount,
+            walletBalanceAfterBet: _walletBalance,
+          );
+          _restoredDoubleUp = du;
+          _holds.clear();
+          _loading = false;
+          _message = du != null
+              ? "Double-Up resumed. Pot: ${du.currentAmount}. "
+                  "Switches left: ${du.switchesRemaining}."
+              : "Session restored in double-up phase.";
+        });
     }
   }
 
@@ -391,6 +496,11 @@ class _PokerGameScreenState extends State<PokerGameScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C0F),
+      endDrawer: _GameDrawer(
+        accessToken: widget.accessToken,
+        onNavigate: (route, args) =>
+            Navigator.of(context).pushNamed(route, arguments: args),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -761,6 +871,24 @@ class _ScoreboardPanel extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+              Builder(
+                builder: (context) => GestureDetector(
+                  onTap: () => Scaffold.of(context).openEndDrawer(),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2E2A18),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.menu,
+                      color: Color(0xFFF2D05C),
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1074,6 +1202,134 @@ class _MachineSnapshot {
       observedRtp: (json["observedRtp"] as num?)?.toDouble() ?? 0,
       targetRtp: (json["targetRtp"] as num?)?.toDouble() ?? 0.9,
       phase: json["phase"]?.toString() ?? "Neutral",
+    );
+  }
+}
+
+class _GameDrawer extends StatelessWidget {
+  const _GameDrawer({
+    required this.accessToken,
+    required this.onNavigate,
+  });
+
+  final String accessToken;
+  final void Function(String route, Object args) onNavigate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      backgroundColor: const Color(0xFF17181C),
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          const DrawerHeader(
+            decoration: BoxDecoration(color: Color(0xFF0B6E4F)),
+            child: Text(
+              "MENU",
+              style: TextStyle(
+                color: Color(0xFFF2D05C),
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 3,
+              ),
+            ),
+          ),
+          _DrawerItem(
+            icon: Icons.account_balance_wallet_outlined,
+            label: "Wallet",
+            onTap: () {
+              Navigator.pop(context);
+              onNavigate(
+                AppRoutes.wallet,
+                WalletScreenArgs(accessToken: accessToken),
+              );
+            },
+          ),
+          _DrawerItem(
+            icon: Icons.point_of_sale_outlined,
+            label: "Cashier",
+            onTap: () {
+              Navigator.pop(context);
+              onNavigate(
+                AppRoutes.cashier,
+                CashierScreenArgs(accessToken: accessToken),
+              );
+            },
+          ),
+          _DrawerItem(
+            icon: Icons.history,
+            label: "History",
+            onTap: () {
+              Navigator.pop(context);
+              onNavigate(
+                AppRoutes.history,
+                HistoryScreenArgs(accessToken: accessToken),
+              );
+            },
+          ),
+          _DrawerItem(
+            icon: Icons.local_offer_outlined,
+            label: "Offers",
+            onTap: () {
+              Navigator.pop(context);
+              onNavigate(
+                AppRoutes.offers,
+                OffersScreenArgs(accessToken: accessToken),
+              );
+            },
+          ),
+          _DrawerItem(
+            icon: Icons.headset_mic_outlined,
+            label: "Support",
+            onTap: () {
+              Navigator.pop(context);
+              onNavigate(
+                AppRoutes.support,
+                SupportScreenArgs(accessToken: accessToken),
+              );
+            },
+          ),
+          const Divider(color: Color(0xFF2E2E2E)),
+          _DrawerItem(
+            icon: Icons.settings_outlined,
+            label: "Account Settings",
+            onTap: () {
+              Navigator.pop(context);
+              onNavigate(
+                AppRoutes.accountSettings,
+                AccountSettingsScreenArgs(accessToken: accessToken),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DrawerItem extends StatelessWidget {
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: const Color(0xFFF2D05C)),
+      title: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFFF0F0F0),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      onTap: onTap,
     );
   }
 }

@@ -660,6 +660,68 @@ switch (resolution.Outcome)
         }
     }
 
+    public Task<ActiveRoundStateDto?> GetActiveRoundAsync(Guid userId, int machineId, CancellationToken cancellationToken)
+    {
+        var round = store.ActiveRounds.Values
+            .FirstOrDefault(r => r.UserId == userId && r.MachineId == machineId && !r.IsCompleted);
+
+        if (round is null)
+            return Task.FromResult<ActiveRoundStateDto?>(null);
+
+        var state = round.CleanRoomState;
+        if (state is null)
+            return Task.FromResult<ActiveRoundStateDto?>(null);
+
+        // Determine phase
+        var duSession = round.DoubleUpSession;
+        string phase;
+        if (duSession is not null && !duSession.IsTerminal)
+            phase = "DoubleUp";
+        else if (state.Phase == RoundPhase.Dealt)
+            phase = "Dealt";
+        else
+            phase = "Drawn";
+
+        // Build card list from current hand
+        var cards = state.Hand.Select(ToCleanRoomDto).ToArray();
+
+        // Held indexes (only meaningful during Dealt phase)
+        var heldIndexes = phase == "Dealt"
+            ? state.Held
+                .Select((held, idx) => held ? idx : -1)
+                .Where(idx => idx >= 0)
+                .ToArray()
+            : Array.Empty<int>();
+
+        // Double-up snapshot
+        DoubleUpStateDto? duDto = null;
+        if (duSession is not null && !duSession.IsTerminal)
+        {
+            var switchesRemaining = duSession.Options.MaxSwitchesPerRound - duSession.SwitchCountInRound;
+            var multiplier = duSession.LuckyHitCount == 0
+                ? duSession.Options.FirstLuckyMultiplier
+                : duSession.Options.RepeatLuckyMultiplier;
+            duDto = new DoubleUpStateDto(
+                DealerCard: ToCleanRoomDto(duSession.DealerCard),
+                CurrentAmount: duSession.CurrentAmount,
+                SwitchesRemaining: switchesRemaining,
+                IsNoLoseActive: duSession.IsNoLoseActive,
+                LuckyMultiplier: multiplier);
+        }
+
+        var dto = new ActiveRoundStateDto(
+            RoundId: round.RoundId,
+            MachineId: machineId,
+            BetAmount: round.BetAmount,
+            Phase: phase,
+            Cards: cards,
+            HeldIndexes: heldIndexes,
+            PendingWinAmount: round.WinAmount,
+            DoubleUpSession: duDto);
+
+        return Task.FromResult<ActiveRoundStateDto?>(dto);
+    }
+
     public Task<object> GetMachineStateAsync(int machineId, CancellationToken cancellationToken)
     {
         var ledger = RequireMachineLedger(machineId);

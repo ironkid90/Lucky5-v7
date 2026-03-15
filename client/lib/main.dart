@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 
 import "core/api/auth_api.dart";
 import "core/api/game_api.dart";
+import "core/api/general_api.dart";
 import "core/config/app_config.dart";
 import "core/network/api_client.dart";
 import "routes/app_routes.dart";
@@ -14,6 +15,7 @@ void main() {
     Lucky5App(
       authApi: AuthApi(apiClient),
       gameApi: GameApi(apiClient),
+      generalApi: GeneralApi(apiClient),
     ),
   );
 }
@@ -23,10 +25,12 @@ class Lucky5App extends StatelessWidget {
     super.key,
     required this.authApi,
     required this.gameApi,
+    required this.generalApi,
   });
 
   final AuthApi authApi;
   final GameApi gameApi;
+  final GeneralApi generalApi;
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +45,9 @@ class Lucky5App extends StatelessWidget {
         settings,
         authApi: authApi,
         gameApi: gameApi,
+        generalApi: generalApi,
       ),
     );
   }
 }
+

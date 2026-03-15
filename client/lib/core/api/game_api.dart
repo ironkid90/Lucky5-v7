@@ -1,3 +1,4 @@
+import "../../models/active_round_state.dart";
 import "../../models/api_response.dart";
 import "../../models/deal_result.dart";
 import "../../models/draw_result.dart";
@@ -85,5 +86,24 @@ class GameApi {
       throw StateError(envelope.message);
     }
     return envelope.data!;
+  }
+
+  /// Returns the current uncompleted round for [machineId], or null if none.
+  Future<ActiveRoundState?> getActiveRound({
+    required String accessToken,
+    required int machineId,
+  }) async {
+    final json = await _client.get(
+      "/api/Game/machine/$machineId/active-round",
+      accessToken: accessToken,
+    );
+    final envelope = ApiResponse.fromJson(json, (raw) {
+      if (raw == null) return null;
+      return ActiveRoundState.fromJson(raw as Map<String, dynamic>);
+    });
+    if (!envelope.success) {
+      throw StateError(envelope.message);
+    }
+    return envelope.data;
   }
 }

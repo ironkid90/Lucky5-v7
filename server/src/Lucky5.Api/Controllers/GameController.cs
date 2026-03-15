@@ -122,6 +122,14 @@ public sealed class GameController(IGameService gameService, IAdminService admin
         return Ok(ApiResponse<DoubleUpResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
     }
 
+    [HttpGet("machine/{id}/active-round")]
+    public async Task<ActionResult<ApiResponse<ActiveRoundStateDto?>>> ActiveRound(int id, CancellationToken cancellationToken)
+    {
+        var userId = HttpContext.RequireUserId();
+        var result = await gameService.GetActiveRoundAsync(userId, id, cancellationToken);
+        return Ok(new ApiResponse<ActiveRoundStateDto?>(true, "OK", result, [], HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("machine/{id}/state")]
     public async Task<ActionResult<ApiResponse<object>>> MachineState(int id, CancellationToken cancellationToken)
     {

@@ -114,7 +114,7 @@ public static class Lucky5DoubleUpEngine
                 CurrentRoundIndex = session.CurrentRoundIndex + 1,
                 SwitchCountInRound = 0,
                 LuckyHitCount = 0,
-                IsNoLoseActive = false
+                IsNoLoseActive = session.IsNoLoseActive
             };
 
             var shouldCloseMachine = session.MachineCreditBaseline < session.Options.MaxCreditLimit

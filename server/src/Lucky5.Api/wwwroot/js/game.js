@@ -1131,21 +1131,42 @@ async function doDoubleUp(guess) {
                         duDealerCard = result.dealerCard;
                         renderDoubleUpCards(duDealerCard, true, null);
                         duSwitchesRemaining = result.switchesRemaining;
-                        duIsNoLoseActive = false;
+                        duIsNoLoseActive = result.isNoLoseActive;
                         setButtonStates();
                     }
                 }, 900);
             } else if (result.status === 'SafeFail') {
                 roundDoubleUpAvailable = false;
                 triggerLucky5Flash();
-                winAmount = result.currentAmount;
-                balance = result.walletBalance;
+                const safeAmount = result.currentAmount;
+                // Credits are already settled server-side via FinalizeDoubleUp.
+                // Show the protected amount, then animate drain to credits.
+                balance = result.walletBalance - safeAmount;
                 updateCredits();
-                updateWinIndicator(winAmount);
-                updateWinAmountDisplay(winAmount, active4kSlot === 0 ? 'A' : 'B');
-                showMessage(`SAFE! 5\u2660 SAVED ${formatNum(winAmount)}`, 'win');
-                gameState = 'win';
-                setTimeout(() => exitDoubleUp(), 1200);
+                updateWinIndicator(safeAmount);
+                updateWinAmountDisplay(safeAmount, active4kSlot === 0 ? 'A' : 'B');
+                showMessage(`SAFE! 5\u2660 SAVED ${formatNum(safeAmount)}`, 'win');
+                stopShuffle();
+                hideDuInfo();
+                duSessionStarted = false;
+                clearLucky5Effects();
+                setTimeout(async () => {
+                    await animateDrainToCredits(safeAmount, balance);
+                    winAmount = 0;
+                    balance = result.walletBalance;
+                    updateCredits();
+                    updateWinIndicator(0);
+                    updateWinAmountDisplay(0);
+                    roundDoubleUpAvailable = false;
+                    takeHalfUsedThisRound = false;
+                    currentHandRank = null;
+                    gameState = 'idle';
+                    setButtonStates();
+                    updatePaytable();
+                    updateBonusBar(null);
+                    showMessage('PLACE YOUR BET');
+                    showIdleTitle();
+                }, 1200);
             } else if (result.status === 'MachineClosed') {
                 roundDoubleUpAvailable = false;
                 const closedAmount = result.currentAmount;

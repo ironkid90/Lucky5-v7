@@ -525,7 +525,7 @@ switch (resolution.Outcome)
             DealerCard: ToCleanRoomDto(resolution.Session.DealerCard),
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: resolution.Session.Options.MaxSwitchesPerRound - resolution.Session.SwitchCountInRound,
-            IsNoLoseActive: false,
+            IsNoLoseActive: resolution.Session.IsNoLoseActive,
             Noise: noise);
 
     case Lucky5DoubleUpOutcome.SafeFail:
@@ -576,8 +576,8 @@ switch (resolution.Outcome)
         var cashoutAmount = round.DoubleUpSession != null ? round.DoubleUpSession.CurrentAmount : (int)round.WinAmount;
         if (round.IsPayoutSettled)
         {
-            var status = session.IsMachineClosed ? "MachineClosed" : "Cashout";
-            return Task.FromResult(new DoubleUpResultDto(roundId, status, 0, session.MachineCredits));
+            var earlyStatus = session.IsMachineClosed ? "MachineClosed" : "Cashout";
+            return Task.FromResult(new DoubleUpResultDto(roundId, earlyStatus, 0, session.MachineCredits));
         }
 
         if (round.DoubleUpSession != null && !round.DoubleUpSession.IsTerminal)

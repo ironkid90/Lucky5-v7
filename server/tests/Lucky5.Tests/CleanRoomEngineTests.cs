@@ -86,6 +86,23 @@ public static class CleanRoomEngineTests
         Assert(failures, "Wrong guess under no-lose mode should safe-fail", safeFailResolution.Outcome == Lucky5DoubleUpOutcome.SafeFail);
         Assert(failures, "Safe fail should bank the protected winnings", safeFailResolution.CashoutCredits == 40);
 
+        // Chained no-lose: win after Lucky5 should keep protection, then lose → SafeFail
+        // Deck: 9H(start) → 5S(switch,Lucky5) → KH(guess Big,win:K>5) → QD(guess Big,lose:Q<K)
+        var chainedNoLoseSession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
+            seedRoot: seed,
+            deck: FiveCardDrawEngine.ParseCards(["9H", "5S", "KH", "QD"]),
+            openingAmount: 10);
+        var chainedSwitch = Lucky5DoubleUpEngine.SwitchDealer(chainedNoLoseSession);
+        Assert(failures, "Chained: switch onto 5S should activate no-lose", chainedSwitch.IsNoLoseActive);
+        Assert(failures, "Chained: 5S switch should 4x the amount", chainedSwitch.CurrentAmount == 40);
+        var chainedWin = Lucky5DoubleUpEngine.ResolveGuess(chainedSwitch, BigSmallGuess.Big);
+        Assert(failures, "Chained: winning guess after Lucky5 should still be a Win", chainedWin.Outcome == Lucky5DoubleUpOutcome.Win);
+        Assert(failures, "Chained: no-lose should persist through wins", chainedWin.Session.IsNoLoseActive);
+        Assert(failures, "Chained: amount should double on win", chainedWin.NextAmount == 80);
+        var chainedLoss = Lucky5DoubleUpEngine.ResolveGuess(chainedWin.Session, BigSmallGuess.Big);
+        Assert(failures, "Chained: losing after wins with no-lose active should SafeFail", chainedLoss.Outcome == Lucky5DoubleUpOutcome.SafeFail);
+        Assert(failures, "Chained: SafeFail should bank the pre-loss amount", chainedLoss.CashoutCredits == 80);
+
         var repeatedLuckySession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
             seedRoot: seed,
             deck: FiveCardDrawEngine.ParseCards(["9H", "5S", "5S", "KD"]),

@@ -5,7 +5,7 @@ let currentRole = sessionStorage.getItem('lucky5_role') || 'player';
 let balance = 0;
 let walletBalance = 0;
 let currentBet = 5000;
-let machineId = 1;
+let machineId = Number.parseInt(sessionStorage.getItem('lucky5_machineId') || '0', 10) || 0;
 let roundId = null;
 let cards = [];
 let holdIndexes = new Set();
@@ -158,29 +158,74 @@ async function apiCall(method, path, body) {
 
 async function fetchMachineSession() {
     const session = await apiCall('GET', `/api/Game/machine/${machineId}/session`);
-    balance = session.machineCredits || 0;
-    walletBalance = session.walletBalance || walletBalance;
-    updateCredits();
+    syncMachineCreditsFromResponse(session);
+    walletBalance = session.walletBalance ?? walletBalance;
     updateLobbyBalance();
     return session;
 }
 
 async function cashInMachine(amount) {
     const session = await apiCall('POST', `/api/Game/machine/${machineId}/cash-in`, { amount });
-    balance = session.machineCredits;
-    walletBalance = session.walletBalance;
-    updateCredits();
+    syncMachineCreditsFromResponse(session);
+    walletBalance = session.walletBalance ?? walletBalance;
     updateLobbyBalance();
     return session;
 }
 
 async function cashOutMachine() {
     const session = await apiCall('POST', `/api/Game/machine/${machineId}/cash-out`);
-    balance = session.machineCredits;
-    walletBalance = session.walletBalance;
-    updateCredits();
+    syncMachineCreditsFromResponse(session);
+    walletBalance = session.walletBalance ?? walletBalance;
     updateLobbyBalance();
     return session;
+}
+
+function syncMachineCreditsFromResponse(source) {
+    const rawCredits = source?.machineCredits
+        ?? source?.walletBalanceAfterBet
+        ?? source?.walletBalanceAfterRound
+        ?? source?.walletBalance;
+    const nextBalance = Number(rawCredits);
+    if (Number.isFinite(nextBalance)) {
+        balance = nextBalance;
+    }
+    updateCredits();
+    return balance;
+}
+
+function refreshIdleMachineState(messageText = null, type = 'win') {
+    stopShuffle();
+    hideDuInfo();
+    clearLucky5Effects();
+    holdIndexes.clear();
+    duSessionStarted = false;
+    duIsNoLoseActive = false;
+    duDealerCard = null;
+    duCardTrail = [];
+    roundDoubleUpAvailable = false;
+    takeHalfUsedThisRound = false;
+    currentHandRank = null;
+    winAmount = 0;
+    roundId = null;
+    takeScoreAnimating = false;
+    gameState = 'idle';
+    updatePaytable();
+    updateBonusBar(null);
+    updateWinIndicator(0);
+    updateWinAmountDisplay(0);
+    setButtonStates();
+
+    if (messageText) {
+        showMessage(messageText, type);
+    } else if (balance >= MACHINE_CREDIT_LIMIT) {
+        showMessage('MACHINE CLOSED - CASH OUT FROM MENU TO CONTINUE', 'win');
+    } else if (balance > 0) {
+        showMessage('PLACE YOUR BET');
+    } else {
+        showMessage('CASH IN FROM MENU');
+    }
+
+    showIdleTitle();
 }
 
 function playPress() {
@@ -816,9 +861,8 @@ async function doDeal() {
             });
             roundId = result.roundId;
             cards = result.cards;
-            balance = result.walletBalanceAfterBet;
+            syncMachineCreditsFromResponse(result);
             if (result.jackpots) updateJackpotDisplay(result.jackpots);
-            updateCredits();
             updateWinAmountDisplay(0);
             holdIndexes.clear();
             renderCards(cards, true);
@@ -863,9 +907,8 @@ async function doDeal() {
             });
             cards = result.cards;
             winAmount = result.winAmount;
-            balance = result.walletBalanceAfterRound;
+            syncMachineCreditsFromResponse(result);
             if (result.jackpots) updateJackpotDisplay(result.jackpots);
-            updateCredits();
 
             renderCards(cards, false);
             setTimeout(() => {
@@ -1167,7 +1210,8 @@ async function doDoubleUp(guess) {
                 const safeAmount = result.currentAmount;
                 // Credits are already settled server-side via FinalizeDoubleUp.
                 // Show the protected amount, then animate drain to credits.
-                balance = result.walletBalance - safeAmount;
+                const settledMachineCredits = Number(result.walletBalance ?? balance);
+                balance = settledMachineCredits - safeAmount;
                 updateCredits();
                 updateWinIndicator(safeAmount);
                 updateWinAmountDisplay(safeAmount, getFourOfAKindSlotTag(currentHandRank));
@@ -1178,25 +1222,14 @@ async function doDoubleUp(guess) {
                 clearLucky5Effects();
                 setTimeout(async () => {
                     await animateDrainToCredits(safeAmount, balance);
-                    winAmount = 0;
-                    balance = result.walletBalance;
-                    updateCredits();
-                    updateWinIndicator(0);
-                    updateWinAmountDisplay(0);
-                    roundDoubleUpAvailable = false;
-                    takeHalfUsedThisRound = false;
-                    currentHandRank = null;
-                    gameState = 'idle';
-                    setButtonStates();
-                    updatePaytable();
-                    updateBonusBar(null);
-                    showMessage('PLACE YOUR BET');
-                    showIdleTitle();
+                    syncMachineCreditsFromResponse(result);
+                    refreshIdleMachineState();
                 }, 1200);
             } else if (result.status === 'MachineClosed') {
                 roundDoubleUpAvailable = false;
                 const closedAmount = result.currentAmount;
-                balance = result.walletBalance - closedAmount;
+                const settledMachineCredits = Number(result.walletBalance ?? balance);
+                balance = settledMachineCredits - closedAmount;
                 updateCredits();
                 updateWinIndicator(closedAmount);
                 updateWinAmountDisplay(closedAmount, getFourOfAKindSlotTag(currentHandRank));
@@ -1207,23 +1240,12 @@ async function doDoubleUp(guess) {
                 clearLucky5Effects();
                 setTimeout(async () => {
                     await animateDrainToCredits(closedAmount, balance);
-                    winAmount = 0;
-                    balance = result.walletBalance;
-                    updateCredits();
-                    updateWinIndicator(0);
-                    updateWinAmountDisplay(0);
-                    gameState = 'idle';
-                    updatePaytable();
-                    updateBonusBar(null);
-                    currentHandRank = null;
-                    showIdleTitle();
-                    setButtonStates();
-                    showMessage('MACHINE CLOSED - CASHING OUT...', 'win');
+                    syncMachineCreditsFromResponse(result);
+                    refreshIdleMachineState('MACHINE CLOSED - CASHING OUT...', 'win');
                     try {
                         await cashOutMachine();
                         await fetchMachineSession();
-                        setButtonStates();
-                        showMessage('CASHED OUT - MACHINE READY', 'win');
+                        refreshIdleMachineState('CASHED OUT - MACHINE READY', 'win');
                     } catch (_) {
                         showMessage('MACHINE CLOSED - USE MENU TO CASH OUT', 'win');
                     }
@@ -1231,8 +1253,7 @@ async function doDoubleUp(guess) {
             } else {
                 roundDoubleUpAvailable = false;
                 winAmount = 0;
-                balance = result.walletBalance;
-                updateCredits();
+                syncMachineCreditsFromResponse(result);
                 updateWinIndicator(0);
                 updateWinAmountDisplay(0);
                 showMessage('YOU LOSE!', 'lose');
@@ -1409,8 +1430,7 @@ async function mainTakeScore() {
         const cashoutAmount = result.currentAmount;
 
         await animateDrainToCredits(cashoutAmount, balance);
-        balance = result.walletBalance;
-        updateCredits();
+        syncMachineCreditsFromResponse(result);
 
         if (result.status === 'MachineClosed') {
             machineClosed = true;
@@ -1418,8 +1438,7 @@ async function mainTakeScore() {
             try {
                 await cashOutMachine();
                 await fetchMachineSession();
-                setButtonStates();
-                showMessage('CASHED OUT - MACHINE READY', 'win');
+                refreshIdleMachineState('CASHED OUT - MACHINE READY', 'win');
             } catch (_) {
                 showMessage('MACHINE CLOSED - USE MENU TO CASH OUT', 'win');
             }
@@ -1429,14 +1448,8 @@ async function mainTakeScore() {
         updateCredits();
     }
 
-    setButtonStates();
-
     if (!machineClosed) {
-        if (balance >= MACHINE_CREDIT_LIMIT) {
-            showMessage('MACHINE CLOSED - CASH OUT FROM MENU TO CONTINUE', 'win');
-        } else {
-            showMessage('PLACE YOUR BET');
-        }
+        refreshIdleMachineState();
     }
 }
 
@@ -1449,8 +1462,7 @@ async function mainTakeHalf() {
     try {
         const result = await apiCall('POST', '/api/Game/double-up/take-half', { roundId });
 
-        balance = result.walletBalance;
-        updateCredits();
+        syncMachineCreditsFromResponse(result);
         winAmount = result.currentAmount;
         takeHalfUsedThisRound = true;
         updateWinIndicator(winAmount);
@@ -2052,12 +2064,9 @@ async function initGame() {
         updatePaytable();
         updateJackpotSelectedRow();
         updateBonusHandText();
-        showMessage(balance > 0 ? 'PLACE YOUR BET' : 'CASH IN FROM MENU');
         gameState = 'idle';
         jackpotRankArmed = false;
-        setButtonStates();
-
-        showIdleTitle();
+        refreshIdleMachineState();
 
         try {
             const machineState = await apiCall('GET', `/api/Game/machine/${machineId}/state`);
@@ -2199,10 +2208,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const amount = Number(raw);
                 const session = await cashInMachine(amount);
                 await fetchMachineSession();
-                setButtonStates();
+                refreshIdleMachineState(`CASHED IN ${formatNum(amount)} - MACHINE ${formatNum(session.machineCredits)}`, 'win');
                 menuPanel.style.display = 'none';
-                showMessage(`CASHED IN ${formatNum(amount)} - MACHINE ${formatNum(session.machineCredits)}`, 'win');
-                showIdleTitle();
             } catch (e) {
                 showMessage(e.message, 'lose');
             }
@@ -2213,10 +2220,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (gameState !== 'idle') throw new Error('Finish the current round first');
                 const session = await cashOutMachine();
                 await fetchMachineSession();
-                setButtonStates();
+                refreshIdleMachineState(`CASHED OUT - WALLET ${formatNum(session.walletBalance)}`, 'win');
                 menuPanel.style.display = 'none';
-                showMessage(`CASHED OUT - WALLET ${formatNum(session.walletBalance)}`, 'win');
-                showIdleTitle();
             } catch (e) {
                 showMessage(e.message, 'lose');
             }

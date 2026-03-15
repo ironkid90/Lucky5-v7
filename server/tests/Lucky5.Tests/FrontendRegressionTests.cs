@@ -28,8 +28,26 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
+            "game.js should not default the selected machine to machine 1 before the player picks a cabinet",
+            !gameJs.Contains("let machineId = 1;", StringComparison.Ordinal));
+
+        Assert(
+            failures,
             "game.js should never assign machine credit balance from session.walletBalance",
             !gameJs.Contains("balance = session.walletBalance", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "game.js should normalize machine-credit response fields through a dedicated sync helper",
+            Regex.IsMatch(
+                gameJs,
+                @"function\s+syncMachineCreditsFromResponse\(source\)\s*\{[\s\S]{0,600}?walletBalanceAfterBet[\s\S]{0,250}?walletBalanceAfterRound[\s\S]{0,250}?walletBalance[\s\S]{0,250}?updateCredits\(\);",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "game.js should not directly map result.walletBalance into machine credit state",
+            !Regex.IsMatch(gameJs, @"balance\s*=\s*result\.walletBalance\b", RegexOptions.CultureInvariant));
 
         var menuCashInRefreshesSession = Regex.IsMatch(
             gameJs,
@@ -41,6 +59,14 @@ public static class FrontendRegressionTests
             "menu cash-in should refresh machine session state before re-enabling actions",
             menuCashInRefreshesSession);
 
+        Assert(
+            failures,
+            "menu cash-in should restore idle machine UI state after refreshing the machine session",
+            Regex.IsMatch(
+                gameJs,
+                @"const\s+session\s*=\s*await\s+cashInMachine\(amount\);[\s\S]{0,600}?await\s+fetchMachineSession\(\);[\s\S]{0,250}?refreshIdleMachineState\(",
+                RegexOptions.CultureInvariant));
+
         var menuCashOutRefreshesSession = Regex.IsMatch(
             gameJs,
             @"const\s+session\s*=\s*await\s+cashOutMachine\(\);[\s\S]{0,600}?await\s+fetchMachineSession\(\);",
@@ -50,6 +76,14 @@ public static class FrontendRegressionTests
             failures,
             "menu cash-out should refresh machine session state before re-enabling actions",
             menuCashOutRefreshesSession);
+
+        Assert(
+            failures,
+            "menu cash-out should restore idle machine UI state after refreshing the machine session",
+            Regex.IsMatch(
+                gameJs,
+                @"const\s+session\s*=\s*await\s+cashOutMachine\(\);[\s\S]{0,600}?await\s+fetchMachineSession\(\);[\s\S]{0,250}?refreshIdleMachineState\(",
+                RegexOptions.CultureInvariant));
 
         Assert(
             failures,

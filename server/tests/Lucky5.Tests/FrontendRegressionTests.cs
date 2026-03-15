@@ -73,10 +73,7 @@ public static class FrontendRegressionTests
         Assert(
             failures,
             "game.js should drive the active 4K highlight from live jackpot counter nodes instead of dead jackpot-slot hooks",
-            Regex.IsMatch(
-                gameJs,
-                @"document\.querySelectorAll\('\[data-jackpot-slot\^=\\\"4k-\\\"\]'\)",
-                RegexOptions.CultureInvariant));
+            gameJs.Contains("document.querySelectorAll('[data-jackpot-slot^=\"4k-\"]')", StringComparison.Ordinal));
 
         Assert(
             failures,

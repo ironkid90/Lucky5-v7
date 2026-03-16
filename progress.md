@@ -1,4 +1,4 @@
-Original prompt: Implement frontend jackpot cabinet UI fixes in the vanilla cabinet: add visible Full House jackpot meter, fix active 4K side highlight to use live DOM nodes, correct jackpot messaging/slot-tag visuals, add regression coverage, and verify with the Lucky5 test runner.
+cOriginal prompt: Implement frontend jackpot cabinet UI fixes in the vanilla cabinet: add visible Full House jackpot meter, fix active 4K side highlight to use live DOM nodes, correct jackpot messaging/slot-tag visuals, add regression coverage, and verify with the Lucky5 test runner.
 
 - 2026-03-15: Started investigating the vanilla cabinet jackpot UI in [`server/src/Lucky5.Api/wwwroot/index.html`](server/src/Lucky5.Api/wwwroot/index.html) and [`server/src/Lucky5.Api/wwwroot/js/game.js`](server/src/Lucky5.Api/wwwroot/js/game.js).
 - Findings so far:

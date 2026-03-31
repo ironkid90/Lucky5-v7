@@ -44,11 +44,10 @@ class _CashierScreenState extends State<CashierScreen> {
       _message = "";
     });
     try {
-      await widget.authApi.updateCredit(
+      await widget.authApi.deposit(
         accessToken: widget.accessToken,
         amount: amount,
         reference: "cashier-deposit",
-        direction: "credit",
       );
       setState(() => _message = "Deposit successful.");
       _amountController.clear();
@@ -70,11 +69,10 @@ class _CashierScreenState extends State<CashierScreen> {
       _message = "";
     });
     try {
-      await widget.authApi.updateCredit(
+      await widget.authApi.withdraw(
         accessToken: widget.accessToken,
         amount: amount,
         reference: "cashier-withdrawal",
-        direction: "debit",
       );
       setState(() => _message = "Withdrawal successful.");
       _amountController.clear();

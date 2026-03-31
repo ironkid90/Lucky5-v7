@@ -31,9 +31,9 @@ class OffersScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: const ListView(
-        padding: EdgeInsets.all(16),
-        children: [
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: const [
           _PromoCard(
             title: "Welcome Bonus",
             description:
@@ -43,8 +43,7 @@ class OffersScreen extends StatelessWidget {
           SizedBox(height: 8),
           _PromoCard(
             title: "Double-Up Streak",
-            description:
-                "Win big with consecutive double-ups on any machine.",
+            description: "Win big with consecutive double-ups on any machine.",
             tag: "HOT",
           ),
           SizedBox(height: 8),

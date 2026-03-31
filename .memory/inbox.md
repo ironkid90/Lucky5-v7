@@ -10,6 +10,8 @@
 - [ ] React cabinet still has no menu / hamburger overlay parity with the vanilla JS cabinet.
 - [ ] React cabinet still has no game back-to-lobby flow.
 - [ ] React cabinet still has no machine reset / admin parity.
+- [ ] Refresh the RTP simulation so it mirrors the live path exactly; current simulation still assumes policy-gated double-up offers while live gameplay currently offers double-up on every paying hand.
+- [ ] Complete the 80% RTP middle-ground pass without visible rule changes, using bounded pre-shuffle control and non-scripted pacing.
 
 ## Candidate Future Work
 

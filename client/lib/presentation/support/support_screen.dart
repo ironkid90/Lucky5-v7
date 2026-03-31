@@ -151,7 +151,7 @@ class _SupportScreenState extends State<SupportScreen> {
                 const SizedBox(height: 12),
                 if (_contactTypes.isNotEmpty)
                   DropdownButtonFormField<int>(
-                    value: _selectedTypeId,
+                    initialValue: _selectedTypeId,
                     dropdownColor: const Color(0xFF17181C),
                     style: const TextStyle(color: Color(0xFFF0F0F0)),
                     decoration: InputDecoration(

@@ -80,6 +80,22 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         return Ok(ApiResponse<WalletLedgerEntryDto>.Ok(row, traceId: HttpContext.TraceIdentifier));
     }
 
+    [HttpPost("Deposit")]
+    public async Task<ActionResult<ApiResponse<WalletLedgerEntryDto>>> Deposit([FromBody] TransferRequest request, CancellationToken cancellationToken)
+    {
+        var userId = HttpContext.RequireUserId();
+        var row = await authService.UpdateCreditAsync(userId, request, cancellationToken);
+        return Ok(ApiResponse<WalletLedgerEntryDto>.Ok(row, traceId: HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("Withdraw")]
+    public async Task<ActionResult<ApiResponse<WalletLedgerEntryDto>>> Withdraw([FromBody] TransferRequest request, CancellationToken cancellationToken)
+    {
+        var userId = HttpContext.RequireUserId();
+        var row = await authService.UpdateCreditAsync(userId, request, cancellationToken);
+        return Ok(ApiResponse<WalletLedgerEntryDto>.Ok(row, traceId: HttpContext.TraceIdentifier));
+    }
+
     [HttpPost("logout")]
     public async Task<ActionResult<ApiResponse<object>>> Logout(CancellationToken cancellationToken)
     {

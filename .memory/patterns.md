@@ -33,3 +33,22 @@
 ## React Cabinet Scope
 
 - `src/web/components/lucky5-cabinet.tsx` is still the single-component React cabinet; parity work should assume one-file orchestration unless intentionally refactored.
+
+## RTP / Feel Tuning Pattern
+
+- Treat the **payout-scale orbit** as the primary RTP lever, **jackpot economics** as the secondary lever, and **bounded pre-shuffle deck shaping** as the tertiary lever.
+- For Lucky5, preserving fun/tension means avoiding post-choice rigging and obviously scripted outcome patterns.
+- If extra control is needed in double-up, prefer **tiny pre-shuffle deck envelopes** selected before shuffle over visible rule changes.
+
+## Calibration Pattern
+
+- Do not trust legacy RTP docs blindly when balancing. First confirm the live gameplay path in:
+  - `server/src/Lucky5.Infrastructure/Services/GameService.cs`
+  - `server/src/Lucky5.Domain/Game/CleanRoom/MachinePolicy.cs`
+  - `server/src/Lucky5.Domain/Game/CleanRoom/Lucky5DoubleUpEngine.cs`
+  - `server/src/Lucky5.Simulation/Program.cs`
+  - Before claiming a new RTP target, make the simulation mirror live gameplay exactly, especially:
+    - double-up availability
+    - jackpot-to-double-up eligibility
+    - machine-close threshold behavior
+    - jackpot contribution timing

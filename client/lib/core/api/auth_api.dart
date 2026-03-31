@@ -9,7 +9,7 @@ class AuthApi {
 
   final ApiClient _client;
 
-  Future<(AuthTokens tokens, MemberProfile profile)> login({
+  Future<({AuthTokens tokens, MemberProfile profile})> login({
     required String username,
     required String password,
   }) async {
@@ -17,7 +17,8 @@ class AuthApi {
       "/api/Auth/login",
       body: {"username": username, "password": password},
     );
-    final envelope = ApiResponse.fromJson(json, (raw) => raw as Map<String, dynamic>);
+    final envelope =
+        ApiResponse.fromJson(json, (raw) => raw as Map<String, dynamic>);
     if (!envelope.success || envelope.data == null) {
       throw StateError(envelope.message);
     }
@@ -25,7 +26,8 @@ class AuthApi {
     final payload = envelope.data!;
     return (
       tokens: AuthTokens.fromJson(payload["tokens"] as Map<String, dynamic>),
-      profile: MemberProfile.fromJson(payload["profile"] as Map<String, dynamic>)
+      profile:
+          MemberProfile.fromJson(payload["profile"] as Map<String, dynamic>)
     );
   }
 
@@ -130,6 +132,46 @@ class AuthApi {
       "/api/Auth/UpdateCredit",
       accessToken: accessToken,
       body: {"amount": amount, "reference": reference, "direction": direction},
+    );
+    final envelope = ApiResponse.fromJson(
+      json,
+      (raw) => WalletLedgerEntry.fromJson(raw as Map<String, dynamic>),
+    );
+    if (!envelope.success || envelope.data == null) {
+      throw StateError(envelope.message);
+    }
+    return envelope.data!;
+  }
+
+  Future<WalletLedgerEntry> deposit({
+    required String accessToken,
+    required double amount,
+    required String reference,
+  }) async {
+    final json = await _client.post(
+      "/api/Auth/Deposit",
+      accessToken: accessToken,
+      body: {"amount": amount, "reference": reference, "direction": "credit"},
+    );
+    final envelope = ApiResponse.fromJson(
+      json,
+      (raw) => WalletLedgerEntry.fromJson(raw as Map<String, dynamic>),
+    );
+    if (!envelope.success || envelope.data == null) {
+      throw StateError(envelope.message);
+    }
+    return envelope.data!;
+  }
+
+  Future<WalletLedgerEntry> withdraw({
+    required String accessToken,
+    required double amount,
+    required String reference,
+  }) async {
+    final json = await _client.post(
+      "/api/Auth/Withdraw",
+      accessToken: accessToken,
+      body: {"amount": amount, "reference": reference, "direction": "debit"},
     );
     final envelope = ApiResponse.fromJson(
       json,

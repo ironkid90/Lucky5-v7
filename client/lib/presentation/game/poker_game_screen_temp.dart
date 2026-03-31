@@ -57,10 +57,6 @@ class _PokerGameScreenState extends State<PokerGameScreen>
   // Kent counter for sequential straights
   int _kentCounter = 0;
 
-  // Card preloading cache for performance
-  final Map<String, Widget> _cardCache = {};
-  bool _cardsPreloaded = false;
-
   bool get _hasOpenHand => _dealResult != null && _drawResult == null;
   String get _dealDrawLabel => _hasOpenHand ? "DRAW" : "DEAL";
 
@@ -69,7 +65,6 @@ class _PokerGameScreenState extends State<PokerGameScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _hubClient = HubClient(AppConfig.fromEnvironment());
-    unawaited(_preloadCards());
     unawaited(_bootstrapRealtime());
   }
 
@@ -81,8 +76,8 @@ class _PokerGameScreenState extends State<PokerGameScreen>
     unawaited(_hubClient.invoke(
       "LeaveMachine",
       args: <Object>[widget.machineId],
-    ).catchError((_) => null));
-    unawaited(_hubClient.disconnect().catchError((_) => null));
+    ).catchError((_) {}));
+    unawaited(_hubClient.disconnect().catchError((_) {}));
     super.dispose();
   }
 
@@ -91,50 +86,6 @@ class _PokerGameScreenState extends State<PokerGameScreen>
     if (state == AppLifecycleState.resumed) {
       unawaited(_restoreRealtimeSession());
     }
-  }
-
-  Future<void> _preloadCards() async {
-    if (_cardsPreloaded) return;
-
-    // Preload common card widgets to prevent lag
-    final ranks = [
-      'A',
-      'K',
-      'Q',
-      'J',
-      '10',
-      '9',
-      '8',
-      '7',
-      '6',
-      '5',
-      '4',
-      '3',
-      '2'
-    ];
-    final suits = ['H', 'D', 'C', 'S'];
-
-    for (final rank in ranks) {
-      for (final suit in suits) {
-        final key = '$rank$suit';
-        // Pre-build card widgets for faster rendering
-        _cardCache[key] =
-            _buildOptimizedCard(PokerCard(rank: rank, suit: suit), false);
-      }
-    }
-
-    _cardsPreloaded = true;
-  }
-
-  Widget _buildOptimizedCard(PokerCard? card, bool held) {
-    if (card == null) return _CabinetCard(card: null, held: held);
-
-    final key = '${card.rank}${card.suit}';
-    // Use cached widget if available and not held
-    if (!held && _cardCache.containsKey(key)) {
-      return _cardCache[key]!;
-    }
-    return _CabinetCard(card: card, held: held);
   }
 
   Future<void> _bootstrapRealtime() async {
@@ -264,8 +215,7 @@ class _PokerGameScreenState extends State<PokerGameScreen>
         return;
       }
 
-      final nextBalance =
-          (payload["walletBalanceAfterRound"] as num?)?.toDouble();
+      final nextBalance = (payload["walletBalanceAfterRound"] as num?)?.toDouble();
       if (nextBalance == null) {
         return;
       }
@@ -533,21 +483,21 @@ class _PokerGameScreenState extends State<PokerGameScreen>
                                   return Expanded(
                                     child: Padding(
                                       padding: EdgeInsets.only(
-                                        right:
-                                            index == cards.length - 1 ? 0 : 6,
+                                        right: index == cards.length - 1 ? 0 : 6,
                                       ),
                                       child: Column(
                                         children: [
                                           Expanded(
-                                            child:
-                                                _buildOptimizedCard(card, held),
+                                            child: _CabinetCard(
+                                              card: card,
+                                              held: held,
+                                            ),
                                           ),
                                           const SizedBox(height: 8),
                                           SizedBox(
                                             width: double.infinity,
                                             child: FilledButton(
-                                              onPressed: !_hasOpenHand ||
-                                                      _loading
+                                              onPressed: !_hasOpenHand || _loading
                                                   ? null
                                                   : () => _toggleHold(index),
                                               style: FilledButton.styleFrom(
@@ -610,8 +560,7 @@ class _PokerGameScreenState extends State<PokerGameScreen>
                               Expanded(
                                 child: TextField(
                                   controller: _betController,
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
+                                  keyboardType: const TextInputType.numberWithOptions(
                                     decimal: true,
                                   ),
                                   style: const TextStyle(
@@ -639,8 +588,7 @@ class _PokerGameScreenState extends State<PokerGameScreen>
                                 child: SizedBox(
                                   height: 58,
                                   child: FilledButton(
-                                    onPressed:
-                                        _loading ? null : _onDealDrawPressed,
+                                    onPressed: _loading ? null : _onDealDrawPressed,
                                     style: FilledButton.styleFrom(
                                       backgroundColor: const Color(0xFFC33B2F),
                                       foregroundColor: Colors.white,
@@ -730,8 +678,7 @@ class _PokerGameScreenState extends State<PokerGameScreen>
   }
 
   List<PokerCard?> get _visibleCards {
-    final current =
-        _drawResult?.cards ?? _dealResult?.cards ?? const <PokerCard>[];
+    final current = _drawResult?.cards ?? _dealResult?.cards ?? const <PokerCard>[];
     return List<PokerCard?>.generate(
       5,
       (index) => index < current.length ? current[index] : null,
@@ -823,8 +770,7 @@ class _ScoreboardPanel extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: isLive
                       ? const Color(0xFF0F5A31)
@@ -940,8 +886,7 @@ class _CabinetCard extends StatelessWidget {
                       Text(
                         card!.rank,
                         style: TextStyle(
-                          color:
-                              redSuit ? const Color(0xFFC62C2C) : Colors.black,
+                          color: redSuit ? const Color(0xFFC62C2C) : Colors.black,
                           fontSize: 20,
                           fontWeight: FontWeight.w900,
                         ),
@@ -949,8 +894,7 @@ class _CabinetCard extends StatelessWidget {
                       Text(
                         suit,
                         style: TextStyle(
-                          color:
-                              redSuit ? const Color(0xFFC62C2C) : Colors.black,
+                          color: redSuit ? const Color(0xFFC62C2C) : Colors.black,
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -962,9 +906,7 @@ class _CabinetCard extends StatelessWidget {
                   child: Text(
                     suit,
                     style: TextStyle(
-                      color: redSuit
-                          ? const Color(0xFFD94242)
-                          : const Color(0xFF1F1F1F),
+                      color: redSuit ? const Color(0xFFD94242) : const Color(0xFF1F1F1F),
                       fontSize: 42,
                       fontWeight: FontWeight.w700,
                     ),

@@ -1,4 +1,5 @@
 import "dart:convert";
+import "dart:io";
 
 import "package:http/http.dart" as http;
 
@@ -14,10 +15,17 @@ class ApiClient {
     String? accessToken,
   }) async {
     final uri = Uri.parse("${_config.apiBaseUrl}$path");
-    final response = await http
-        .get(uri, headers: _headers(accessToken))
-        .timeout(_config.requestTimeout);
-    return _decode(response);
+    try {
+      final response = await http
+          .get(uri, headers: _headers(accessToken))
+          .timeout(_config.requestTimeout);
+      return _decode(response);
+    } on SocketException {
+      throw StateError(
+          "Cannot reach server at ${_config.apiBaseUrl}. Is the API running?");
+    } on http.ClientException {
+      throw StateError("Network error contacting ${_config.apiBaseUrl}.");
+    }
   }
 
   Future<Map<String, dynamic>> post(
@@ -26,14 +34,21 @@ class ApiClient {
     String? accessToken,
   }) async {
     final uri = Uri.parse("${_config.apiBaseUrl}$path");
-    final response = await http
-        .post(
-          uri,
-          headers: _headers(accessToken),
-          body: jsonEncode(body ?? const <String, dynamic>{}),
-        )
-        .timeout(_config.requestTimeout);
-    return _decode(response);
+    try {
+      final response = await http
+          .post(
+            uri,
+            headers: _headers(accessToken),
+            body: jsonEncode(body ?? const <String, dynamic>{}),
+          )
+          .timeout(_config.requestTimeout);
+      return _decode(response);
+    } on SocketException {
+      throw StateError(
+          "Cannot reach server at ${_config.apiBaseUrl}. Is the API running?");
+    } on http.ClientException {
+      throw StateError("Network error contacting ${_config.apiBaseUrl}.");
+    }
   }
 
   Map<String, String> _headers(String? accessToken) {
@@ -48,11 +63,17 @@ class ApiClient {
   }
 
   Map<String, dynamic> _decode(http.Response response) {
-    final payload = jsonDecode(response.body) as Map<String, dynamic>;
-    if (response.statusCode >= 400) {
-      final message = payload["message"]?.toString() ?? "Request failed";
-      throw StateError(message);
+    try {
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode >= 400) {
+        final message = payload["message"]?.toString() ??
+            "Request failed (${response.statusCode})";
+        throw StateError(message);
+      }
+      return payload;
+    } on FormatException {
+      throw StateError(
+          "Server returned non-JSON response (${response.statusCode}).");
     }
-    return payload;
   }
 }

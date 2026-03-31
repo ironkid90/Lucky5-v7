@@ -2,86 +2,82 @@
 
 ## Overview
 
-Lucky5 should currently be deployed to Azure as a **single-region Azure App Service running the repo's root Dockerfile**.
+Lucky5 should be deployed to Azure as a **single-region Azure App Service running the repo's root Dockerfile**, with **GitHub Actions building and deploying on pushes to `main`**.
 
-This is the supported Azure path because:
+This is the supported production path because:
 
 - the backend is an ASP.NET Core 9 app
 - the frontend is served from the same backend host
 - SignalR/WebSockets need an always-running web app
 - machine sessions, RTP memory, jackpots, and admin state are still stored in memory, so scale-out and multi-region are unsafe today
+- GitHub-based CI/CD avoids uploading a local working tree for every deployment
 
-The active deployment helper is `scripts/setup-azure.sh`.
+## Supported deployment model
 
-## Prerequisites
+### One-time Azure bootstrap
 
-Before deploying, make sure you have:
+Create or reuse these Azure resources in one region:
 
-- an Azure subscription
-- Azure CLI installed
-- an active Azure login from `az login`
-- access to this repo locally
-- Bash available on your machine if you want to use the helper script directly
+- one resource group
+- one Azure Container Registry
+- one Linux App Service plan
+- one Linux Web App configured for a custom container
 
-On Windows, the easiest option is usually **Git Bash**.
+The Web App should use a system-assigned managed identity with `AcrPull` on the registry.
 
-## Recommended deployment command
+### Ongoing deployments
 
-From the repository root, run:
+The repo's GitHub Actions workflow at `.github/workflows/deploy-azure-app-service.yml` is the active deployment path.
 
-```bash
-bash scripts/setup-azure.sh
-```
+On every push to `main`, it:
 
-The script prompts for:
+1. logs into Azure using GitHub OIDC
+2. builds the root `Dockerfile`
+3. pushes the image to Azure Container Registry
+4. ensures the App Service identity can pull from ACR
+5. updates the Web App to the new image
+6. checks `https://<app-name>.azurewebsites.net/health/live`
 
-- Azure subscription id
-- resource group
-- Azure region
-- Azure Container Registry name
-- App Service plan name
-- Web App name
-- admin username / password / phone
-- allowed CORS origins
+## Required GitHub repository variables
 
-## What the script does
+The workflow expects these repository-level GitHub Actions variables:
 
-The Azure script performs these steps:
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+- `AZURE_RESOURCE_GROUP`
+- `AZURE_WEBAPP_NAME`
+- `AZURE_ACR_NAME`
+- `AZURE_ACR_LOGIN_SERVER`
+- `AZURE_LOCATION`
 
-1. creates or reuses the resource group
-2. creates or reuses Azure Container Registry
-3. builds the root Dockerfile with `az acr build`
-4. creates or reuses a Linux App Service plan
-5. creates or reuses the Azure Web App as a custom container
-6. configures container registry credentials for the web app
-7. enables Always On and WebSockets
-8. sets the runtime app settings Lucky5 needs:
-   - `WEBSITES_PORT=8080`
-   - `PORT=8080`
-   - `ASPNETCORE_ENVIRONMENT=Production`
-   - `CORS__ALLOWED_ORIGINS=...`
-   - `LUCKY5_ADMIN_USERNAME=...`
-   - `LUCKY5_ADMIN_PASSWORD=...`
-   - `LUCKY5_ADMIN_PHONE=...`
+These are identifiers and resource names for Azure OIDC and deployment targeting.
 
-## Example non-interactive usage
+## Required Azure configuration
 
-If you prefer to pre-set everything yourself:
+Before GitHub Actions can deploy, Azure must have:
 
-```bash
-AZURE_SUBSCRIPTION_ID="your-subscription-id" \
-RESOURCE_GROUP="lucky5-rg" \
-LOCATION="eastus" \
-ACR_NAME="youruniqueacrname" \
-PLAN_NAME="lucky5-plan" \
-APP_NAME="your-unique-webapp-name" \
-APP_SERVICE_SKU="B1" \
-LUCKY5_ADMIN_USERNAME="admin" \
-LUCKY5_ADMIN_PASSWORD="change-me-now" \
-LUCKY5_ADMIN_PHONE="+96100000000" \
-ALLOWED_ORIGINS="https://your-unique-webapp-name.azurewebsites.net" \
-bash scripts/setup-azure.sh
-```
+- a Microsoft Entra application / service principal for GitHub Actions
+- a federated credential for `repo:ironkid90/Lucky5-v7:ref:refs/heads/main`
+- Azure RBAC allowing that principal to:
+  - push images to ACR
+  - update the Lucky5 Web App
+
+## App settings the deployment preserves
+
+The workflow ensures these runtime settings remain present:
+
+- `WEBSITES_PORT=8080`
+- `PORT=8080`
+- `WEBSITES_ENABLE_APP_SERVICE_STORAGE=false`
+- `ASPNETCORE_ENVIRONMENT=Production`
+- `CORS__ALLOWED_ORIGINS=https://<app-name>.azurewebsites.net`
+
+Admin credentials should be set directly on the Web App in Azure and should not be committed to GitHub.
+
+## Manual trigger
+
+You can also run the deployment manually from GitHub Actions with `workflow_dispatch`.
 
 ## Post-deployment checks
 
@@ -104,31 +100,8 @@ az webapp log tail --resource-group <resource-group> --name <your-app-name>
 - Multi-region deployment is not supported yet. See `AZURE_MULTI_REGION_GUIDE.md`.
 - If you add a custom domain later, update `CORS__ALLOWED_ORIGINS` to include it.
 
-## Troubleshooting
+## Legacy note
 
-### App starts but browser shows errors
+The older local helper script `scripts/setup-azure.sh` reflects the previous local-machine-driven deployment flow. It is no longer the recommended production deployment path for Lucky5.
 
-Check that `CORS__ALLOWED_ORIGINS` matches the final site URL.
-
-### Container does not become healthy
-
-Confirm the app settings include:
-
-- `WEBSITES_PORT=8080`
-- `PORT=8080`
-
-Lucky5 listens on Azure's assigned port and exposes its health endpoint at `/health/live`.
-
-### WebSocket or SignalR issues
-
-Confirm WebSockets are enabled on the web app and that you are testing against the same origin configured in CORS.
-
-### Names are rejected during creation
-
-Azure Web App names and Azure Container Registry names must be globally unique.
-
-## Notes about legacy Azure files
-
-The old Node/App Service examples and ARM placeholder under `azure/` are not the active deployment path for the current Lucky5 app.
-
-This guide was updated on 2026-03-31.
+This guide was updated on 2026-04-01.

@@ -61,6 +61,9 @@ class _PokerGameScreenState extends State<PokerGameScreen>
   final Map<String, Widget> _cardCache = {};
   bool _cardsPreloaded = false;
 
+  // Track held cards with their data to fix reorganization bug
+  final Map<int, PokerCard> _heldCardsData = {};
+
   bool get _hasOpenHand => _dealResult != null && _drawResult == null;
   String get _dealDrawLabel => _hasOpenHand ? "DRAW" : "DEAL";
 
@@ -233,6 +236,7 @@ class _PokerGameScreenState extends State<PokerGameScreen>
         _dealResult = result;
         _drawResult = null;
         _holds.clear();
+        _heldCardsData.clear();
         _walletBalance = result.walletBalanceAfterBet;
         _loading = false;
         _message = "Choose the cards to HOLD, then press DRAW.";
@@ -450,8 +454,14 @@ class _PokerGameScreenState extends State<PokerGameScreen>
     setState(() {
       if (_holds.contains(index)) {
         _holds.remove(index);
+        _heldCardsData.remove(index);
       } else {
         _holds.add(index);
+        // Store the actual card data when holding
+        final currentCards = _dealResult?.cards ?? [];
+        if (index < currentCards.length) {
+          _heldCardsData[index] = currentCards[index];
+        }
       }
     });
   }
@@ -798,12 +808,21 @@ class _PokerGameScreenState extends State<PokerGameScreen>
       final heldCards = <PokerCard?>[];
       final newCards = <PokerCard?>[];
       
-      // Separate held and new cards
-      for (int i = 0; i < current.length; i++) {
-        if (_holds.contains(i)) {
-          heldCards.add(current[i]);
-        } else {
-          newCards.add(current[i]);
+      // Use stored held card data instead of checking by index
+      for (int i = 0; i < 5; i++) {
+        if (_heldCardsData.containsKey(i)) {
+          heldCards.add(_heldCardsData[i]);
+        }
+      }
+      
+      // Add the new cards (non-held positions)
+      int newCardIndex = 0;
+      for (int i = 0; i < 5; i++) {
+        if (!_heldCardsData.containsKey(i)) {
+          if (newCardIndex < current.length) {
+            newCards.add(current[newCardIndex]);
+            newCardIndex++;
+          }
         }
       }
       
@@ -1055,7 +1074,7 @@ class _CabinetCard extends StatelessWidget {
               ),
           ],
         ),
-      child: card == null
+        child: card == null
           ? const Center(
               child: Text(
                 "?",

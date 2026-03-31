@@ -614,14 +614,6 @@ switch (resolution.Outcome)
         if (currentAmount <= 1) throw new InvalidOperationException("Amount too small to split");
 
         var half = currentAmount / 2;
-        var remaining = currentAmount - half;
-        session.MachineCredits += half;
-        session.LastUpdatedUtc = DateTime.UtcNow;
-        session.IsMachineClosed = session.MachineCredits >= MachineCloseCredits;
-        round.SettledAmount += half;
-        round.TakeHalfUsed = true;
-        if (round.DoubleUpSession != null) round.DoubleUpSession = round.DoubleUpSession with { CurrentAmount = remaining };
-        else round.WinAmount = remaining;
 
         store.Ledger.Add(new WalletLedgerEntry
         {
@@ -931,6 +923,6 @@ switch (resolution.Outcome)
         session.LastUpdatedUtc = DateTime.UtcNow;
     }
 
-    private static MachineSessionDto ToMachineSessionDto(MachineSessionState session, decimal walletBalance)
-        => new(session.SessionId, session.MachineId, session.MachineCredits, session.TotalCashIn, session.TotalCashIn * 2m, CanCashOut(session), session.IsMachineClosed, walletBalance);
+private static MachineSessionDto ToMachineSessionDto(MachineSessionState session, decimal walletBalance)
+    => new(session.SessionId, session.MachineId, session.MachineCredits, session.TotalCashIn, session.TotalCashIn * 2m, true, session.IsMachineClosed, walletBalance);
 }

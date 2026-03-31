@@ -525,7 +525,7 @@ class _PokerGameScreenState extends State<PokerGameScreen>
                             BoxShadow(
                               color: const Color(0xFFD4AF37).withOpacity(0.1),
                               blurRadius: 64,
-                              offset: Offset(0, 8),
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
@@ -1003,8 +1003,8 @@ class _ScoreboardPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            children: const [
+          const Row(
+            children: [
               Expanded(child: _PaytableChip(label: "RF", value: "1000")),
               SizedBox(width: 6),
               Expanded(child: _PaytableChip(label: "SF", value: "75")),

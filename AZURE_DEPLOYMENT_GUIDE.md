@@ -38,20 +38,17 @@ On every push to `main`, it:
 5. updates the Web App to the new image
 6. checks `https://<app-name>.azurewebsites.net/health/live`
 
-## Required GitHub repository variables
+## Workflow configuration
 
-The workflow expects these repository-level GitHub Actions variables:
+The workflow currently targets one concrete production deployment:
 
-- `AZURE_CLIENT_ID`
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
-- `AZURE_RESOURCE_GROUP`
-- `AZURE_WEBAPP_NAME`
-- `AZURE_ACR_NAME`
-- `AZURE_ACR_LOGIN_SERVER`
-- `AZURE_LOCATION`
+- subscription: `343ce01c-0b2a-46a3-bb0e-24c0469a9bfe`
+- resource group: `lucky5-rg`
+- region: `westeurope`
+- Azure Container Registry: `lucky520260401001454`
+- Azure Web App: `lucky5-ik90-prod-20260401`
 
-These are identifiers and resource names for Azure OIDC and deployment targeting.
+These values are committed directly in the workflow because they are infrastructure identifiers, not secrets. If you rename or recreate the Azure resources later, update the workflow file to match.
 
 ## Required Azure configuration
 

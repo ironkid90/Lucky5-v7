@@ -16,7 +16,22 @@ from typing import Dict, List, Optional, Any
 
 class MissionOrchestrator:
     def __init__(self, workspace_root: str):
-        self.workspace_root = Path(workspace_root)
+        # Always use the parent directory if we're in the scripts folder
+        workspace_path = Path(workspace_root)
+        if workspace_path.name == "scripts" or "scripts" in workspace_path.parts:
+            # Find the project root by looking for .windsurf directory
+            current = workspace_path
+            while current != current.parent:
+                if (current / ".windsurf").exists():
+                    self.workspace_root = current
+                    break
+                current = current.parent
+            else:
+                # Fallback to parent if .windsurf not found
+                self.workspace_root = workspace_path.parent
+        else:
+            self.workspace_root = workspace_path
+        
         self.config_file = self.workspace_root / ".windsurf" / "kade-config.json"
         self.workflows_dir = self.workspace_root / ".windsurf" / "workflows"
         self.active_missions_file = self.workspace_root / ".windsurf" / "active-missions.json"

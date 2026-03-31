@@ -1,0 +1,56 @@
+{
+  "missions": [
+    {
+      "id": "mission-20260401-002058",
+      "workflow": "game-feature-development",
+      "title": "Game Feature Development",
+      "description": "Complete workflow for developing new Lucky5 game features",
+      "status": "planning",
+      "priority": "medium",
+      "missions": [],
+      "createdAt": "2026-04-01T00:20:58.903506",
+      "context": {
+        "projectRoot": "C:\\Users\\Gabi\\Documents\\GitHub\\Lucky5-v7",
+        "relatedFiles": [
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\CoreModels.cs",
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\DeterministicRng.cs",
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\FiveCardDrawEngine.cs",
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\LineageProfiles.cs",
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\Lucky5DoubleUpEngine.cs",
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\MachinePolicy.cs",
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\PresentationNoiseGenerator.cs",
+          "server\\src\\Lucky5.Api\\Program.cs",
+          "Dockerfile",
+          "README.md"
+        ]
+      }
+    },
+    {
+      "id": "mission-20260401-002113",
+      "workflow": "game-feature-development",
+      "title": "Game Feature Development",
+      "description": "Complete workflow for developing new Lucky5 game features",
+      "status": "active",
+      "priority": "medium",
+      "missions": [],
+      "createdAt": "2026-04-01T00:21:13.881555",
+      "context": {
+        "projectRoot": "C:\\Users\\Gabi\\Documents\\GitHub\\Lucky5-v7",
+        "relatedFiles": [
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\CoreModels.cs",
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\DeterministicRng.cs",
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\FiveCardDrawEngine.cs",
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\LineageProfiles.cs",
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\Lucky5DoubleUpEngine.cs",
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\MachinePolicy.cs",
+          "server\\src\\Lucky5.Domain\\Game\\CleanRoom\\PresentationNoiseGenerator.cs",
+          "server\\src\\Lucky5.Api\\Program.cs",
+          "Dockerfile",
+          "README.md"
+        ]
+      },
+      "startedAt": "2026-04-01T00:22:29.279457"
+    }
+  ],
+  "last_updated": "2026-04-01T00:22:29.279478"
+}

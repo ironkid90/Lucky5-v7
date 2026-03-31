@@ -596,7 +596,6 @@ switch (resolution.Outcome)
                 CreatedUtc = DateTime.UtcNow
             });
         }
-
         var status = session.IsMachineClosed ? "MachineClosed" : "Cashout";
         return Task.FromResult(new DoubleUpResultDto(roundId, status, cashoutAmount, session.MachineCredits));
     }
@@ -613,6 +612,51 @@ switch (resolution.Outcome)
         var currentAmount = round.DoubleUpSession != null ? round.DoubleUpSession.CurrentAmount : (int)round.WinAmount;
         if (currentAmount <= 1) throw new InvalidOperationException("Amount too small to split");
 
+        var half = currentAmount / 2;
+        var remaining = currentAmount - half;
+
+        // Add half to machine credits immediately
+        session.MachineCredits += half;
+        session.LastUpdatedUtc = DateTime.UtcNow;
+        session.IsMachineClosed = session.MachineCredits >= MachineCloseCredits;
+
+        // Update round state
+        round.TakeHalfUsed = true;
+        round.SettledAmount += half;
+
+        // Update ledger
+        lock (store.LedgerSync)
+        {
+            var ledger = RequireMachineLedger(round.MachineId);
+            var delta = half;
+            if (delta != 0) ledger.CapitalOut += delta;
+            ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
+        }
+
+        // Record ledger entry
+        store.Ledger.Add(new WalletLedgerEntry
+        {
+            UserId = userId,
+            Amount = half,
+            BalanceAfter = session.MachineCredits,
+            Type = "TakeHalf",
+            Reference = round.RoundId.ToString("N"),
+            CreatedUtc = DateTime.UtcNow
+        });
+
+        // Update double-up session if active
+        if (round.DoubleUpSession != null)
+        {
+            round.DoubleUpSession = round.DoubleUpSession with { CurrentAmount = remaining };
+        }
+
+        var noise = GenerateNoise(round.RoundEntropySeed, 0);
+        return Task.FromResult(new DoubleUpResultDto(roundId, "TookHalf", remaining, session.MachineCredits,
+            DealerCard: round.DoubleUpSession != null ? ToCleanRoomDto(round.DoubleUpSession.DealerCard) : null,
+            SwitchesRemaining: round.DoubleUpSession?.Options.MaxSwitchesPerRound - round.DoubleUpSession.SwitchCountInRound ?? 0,
+            IsNoLoseActive: round.DoubleUpSession?.IsNoLoseActive ?? false,
+            Noise: noise));
+    }
 
     public Task<JackpotInfoDto> ChangeJackpotRankAsync(int machineId, int rank, CancellationToken cancellationToken)
     {

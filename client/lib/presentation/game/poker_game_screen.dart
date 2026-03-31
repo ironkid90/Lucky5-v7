@@ -524,9 +524,17 @@ class _PokerGameScreenState extends State<PokerGameScreen>
                             Text(
                               "LUCKY 5",
                               style: theme.textTheme.headlineSmall?.copyWith(
-                                color: const Color(0xFFF7D15C),
+                                color: const Color(0xFFD4AF37),
                                 fontWeight: FontWeight.w900,
-                                letterSpacing: 3,
+                                letterSpacing: 4,
+                                fontSize: 28,
+                                shadows: [
+                                  Shadow(
+                                    color: const Color(0xFFD4AF37).withOpacity(0.4),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -535,8 +543,16 @@ class _PokerGameScreenState extends State<PokerGameScreen>
                                   (_hasOpenHand ? "SELECT HOLDS" : "READY"),
                               style: theme.textTheme.titleMedium?.copyWith(
                                 color: const Color(0xFFF0F0F0),
-                                letterSpacing: 1.5,
-                                fontWeight: FontWeight.w700,
+                                letterSpacing: 2,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 4,
+                                    offset: const Offset(1, 2),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 18),
@@ -568,25 +584,30 @@ class _PokerGameScreenState extends State<PokerGameScreen>
                                                   : () => _toggleHold(index),
                                               style: FilledButton.styleFrom(
                                                 backgroundColor: held
-                                                    ? const Color(0xFFF4CF58)
-                                                    : const Color(0xFF3F3620),
+                                                    ? const Color(0xFFD4AF37)
+                                                    : const Color(0xFF3A3228),
                                                 foregroundColor: held
-                                                    ? const Color(0xFF111111)
-                                                    : const Color(0xFFF8E5A8),
+                                                    ? const Color(0xFF1A1A1A)
+                                                    : const Color(0xFFD4AF37),
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                  vertical: 12,
+                                                  vertical: 14,
                                                 ),
                                                 shape: RoundedRectangleBorder(
                                                   borderRadius:
-                                                      BorderRadius.circular(14),
+                                                      BorderRadius.circular(16),
                                                 ),
+                                                elevation: held ? 8 : 4,
+                                                shadowColor: held 
+                                                    ? const Color(0xFFD4AF37)
+                                                    : Colors.black,
                                               ),
                                               child: Text(
                                                 held ? "HELD" : "HOLD",
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.w900,
-                                                  letterSpacing: 1,
+                                                  letterSpacing: 1.2,
+                                                  fontSize: 13,
                                                 ),
                                               ),
                                             ),
@@ -607,15 +628,15 @@ class _PokerGameScreenState extends State<PokerGameScreen>
                       width: double.infinity,
                       padding: const EdgeInsets.fromLTRB(14, 16, 14, 18),
                       decoration: const BoxDecoration(
-                        color: Color(0xFF6A482F),
+                        color: Color(0xFF7A5C3A),
                         borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(28),
+                          top: Radius.circular(32),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Color(0x55000000),
-                            blurRadius: 18,
-                            offset: Offset(0, -4),
+                            color: Color(0x88000000),
+                            blurRadius: 24,
+                            offset: Offset(0, -8),
                           ),
                         ],
                       ),
@@ -658,15 +679,19 @@ class _PokerGameScreenState extends State<PokerGameScreen>
                                     onPressed:
                                         _loading ? null : _onDealDrawPressed,
                                     style: FilledButton.styleFrom(
-                                      backgroundColor: const Color(0xFFC33B2F),
+                                      backgroundColor: const Color(0xFFC62828),
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(18),
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      elevation: 6,
+                                      shadowColor: const Color(0xFFC62828),
                                       textStyle:
                                           theme.textTheme.titleMedium?.copyWith(
                                         fontWeight: FontWeight.w900,
-                                        letterSpacing: 2,
+                                        letterSpacing: 2.5,
+                                        fontSize: 16,
                                       ),
                                     ),
                                     child: _loading
@@ -720,14 +745,34 @@ class _PokerGameScreenState extends State<PokerGameScreen>
                               vertical: 12,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2E1D13),
-                              borderRadius: BorderRadius.circular(16),
+                              color: const Color(0xFF2A1F15),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFFD4AF37).withOpacity(0.3),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
                             child: Text(
                               _message,
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: const Color(0xFFF4E3C2),
+                                color: const Color(0xFFF5E6D3),
                                 fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                letterSpacing: 0.5,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 2,
+                                    offset: const Offset(1, 1),
+                                  ),
+                                ],
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -746,8 +791,30 @@ class _PokerGameScreenState extends State<PokerGameScreen>
   }
 
   List<PokerCard?> get _visibleCards {
-    final current =
-        _drawResult?.cards ?? _dealResult?.cards ?? const <PokerCard>[];
+    final current = _drawResult?.cards ?? _dealResult?.cards ?? const <PokerCard>[];
+    
+    // If we have a draw result, reorganize cards so held cards appear first
+    if (_drawResult != null && _holds.isNotEmpty) {
+      final heldCards = <PokerCard?>[];
+      final newCards = <PokerCard?>[];
+      
+      // Separate held and new cards
+      for (int i = 0; i < current.length; i++) {
+        if (_holds.contains(i)) {
+          heldCards.add(current[i]);
+        } else {
+          newCards.add(current[i]);
+        }
+      }
+      
+      // Combine: held cards first, then new cards
+      final reorganized = [...heldCards, ...newCards];
+      return List<PokerCard?>.generate(
+        5,
+        (index) => index < reorganized.length ? reorganized[index] : null,
+      );
+    }
+    
     return List<PokerCard?>.generate(
       5,
       (index) => index < current.length ? current[index] : null,
@@ -820,9 +887,24 @@ class _ScoreboardPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF17181C),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFF60562F), width: 2),
+        color: const Color(0xFF1A1D23),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: const Color(0xFFD4AF37),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: const Color(0xFFD4AF37).withOpacity(0.1),
+            blurRadius: 24,
+            offset: const Offset(0, 0),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -832,9 +914,16 @@ class _ScoreboardPanel extends StatelessWidget {
                 child: Text(
                   "MACHINE $machineId",
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: const Color(0xFFF2D05C),
+                        color: const Color(0xFFD4AF37),
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.5,
+                        shadows: [
+                          Shadow(
+                            color: const Color(0xFFD4AF37).withOpacity(0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                 ),
               ),
@@ -843,9 +932,20 @@ class _ScoreboardPanel extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: isLive
-                      ? const Color(0xFF0F5A31)
-                      : const Color(0xFF5A2A1A),
-                  borderRadius: BorderRadius.circular(999),
+                      ? const Color(0xFF1A5C3A)
+                      : const Color(0xFF5C2A1A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isLive ? const Color(0xFF2ECC71) : const Color(0xFFE74C3C),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isLive ? const Color(0xFF2ECC71) : const Color(0xFFE74C3C)).withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Text(
                   isLive ? "LIVE" : "HTTP",

@@ -83,8 +83,7 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
         var session = RequireMachineSession(userId, machineId, createIfMissing: false);
         if (session.MachineCredits <= 0)
             throw new InvalidOperationException("No machine credits to cash out");
-        if (!CanCashOut(session))
-            throw new InvalidOperationException("Cash out requires machine closed or at least 2x your total cash-in");
+
 
         var amount = session.MachineCredits;
         profile.WalletBalance += amount;
@@ -903,8 +902,7 @@ switch (resolution.Outcome)
         return session;
     }
 
-    private static bool CanCashOut(MachineSessionState session)
-        => session.IsMachineClosed || (session.TotalCashIn > 0 && session.MachineCredits >= session.TotalCashIn * 2m);
+
 
     private static int AssessCounterplay(CleanRoomCard[] hand, int[] holdIndexes)
     {

@@ -814,8 +814,8 @@ class _ScoreboardPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            children: const [
+          const Row(
+            children: [
               Expanded(child: _PaytableChip(label: "RF", value: "1000")),
               SizedBox(width: 6),
               Expanded(child: _PaytableChip(label: "SF", value: "75")),

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 prompt_default() {
@@ -29,6 +29,19 @@ require_cmd() {
     echo "$help_text" >&2
     exit 1
   fi
+}
+
+ensure_provider_registered() {
+  local namespace="$1"
+  local registration_state
+  registration_state="$(az provider show --namespace "${namespace}" --query registrationState -o tsv 2>/dev/null || true)"
+
+  if [[ "${registration_state}" == "Registered" ]]; then
+    return
+  fi
+
+  echo "Registering Azure resource provider ${namespace}..."
+  az provider register --namespace "${namespace}" --wait --output none
 }
 
 require_cmd az "Install Azure CLI first: https://learn.microsoft.com/cli/azure/install-azure-cli"
@@ -98,6 +111,9 @@ echo "Allowed origins: ${ALLOWED_ORIGINS}"
 echo
 
 az account set --subscription "${AZURE_SUBSCRIPTION_ID}"
+
+ensure_provider_registered "Microsoft.ContainerRegistry"
+ensure_provider_registered "Microsoft.Web"
 
 echo "Creating resource group..."
 az group create --name "${RESOURCE_GROUP}" --location "${LOCATION}" --output none

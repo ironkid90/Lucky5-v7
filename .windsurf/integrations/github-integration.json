@@ -1,0 +1,61 @@
+{
+  "name": "GitHub Integration",
+  "version": "1.0.0",
+  "type": "version-control",
+  "enabled": true,
+  "description": "Integrates Kade missions with GitHub repository management",
+  "config": {
+    "repository": "ironkid90/Lucky5-v7",
+    "mainBranch": "main",
+    "autoCreateBranches": true,
+    "autoCreatePRs": true,
+    "branchNaming": {
+      "feature": "feature/kade-{mission-id}",
+      "bugfix": "fix/kade-{mission-id}",
+      "deployment": "deploy/kade-{mission-id}"
+    },
+    "prTemplates": {
+      "feature": {
+        "title": "Feature: {mission-title}",
+        "description": "## Mission\n**Mission ID**: {mission-id}\n**Workflow**: {workflow}\n\n## Changes\n{changes}\n\n## Testing\n{testing}\n\n## Deployment\n{deployment}",
+        "labels": ["enhancement", "kade-mission"],
+        "reviewers": []
+      },
+      "bugfix": {
+        "title": "Bug Fix: {mission-title}",
+        "description": "## Mission\n**Mission ID**: {mission-id}\n**Workflow**: {workflow}\n\n## Bug Description\n{bug-description}\n\n## Fix\n{fix-description}\n\n## Testing\n{testing}",
+        "labels": ["bug", "kade-mission"],
+        "reviewers": []
+      }
+    }
+  },
+  "webhooks": {
+    "push": {
+      "enabled": true,
+      "events": ["push", "pull_request"],
+      "actions": {
+        "push": "update_mission_progress",
+        "pull_request_opened": "create_mission_review",
+        "pull_request_merged": "complete_mission"
+      }
+    }
+  },
+  "automation": {
+    "onMissionStart": {
+      "createBranch": true,
+      "assignIssues": true,
+      "addLabels": true
+    },
+    "onMissionComplete": {
+      "createPullRequest": true,
+      "requestReview": true,
+      "mergePullRequest": false
+    }
+  },
+  "statusMapping": {
+    "planning": "draft",
+    "active": "open",
+    "completed": "closed",
+    "failed": "closed"
+  }
+}

@@ -1,0 +1,236 @@
+{
+  "name": "Lucky5 Game Development Orchestrator",
+  "version": "1.0.0",
+  "description": "Kade configuration optimized for Lucky5 video poker game development",
+  "workflows": {
+    "game-development": {
+      "name": "Game Feature Development",
+      "description": "Complete workflow for developing new game features",
+      "missions": [
+        {
+          "id": "feature-analysis",
+          "title": "Analyze Game Requirements",
+          "description": "Break down game feature requirements into technical specifications",
+          "estimatedHours": 2,
+          "agentProfile": "game-analyst",
+          "mode": "focus",
+          "tasks": [
+            "Review game mechanics documentation",
+            "Analyze existing codebase architecture",
+            "Identify integration points",
+            "Create technical specification"
+          ]
+        },
+        {
+          "id": "backend-implementation",
+          "title": "Implement Backend Logic",
+          "description": "Develop server-side game logic and API endpoints",
+          "estimatedHours": 8,
+          "agentProfile": "backend-developer",
+          "mode": "focus",
+          "tasks": [
+            "Implement game engine logic",
+            "Create/update API controllers",
+            "Add database models if needed",
+            "Write unit tests",
+            "Update documentation"
+          ]
+        },
+        {
+          "id": "frontend-integration",
+          "title": "Frontend Integration",
+          "description": "Integrate new features with the game cabinet UI",
+          "estimatedHours": 6,
+          "agentProfile": "frontend-developer",
+          "mode": "collaborate",
+          "tasks": [
+            "Update React components",
+            "Add new game states",
+            "Implement animations",
+            "Test user interactions",
+            "Ensure responsive design"
+          ]
+        },
+        {
+          "id": "testing-validation",
+          "title": "Testing & Validation",
+          "description": "Comprehensive testing of the new feature",
+          "estimatedHours": 4,
+          "agentProfile": "qa-specialist",
+          "mode": "review",
+          "tasks": [
+            "Run automated tests",
+            "Manual gameplay testing",
+            "Performance testing",
+            "Cross-browser validation",
+            "Bug fixes and refinements"
+          ]
+        }
+      ]
+    },
+    "deployment-automation": {
+      "name": "Deployment Pipeline",
+      "description": "Automated deployment workflow for Lucky5",
+      "missions": [
+        {
+          "id": "build-verification",
+          "title": "Build Verification",
+          "description": "Ensure all components build successfully",
+          "estimatedHours": 1,
+          "agentProfile": "devops-engineer",
+          "mode": "focus",
+          "tasks": [
+            "Run .NET build",
+            "Test Flutter compilation",
+            "Verify Docker images",
+            "Check deployment scripts"
+          ]
+        },
+        {
+          "id": "deployment-execution",
+          "title": "Execute Deployment",
+          "description": "Deploy to target environment",
+          "estimatedHours": 2,
+          "agentProfile": "devops-engineer",
+          "mode": "auto",
+          "tasks": [
+            "Run Azure deployment script",
+            "Verify service health",
+            "Update monitoring",
+            "Document deployment"
+          ]
+        }
+      ]
+    },
+    "bug-fixing": {
+      "name": "Bug Resolution Workflow",
+      "description": "Systematic approach to fixing game bugs",
+      "missions": [
+        {
+          "id": "bug-analysis",
+          "title": "Bug Analysis",
+          "description": "Analyze and reproduce the bug",
+          "estimatedHours": 2,
+          "agentProfile": "debug-specialist",
+          "mode": "focus",
+          "tasks": [
+            "Reproduce bug consistently",
+            "Identify root cause",
+            "Analyze impact scope",
+            "Document findings"
+          ]
+        },
+        {
+          "id": "fix-implementation",
+          "title": "Implement Fix",
+          "description": "Develop and test the fix",
+          "estimatedHours": 4,
+          "agentProfile": "backend-developer",
+          "mode": "collaborate",
+          "tasks": [
+            "Write fix code",
+            "Add regression tests",
+            "Verify fix works",
+            "Update documentation"
+          ]
+        }
+      ]
+    }
+  },
+  "agentProfiles": {
+    "game-analyst": {
+      "name": "Game Analyst",
+      "capabilities": ["requirements-analysis", "game-mechanics", "technical-specification"],
+      "strengths": ["attention-to-detail", "game-design-knowledge", "system-thinking"],
+      "preferredModes": ["focus"],
+      "specializations": ["poker-games", "casino-gaming", "game-theory"]
+    },
+    "backend-developer": {
+      "name": ".NET Backend Developer",
+      "capabilities": ["csharp", "aspnet-core", "signalr", "docker", "azure"],
+      "strengths": ["clean-architecture", "api-design", "performance-optimization"],
+      "preferredModes": ["focus", "collaborate"],
+      "specializations": ["video-poker", "realtime-gaming", "microservices"]
+    },
+    "frontend-developer": {
+      "name": "React/Flutter Developer",
+      "capabilities": ["react", "flutter", "typescript", "responsive-design"],
+      "strengths": ["ui-ux-design", "animation", "cross-platform"],
+      "preferredModes": ["collaborate"],
+      "specializations": ["game-ui", "cabinet-interface", "mobile-gaming"]
+    },
+    "qa-specialist": {
+      "name": "Game QA Specialist",
+      "capabilities": ["testing", "automation", "performance-analysis"],
+      "strengths": ["thorough-testing", "edge-case-identification", "user-perspective"],
+      "preferredModes": ["review"],
+      "specializations": ["casino-gaming-qa", "regulatory-compliance", "game-balance-testing"]
+    },
+    "devops-engineer": {
+      "name": "DevOps Engineer",
+      "capabilities": ["azure", "docker", "ci-cd", "monitoring"],
+      "strengths": ["automation", "reliability", "scalability"],
+      "preferredModes": ["auto"],
+      "specializations": ["gaming-platforms", "high-availability", "deployment-automation"]
+    },
+    "debug-specialist": {
+      "name": "Debug Specialist",
+      "capabilities": ["debugging", "root-cause-analysis", "performance-profiling"],
+      "strengths": ["problem-solving", "systematic-approach", "attention-to-detail"],
+      "preferredModes": ["focus"],
+      "specializations": ["gaming-bugs", "realtime-issues", "performance-problems"]
+    }
+  },
+  "integrations": {
+    "azure": {
+      "type": "deployment",
+      "enabled": true,
+      "config": {
+        "subscriptionId": "${AZURE_SUBSCRIPTION_ID}",
+        "resourceGroup": "lucky5-rg",
+        "appServiceName": "lucky5-game"
+      }
+    },
+    "github": {
+      "type": "version-control",
+      "enabled": true,
+      "config": {
+        "repo": "ironkid90/Lucky5-v7",
+        "mainBranch": "main"
+      }
+    },
+    "testing": {
+      "type": "quality-assurance",
+      "enabled": true,
+      "config": {
+        "dotnetTestCommand": "dotnet run --project server/tests/Lucky5.Tests/Lucky5.Tests.csproj",
+        "flutterTestCommand": "cd client && flutter test"
+      }
+    }
+  },
+  "projectContext": {
+    "name": "Lucky5 Video Poker",
+    "type": "casino-game",
+    "architecture": {
+      "backend": "ASP.NET Core 9",
+      "frontend": "React (Web) + Flutter (Mobile)",
+      "realtime": "SignalR",
+      "deployment": "Azure App Service",
+      "database": "In-memory (future: PostgreSQL)"
+    },
+    "keyDirectories": {
+      "backend": "server/src/",
+      "frontend-web": "src/web/",
+      "frontend-mobile": "client/",
+      "tests": "server/tests/",
+      "docs": "docs/",
+      "deployment": "scripts/"
+    },
+    "criticalFiles": {
+      "gameEngine": "server/src/Lucky5.Domain/Game/CleanRoom/",
+      "api": "server/src/Lucky5.Api/",
+      "dockerfile": "Dockerfile",
+      "azureScript": "scripts/setup-azure.sh"
+    }
+  }
+}

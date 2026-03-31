@@ -613,20 +613,6 @@ switch (resolution.Outcome)
         var currentAmount = round.DoubleUpSession != null ? round.DoubleUpSession.CurrentAmount : (int)round.WinAmount;
         if (currentAmount <= 1) throw new InvalidOperationException("Amount too small to split");
 
-        var half = currentAmount / 2;
-
-        store.Ledger.Add(new WalletLedgerEntry
-        {
-            UserId = userId,
-            Amount = half,
-            BalanceAfter = session.MachineCredits,
-            Type = "TakeHalf",
-            Reference = round.RoundId.ToString("N"),
-            CreatedUtc = DateTime.UtcNow
-        });
-
-        return Task.FromResult(new DoubleUpResultDto(roundId, "TakeHalf", remaining, session.MachineCredits));
-    }
 
     public Task<JackpotInfoDto> ChangeJackpotRankAsync(int machineId, int rank, CancellationToken cancellationToken)
     {

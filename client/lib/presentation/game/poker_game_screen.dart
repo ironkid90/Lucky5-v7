@@ -462,8 +462,19 @@ class _PokerGameScreenState extends State<PokerGameScreen>
     final cards = _visibleCards;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0C0C0F),
-      body: SafeArea(
+      backgroundColor: const Color(0xFF0A0A0D),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF0F1419),
+              Color(0xFF0A0A0D),
+              Color(0xFF050507),
+            ],
+          ),
+        ),
         child: Column(
           children: [
             Padding(
@@ -489,17 +500,22 @@ class _PokerGameScreenState extends State<PokerGameScreen>
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(12, 18, 12, 16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF131417),
-                          borderRadius: BorderRadius.circular(22),
+                          color: const Color(0xFF1A1D23),
+                          borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: const Color(0xFF655E34),
+                            color: const Color(0xFF8B7355),
                             width: 2,
                           ),
-                          boxShadow: const [
+                          boxShadow: [
+                            const BoxShadow(
+                              color: Color(0x99000000),
+                              blurRadius: 32,
+                              offset: Offset(0, 16),
+                            ),
                             BoxShadow(
-                              color: Color(0x66000000),
-                              blurRadius: 24,
-                              offset: Offset(0, 12),
+                              color: const Color(0xFFD4AF37).withOpacity(0.1),
+                              blurRadius: 64,
+                              offset: Offset(0, 8),
                             ),
                           ],
                         ),

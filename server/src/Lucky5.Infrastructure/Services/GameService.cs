@@ -86,7 +86,6 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
         if (!CanCashOut(session))
             throw new InvalidOperationException("Cash out requires machine closed or at least 2x your total cash-in");
 
-        var wasClosed = session.IsMachineClosed;
         var amount = session.MachineCredits;
         profile.WalletBalance += amount;
         session.MachineCredits = 0;
@@ -94,15 +93,9 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
         session.IsMachineClosed = false;
         session.LastUpdatedUtc = DateTime.UtcNow;
 
-        if (wasClosed)
-        {
-            lock (store.LedgerSync)
-            {
-                var ledger = RequireMachineLedger(machineId);
-                ledger.NetSinceLastClose = 0;
-                ledger.LastCloseRoundNumber = ledger.RoundCount;
-            }
-        }
+        // We do NOT reset the ledger (NetSinceLastClose or LastCloseRoundNumber) here.
+        // A player cashing out does not reset the machine's state or RTP calculations.
+        // The machine retains all previous records and calculations.
 
         store.Ledger.Add(new WalletLedgerEntry
         {

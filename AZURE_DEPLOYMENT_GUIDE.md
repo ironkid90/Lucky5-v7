@@ -1,91 +1,134 @@
 # Azure Deployment Guide for Lucky5-v7
 
-## Table of Contents
+## Overview
 
-1. [Introduction](#introduction)
-2. [Prerequisites](#prerequisites)
-3. [Deployment Steps](#deployment-steps)
-4. [Post-Deployment](#post-deployment)
-5. [Troubleshooting](#troubleshooting)
-6. [Additional Resources](#additional-resources)
+Lucky5 should currently be deployed to Azure as a **single-region Azure App Service running the repo's root Dockerfile**.
 
-## Introduction
+This is the supported Azure path because:
 
-This document serves as a comprehensive guide for deploying the Lucky5-v7 application on Azure. It outlines all necessary steps from setup to troubleshooting.
+- the backend is an ASP.NET Core 9 app
+- the frontend is served from the same backend host
+- SignalR/WebSockets need an always-running web app
+- machine sessions, RTP memory, jackpots, and admin state are still stored in memory, so scale-out and multi-region are unsafe today
+
+The active deployment helper is `scripts/setup-azure.sh`.
 
 ## Prerequisites
 
-Before starting the deployment, ensure that you have the following:
-- An Azure account with active subscription.
-- Azure CLI installed on your machine.
-- Access to the Lucky5-v7 codebase repository.
+Before deploying, make sure you have:
 
-## Deployment Steps
+- an Azure subscription
+- Azure CLI installed
+- an active Azure login from `az login`
+- access to this repo locally
+- Bash available on your machine if you want to use the helper script directly
 
-1. **Clone the Repository**  
-   Use the following command to clone the repository:  
-   ```bash
-   git clone https://github.com/ironkid90/Lucky5-v7.git
-   cd Lucky5-v7
-   ```
+On Windows, the easiest option is usually **Git Bash**.
 
-2. **Login to Azure**  
-   Authenticate with your Azure account:  
-   ```bash
-   az login
-   ```
+## Recommended deployment command
 
-3. **Create a Resource Group**  
-   Organize your resources by creating a resource group:  
-   ```bash
-   az group create --name Lucky5ResourceGroup --location eastus
-   ```
+From the repository root, run:
 
-4. **Create an App Service Plan**  
-   ```bash
-   az appservice plan create --name Lucky5Plan --resource-group Lucky5ResourceGroup --sku B1 --is-linux
-   ```
+```bash
+bash scripts/setup-azure.sh
+```
 
-5. **Create a Web App**  
-   Create a new web app using the command below:  
-   ```bash
-   az webapp create --resource-group Lucky5ResourceGroup --plan Lucky5Plan --name <your-app-name> --runtime "NODE|14-lts"
-   ```
+The script prompts for:
 
-6. **Deploy the Application**  
-   You can deploy your code using the following command:  
-   ```bash
-   az webapp deployment source config --name <your-app-name> --resource-group Lucky5ResourceGroup --repo-url https://github.com/ironkid90/Lucky5-v7.git -- branch main --manual-integration
-   ```
+- Azure subscription id
+- resource group
+- Azure region
+- Azure Container Registry name
+- App Service plan name
+- Web App name
+- admin username / password / phone
+- allowed CORS origins
 
-## Post-Deployment
+## What the script does
 
-- **Access the Web App**  
-   After deployment, the application can be accessed at:  
-   `https://<your-app-name>.azurewebsites.net`
+The Azure script performs these steps:
 
-- **Monitoring and Logs**  
-   Use Azure portal to monitor your application performance and review logs.
+1. creates or reuses the resource group
+2. creates or reuses Azure Container Registry
+3. builds the root Dockerfile with `az acr build`
+4. creates or reuses a Linux App Service plan
+5. creates or reuses the Azure Web App as a custom container
+6. configures container registry credentials for the web app
+7. enables Always On and WebSockets
+8. sets the runtime app settings Lucky5 needs:
+   - `WEBSITES_PORT=8080`
+   - `PORT=8080`
+   - `ASPNETCORE_ENVIRONMENT=Production`
+   - `CORS__ALLOWED_ORIGINS=...`
+   - `LUCKY5_ADMIN_USERNAME=...`
+   - `LUCKY5_ADMIN_PASSWORD=...`
+   - `LUCKY5_ADMIN_PHONE=...`
+
+## Example non-interactive usage
+
+If you prefer to pre-set everything yourself:
+
+```bash
+AZURE_SUBSCRIPTION_ID="your-subscription-id" \
+RESOURCE_GROUP="lucky5-rg" \
+LOCATION="eastus" \
+ACR_NAME="youruniqueacrname" \
+PLAN_NAME="lucky5-plan" \
+APP_NAME="your-unique-webapp-name" \
+APP_SERVICE_SKU="B1" \
+LUCKY5_ADMIN_USERNAME="admin" \
+LUCKY5_ADMIN_PASSWORD="change-me-now" \
+LUCKY5_ADMIN_PHONE="+96100000000" \
+ALLOWED_ORIGINS="https://your-unique-webapp-name.azurewebsites.net" \
+bash scripts/setup-azure.sh
+```
+
+## Post-deployment checks
+
+After deployment, verify:
+
+- app root: `https://<your-app-name>.azurewebsites.net`
+- health: `https://<your-app-name>.azurewebsites.net/health/live`
+- SignalR hub: `https://<your-app-name>.azurewebsites.net/CarrePokerGameHub`
+
+To follow logs live:
+
+```bash
+az webapp log tail --resource-group <resource-group> --name <your-app-name>
+```
+
+## Important production notes
+
+- Keep the deployment at **one instance**. Do not scale out horizontally yet.
+- A redeploy or app restart can still clear machine state because persistence is still in memory.
+- Multi-region deployment is not supported yet. See `AZURE_MULTI_REGION_GUIDE.md`.
+- If you add a custom domain later, update `CORS__ALLOWED_ORIGINS` to include it.
 
 ## Troubleshooting
 
-- **Failed Deployment**  
-   If the deployment fails, check the Azure logs for details. Use the command:  
-   ```bash
-   az webapp log tail --name <your-app-name> --resource-group Lucky5ResourceGroup
-   ```
+### App starts but browser shows errors
 
-- **Common Errors**  
-   - Ensure your runtime choices match within Azure environments.
-   - Ensure the correct repository URL is used for deployment.
+Check that `CORS__ALLOWED_ORIGINS` matches the final site URL.
 
-## Additional Resources
+### Container does not become healthy
 
-- [Azure App Service Documentation](https://docs.microsoft.com/en-us/azure/app-service/)  
-- [Azure CLI Documentation](https://docs.microsoft.com/en-us/cli/azure/)  
-- [Lucky5-v7 Repository](https://github.com/ironkid90/Lucky5-v7)  
+Confirm the app settings include:
 
----
+- `WEBSITES_PORT=8080`
+- `PORT=8080`
 
-This guide was last updated on 2026-03-31.
-  
+Lucky5 listens on Azure's assigned port and exposes its health endpoint at `/health/live`.
+
+### WebSocket or SignalR issues
+
+Confirm WebSockets are enabled on the web app and that you are testing against the same origin configured in CORS.
+
+### Names are rejected during creation
+
+Azure Web App names and Azure Container Registry names must be globally unique.
+
+## Notes about legacy Azure files
+
+The old Node/App Service examples and ARM placeholder under `azure/` are not the active deployment path for the current Lucky5 app.
+
+This guide was updated on 2026-03-31.

@@ -249,11 +249,9 @@ public static class MachinePolicy
     /// </summary>
     public static bool ShouldOfferDoubleUp(MachinePolicyState state, ulong entropySeed, EngineConfig? config = null)
     {
-        var rate = ComputeDoubleUpOfferRate(state, config);
-        if (rate <= 0m) return false;
-        if (rate >= 1m) return true;
-        var rng = new SplitMix64Rng(DeterministicSeed.Derive(entropySeed, "du-offer"));
-        return (decimal)rng.NextUnit() < rate;
+        // Double-up is always available to players without exception. 
+        // We manipulate the deck instead of the offer availability.
+        return true;
     }
 
     // ---------- Cooldown ----------

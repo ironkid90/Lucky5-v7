@@ -917,23 +917,44 @@ class _CabinetCard extends StatelessWidget {
     final suit = _cardSuitSymbol(card?.suit);
     final redSuit = card != null && (card!.suit == "H" || card!.suit == "D");
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
+    return Container(
       decoration: BoxDecoration(
-        color: card == null ? const Color(0xFF1D2330) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: held ? const Color(0xFFF6D768) : const Color(0xFFCEC8B8),
-          width: held ? 3 : 2,
-        ),
         boxShadow: [
+          // Main shadow for depth
           BoxShadow(
-            color: held ? const Color(0x66F6D768) : const Color(0x22000000),
-            blurRadius: held ? 18 : 10,
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 12,
             offset: const Offset(0, 6),
           ),
+          // Subtle glow for held cards
+          if (held)
+            BoxShadow(
+              color: const Color(0xFFD4AF37).withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 0),
+            ),
         ],
       ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: card == null ? const Color(0xFF1A1F2E) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: held ? const Color(0xFFD4AF37) : const Color(0xFFB8A868),
+            width: held ? 4 : 2,
+          ),
+          // Inner shadow effect
+          boxShadow: [
+            if (card != null)
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 2,
+                offset: const Offset(0, 2),
+              ),
+          ],
+        ),
       child: card == null
           ? const Center(
               child: Text(
@@ -948,27 +969,39 @@ class _CabinetCard extends StatelessWidget {
           : Stack(
               children: [
                 Positioned(
-                  top: 10,
-                  left: 10,
+                  top: 8,
+                  left: 8,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         card!.rank,
                         style: TextStyle(
-                          color:
-                              redSuit ? const Color(0xFFC62C2C) : Colors.black,
-                          fontSize: 20,
+                          color: redSuit ? const Color(0xFFCC0000) : Colors.black,
+                          fontSize: 22,
                           fontWeight: FontWeight.w900,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.2),
+                              offset: const Offset(1, 1),
+                              blurRadius: 1,
+                            ),
+                          ],
                         ),
                       ),
                       Text(
                         suit,
                         style: TextStyle(
-                          color:
-                              redSuit ? const Color(0xFFC62C2C) : Colors.black,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
+                          color: redSuit ? const Color(0xFFCC0000) : Colors.black,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.2),
+                              offset: const Offset(1, 1),
+                              blurRadius: 1,
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -978,33 +1011,46 @@ class _CabinetCard extends StatelessWidget {
                   child: Text(
                     suit,
                     style: TextStyle(
-                      color: redSuit
-                          ? const Color(0xFFD94242)
-                          : const Color(0xFF1F1F1F),
-                      fontSize: 42,
+                      color: redSuit ? const Color(0xFFE60000) : const Color(0xFF1A1A1A),
+                      fontSize: 48,
                       fontWeight: FontWeight.w700,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.15),
+                          offset: const Offset(2, 2),
+                          blurRadius: 2,
+                        ),
+                      ],
                     ),
                   ),
                 ),
                 if (held)
                   Positioned(
-                    right: 8,
-                    bottom: 8,
+                    right: 6,
+                    bottom: 6,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                        horizontal: 10,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF6D768),
-                        borderRadius: BorderRadius.circular(999),
+                        color: const Color(0xFFD4AF37),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: const Text(
                         "HELD",
                         style: TextStyle(
-                          color: Color(0xFF1C1C1C),
-                          fontSize: 11,
+                          color: Color(0xFF1A1A1A),
+                          fontSize: 12,
                           fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),

@@ -1,14 +1,23 @@
-# Inbox — Inferred Items Awaiting Confirmation
+# Inbox — Open Questions / Follow-ups
 
-## Pending
+## Last Reviewed
 
-- [ ] React cabinet missing lobby/game screen separation — may need dedicated Lobby component
-- [ ] React cabinet needs menu overlay parity with vanilla JS
-- [ ] Consider adding session heartbeat for prolonged sessions (InMemory data can be lost on restart)
-- [ ] Admin panel in React cabinet not yet implemented
+2026-03-15
 
-## Confirmed
+## Verified Open Items
 
-- [x] ResetMachine must reset sessions, not just ledger (fixed 2026-03-15)
-- [x] Go-back-to-lobby moved into menu panel (fixed 2026-03-15)
-- [x] MACHINE_CREDIT_LIMIT and CloseThreshold aligned at 40M (confirmed 2026-03-15)
+- [ ] React cabinet still has no separate lobby/game screens; machine selection is integrated into the main cabinet.
+- [ ] React cabinet still has no menu / hamburger overlay parity with the vanilla JS cabinet.
+- [ ] React cabinet still has no game back-to-lobby flow.
+- [ ] React cabinet still has no machine reset / admin parity.
+- [ ] Refresh the RTP simulation so it mirrors the live path exactly; current simulation still assumes policy-gated double-up offers while live gameplay currently offers double-up on every paying hand.
+- [ ] Complete the 80% RTP middle-ground pass without visible rule changes, using bounded pre-shuffle control and non-scripted pacing.
+
+## Candidate Future Work
+
+- [ ] Consider a session heartbeat / resume strategy for long-lived play, because current session state is still fully in-memory and lost on restart.
+
+## Notes
+
+- Removed stale “confirmed fix” items here to avoid mixing verified open work with historical status notes.
+- Jackpot ambiguity from the 2026-03-15 investigation is resolved: the vanilla cabinet now has a visible Full House jackpot meter, live 4K side highlighting, and backend deal-time capture for the active 4K slot. No jackpot-specific follow-up is currently open in this inbox.

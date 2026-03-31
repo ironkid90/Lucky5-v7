@@ -13,7 +13,7 @@ class AuthTokens {
     return AuthTokens(
       accessToken: json["accessToken"] as String,
       refreshToken: json["refreshToken"] as String,
-      expiresAt: DateTime.parse(json["expiresAt"] as String),
+      expiresAt: DateTime.parse(json["expiresAtUtc"] as String),
     );
   }
 }

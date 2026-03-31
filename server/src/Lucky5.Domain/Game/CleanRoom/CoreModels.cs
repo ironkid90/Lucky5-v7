@@ -272,24 +272,24 @@ public sealed record PresentationNoisePlan(
 /// </summary>
 public sealed record EngineConfig(
     // === Payout Scale ===
-    decimal TargetRtp = 0.85m,
+    decimal TargetRtp = 0.80m,
     decimal TargetDoubleUpRtp = 0.090m,
-    decimal MinimumObservedBaseRtp = 0.3800m,         // ↑ from 0.3200m - better reflects actual base game
-    decimal DefaultPayoutScale = 2.00m,               // ↑ from 1.92→1.95→2.00 - optimal equilibrium orbit
-    decimal MinPayoutScale = 1.25m,                   // ↑ from 1.18m - raise floor for smoother convergence
-    decimal MaxPayoutScale = 2.35m,                   // ↓ from 2.45m - lower ceiling to prevent overshoot
-    int WarmupRounds = 60,                            // ↓ from 80 - faster transition to live control
-    int ConvergenceHorizon = 250,                     // ↓ from 300 - faster convergence to target
-    decimal CorrectionGain = 1.15m,                   // ↑ from 1.10m - stronger drift correction
-    decimal MaxCorrection = 0.30m,                    // ↓ from 0.35m - smoother corrections
-    decimal DeadZone = 0.0100m,                       // ↑ from 0.0075m - allow slightly more drift tolerance
-    decimal JitterAmplitude = 0.025m,                 // ↓ from 0.03m - reduce variance per round
-    decimal SmallTierFactor = 1.00m,                  // ↑ from 0.99m - no penalty for small wins
-    decimal MediumTierFactor = 1.04m,                 // ↓ from 1.05m - slight reduction
-    decimal BigTierFactor = 1.08m,                    // ↓ from 1.12m - tighten big-win bonus
-    decimal WarmupOpeningSmallScale = 2.00m,          // ↑ from 1.98m - slightly more generous start
-    decimal WarmupOpeningMediumScale = 2.08m,         // ↑ from 2.05m - better first impression
-    decimal WarmupOpeningBigScale = 2.15m,
+    decimal MinimumObservedBaseRtp = 0.3800m,
+    decimal DefaultPayoutScale = 1.80m,
+    decimal MinPayoutScale = 1.20m,
+    decimal MaxPayoutScale = 2.10m,
+    int WarmupRounds = 60,
+    int ConvergenceHorizon = 250,
+    decimal CorrectionGain = 1.15m,
+    decimal MaxCorrection = 0.30m,
+    decimal DeadZone = 0.0100m,
+    decimal JitterAmplitude = 0.025m,
+    decimal SmallTierFactor = 1.00m,
+    decimal MediumTierFactor = 1.04m,
+    decimal BigTierFactor = 1.08m,
+    decimal WarmupOpeningSmallScale = 1.80m,
+    decimal WarmupOpeningMediumScale = 1.85m,
+    decimal WarmupOpeningBigScale = 1.90m,
 
     // === Double-Up Offer Curve ===
     decimal DoubleUpOfferFloor = 0.15m,               // ↑ from 0.08m - double-up always available
@@ -322,15 +322,15 @@ public sealed record EngineConfig(
     decimal CloseThreshold = 40_000_000m,
 
     // === Jackpots (Replace Mode) ===
-    decimal JackpotFourOfAKindCap = 1_000_000m,       // ↓ from 1.2M - hit more frequently
-    decimal JackpotFullHouseCap = 650_000m,           // ↓ from 750k - better engagement
-    decimal JackpotStraightFlushCap = 7_500_000m,     // ↓ from 8.5M - more reachable
-    int JackpotFourOfAKindContribution = 125,         // ↓ from 175→150→125 - target 3.5% jackpot RTP
-    int JackpotFullHouseContribution = 95,            // ↓ from 120→110→95 - balanced growth toward 3.5%
-    int JackpotStraightFlushContribution = 210,       // ↓ from 255→240→210 - controlled progression
-    decimal JackpotFourOfAKindStart = 140_000m,       // ↓ from 160k - reduce post-reset RTP spikes
-    decimal JackpotFullHouseStart = 90_000m,          // ↓ from 100k - smoother reset
-    decimal JackpotStraightFlushStart = 850_000m      // ↓ from 900k - consistent with caps
+    decimal JackpotFourOfAKindCap = 1_000_000m,
+    decimal JackpotFullHouseCap = 650_000m,
+    decimal JackpotStraightFlushCap = 7_500_000m,
+    int JackpotFourOfAKindContribution = 100,         // Reduced for 80% total RTP
+    int JackpotFullHouseContribution = 80,
+    int JackpotStraightFlushContribution = 180,
+    decimal JackpotFourOfAKindStart = 140_000m,
+    decimal JackpotFullHouseStart = 90_000m,
+    decimal JackpotStraightFlushStart = 850_000m
 )
 {
     public static EngineConfig Default { get; } = new();

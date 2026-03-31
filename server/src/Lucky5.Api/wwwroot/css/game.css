@@ -845,8 +845,9 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     padding: 4px 2px;
+    flex-wrap: wrap;
 }
 
 .jp-counter {
@@ -854,15 +855,54 @@ body {
     color: #00bb00;
     text-shadow: 0 0 6px rgba(0,187,0,0.5);
     letter-spacing: 1px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.18);
+    transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
 }
 
-.jp-prefix { font-size: 11px; opacity: 0.8; margin-right: 2px; }
+.jp-tag {
+    font-size: 8px;
+    opacity: 0.84;
+    letter-spacing: 0.8px;
+}
+
 .jp-cval { font-weight: bold; }
+
+.jp-counter.jp-active {
+    border-color: rgba(255,215,0,0.9);
+    box-shadow: 0 0 10px rgba(255,215,0,0.45);
+    background: rgba(255,215,0,0.08);
+}
 
 #jp-counter-center {
     font-size: 16px;
     color: #ff3333;
     text-shadow: 0 0 8px rgba(255,51,51,0.6);
+}
+
+#jackpot-full-house {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 0 2px 2px;
+}
+
+.jp-meter-label {
+    font-size: 9px;
+    color: #FFD700;
+    letter-spacing: 1px;
+    text-shadow: 0 0 6px rgba(255,215,0,0.55);
+}
+
+.jp-counter-fh {
+    color: #FFD700;
+    text-shadow: 0 0 8px rgba(255,215,0,0.55);
 }
 
 #machine-serial {

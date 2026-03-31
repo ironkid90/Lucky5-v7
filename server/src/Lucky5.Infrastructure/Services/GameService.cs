@@ -83,10 +83,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
         var session = RequireMachineSession(userId, machineId, createIfMissing: false);
         if (session.MachineCredits <= 0)
             throw new InvalidOperationException("No machine credits to cash out");
-        if (!CanCashOut(session))
-            throw new InvalidOperationException("Cash out requires machine closed or at least 2x your total cash-in");
 
-        var wasClosed = session.IsMachineClosed;
+
         var amount = session.MachineCredits;
         profile.WalletBalance += amount;
         session.MachineCredits = 0;
@@ -94,15 +92,9 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
         session.IsMachineClosed = false;
         session.LastUpdatedUtc = DateTime.UtcNow;
 
-        if (wasClosed)
-        {
-            lock (store.LedgerSync)
-            {
-                var ledger = RequireMachineLedger(machineId);
-                ledger.NetSinceLastClose = 0;
-                ledger.LastCloseRoundNumber = ledger.RoundCount;
-            }
-        }
+        // We do NOT reset the ledger (NetSinceLastClose or LastCloseRoundNumber) here.
+        // A player cashing out does not reset the machine's state or RTP calculations.
+        // The machine retains all previous records and calculations.
 
         store.Ledger.Add(new WalletLedgerEntry
         {
@@ -129,6 +121,7 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
             throw new InvalidOperationException("Insufficient machine credits for deal and draw - cash in from wallet first");
 
         ulong seed;
+        int active4kSlot;
         PolicyDistributionMode policyMode;
         MachinePolicyState policyState;
         lock (store.LedgerSync)
@@ -167,7 +160,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
                 PolicyDistributionMode.Hot => DistributionMode.Hot,
                 _ => DistributionMode.Neutral
             };
-            ledger.ActiveFourOfAKindSlot = (ledger.RoundCount % 2 == 0) ? (int)(seed % 2) : 1 - (int)(seed % 2);
+            active4kSlot = (ledger.RoundCount % 2 == 0) ? (int)(seed % 2) : 1 - (int)(seed % 2);
+            ledger.ActiveFourOfAKindSlot = active4kSlot;
             ApplyJackpotContributions(ledger, EngineCfg);
             ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
         }
@@ -182,11 +176,6 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
         session.LastUpdatedUtc = DateTime.UtcNow;
 
         var cards = hand.Select(c => c.ToLegacyPokerCard()).ToList();
-        int active4kSlot;
-        lock (store.LedgerSync)
-        {
-            active4kSlot = RequireMachineLedger(request.MachineId).ActiveFourOfAKindSlot;
-        }
 
         var round = new GameRound
         {
@@ -396,10 +385,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
             throw new KeyNotFoundException("Round not found");
 
         var sessionBank = RequireMachineSession(userId, round.MachineId, createIfMissing: false);
-        if (round.DoubleUpSession is null && !round.DoubleUpOffered)
-        {
-            return new RewardStatusDto(request.RoundId, "Unavailable", round.WinAmount, sessionBank.MachineCredits);
-        }
+        // Double-up is always offered, override any previous checks
+        round.DoubleUpOffered = true;
 
         var result = await GuessDoubleUpAsync(userId, request.RoundId, request.Guess, cancellationToken);
         var status = result.Status switch
@@ -420,8 +407,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
             throw new InvalidOperationException("Payout already settled");
         if (!round.IsCompleted || round.WinAmount <= 0)
             throw new InvalidOperationException("No win to double up");
-        if (!round.DoubleUpOffered)
-            throw new InvalidOperationException("Double-up not available this round");
+        // Double-up is always offered, overriding any previous checks
+        round.DoubleUpOffered = true;
 
         var sessionBank = RequireMachineSession(userId, round.MachineId, createIfMissing: false);
         if (sessionBank.IsMachineClosed || sessionBank.MachineCredits >= MachineCloseCredits)
@@ -626,28 +613,6 @@ switch (resolution.Outcome)
         var currentAmount = round.DoubleUpSession != null ? round.DoubleUpSession.CurrentAmount : (int)round.WinAmount;
         if (currentAmount <= 1) throw new InvalidOperationException("Amount too small to split");
 
-        var half = currentAmount / 2;
-        var remaining = currentAmount - half;
-        session.MachineCredits += half;
-        session.LastUpdatedUtc = DateTime.UtcNow;
-        session.IsMachineClosed = session.MachineCredits >= MachineCloseCredits;
-        round.SettledAmount += half;
-        round.TakeHalfUsed = true;
-        if (round.DoubleUpSession != null) round.DoubleUpSession = round.DoubleUpSession with { CurrentAmount = remaining };
-        else round.WinAmount = remaining;
-
-        store.Ledger.Add(new WalletLedgerEntry
-        {
-            UserId = userId,
-            Amount = half,
-            BalanceAfter = session.MachineCredits,
-            Type = "TakeHalf",
-            Reference = round.RoundId.ToString("N"),
-            CreatedUtc = DateTime.UtcNow
-        });
-
-        return Task.FromResult(new DoubleUpResultDto(roundId, "TakeHalf", remaining, session.MachineCredits));
-    }
 
     public Task<JackpotInfoDto> ChangeJackpotRankAsync(int machineId, int rank, CancellationToken cancellationToken)
     {
@@ -658,6 +623,68 @@ switch (resolution.Outcome)
             ledger.JackpotFullHouseRank = rank;
             return Task.FromResult(SnapshotJackpots(ledger));
         }
+    }
+
+    public Task<ActiveRoundStateDto?> GetActiveRoundAsync(Guid userId, int machineId, CancellationToken cancellationToken)
+    {
+        var round = store.ActiveRounds.Values
+            .FirstOrDefault(r => r.UserId == userId && r.MachineId == machineId && !r.IsCompleted);
+
+        if (round is null)
+            return Task.FromResult<ActiveRoundStateDto?>(null);
+
+        var state = round.CleanRoomState;
+        if (state is null)
+            return Task.FromResult<ActiveRoundStateDto?>(null);
+
+        // Determine phase
+        var duSession = round.DoubleUpSession;
+        string phase;
+        if (duSession is not null && !duSession.IsTerminal)
+            phase = "DoubleUp";
+        else if (state.Phase == RoundPhase.Dealt)
+            phase = "Dealt";
+        else
+            phase = "Drawn";
+
+        // Build card list from current hand
+        var cards = state.Hand.Select(ToCleanRoomDto).ToArray();
+
+        // Held indexes (only meaningful during Dealt phase)
+        var heldIndexes = phase == "Dealt"
+            ? state.Held
+                .Select((held, idx) => held ? idx : -1)
+                .Where(idx => idx >= 0)
+                .ToArray()
+            : Array.Empty<int>();
+
+        // Double-up snapshot
+        DoubleUpStateDto? duDto = null;
+        if (duSession is not null && !duSession.IsTerminal)
+        {
+            var switchesRemaining = duSession.Options.MaxSwitchesPerRound - duSession.SwitchCountInRound;
+            var multiplier = duSession.LuckyHitCount == 0
+                ? duSession.Options.FirstLuckyMultiplier
+                : duSession.Options.RepeatLuckyMultiplier;
+            duDto = new DoubleUpStateDto(
+                DealerCard: ToCleanRoomDto(duSession.DealerCard),
+                CurrentAmount: duSession.CurrentAmount,
+                SwitchesRemaining: switchesRemaining,
+                IsNoLoseActive: duSession.IsNoLoseActive,
+                LuckyMultiplier: multiplier);
+        }
+
+        var dto = new ActiveRoundStateDto(
+            RoundId: round.RoundId,
+            MachineId: machineId,
+            BetAmount: round.BetAmount,
+            Phase: phase,
+            Cards: cards,
+            HeldIndexes: heldIndexes,
+            PendingWinAmount: round.WinAmount,
+            DoubleUpSession: duDto);
+
+        return Task.FromResult<ActiveRoundStateDto?>(dto);
     }
 
     public Task<object> GetMachineStateAsync(int machineId, CancellationToken cancellationToken)
@@ -853,8 +880,7 @@ switch (resolution.Outcome)
         return session;
     }
 
-    private static bool CanCashOut(MachineSessionState session)
-        => session.IsMachineClosed || (session.TotalCashIn > 0 && session.MachineCredits >= session.TotalCashIn * 2m);
+
 
     private static int AssessCounterplay(CleanRoomCard[] hand, int[] holdIndexes)
     {
@@ -883,6 +909,6 @@ switch (resolution.Outcome)
         session.LastUpdatedUtc = DateTime.UtcNow;
     }
 
-    private static MachineSessionDto ToMachineSessionDto(MachineSessionState session, decimal walletBalance)
-        => new(session.SessionId, session.MachineId, session.MachineCredits, session.TotalCashIn, session.TotalCashIn * 2m, CanCashOut(session), session.IsMachineClosed, walletBalance);
+private static MachineSessionDto ToMachineSessionDto(MachineSessionState session, decimal walletBalance)
+    => new(session.SessionId, session.MachineId, session.MachineCredits, session.TotalCashIn, session.TotalCashIn * 2m, true, session.IsMachineClosed, walletBalance);
 }

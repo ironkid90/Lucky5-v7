@@ -386,10 +386,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
             throw new KeyNotFoundException("Round not found");
 
         var sessionBank = RequireMachineSession(userId, round.MachineId, createIfMissing: false);
-        if (round.DoubleUpSession is null && !round.DoubleUpOffered)
-        {
-            return new RewardStatusDto(request.RoundId, "Unavailable", round.WinAmount, sessionBank.MachineCredits);
-        }
+        // Double-up is always offered, override any previous checks
+        round.DoubleUpOffered = true;
 
         var result = await GuessDoubleUpAsync(userId, request.RoundId, request.Guess, cancellationToken);
         var status = result.Status switch
@@ -410,8 +408,8 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
             throw new InvalidOperationException("Payout already settled");
         if (!round.IsCompleted || round.WinAmount <= 0)
             throw new InvalidOperationException("No win to double up");
-        if (!round.DoubleUpOffered)
-            throw new InvalidOperationException("Double-up not available this round");
+        // Double-up is always offered, overriding any previous checks
+        round.DoubleUpOffered = true;
 
         var sessionBank = RequireMachineSession(userId, round.MachineId, createIfMissing: false);
         if (sessionBank.IsMachineClosed || sessionBank.MachineCredits >= MachineCloseCredits)

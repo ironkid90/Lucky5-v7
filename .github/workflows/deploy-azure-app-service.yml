@@ -15,11 +15,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-  AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
-  AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
-  AZURE_ACR_LOGIN_SERVER: ${{ vars.AZURE_ACR_LOGIN_SERVER }}
-  AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+  AZURE_CLIENT_ID: 92641cd1-b9ac-42c4-b472-a92d4c20c9d4
+  AZURE_TENANT_ID: ea801b26-b84e-4033-86d9-9be4aaa95168
+  AZURE_SUBSCRIPTION_ID: 343ce01c-0b2a-46a3-bb0e-24c0469a9bfe
+  AZURE_RESOURCE_GROUP: lucky5-rg
+  AZURE_WEBAPP_NAME: lucky5-ik90-prod-20260401
+  AZURE_ACR_NAME: lucky520260401001454
+  AZURE_ACR_LOGIN_SERVER: lucky520260401001454.azurecr.io
+  AZURE_LOCATION: westeurope
   LUCKY5_IMAGE_NAME: lucky5
 
 jobs:
@@ -30,34 +33,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate required GitHub Actions variables
-        shell: bash
-        run: |
-          set -euo pipefail
-          required_vars=(
-            AZURE_CLIENT_ID
-            AZURE_TENANT_ID
-            AZURE_SUBSCRIPTION_ID
-            AZURE_RESOURCE_GROUP
-            AZURE_WEBAPP_NAME
-            AZURE_ACR_NAME
-            AZURE_ACR_LOGIN_SERVER
-            AZURE_LOCATION
-          )
-
-          for name in "${required_vars[@]}"; do
-            if [[ -z "${!name:-}" ]]; then
-              echo "Missing required repository variable: ${name}" >&2
-              exit 1
-            fi
-          done
-
       - name: Azure login with OIDC
         uses: azure/login@v2
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
       - name: Log in to Azure Container Registry
         shell: bash

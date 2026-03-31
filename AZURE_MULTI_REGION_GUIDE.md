@@ -1,77 +1,55 @@
 # AZURE_MULTI_REGION_GUIDE
 
-## Introduction
-This guide provides a step-by-step approach to deploying the Lucky5 application to both East US and West Europe regions using GitHub Actions and Azure.
+## Current status
 
-## Table of Contents
-1. [Prerequisites](#prerequisites)
-2. [Setting Up Your Azure Environment](#setting-up-your-azure-environment)
-3. [Deploying to East US](#deploying-to-east-us)
-4. [Deploying to West Europe](#deploying-to-west-europe)
-5. [Regional Comparison](#regional-comparison)
-6. [Monitoring and Maintenance](#monitoring-and-maintenance)
+Lucky5 should **not** be deployed in active/active multi-region mode yet.
 
-## Prerequisites
-- An Azure account with an active subscription.
-- GitHub repository with the Lucky5 application.
-- Familiarity with GitHub Actions.
+The current production architecture still keeps these concerns in memory inside the app process:
 
-## Setting Up Your Azure Environment
-1. Log in to the Azure portal.
-2. Create a new resource group for the East US deployment:
-   - Go to "Resource groups" and click "Add".
-   - Name your resource group (e.g., `Lucky5-EastUS`) and select East US as the region.
+- machine sessions
+- machine ledgers and RTP memory
+- jackpots
+- admin state
+- user/session runtime state used by gameplay flows
 
-3. Create a new resource group for the West Europe deployment:
-   - Repeat the steps above, using `Lucky5-WestEurope` as the name and selecting West Europe as the region.
+If you run multiple regions at the same time today, those regions will drift apart and players can land on different copies of the game state.
 
-## Deploying to East US
-1. In your GitHub repository, navigate to the Actions tab.
-2. Create a new workflow file (e.g., `deploy-east-us.yml`):
-```yaml
-name: Deploy to East US
+## Supported Azure deployment today
 
-on:
-  push:
-    branches:
-      - main
+Use the single-region deployment documented in `AZURE_DEPLOYMENT_GUIDE.md` and automated by:
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Azure CLI
-        uses: Azure/setup-azure@v1
-        with:
-          azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Deploy to Azure
-        run: |
-          az webapp create --resource-group Lucky5-EastUS --plan your-app-service-plan --name your-app-name --runtime "NODE|10.14"
-          az webapp deployment source config --name your-app-name --resource-group Lucky5-EastUS --repo-url https://github.com/ironkid90/Lucky5-v7 --branch main --manual-integration
+```bash
+bash scripts/setup-azure.sh
 ```
-3. Push the file to the repository.
-4. Trigger the workflow by pushing changes to the `main` branch.
 
-## Deploying to West Europe
-Follow similar steps as the East US deployment, replacing references to the East US resource group and app service with the West Europe equivalents.
+Keep the app on one instance in one region until the state model is externalized.
 
-## Regional Comparison
-- **East US:**
-  - Benefits: Lower latency for East Coast users, compliance with US data regulations.
-  - Drawbacks: Potentially higher costs depending on resources used.
+## What must exist before multi-region is safe
 
-- **West Europe:**
-  - Benefits: Lower latency for European users, compliance with EU data privacy laws.
-  - Drawbacks: Slightly longer deployment times compared to East US.
+Before enabling multi-region, Lucky5 needs at least:
 
-## Monitoring and Maintenance
-Utilize Azure Monitor and Application Insights to help track usage and performance across both regions. Set up alerts for any significant issues.
+1. durable shared persistence for machine ledgers, jackpots, machine sessions, and auth/session state
+2. a clear cross-region consistency strategy for gameplay writes
+3. SignalR/session fan-out strategy across instances or a managed realtime backplane
+4. traffic routing and failover that preserve session affinity expectations
+5. explicit recovery rules for in-flight rounds during failover or redeploy
 
-Keep your deployments updated by regularly checking for new commits and pushing them to both regions as necessary.
+## Suggested future Azure shape
 
-## Conclusion
-Deploying Lucky5 to both East US and West Europe allows for optimized performance and user experience across different geographies. Be sure to consult Azure and GitHub documentation for any updates on features and best practices.
+Once state is externalized, a safer multi-region Azure architecture would look like:
+
+- one deployment per region
+- shared durable data store for authoritative game state
+- shared cache/backplane only where required
+- Azure Front Door or Traffic Manager for geo-routing and failover
+- health probes and operational playbooks for regional failover
+
+## Practical recommendation
+
+For now:
+
+- deploy one region only
+- keep one app instance only
+- treat restarts and redeploys as state-reset events until persistence is added
+
+When the backend moves off the in-memory store, this guide can be expanded into a real multi-region rollout document.

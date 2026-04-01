@@ -22,10 +22,10 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
 
         var access = tokenService.IssueToken(user.Id, TimeSpan.FromHours(8), user.Role);
         var refresh = tokenService.IssueToken(user.Id, TimeSpan.FromDays(30), user.Role);
-        var profile = store.Profiles[user.Id];
-        profile.LastSeenUtc = DateTime.UtcNow;
+        var memberProfile = store.MemberProfiles[user.Id];
+        memberProfile.LastSeenUtc = DateTime.UtcNow;
 
-        return Task.FromResult((new AuthTokens(access, refresh, DateTime.UtcNow.AddHours(8)), ToDto(profile)));
+        return Task.FromResult((new AuthTokens(access, refresh, DateTime.UtcNow.AddHours(8)), ToDto(memberProfile)));
     }
 
     public Task<MemberProfileDto> SignupAsync(SignupRequest request, CancellationToken cancellationToken)
@@ -47,17 +47,18 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
         };
 
         store.Users[user.Id] = user;
-        store.Profiles[user.Id] = new MemberProfile
+        store.MemberProfiles[user.Id] = new MemberProfile
         {
             UserId = user.Id,
             Username = user.Username,
             DisplayName = user.Username,
+            Email = $"{user.Username}@lucky5.local",
             PhoneNumber = user.PhoneNumber,
             WalletBalance = 200000m,
             LastSeenUtc = DateTime.UtcNow
         };
 
-        return Task.FromResult(ToDto(store.Profiles[user.Id]));
+        return Task.FromResult(ToDto(store.MemberProfiles[user.Id]));
     }
 
     public Task<bool> VerifyOtpAsync(VerifyOtpRequest request, CancellationToken cancellationToken)
@@ -89,7 +90,7 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
 
     public Task<MemberProfileDto> GetUserByIdAsync(Guid userId, CancellationToken cancellationToken)
     {
-        if (!store.Profiles.TryGetValue(userId, out var profile))
+        if (!store.MemberProfiles.TryGetValue(userId, out var profile))
         {
             throw new KeyNotFoundException("User not found");
         }
@@ -131,7 +132,7 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
 
     private WalletLedgerEntryDto AdjustBalance(Guid userId, decimal amount, string type, string reference)
     {
-        if (!store.Profiles.TryGetValue(userId, out var profile))
+        if (!store.MemberProfiles.TryGetValue(userId, out var profile))
         {
             throw new KeyNotFoundException("Profile not found");
         }

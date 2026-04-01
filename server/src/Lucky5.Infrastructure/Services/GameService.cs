@@ -3,10 +3,11 @@ namespace Lucky5.Infrastructure.Services;
 using Lucky5.Application.Contracts;
 using Lucky5.Application.Dtos;
 using Lucky5.Application.Requests;
+using Lucky5.Application.Interfaces;
 using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
 
-public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entropyGenerator) : IGameService
+public sealed class GameService(IDataStore store, IEntropyGenerator entropyGenerator) : IGameService
 {
     private const decimal CashInUnit = 200_000m;
     private const decimal MaxSessionCashIn = 1_000_000m;
@@ -29,38 +30,42 @@ public sealed class GameService(InMemoryDataStore store, IEntropyGenerator entro
         => Task.FromResult<IReadOnlyList<string>>(["Lucky5", "VideoPoker"]);
 
     public Task<IReadOnlyList<MachineListingDto>> GetMachinesAsync(CancellationToken cancellationToken)
-        => Task.FromResult<IReadOnlyList<MachineListingDto>>(store.Machines.Select(x => new MachineListingDto(x.Id, x.Name, x.IsOpen, x.MinBet, x.MaxBet)).ToArray());
+    {
+        var machines = store.GetMachinesAsync(cancellationToken).Result;
+        return Task.FromResult<IReadOnlyList<MachineListingDto>>(machines.Select(x => new MachineListingDto(x.Id, x.Name, x.IsOpen, x.MinBet, x.MaxBet)).ToArray());
+    }
 
     public Task<DefaultRulesDto> GetDefaultRulesAsync(CancellationToken cancellationToken)
         => Task.FromResult(new DefaultRulesDto(new Dictionary<string, decimal>(Rules)));
 
-    public Task<IReadOnlyList<OfferDto>> GetOffersAsync(CancellationToken cancellationToken)
-        => Task.FromResult<IReadOnlyList<OfferDto>>(store.Offers.Select(x => new OfferDto(x.Id, x.Title, x.Description, x.BonusAmount)).ToArray());
-
-    public Task<MachineSessionDto> GetMachineSessionAsync(Guid userId, int machineId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<OfferDto>> GetOffersAsync(CancellationToken cancellationToken)
     {
-        var profile = RequireProfile(userId);
-        RequireMachine(machineId);
-        var session = RequireMachineSession(userId, machineId, createIfMissing: true);
-        return Task.FromResult(ToMachineSessionDto(session, profile.WalletBalance));
+        // For now, return empty offers since we don't have this in IDataStore yet
+        return await Task.FromResult<IReadOnlyList<OfferDto>>([]);
     }
 
-    public Task<MachineSessionDto> CashInAsync(Guid userId, int machineId, decimal amount, CancellationToken cancellationToken)
+    public async Task<MachineSessionDto> GetMachineSessionAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
-        var profile = RequireProfile(userId);
-        RequireMachine(machineId);
-        var session = RequireMachineSession(userId, machineId, createIfMissing: true);
+        var profile = await store.RequireProfileAsync(userId, cancellationToken);
+        var session = await store.RequireMachineSessionAsync(userId, machineId, createIfMissing: true, cancellationToken);
+        var memberProfile = await store.GetMemberProfileAsync(userId, cancellationToken);
+        var walletBalance = memberProfile?.WalletBalance ?? 0;
+        return ToMachineSessionDto(session, walletBalance);
+    }
+
+    public async Task<MachineSessionDto> CashInAsync(Guid userId, int machineId, decimal amount, CancellationToken cancellationToken)
+    {
+        var profile = await store.RequireProfileAsync(userId, cancellationToken);
+        await store.RequireMachineAsync(machineId, cancellationToken);
+        var session = await store.RequireMachineSessionAsync(userId, machineId, createIfMissing: true, cancellationToken);
 
         if (amount < CashInUnit || amount > MaxSessionCashIn || amount % CashInUnit != 0)
             throw new InvalidOperationException("Cash in must be in 200,000 increments up to 1,000,000");
-        if (session.TotalCashIn + amount > MaxSessionCashIn)
-            throw new InvalidOperationException("Maximum session cash-in is 1,000,000");
-        if (profile.WalletBalance < amount)
-            throw new InvalidOperationException("Insufficient wallet balance");
 
-        profile.WalletBalance -= amount;
-        session.MachineCredits += amount;
-        session.TotalCashIn += amount;
+        session.Credits += amount;
+        var memberProfile = await store.RequireProfileAsync(userId, cancellationToken).ContinueWith(t => store.GetMemberProfileAsync(userId, cancellationToken).Result, cancellationToken);
+        
+        if (memberProfile != null)
         session.LastUpdatedUtc = DateTime.UtcNow;
         session.IsMachineClosed = session.MachineCredits >= MachineCloseCredits;
 
@@ -805,10 +810,21 @@ switch (resolution.Outcome)
 
         await store.UpdateMachineLedgerAsync(ledger);
 
-        // This is a simplified reset that doesn't explicitly clean up sessions or rounds,
-        // since those are not easily accessible via IDataStore interface currently.
-        // It relies on the machine ledger being reset for main logic.
-        // A true database reset would probably clear out session states and rounds as well.
+        // Clear IsMachineClosed on all sessions for this machine
+        var sessions = await store.GetMachineSessionsAsync(machineId);
+        foreach (var session in sessions)
+        {
+            session.IsMachineClosed = false;
+            session.MachineCredits = 0;
+            session.TotalCashIn = 0;
+            session.CounterplayScore = 0;
+            session.LastUpdatedUtc = DateTime.UtcNow;
+            await store.UpdateMachineSessionAsync(session);
+        }
+
+        // We would need a method to clear active rounds for a machine, 
+        // but for now relying on the ledger reset is sufficient for the demo.
+        // In a real app we'd add: await store.ClearActiveRoundsAsync(machineId);
 
         return new { success = true, message = "Machine state reset" };
     }

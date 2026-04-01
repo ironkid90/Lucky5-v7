@@ -1,147 +1,143 @@
-namespace Lucky5.Api.Controllers;
-
-using Lucky5.Api.Models;
 using Lucky5.Application.Contracts;
 using Lucky5.Application.Dtos;
 using Lucky5.Application.Requests;
+using Lucky5.Domain.Game.CleanRoom;
+using Lucky5.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
+namespace Lucky5.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public sealed class GameController(IGameService gameService, IAdminService adminService) : ControllerBase
+[Authorize]
+public class GameController(IGameService gameService, IAdminService adminService, ILogger<GameController> logger) : ControllerBase
 {
-    [HttpGet("games")]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<string>>>> Games(CancellationToken cancellationToken)
-        => Ok(ApiResponse<IReadOnlyList<string>>.Ok(await gameService.GetGamesAsync(cancellationToken), traceId: HttpContext.TraceIdentifier));
+    private Guid UserId => Guid.Parse(User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException());
 
-    [HttpGet("games/machines")]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<MachineListingDto>>>> Machines(CancellationToken cancellationToken)
-        => Ok(ApiResponse<IReadOnlyList<MachineListingDto>>.Ok(await gameService.GetMachinesAsync(cancellationToken), traceId: HttpContext.TraceIdentifier));
-
-    [HttpGet("defaultRules")]
-    public async Task<ActionResult<ApiResponse<DefaultRulesDto>>> DefaultRules(CancellationToken cancellationToken)
-        => Ok(ApiResponse<DefaultRulesDto>.Ok(await gameService.GetDefaultRulesAsync(cancellationToken), traceId: HttpContext.TraceIdentifier));
-
-    [HttpGet("offer")]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<OfferDto>>>> Offer(CancellationToken cancellationToken)
-        => Ok(ApiResponse<IReadOnlyList<OfferDto>>.Ok(await gameService.GetOffersAsync(cancellationToken), traceId: HttpContext.TraceIdentifier));
-
-    [HttpGet("machine/{id}/session")]
-    public async Task<ActionResult<ApiResponse<MachineSessionDto>>> MachineSession(int id, CancellationToken cancellationToken)
+    [HttpGet("machines")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<MachineListingDto>>>> GetMachines(CancellationToken cancellationToken)
     {
-        var userId = HttpContext.RequireUserId();
-        var result = await gameService.GetMachineSessionAsync(userId, id, cancellationToken);
-        return Ok(ApiResponse<MachineSessionDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        var machines = await gameService.GetMachinesAsync(cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<MachineListingDto>>.Ok(machines, traceId: HttpContext.TraceIdentifier));
     }
 
-    [HttpPost("machine/{id}/cash-in")]
-    public async Task<ActionResult<ApiResponse<MachineSessionDto>>> CashIn(int id, [FromBody] MachineCashRequest request, CancellationToken cancellationToken)
+    [HttpGet("rules")]
+    public async Task<ActionResult<ApiResponse<DefaultRulesDto>>> GetRules(CancellationToken cancellationToken)
     {
-        var userId = HttpContext.RequireUserId();
-        var result = await gameService.CashInAsync(userId, id, request.Amount, cancellationToken);
-        return Ok(ApiResponse<MachineSessionDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        var rules = await gameService.GetDefaultRulesAsync(cancellationToken);
+        return Ok(ApiResponse<DefaultRulesDto>.Ok(rules, traceId: HttpContext.TraceIdentifier));
     }
 
-    [HttpPost("machine/{id}/cash-out")]
-    public async Task<ActionResult<ApiResponse<MachineSessionDto>>> CashOut(int id, CancellationToken cancellationToken)
+    [HttpGet("active-round/{machineId}")]
+    public async Task<ActionResult<ApiResponse<ActiveRoundStateDto?>>> GetActiveRound(int machineId, CancellationToken cancellationToken)
     {
-        var userId = HttpContext.RequireUserId();
-        var result = await gameService.CashOutAsync(userId, id, cancellationToken);
-        return Ok(ApiResponse<MachineSessionDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        var result = await gameService.GetActiveRoundAsync(UserId, machineId, cancellationToken);
+        return Ok(new ApiResponse<ActiveRoundStateDto?>(true, "OK", result, [], HttpContext.TraceIdentifier));
     }
 
-    [HttpPost("cards/deal")]
+    [HttpPost("deal")]
     public async Task<ActionResult<ApiResponse<DealResultDto>>> Deal([FromBody] DealRequest request, CancellationToken cancellationToken)
     {
-        var userId = HttpContext.RequireUserId();
-        var result = await gameService.DealAsync(userId, request, cancellationToken);
-        return Ok(ApiResponse<DealResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        try
+        {
+            var result = await gameService.DealAsync(UserId, request, cancellationToken);
+            return Ok(ApiResponse<DealResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<DealResultDto>(false, ex.Message, null, [], HttpContext.TraceIdentifier));
+        }
     }
 
-    [HttpPost("cards/draw")]
+    [HttpPost("draw")]
     public async Task<ActionResult<ApiResponse<DrawResultDto>>> Draw([FromBody] DrawRequest request, CancellationToken cancellationToken)
     {
-        var userId = HttpContext.RequireUserId();
-        var result = await gameService.DrawAsync(userId, request, cancellationToken);
-        return Ok(ApiResponse<DrawResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
-    }
-
-    [HttpPost("double-up")]
-    public async Task<ActionResult<ApiResponse<RewardStatusDto>>> DoubleUp([FromBody] DoubleUpRequest request, CancellationToken cancellationToken)
-    {
-        var userId = HttpContext.RequireUserId();
-        var result = await gameService.DoubleUpAsync(userId, request, cancellationToken);
-        return Ok(ApiResponse<RewardStatusDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        try
+        {
+            var result = await gameService.DrawAsync(UserId, request, cancellationToken);
+            return Ok(ApiResponse<DrawResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<DrawResultDto>(false, ex.Message, null, [], HttpContext.TraceIdentifier));
+        }
     }
 
     [HttpPost("double-up/start")]
     public async Task<ActionResult<ApiResponse<DoubleUpResultDto>>> StartDoubleUp([FromBody] StartDoubleUpRequest request, CancellationToken cancellationToken)
     {
-        var userId = HttpContext.RequireUserId();
-        var result = await gameService.StartDoubleUpAsync(userId, request.RoundId, cancellationToken);
-        return Ok(ApiResponse<DoubleUpResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        try
+        {
+            var result = await gameService.StartDoubleUpAsync(UserId, request.RoundId, cancellationToken);
+            return Ok(ApiResponse<DoubleUpResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<DoubleUpResultDto>(false, ex.Message, null, [], HttpContext.TraceIdentifier));
+        }
+    }
+
+    [HttpPost("double-up/guess")]
+    public async Task<ActionResult<ApiResponse<DoubleUpResultDto>>> GuessDoubleUp([FromBody] DoubleUpRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await gameService.GuessDoubleUpAsync(UserId, request.RoundId, request.Guess, cancellationToken);
+            return Ok(ApiResponse<DoubleUpResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<DoubleUpResultDto>(false, ex.Message, null, [], HttpContext.TraceIdentifier));
+        }
     }
 
     [HttpPost("double-up/switch")]
     public async Task<ActionResult<ApiResponse<DoubleUpResultDto>>> SwitchDealer([FromBody] SwitchDealerRequest request, CancellationToken cancellationToken)
     {
-        var userId = HttpContext.RequireUserId();
-        var result = await gameService.SwitchDealerAsync(userId, request.RoundId, cancellationToken);
-        return Ok(ApiResponse<DoubleUpResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        try
+        {
+            var result = await gameService.SwitchDealerAsync(UserId, request.RoundId, cancellationToken);
+            return Ok(ApiResponse<DoubleUpResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<DoubleUpResultDto>(false, ex.Message, null, [], HttpContext.TraceIdentifier));
+        }
     }
 
-    [HttpPost("double-up/guess")]
-    public async Task<ActionResult<ApiResponse<DoubleUpResultDto>>> GuessDoubleUp([FromBody] DoubleUpGuessRequest request, CancellationToken cancellationToken)
+    [HttpPost("double-up/take-half")]
+    public async Task<ActionResult<ApiResponse<DoubleUpResultDto>>> TakeHalf([FromBody] TakeHalfRequest request, CancellationToken cancellationToken)
     {
-        var userId = HttpContext.RequireUserId();
-        var result = await gameService.GuessDoubleUpAsync(userId, request.RoundId, request.Guess, cancellationToken);
-        return Ok(ApiResponse<DoubleUpResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
-    }
-
-    [HttpPost("jackpot/rank")]
-    public async Task<ActionResult<ApiResponse<JackpotInfoDto>>> ChangeJackpotRank([FromBody] ChangeJackpotRankRequest request, CancellationToken cancellationToken)
-    {
-        HttpContext.RequireUserId();
-        var result = await gameService.ChangeJackpotRankAsync(request.MachineId, request.Rank, cancellationToken);
-        return Ok(ApiResponse<JackpotInfoDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        try
+        {
+            var result = await gameService.TakeHalfAsync(UserId, request.RoundId, cancellationToken);
+            return Ok(ApiResponse<DoubleUpResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<DoubleUpResultDto>(false, ex.Message, null, [], HttpContext.TraceIdentifier));
+        }
     }
 
     [HttpPost("double-up/cashout")]
     public async Task<ActionResult<ApiResponse<DoubleUpResultDto>>> CashoutDoubleUp([FromBody] CashoutDoubleUpRequest request, CancellationToken cancellationToken)
     {
-        var userId = HttpContext.RequireUserId();
-        var result = await gameService.CashoutDoubleUpAsync(userId, request.RoundId, cancellationToken);
-        return Ok(ApiResponse<DoubleUpResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
-    }
-
-    [HttpPost("double-up/take-half")]
-    public async Task<ActionResult<ApiResponse<DoubleUpResultDto>>> TakeHalf([FromBody] CashoutDoubleUpRequest request, CancellationToken cancellationToken)
-    {
-        var userId = HttpContext.RequireUserId();
-        var result = await gameService.TakeHalfAsync(userId, request.RoundId, cancellationToken);
-        return Ok(ApiResponse<DoubleUpResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
-    }
-
-    [HttpGet("machine/{id}/active-round")]
-    public async Task<ActionResult<ApiResponse<ActiveRoundStateDto?>>> ActiveRound(int id, CancellationToken cancellationToken)
-    {
-        var userId = HttpContext.RequireUserId();
-        var result = await gameService.GetActiveRoundAsync(userId, id, cancellationToken);
-        return Ok(new ApiResponse<ActiveRoundStateDto?>(true, "OK", result, [], HttpContext.TraceIdentifier));
+        try
+        {
+            var result = await gameService.CashoutDoubleUpAsync(UserId, request.RoundId, cancellationToken);
+            return Ok(ApiResponse<DoubleUpResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<DoubleUpResultDto>(false, ex.Message, null, [], HttpContext.TraceIdentifier));
+        }
     }
 
     [HttpGet("machine/{id}/state")]
-    public async Task<ActionResult<ApiResponse<object>>> MachineState(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<object>> MachineState(int id, CancellationToken cancellationToken)
     {
         var result = await gameService.GetMachineStateAsync(id, cancellationToken);
-        return Ok(ApiResponse<object>.Ok(result, traceId: HttpContext.TraceIdentifier));
-    }
-
-    [HttpPost("machine/{id}/reset")]
-    public async Task<ActionResult<ApiResponse<AdminMachineDto>>> ResetMachine(int id, CancellationToken cancellationToken)
-    {
-        var adminId = HttpContext.RequireAdminRole();
-        var result = await adminService.ResetMachineAsync(adminId, id, cancellationToken);
-        return Ok(ApiResponse<AdminMachineDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        return Ok(result);
     }
 }

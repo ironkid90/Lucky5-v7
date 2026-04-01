@@ -139,7 +139,7 @@ public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegist
             throw new HubException("Unauthorized");
         }
 
-        var result = await gameService.DoubleUpAsync(userId, new DoubleUpRequest(roundId, guess), Context.ConnectionAborted);
+        var result = await gameService.GuessDoubleUpAsync(userId, roundId, guess, Context.ConnectionAborted);
         await Clients.Caller.SendAsync("RewardStatus", result, Context.ConnectionAborted);
         await Clients.Caller.SendAsync("DoubleUpCard", new { roundId, guess }, Context.ConnectionAborted);
     }

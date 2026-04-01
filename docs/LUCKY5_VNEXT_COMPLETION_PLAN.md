@@ -1,6 +1,6 @@
 # Lucky5 vNext Completion Plan
 
-_Last updated: 2026-03-31_
+_Last updated: 2026-04-01_
 
 ## Purpose
 
@@ -46,6 +46,183 @@ At the same time, the live frontend is feature-rich but navigation is still mana
 - **Track A — Persistence & recovery**
 - **Track B — Navigation/menu/admin UX hardening**
 - **Track C — Supporting utilities, observability, and delivery readiness**
+
+---
+
+## Recommended Next Batch — Session Continuity and Cabinet Flow Hardening
+
+This is the highest-value implementation batch to run next without changing Lucky5's game rules, RTP philosophy, or cabinet identity.
+
+### Why this batch first
+
+The latest repo observations point to one practical truth:
+
+- full durable persistence is still the biggest long-term architecture need
+- but the most immediate player-facing reliability pain is concentrated in machine-close, cash-out, reset, reconnect, and navigation flows
+
+That makes the next best batch a **tight vertical slice** that hardens the existing vanilla cabinet and backend flow before the larger persistence migration.
+
+### Guardrails for this batch
+
+Do **not** change any of the following:
+
+- Lebanese paytable semantics
+- Two Pair minimum qualifying hand
+- Ace-always-wins double-up behavior
+- Lucky 5 switch-only no-lose behavior and multipliers
+- deterministic pre-shuffled outcome logic
+- retro cabinet visual philosophy
+
+### Batch goals
+
+1. eliminate invalid or ambiguous machine-close / cash-out / reset paths around the 40,000,000 close threshold
+2. restore continuous game state for long play sessions, refreshes, and reconnects using the existing active-round API surface
+3. make all lobby, wallet, admin, and in-game menu actions follow one predictable navigation model
+4. verify every critical cabinet button and recovery path with regression coverage
+
+### Included work
+
+#### Batch 1A. Machine-close, cash-out, and reset semantic hardening
+
+Focus:
+
+- audit all flows that cross `IsMachineClosed`, `CashOutAsync()`, double-up cashout, and admin reset
+- ensure the 40M+ machine-close path always resolves into one of the allowed outcomes:
+  - forced collect into machine credits
+  - wallet cash-out
+  - admin reset when no active round exists
+- remove ambiguous "invalid" UX states by giving the frontend one canonical close-state handler
+
+Why now:
+
+- repo notes and recent user observations both point at the 40M+ path as the highest-risk correctness area still visible to players/operators
+
+Primary file areas:
+
+- `server/src/Lucky5.Infrastructure/Services/GameService.cs`
+- `server/src/Lucky5.Infrastructure/Services/AdminService.cs`
+- `server/src/Lucky5.Api/wwwroot/js/game.js`
+- `server/tests/Lucky5.Tests/CleanRoomEngineTests.cs`
+- `server/tests/Lucky5.Tests/GameServiceRegressionTests.cs`
+
+Acceptance criteria:
+
+- closing at or above 40,000,000 never strands the player in an un-actionable state
+- cash-out after machine close is deterministic and idempotent on retry
+- admin reset is blocked only when an active round truly exists, not because of stale UI/client state
+- machine close remains a gameplay event, not a hidden ledger reset
+
+#### Batch 1B. Long-session continuity and reconnect recovery
+
+Focus:
+
+- stop relying on `sessionStorage` alone for cabinet restoration
+- hydrate cabinet state from:
+  - `GET /api/Game/machine/{id}/session`
+  - `GET /api/Game/machine/{id}/active-round`
+- restore the correct phase for:
+  - dealt hand waiting for draw
+  - drawn win waiting for take-score or double-up
+  - active double-up session
+- add stale-session exit behavior so users can safely return to lobby when only the machine selection was remembered
+
+Why now:
+
+- the backend already exposes active-round recovery data, but the vanilla frontend is not using it yet
+- this is the fastest path to meaningful continuity without waiting for full database persistence
+
+Primary file areas:
+
+- `server/src/Lucky5.Api/wwwroot/js/game.js`
+- `server/src/Lucky5.Application/Dtos/ActiveRoundStateDto.cs`
+- `server/src/Lucky5.Api/Controllers/GameController.cs`
+- `server/tests/Lucky5.Tests/FrontendRegressionTests.cs`
+
+Acceptance criteria:
+
+- refreshing during deal/draw/double-up restores the correct cabinet state
+- a saved machine id without an active round no longer traps the player in a confusing game reopen path
+- reconnect behavior uses backend truth before frontend local assumptions
+
+#### Batch 1C. Single navigation model and menu cleanup
+
+Focus:
+
+- introduce one authoritative screen-transition helper for lobby, wallet, admin, and game
+- keep `BACK TO LOBBY` inside the existing menu panel, but make all entry/exit paths reuse the same helper
+- remove remaining inline menu styling and duplicate reset affordances where practical
+- centralize machine-close messaging and menu CTA emphasis
+
+Why now:
+
+- `BACK TO LOBBY` is already present in the menu, but transition logic is still scattered across `openGame()`, `showLobby()`, `showWallet()`, auth restore, and `backToLobbyFromGame()`
+- this is the clearest path to stabilizing all buttons without redesigning the cabinet
+
+Primary file areas:
+
+- `server/src/Lucky5.Api/wwwroot/index.html`
+- `server/src/Lucky5.Api/wwwroot/js/game.js`
+- `server/src/Lucky5.Api/wwwroot/css/game.css`
+
+Acceptance criteria:
+
+- every screen change flows through shared navigation helpers
+- no critical action depends on an overlay-only edge path with unique state cleanup
+- menu markup/styling becomes maintainable without changing the cabinet look
+
+#### Batch 1D. Button and recovery verification sweep
+
+Focus:
+
+- expand regression coverage from partial menu checks to a full button matrix
+- verify:
+  - lobby nav buttons
+  - wallet/admin back buttons
+  - game menu buttons
+  - machine-close recovery buttons
+  - saved-session restore entry path
+- add service-level tests for 40M close, cash-out retry, reset-after-close, and active-round resume cases
+
+Why now:
+
+- current frontend regression tests cover jackpot wiring and menu cash-in/out refreshes, but not the full navigation/button matrix
+
+Primary file areas:
+
+- `server/tests/Lucky5.Tests/FrontendRegressionTests.cs`
+- `server/tests/Lucky5.Tests/GameServiceRegressionTests.cs`
+- `server/tests/Lucky5.Tests/Program.cs`
+
+Acceptance criteria:
+
+- every critical button has at least one regression assertion
+- the known reported paths are reproducible in tests before and after fixes
+- the console test runner remains the canonical verification path
+
+### Explicitly out of scope for this batch
+
+These should remain separate so this batch stays tight and reversible:
+
+- full durable persistence / database migration
+- full React parity project
+- new RTP tuning pass
+- visible rules changes to double-up, jackpots, or paytable behavior
+
+### Recommended delivery order inside this batch
+
+1. write failing regression tests for 40M close/cash-out/reset and saved-session restore
+2. harden backend machine-close and reset semantics
+3. add frontend active-round/session hydration
+4. centralize navigation/menu transitions
+5. finish with the full button verification sweep and doc refresh
+
+### What should come immediately after this batch
+
+Once this batch lands, the next major tranche should be:
+
+1. durable persistence for `MachineLedgerState`, `MachineSessionState`, and `GameRound`
+2. admin audit trail and reset-history views
+3. simulation/live parity cleanup before any new RTP target claim
 
 ---
 

@@ -1,5 +1,4 @@
 using Lucky5.Api.Middleware;
-using Lucky5.Infrastructure.Data;
 using Lucky5.Infrastructure.Services;
 using Lucky5.Realtime;
 using Lucky5.Realtime.Services;
@@ -50,7 +49,7 @@ var app = builder.Build();
 // Apply EF Core migrations automatically if configured
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetService<Lucky5DbContext>();
+    var dbContext = scope.ServiceProvider.GetService<Lucky5.Infrastructure.Data.Lucky5DbContext>();
     if (dbContext != null && dbContext.Database.IsRelational())
     {
         try

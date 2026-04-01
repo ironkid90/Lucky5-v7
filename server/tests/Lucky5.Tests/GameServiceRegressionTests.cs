@@ -14,6 +14,10 @@ public static class GameServiceRegressionTests
         await FourOfAKindSlotIsCapturedAtomicallyAtDealAsync(failures);
         await GetActiveRoundKeepsDrawnStateUntilPayoutSettledAsync(failures);
         await ClosedMachineSessionsCanCashOutAndResetAsync(failures);
+        await MachineSessionCashOutEligibilityFollowsRulesAsync(failures);
+        await CashOutRejectsBelowThresholdWhenMachineIsNotClosedAsync(failures);
+        await AdminViewsAndResetRespectRecoverableRoundsAsync(failures);
+        await AdminResetRejectsOutstandingMachineCreditsAsync(failures);
     }
 
     private static async Task FourOfAKindSlotIsCapturedAtomicallyAtDealAsync(List<string> failures)
@@ -189,6 +193,166 @@ public static class GameServiceRegressionTests
         {
             failures.Add("ResetMachineAsync should zero the machine ledger capital counters.");
         }
+    }
+
+    private static async Task MachineSessionCashOutEligibilityFollowsRulesAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = new GameService(store, new DefaultEntropyGenerator());
+
+        var userId = Guid.Parse("20000000-0000-0000-0000-000000000001");
+        SeedPlayer(store, userId, "cashout-rules", 2_000_000m);
+
+        var machineId = store.Machines.Values.First().Id;
+        await service.CashInAsync(userId, machineId, 200_000m, CancellationToken.None);
+
+        var sessionDto = await service.GetMachineSessionAsync(userId, machineId, CancellationToken.None);
+        if (sessionDto.CanCashOut)
+        {
+            failures.Add("Machine session should not be cash-out eligible before reaching the 2x threshold or a machine-close event.");
+        }
+
+        var session = store.MachineSessions.Values.First(s => s.UserId == userId && s.MachineId == machineId);
+        session.MachineCredits = 400_000m;
+        session.LastUpdatedUtc = DateTime.UtcNow;
+
+        sessionDto = await service.GetMachineSessionAsync(userId, machineId, CancellationToken.None);
+        if (!sessionDto.CanCashOut)
+        {
+            failures.Add("Machine session should become cash-out eligible once credits reach the documented 2x threshold.");
+        }
+
+        session.MachineCredits = 250_000m;
+        session.IsMachineClosed = true;
+        session.LastUpdatedUtc = DateTime.UtcNow;
+
+        sessionDto = await service.GetMachineSessionAsync(userId, machineId, CancellationToken.None);
+        if (!sessionDto.CanCashOut)
+        {
+            failures.Add("Machine session should remain cash-out eligible after a machine-close event even if credits fall below the 2x threshold.");
+        }
+    }
+
+    private static async Task CashOutRejectsBelowThresholdWhenMachineIsNotClosedAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = new GameService(store, new DefaultEntropyGenerator());
+
+        var userId = Guid.Parse("20000000-0000-0000-0000-000000000002");
+        SeedPlayer(store, userId, "cashout-blocked", 2_000_000m);
+
+        var machineId = store.Machines.Values.First().Id;
+        await service.CashInAsync(userId, machineId, 200_000m, CancellationToken.None);
+
+        var blocked = false;
+        try
+        {
+            await service.CashOutAsync(userId, machineId, CancellationToken.None);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Cash out is only available", StringComparison.Ordinal))
+        {
+            blocked = true;
+        }
+
+        if (!blocked)
+        {
+            failures.Add("CashOutAsync should reject sessions that are below the 2x threshold and not machine-closed.");
+        }
+    }
+
+    private static async Task AdminViewsAndResetRespectRecoverableRoundsAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var adminService = new AdminService(store);
+
+        var adminId = Guid.Parse("20000000-0000-0000-0000-000000000003");
+        var userId = Guid.Parse("20000000-0000-0000-0000-000000000004");
+        var machineId = store.Machines.Values.First().Id;
+
+        SeedPlayer(store, adminId, "recover-admin", 500_000m, role: "Admin");
+        SeedPlayer(store, userId, "recoverable-round", 2_000_000m);
+
+        store.ActiveRounds[Guid.Parse("30000000-0000-0000-0000-000000000002")] = new GameRound
+        {
+            RoundId = Guid.Parse("30000000-0000-0000-0000-000000000002"),
+            UserId = userId,
+            MachineId = machineId,
+            BetAmount = 5_000m,
+            HandRank = "FullHouse",
+            WinAmount = 60_000m,
+            OriginalWinAmount = 60_000m,
+            IsCompleted = true,
+            IsPayoutSettled = false,
+            CleanRoomState = CreateState(
+                RoundPhase.Drawn,
+                RoundState.Evaluate,
+                ["AH", "AD", "AC", "KH", "KD"])
+        };
+
+        var machine = await adminService.GetMachineAsync(machineId, CancellationToken.None);
+        if (machine.ActiveRounds != 1)
+        {
+            failures.Add($"Admin machine view should count recoverable unsettled rounds as active work, but reported {machine.ActiveRounds}.");
+        }
+
+        var blocked = false;
+        try
+        {
+            await adminService.ResetMachineAsync(adminId, machineId, CancellationToken.None);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("active rounds", StringComparison.Ordinal))
+        {
+            blocked = true;
+        }
+
+        if (!blocked)
+        {
+            failures.Add("Admin reset should reject completed-but-unsettled rounds because they are still recoverable player state.");
+        }
+    }
+
+    private static async Task AdminResetRejectsOutstandingMachineCreditsAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = new GameService(store, new DefaultEntropyGenerator());
+        var adminService = new AdminService(store);
+
+        var adminId = Guid.Parse("20000000-0000-0000-0000-000000000005");
+        var userId = Guid.Parse("20000000-0000-0000-0000-000000000006");
+        var machineId = store.Machines.Values.First().Id;
+
+        SeedPlayer(store, adminId, "reset-admin", 500_000m, role: "Admin");
+        SeedPlayer(store, userId, "reset-credits", 2_000_000m);
+
+        await service.CashInAsync(userId, machineId, 200_000m, CancellationToken.None);
+
+        var blocked = false;
+        try
+        {
+            await adminService.ResetMachineAsync(adminId, machineId, CancellationToken.None);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("player credits", StringComparison.Ordinal))
+        {
+            blocked = true;
+        }
+
+        if (!blocked)
+        {
+            failures.Add("Admin reset should reject machines that still hold player credits instead of silently bypassing or destroying session state.");
+        }
+    }
+
+    private static FiveCardDrawState CreateState(RoundPhase phase, RoundState state, IReadOnlyList<string> cards)
+    {
+        var hand = cards.Select(CleanRoomCard.FromCode).ToArray();
+        return new FiveCardDrawState(
+            SeedToken: 0UL,
+            Deck: hand,
+            Hand: hand,
+            DrawIndex: hand.Length,
+            Held: [false, false, false, false, false],
+            Phase: phase,
+            State: state);
     }
 
     private sealed class SignalingEntropyGenerator(ulong fixedSeed, ManualResetEventSlim seedRequested) : IEntropyGenerator

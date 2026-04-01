@@ -39,6 +39,9 @@ let machineKent = 1;
 let hubConnection = null;
 let machineJoined = false;
 let jackpotRankArmed = false;
+let machineCanCashOut = false;
+let machineSessionClosed = false;
+let machineCashOutThreshold = 0;
 let adminUsers = [];
 let adminMachines = [];
 let lucky5FlashResetTimer = null;
@@ -161,17 +164,65 @@ async function apiCall(method, path, body) {
     return json.data;
 }
 
+function setActiveScreen(screenName) {
+    ['lobby','wallet','admin','game'].forEach(name => {
+        const el = document.getElementById(`${name}-screen`);
+        if (!el) return;
+        el.classList.toggle('active', name === screenName);
+    });
+}
+
+function setLobbyNavActive(target) {
+    document.querySelectorAll('.lobby-nav-item').forEach(n => n.classList.remove('active'));
+    if (!target) return;
+    const activeNav = document.getElementById(`nav-${target}`);
+    if (activeNav) activeNav.classList.add('active');
+}
+
+function setMenuPanelOpen(isOpen) {
+    const menuPanel = document.getElementById('menu-panel');
+    if (!menuPanel) return;
+    menuPanel.classList.toggle('is-open', Boolean(isOpen));
+}
+
+function clearCurrentMachineSelection() {
+    machineId = 0;
+    machineCanCashOut = false;
+    machineSessionClosed = false;
+    machineCashOutThreshold = 0;
+    sessionStorage.removeItem('lucky5_machineId');
+}
+
+function syncMachineSessionState(session) {
+    machineSessionClosed = Boolean(session?.isMachineClosed);
+    machineCanCashOut = Boolean(session?.canCashOut);
+    const nextThreshold = Number(session?.cashOutThreshold);
+    if (Number.isFinite(nextThreshold)) {
+        machineCashOutThreshold = nextThreshold;
+    }
+}
+
+function isMachineClosedForUi() {
+    return machineSessionClosed || balance >= MACHINE_CREDIT_LIMIT;
+}
+
 async function fetchMachineSession() {
     const session = await apiCall('GET', `/api/Game/machine/${machineId}/session`);
     syncMachineCreditsFromResponse(session);
+    syncMachineSessionState(session);
     walletBalance = session.walletBalance ?? walletBalance;
     updateLobbyBalance();
     return session;
 }
 
+async function fetchActiveRoundState() {
+    return await apiCall('GET', `/api/Game/machine/${machineId}/active-round`);
+}
+
 async function cashInMachine(amount) {
     const session = await apiCall('POST', `/api/Game/machine/${machineId}/cash-in`, { amount });
     syncMachineCreditsFromResponse(session);
+    syncMachineSessionState(session);
     walletBalance = session.walletBalance ?? walletBalance;
     updateLobbyBalance();
     return session;
@@ -180,6 +231,7 @@ async function cashInMachine(amount) {
 async function cashOutMachine() {
     const session = await apiCall('POST', `/api/Game/machine/${machineId}/cash-out`);
     syncMachineCreditsFromResponse(session);
+    syncMachineSessionState(session);
     walletBalance = session.walletBalance ?? walletBalance;
     updateLobbyBalance();
     return session;
@@ -222,8 +274,10 @@ function refreshIdleMachineState(messageText = null, type = 'win') {
 
     if (messageText) {
         showMessage(messageText, type);
-    } else if (balance >= MACHINE_CREDIT_LIMIT) {
+    } else if (isMachineClosedForUi()) {
         showMessage('MACHINE CLOSED - CASH OUT FROM MENU TO CONTINUE', 'win');
+    } else if (balance > 0 && machineCanCashOut) {
+        showMessage(`CASH OUT AVAILABLE AT ${formatNum(machineCashOutThreshold)}`, 'win');
     } else if (balance > 0) {
         showMessage('PLACE YOUR BET');
     } else {
@@ -573,7 +627,7 @@ function setButtonStates() {
         return;
     }
 
-    const machineClosed = balance >= MACHINE_CREDIT_LIMIT;
+    const machineClosed = isMachineClosedForUi();
 
     betBtn.disabled = !(gameState === 'idle' || gameState === 'doubleup') || machineClosed;
     dealBtn.disabled = !(gameState === 'idle' || gameState === 'hold') || machineClosed;
@@ -811,9 +865,13 @@ function applyAutoHold(cardList) {
     if (autoHolds.size === 0) return;
 
     holdIndexes = autoHolds;
+    applyHeldIndexes(Array.from(autoHolds));
+}
+
+function applyHeldIndexes(indexes) {
     const slots = $$('.card-slot');
     const holdBtns = $$('.cab-hold');
-    autoHolds.forEach(i => {
+    indexes.forEach(i => {
         if (slots[i]) slots[i].classList.add('held');
         if (holdBtns[i]) holdBtns[i].classList.add('active');
     });
@@ -823,12 +881,80 @@ function applyServerAdvisedHolds(advisedArray) {
     if (!advisedArray || advisedArray.length === 0) return;
 
     holdIndexes = new Set(advisedArray);
-    const slots = $$('.card-slot');
-    const holdBtns = $$('.cab-hold');
-    advisedArray.forEach(i => {
-        if (slots[i]) slots[i].classList.add('held');
-        if (holdBtns[i]) holdBtns[i].classList.add('active');
-    });
+    applyHeldIndexes(advisedArray);
+}
+
+function restoreRoundFromSnapshot(snapshot) {
+    if (!snapshot) return;
+
+    stopShuffle();
+    clearLucky5Effects();
+    hideDuInfo();
+
+    const phase = snapshot.phase;
+    roundId = snapshot.roundId;
+    currentBet = Number(snapshot.betAmount || currentBet);
+    cards = Array.isArray(snapshot.cards) ? snapshot.cards : [];
+    holdIndexes = new Set(Array.isArray(snapshot.heldIndexes) ? snapshot.heldIndexes : []);
+    currentHandRank = snapshot.handRank && snapshot.handRank !== 'Nothing' ? snapshot.handRank : null;
+    roundDoubleUpAvailable = Boolean(snapshot.doubleUpAvailable);
+    takeHalfUsedThisRound = Boolean(snapshot.takeHalfUsed);
+    jackpotRankArmed = false;
+    takeScoreAnimating = false;
+    updateStakeDisplay();
+    updatePaytable(currentHandRank);
+    updateBonusBar(currentHandRank);
+
+    if (phase === 'Dealt') {
+        winAmount = 0;
+        duSessionStarted = false;
+        duIsNoLoseActive = false;
+        duDealerCard = null;
+        duCardTrail = [];
+        gameState = 'hold';
+        renderCards(cards, false);
+        applyHeldIndexes(Array.from(holdIndexes));
+        updateWinIndicator(0);
+        updateWinAmountDisplay(0);
+        showMessage('ROUND RESTORED - DRAW OR ADJUST');
+        setButtonStates();
+        return;
+    }
+
+    if (phase === 'DoubleUp' && snapshot.doubleUpSession) {
+        const duSnapshot = snapshot.doubleUpSession;
+        winAmount = Number(duSnapshot.currentAmount || snapshot.pendingWinAmount || 0);
+        duSessionStarted = true;
+        duDealerCard = duSnapshot.dealerCard;
+        duSwitchesRemaining = Number(duSnapshot.switchesRemaining || 0);
+        duIsNoLoseActive = Boolean(duSnapshot.isNoLoseActive);
+        duCardTrail = duDealerCard ? [{ card: duDealerCard, label: 'DEALER' }] : [];
+        gameState = 'doubleup';
+        showDuInfo();
+        renderDoubleUpCards(duDealerCard, true, null);
+        updateWinIndicator(winAmount);
+        updateWinAmountDisplay(winAmount, getFourOfAKindSlotTag(currentHandRank));
+        if (duIsNoLoseActive) {
+            triggerLucky5Flash();
+            showMessage(`5\u2660 LUCKY 5 ACTIVE! DOUBLE UP: ${formatNum(winAmount)}`, 'win');
+        } else {
+            showMessage(`DOUBLE UP RESTORED - WIN: ${formatNum(winAmount)}`, 'win');
+        }
+        setButtonStates();
+        return;
+    }
+
+    winAmount = Number(snapshot.pendingWinAmount || 0);
+    duSessionStarted = false;
+    duIsNoLoseActive = false;
+    duDealerCard = null;
+    duCardTrail = [];
+    gameState = 'win';
+    renderCards(cards, false);
+    updateWinIndicator(winAmount);
+    updateWinAmountDisplay(winAmount, getFourOfAKindSlotTag(currentHandRank));
+    showWinActionMessage();
+    setButtonStates();
 }
 
 async function doDeal() {
@@ -1230,6 +1356,7 @@ async function doDoubleUp(guess) {
                 setTimeout(async () => {
                     await animateDrainToCredits(safeAmount, balance);
                     syncMachineCreditsFromResponse(result);
+                    await fetchMachineSession();
                     refreshIdleMachineState();
                 }, 1200);
             } else if (result.status === 'MachineClosed') {
@@ -1456,6 +1583,7 @@ async function mainTakeScore() {
     }
 
     if (!machineClosed) {
+        await fetchMachineSession();
         refreshIdleMachineState();
     }
 }
@@ -1656,17 +1784,15 @@ async function doLogout() {
         hubConnection = null;
     }
     machineJoined = false;
+    setMenuPanelOpen(false);
     clearToken();
+    clearCurrentMachineSelection();
     gameState = 'idle';
     balance = 0;
     walletBalance = 0;
     winAmount = 0;
     roundId = null;
-    $('#game-screen').classList.remove('active');
-    $('#lobby-screen').classList.remove('active');
-    $('#wallet-screen').classList.remove('active');
-    const adminScreen = document.getElementById('admin-screen');
-    if (adminScreen) adminScreen.classList.remove('active');
+    setActiveScreen(null);
     $('#auth-screen').style.display = '';
     $('#auth-error').textContent = '';
 }
@@ -1776,7 +1902,7 @@ function renderGameGrid() {
     });
 }
 
-function openGame(gameId, selectedMachineId) {
+async function openGame(gameId, selectedMachineId, options = {}) {
     // If a machine ID was provided, set it as the current machine
     if (selectedMachineId) {
         machineId = selectedMachineId;
@@ -1785,40 +1911,30 @@ function openGame(gameId, selectedMachineId) {
 
     // All our games are Lucky 5 machines, so just open the game screen
     if (gameId.startsWith('machine-')) {
-        $('#lobby-screen').classList.remove('active');
-        $('#wallet-screen').classList.remove('active');
-        const adminScreen = document.getElementById('admin-screen');
-        if (adminScreen) adminScreen.classList.remove('active');
-        $('#game-screen').classList.add('active');
-        initGame();
+        setMenuPanelOpen(false);
+        setActiveScreen('game');
+        setLobbyNavActive(null);
+        await initGame(options);
     }
 }
 
 async function showLobby() {
-    $('#game-screen').classList.remove('active');
-    $('#wallet-screen').classList.remove('active');
-    const adminScreen = document.getElementById('admin-screen');
-    if (adminScreen) adminScreen.classList.remove('active');
-    $('#lobby-screen').classList.add('active');
+    setMenuPanelOpen(false);
+    setActiveScreen('lobby');
     updateLobbyBalance();
     updateLobbyUsername();
     // Load machines from backend before rendering
     await loadAvailableMachines();
     renderGameGrid();
-    document.querySelectorAll('.lobby-nav-item').forEach(n => n.classList.remove('active'));
-    document.getElementById('nav-lobby').classList.add('active');
+    setLobbyNavActive('lobby');
 }
 
 function showWallet() {
-    $('#lobby-screen').classList.remove('active');
-    $('#game-screen').classList.remove('active');
-    const adminScreen = document.getElementById('admin-screen');
-    if (adminScreen) adminScreen.classList.remove('active');
-    $('#wallet-screen').classList.add('active');
+    setMenuPanelOpen(false);
+    setActiveScreen('wallet');
     updateLobbyBalance();
     loadWalletHistory();
-    document.querySelectorAll('.lobby-nav-item').forEach(n => n.classList.remove('active'));
-    document.getElementById('nav-wallet').classList.add('active');
+    setLobbyNavActive('wallet');
 }
 
 async function loadWalletHistory() {
@@ -1898,14 +2014,9 @@ function formatTransactionDate(utcStr) {
 
 function showAdmin() {
     if (currentRole !== 'admin') return;
-    $('#lobby-screen').classList.remove('active');
-    $('#wallet-screen').classList.remove('active');
-    $('#game-screen').classList.remove('active');
-    const adminScreen = document.getElementById('admin-screen');
-    if (adminScreen) adminScreen.classList.add('active');
-    document.querySelectorAll('.lobby-nav-item').forEach(n => n.classList.remove('active'));
-    const navAdmin = document.getElementById('nav-admin');
-    if (navAdmin) navAdmin.classList.add('active');
+    setMenuPanelOpen(false);
+    setActiveScreen('admin');
+    setLobbyNavActive('admin');
     loadAdminUsers();
     loadAdminMachines();
 }
@@ -2017,35 +2128,36 @@ async function loadAdminMachines() {
     }
 }
 
-function backToLobbyFromGame() {
+async function backToLobbyFromGame() {
     if (gameState !== 'idle' && gameState !== 'win') {
         if (!confirm('Leave the game? Any current round may be affected.')) return;
     }
-    const menuPanel = document.getElementById('menu-panel');
-    if (menuPanel) menuPanel.style.display = 'none';
-    sessionStorage.removeItem('lucky5_machineId');
-    if (machineJoined && machineId > 0) {
-        leaveMachine(machineId);
+    const previousMachineId = machineId;
+    setMenuPanelOpen(false);
+    clearCurrentMachineSelection();
+    if (machineJoined && previousMachineId > 0) {
+        await leaveMachine(previousMachineId);
     }
     stopShuffle();
     hideDuInfo();
+    clearLucky5Effects();
     gameState = 'idle';
     jackpotRankArmed = false;
     winAmount = 0;
     roundId = null;
     machineJoined = false;
-    $('#game-screen').classList.remove('active');
-    showLobby();
+    await showLobby();
 }
 
 async function enterLobbyAfterLogin(profileData) {
     walletBalance = profileData.walletBalance;
     storeUserInfo(profileData.username, profileData.role);
     $('#auth-screen').style.display = 'none';
-    showLobby();
+    await showLobby();
 }
 
-async function initGame() {
+async function initGame(options = {}) {
+    const { allowLobbyFallback = false } = options;
     try {
         const [machineData, rulesData] = await Promise.all([
             apiCall('GET', '/api/Game/games/machines'),
@@ -2074,15 +2186,12 @@ async function initGame() {
 
         const profile = await apiCall('GET', '/api/Auth/GetUserById');
         walletBalance = profile.walletBalance;
-        await fetchMachineSession();
+        const session = await fetchMachineSession();
         updateCredits();
         updateStakeDisplay();
         updatePaytable();
         updateJackpotSelectedRow();
         updateBonusHandText();
-        gameState = 'idle';
-        jackpotRankArmed = false;
-        refreshIdleMachineState();
 
         try {
             const machineState = await apiCall('GET', `/api/Game/machine/${machineId}/state`);
@@ -2090,6 +2199,21 @@ async function initGame() {
                 updateJackpotDisplay(machineState.jackpots);
             }
         } catch (e) {}
+
+        const activeRound = await fetchActiveRoundState();
+        if (activeRound) {
+            restoreRoundFromSnapshot(activeRound);
+        } else {
+            gameState = 'idle';
+            jackpotRankArmed = false;
+            refreshIdleMachineState();
+            const hasRecoverableSession = session.machineCredits > 0 || session.isMachineClosed || activeRound;
+            if (allowLobbyFallback && !hasRecoverableSession) {
+                clearCurrentMachineSelection();
+                await showLobby();
+                return;
+            }
+        }
 
         await setupSignalR();
         await joinMachine(machineId);
@@ -2205,14 +2329,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (menuBtn && menuPanel) {
         menuBtn.addEventListener('click', () => {
             if (gameState === 'idle' || gameState === 'win' || gameState === 'doubleup') {
-                menuPanel.style.display = 'flex';
+                setMenuPanelOpen(true);
             }
         });
         $('#btn-close-menu').addEventListener('click', () => {
-            menuPanel.style.display = 'none';
+            setMenuPanelOpen(false);
         });
         $('#btn-logout-menu').addEventListener('click', () => {
-            menuPanel.style.display = 'none';
+            setMenuPanelOpen(false);
             doLogout();
         });
         const cashInBtn = document.getElementById('btn-cash-in');
@@ -2225,7 +2349,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const session = await cashInMachine(amount);
                 await fetchMachineSession();
                 refreshIdleMachineState(`CASHED IN ${formatNum(amount)} - MACHINE ${formatNum(session.machineCredits)}`, 'win');
-                menuPanel.style.display = 'none';
+                setMenuPanelOpen(false);
             } catch (e) {
                 showMessage(e.message, 'lose');
             }
@@ -2234,10 +2358,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cashOutBtn) cashOutBtn.addEventListener('click', async () => {
             try {
                 if (gameState !== 'idle') throw new Error('Finish the current round first');
+                if (!machineCanCashOut) throw new Error(`Cash out unlocks at ${formatNum(machineCashOutThreshold)} or when the machine closes`);
                 const session = await cashOutMachine();
                 await fetchMachineSession();
                 refreshIdleMachineState(`CASHED OUT - WALLET ${formatNum(session.walletBalance)}`, 'win');
-                menuPanel.style.display = 'none';
+                setMenuPanelOpen(false);
             } catch (e) {
                 showMessage(e.message, 'lose');
             }
@@ -2246,9 +2371,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm('Reset machine state only? Active rounds must be empty.')) return;
             try {
                 await apiCall('POST', `/api/Game/machine/${machineId}/reset`);
-                menuPanel.style.display = 'none';
+                await fetchMachineSession();
+                setMenuPanelOpen(false);
                 showMessage('MACHINE RESET COMPLETE', 'win');
-                setTimeout(() => location.reload(), 1000);
+                refreshIdleMachineState('MACHINE RESET COMPLETE', 'win');
             } catch (e) {
                 showMessage('RESET FAILED: ' + e.message, 'lose');
             }
@@ -2311,11 +2437,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const savedMachine = sessionStorage.getItem('lucky5_machineId');
                 if (savedMachine) {
                     machineId = parseInt(savedMachine, 10);
-                    $('#lobby-screen').classList.remove('active');
-                    $('#game-screen').classList.add('active');
-                    initGame();
+                    setActiveScreen('game');
+                    setLobbyNavActive(null);
+                    await initGame({ allowLobbyFallback: true });
                 } else {
-                    showLobby();
+                    await showLobby();
                 }
             } catch (e) {
                 clearToken();

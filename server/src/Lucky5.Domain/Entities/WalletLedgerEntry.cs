@@ -9,4 +9,16 @@ public sealed class WalletLedgerEntry
     public string Type { get; init; } = string.Empty;
     public string Reference { get; init; } = string.Empty;
     public DateTime CreatedUtc { get; init; } = DateTime.UtcNow;
+
+    public string TransactionType
+    {
+        get => Type;
+        init => Type = value;
+    }
+
+    public string ReferenceId
+    {
+        get => Reference;
+        init => Reference = value;
+    }
 }

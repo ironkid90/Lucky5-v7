@@ -15,7 +15,7 @@ if (!string.IsNullOrWhiteSpace(port))
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSignalR();
-builder.Services.AddLucky5Infrastructure();
+builder.Services.AddLucky5Infrastructure(builder.Configuration);
 builder.Services.AddLucky5Realtime();
 
 var isDevelopment = builder.Environment.IsDevelopment();

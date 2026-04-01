@@ -1277,6 +1277,78 @@ body {
     box-shadow: 0 3px 0 #111, 0 4px 8px rgba(0,0,0,0.5);
 }
 
+.menu-panel {
+    position: fixed;
+    inset: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 9999;
+    font-family: 'Press Start 2P', monospace;
+}
+
+.menu-panel.is-open {
+    display: flex;
+}
+
+.menu-panel-title {
+    margin-bottom: 10px;
+    color: #ff0;
+    font-size: 11px;
+    letter-spacing: 2px;
+}
+
+.menu-panel-btn,
+.menu-panel-close {
+    min-width: 220px;
+    padding: 10px 28px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    cursor: pointer;
+}
+
+.menu-panel-btn {
+    color: #fff;
+    border: 2px solid transparent;
+}
+
+.menu-panel-btn-cashin {
+    background: linear-gradient(180deg, #0a0, #070);
+    border-color: #0c0;
+}
+
+.menu-panel-btn-cashout {
+    background: linear-gradient(180deg, #cc0, #880);
+    border-color: #ff0;
+}
+
+.menu-panel-btn-lobby {
+    background: linear-gradient(180deg, #06c, #048);
+    border-color: #4af;
+}
+
+.menu-panel-btn-reset {
+    background: linear-gradient(180deg, #c00, #800);
+    border-color: #f44;
+}
+
+.menu-panel-btn-logout {
+    background: linear-gradient(180deg, #444, #222);
+    border-color: #888;
+}
+
+.menu-panel-close {
+    margin-top: 8px;
+    background: none;
+    color: #888;
+    border: 1px solid #555;
+}
+
 .cab-takescore {
     width: 100%;
     max-width: 100px;

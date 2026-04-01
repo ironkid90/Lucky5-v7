@@ -16,12 +16,18 @@ public sealed record ActiveRoundStateDto(
     /// </summary>
     string Phase,
 
+    string HandRank,
+
     IReadOnlyList<PokerCardDto> Cards,
 
     /// <summary>Indexes that were held when the disconnect occurred (Dealt phase only).</summary>
     IReadOnlyList<int> HeldIndexes,
 
     decimal PendingWinAmount,
+
+    bool DoubleUpAvailable,
+
+    bool TakeHalfUsed,
 
     DoubleUpStateDto? DoubleUpSession);
 

@@ -136,9 +136,9 @@ public static class CleanRoomEngineTests
         Assert(failures, "Machine close after a Lucky 5 switch should cash out the real post-win amount", postSwitchMachineClose.CashoutCredits == 80);
 
         var defaultConfig = EngineConfig.Default;
-        Assert(failures, "Approved RTP target should default to 85%", defaultConfig.TargetRtp == 0.85m);
+        Assert(failures, "Approved RTP target should default to 80%", defaultConfig.TargetRtp == 0.80m);
         Assert(failures, "Approved close threshold should default to 40,000,000", defaultConfig.CloseThreshold == 40_000_000m);
-        Assert(failures, "Approved payout-scale defaults should match the fine-tuned architecture", defaultConfig.DefaultPayoutScale == 2.00m && defaultConfig.MinPayoutScale == 1.25m && defaultConfig.MaxPayoutScale == 2.35m);
+        Assert(failures, "Approved payout-scale defaults should match the current 80% tuning architecture", defaultConfig.DefaultPayoutScale == 1.80m && defaultConfig.MinPayoutScale == 1.20m && defaultConfig.MaxPayoutScale == 2.10m);
 
         var defaultCloseSession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
             seedRoot: seed,
@@ -179,7 +179,7 @@ public static class CleanRoomEngineTests
                 RoundCount = defaultConfig.ConvergenceHorizon
             },
             seed);
-        Assert(failures, "Equilibrium payout scales should sit inside the approved controller band", equilibriumScale.SmallScale is >= 1.80m and <= 1.95m && equilibriumScale.MediumScale is >= 1.90m and <= 2.05m && equilibriumScale.BigScale is >= 2.00m and <= 2.20m);
+        Assert(failures, "Equilibrium payout scales should sit inside the current 80% controller band", equilibriumScale.SmallScale is >= 1.60m and <= 1.75m && equilibriumScale.MediumScale is >= 1.68m and <= 1.82m && equilibriumScale.BigScale is >= 1.76m and <= 1.90m);
 
         var overTargetOfferRate = MachinePolicy.ComputeDoubleUpOfferRate(
             new MachinePolicyState

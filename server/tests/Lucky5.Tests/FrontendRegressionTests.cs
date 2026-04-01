@@ -124,6 +124,57 @@ public static class FrontendRegressionTests
             failures,
             "jackpot win messaging should not append a duplicate jackpot amount to the main win line",
             !gameJs.Contains("JACKPOT +${formatNum(jackpotWon)}!", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "game.js should fetch active-round recovery state through a dedicated helper",
+            Regex.IsMatch(
+                gameJs,
+                @"async\s+function\s+fetchActiveRoundState\(\)\s*\{[\s\S]{0,300}?/api/Game/machine/\$\{machineId\}/active-round",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "game.js should restore recoverable rounds through a dedicated snapshot hydrator",
+            Regex.IsMatch(
+                gameJs,
+                @"function\s+restoreRoundFromSnapshot\(snapshot\)\s*\{[\s\S]{0,1200}?snapshot\.phase[\s\S]{0,1200}?snapshot\.cards",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "initGame should restore active rounds before falling back to idle cabinet state",
+            Regex.IsMatch(
+                gameJs,
+                @"const\s+activeRound\s*=\s*await\s+fetchActiveRoundState\(\);[\s\S]{0,500}?if\s*\(activeRound\)\s*\{[\s\S]{0,500}?restoreRoundFromSnapshot\(activeRound\);",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "saved machine restore should allow lobby fallback instead of blindly trapping empty sessions in game view",
+            gameJs.Contains("initGame({ allowLobbyFallback: true })", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "game.js should route lobby, wallet, admin, and game activation through a shared setActiveScreen helper",
+            Regex.IsMatch(
+                gameJs,
+                @"function\s+setActiveScreen\(screenName\)\s*\{[\s\S]{0,1200}?\['lobby','wallet','admin','game'\]",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "game.js should centralize menu panel visibility through setMenuPanelOpen instead of scattered inline display toggles",
+            Regex.IsMatch(
+                gameJs,
+                @"function\s+setMenuPanelOpen\(isOpen\)\s*\{[\s\S]{0,400}?classList\.(add|toggle)\('is-open'",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "menu panel markup should move away from giant inline overlay styling",
+            indexHtml.Contains("id=\"menu-panel\" class=\"menu-panel\"", StringComparison.Ordinal)
+                && !Regex.IsMatch(indexHtml, @"<div\s+id=""menu-panel""\s+style=", RegexOptions.CultureInvariant));
     }
 
     private static string ResolveGameJsPath()

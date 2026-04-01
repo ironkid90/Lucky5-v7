@@ -76,8 +76,10 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
     public Task<AdminMachineDto> ResetMachineAsync(Guid adminId, int machineId, CancellationToken cancellationToken)
     {
         var machine = store.Machines.Values.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
-        if (store.ActiveRounds.Values.Any(r => r.MachineId == machineId && !r.IsCompleted))
+        if (store.ActiveRounds.Values.Any(r => r.MachineId == machineId && IsRoundRecoverable(r)))
             throw new InvalidOperationException("Cannot reset machine with active rounds");
+        if (store.MachineSessions.Values.Any(s => s.MachineId == machineId && s.MachineCredits > 0m))
+            throw new InvalidOperationException("Cannot reset machine while player credits remain - cash out first");
         if (!store.MachineLedgers.TryGetValue(machineId, out var ledger))
             throw new KeyNotFoundException("Machine ledger not found");
 
@@ -151,8 +153,8 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
                 s.LastUpdatedUtc))
             .ToArray();
         var baseRtp = ledger is null || ledger.CapitalIn <= 0m ? 0m : decimal.Round(ledger.BaseCapitalOut / ledger.CapitalIn, 4);
-        var activeRounds = store.ActiveRounds.Values.Count(r => r.MachineId == machine.Id && !r.IsCompleted);
-        var activePlayers = store.ActiveRounds.Values.Where(r => r.MachineId == machine.Id && !r.IsCompleted).Select(r => r.UserId).Distinct().Count();
+        var activeRounds = store.ActiveRounds.Values.Count(r => r.MachineId == machine.Id && IsRoundRecoverable(r));
+        var activePlayers = store.ActiveRounds.Values.Where(r => r.MachineId == machine.Id && IsRoundRecoverable(r)).Select(r => r.UserId).Distinct().Count();
         return new AdminMachineDto(
             machine.Id,
             machine.Name,
@@ -181,6 +183,9 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
             activePlayers,
             sessions);
     }
+
+    private static bool IsRoundRecoverable(GameRound round)
+        => !round.IsCompleted || (!round.IsPayoutSettled && round.WinAmount > 0m);
 
     private static string Slug(string value)
     {

@@ -61,7 +61,7 @@ public sealed class GameService : IGameService
         var session = await dataStore.RequireMachineSessionAsync(userId, machineId, createIfMissing: true, cancellationToken);
         var memberProfile = await dataStore.GetMemberProfileAsync(userId, cancellationToken);
         var walletBalance = memberProfile?.WalletBalance ?? 0;
-        return ToMachineSessionDto(session, walletBalance);
+        return await ToMachineSessionDtoAsync(userId, session, walletBalance, cancellationToken);
     }
 
     public async Task<MachineSessionDto> CashInAsync(Guid userId, int machineId, decimal amount, CancellationToken cancellationToken)
@@ -95,7 +95,7 @@ public sealed class GameService : IGameService
             CreatedUtc = DateTime.UtcNow
         });
 
-        return ToMachineSessionDto(session, memberProfile.WalletBalance);
+        return await ToMachineSessionDtoAsync(userId, session, memberProfile.WalletBalance, cancellationToken);
     }
 
     public async Task<MachineSessionDto> CashOutAsync(Guid userId, int machineId, CancellationToken cancellationToken)
@@ -106,8 +106,10 @@ public sealed class GameService : IGameService
 
         if (session.MachineCredits <= 0)
             throw new InvalidOperationException("No machine credits to cash out");
-        if (!session.IsMachineClosed && session.MachineCredits < Math.Max(session.TotalCashIn * 2m, CashInUnit))
-            throw new InvalidOperationException("Machine cash-out requires the machine to be closed or credits to reach the payout threshold.");
+        if (await HasRecoverableRoundAsync(userId, machineId, cancellationToken))
+            throw new InvalidOperationException("Finish the current round before cashing out");
+        if (!CanCashOut(session))
+            throw new InvalidOperationException("Cash out is only available when the machine is closed or credits reach the 2x session threshold");
 
 
         var amount = session.MachineCredits;
@@ -133,7 +135,7 @@ public sealed class GameService : IGameService
             CreatedUtc = DateTime.UtcNow
         });
 
-        return ToMachineSessionDto(session, memberProfile.WalletBalance);
+        return await ToMachineSessionDtoAsync(userId, session, memberProfile.WalletBalance, cancellationToken);
     }
 
     public Task<DealResultDto> DealAsync(Guid userId, DealRequest request, CancellationToken cancellationToken)
@@ -713,7 +715,10 @@ switch (resolution.Outcome)
     {
         var round = await dataStore.GetLatestRoundAsync(userId, machineId, cancellationToken);
 
-        if (round is null || round.IsPayoutSettled)
+        if (!IsRoundRecoverable(round))
+            return null;
+
+        if (round is null)
             return null;
 
         var state = round.CleanRoomState;
@@ -762,9 +767,12 @@ switch (resolution.Outcome)
             MachineId: machineId,
             BetAmount: round.BetAmount,
             Phase: phase,
+            HandRank: round.HandRank,
             Cards: cards,
             HeldIndexes: heldIndexes,
             PendingWinAmount: round.WinAmount,
+            DoubleUpAvailable: round.DoubleUpOffered && round.WinAmount > 0,
+            TakeHalfUsed: round.TakeHalfUsed,
             DoubleUpSession: duDto);
 
         return dto;
@@ -1008,10 +1016,37 @@ switch (resolution.Outcome)
         session.LastUpdatedUtc = DateTime.UtcNow;
     }
 
-    private static MachineSessionDto ToMachineSessionDto(MachineSessionState session, decimal walletBalance)
+    private async Task<MachineSessionDto> ToMachineSessionDtoAsync(Guid userId, MachineSessionState session, decimal walletBalance, CancellationToken cancellationToken)
+    {
+        var canCashOut = !await HasRecoverableRoundAsync(userId, session.MachineId, cancellationToken) && CanCashOut(session);
+        return ToMachineSessionDto(session, walletBalance, canCashOut);
+    }
+
+    private async Task<bool> HasRecoverableRoundAsync(Guid userId, int machineId, CancellationToken cancellationToken)
+    {
+        var round = await dataStore.GetLatestRoundAsync(userId, machineId, cancellationToken);
+        return IsRoundRecoverable(round);
+    }
+
+    private static bool IsRoundRecoverable(GameRound? round)
+    {
+        if (round is null)
+        {
+            return false;
+        }
+
+        return !round.IsCompleted || (!round.IsPayoutSettled && round.WinAmount > 0m);
+    }
+
+    private static bool CanCashOut(MachineSessionState session)
     {
         var cashOutThreshold = session.TotalCashIn <= 0m ? CashInUnit : session.TotalCashIn * 2m;
-        var canCashOut = session.IsMachineClosed || session.MachineCredits >= cashOutThreshold;
+        return session.IsMachineClosed || session.MachineCredits >= cashOutThreshold;
+    }
+
+    private static MachineSessionDto ToMachineSessionDto(MachineSessionState session, decimal walletBalance, bool canCashOut)
+    {
+        var cashOutThreshold = session.TotalCashIn <= 0m ? CashInUnit : session.TotalCashIn * 2m;
         return new MachineSessionDto(session.SessionId, session.MachineId, session.MachineCredits, session.TotalCashIn, cashOutThreshold, canCashOut, session.IsMachineClosed, walletBalance);
     }
 }

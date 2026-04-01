@@ -1,21 +1,21 @@
+using Lucky5.Api.Models;
 using Lucky5.Application.Contracts;
 using Lucky5.Application.Dtos;
 using Lucky5.Application.Requests;
 using Lucky5.Domain.Game.CleanRoom;
 using Lucky5.Domain.Entities;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Lucky5.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
-public class GameController(IGameService gameService, IAdminService adminService, ILogger<GameController> logger) : ControllerBase
+public class GameController(IGameService gameService) : ControllerBase
 {
-    private Guid UserId => Guid.Parse(User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException());
+    private Guid UserId => HttpContext.RequireUserId();
 
     [HttpGet("machines")]
+    [HttpGet("games/machines")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<MachineListingDto>>>> GetMachines(CancellationToken cancellationToken)
     {
         var machines = await gameService.GetMachinesAsync(cancellationToken);
@@ -23,10 +23,46 @@ public class GameController(IGameService gameService, IAdminService adminService
     }
 
     [HttpGet("rules")]
+    [HttpGet("defaultRules")]
     public async Task<ActionResult<ApiResponse<DefaultRulesDto>>> GetRules(CancellationToken cancellationToken)
     {
         var rules = await gameService.GetDefaultRulesAsync(cancellationToken);
         return Ok(ApiResponse<DefaultRulesDto>.Ok(rules, traceId: HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("machine/{machineId}/session")]
+    public async Task<ActionResult<ApiResponse<MachineSessionDto>>> GetMachineSession(int machineId, CancellationToken cancellationToken)
+    {
+        var session = await gameService.GetMachineSessionAsync(UserId, machineId, cancellationToken);
+        return Ok(ApiResponse<MachineSessionDto>.Ok(session, traceId: HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("machine/{machineId}/cash-in")]
+    public async Task<ActionResult<ApiResponse<MachineSessionDto>>> CashIn(int machineId, [FromBody] MachineCashRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await gameService.CashInAsync(UserId, machineId, request.Amount, cancellationToken);
+            return Ok(ApiResponse<MachineSessionDto>.Ok(session, traceId: HttpContext.TraceIdentifier));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<MachineSessionDto>(false, ex.Message, null, [], HttpContext.TraceIdentifier));
+        }
+    }
+
+    [HttpPost("machine/{machineId}/cash-out")]
+    public async Task<ActionResult<ApiResponse<MachineSessionDto>>> CashOut(int machineId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await gameService.CashOutAsync(UserId, machineId, cancellationToken);
+            return Ok(ApiResponse<MachineSessionDto>.Ok(session, traceId: HttpContext.TraceIdentifier));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<MachineSessionDto>(false, ex.Message, null, [], HttpContext.TraceIdentifier));
+        }
     }
 
     [HttpGet("active-round/{machineId}")]
@@ -37,6 +73,7 @@ public class GameController(IGameService gameService, IAdminService adminService
     }
 
     [HttpPost("deal")]
+    [HttpPost("cards/deal")]
     public async Task<ActionResult<ApiResponse<DealResultDto>>> Deal([FromBody] DealRequest request, CancellationToken cancellationToken)
     {
         try
@@ -51,6 +88,7 @@ public class GameController(IGameService gameService, IAdminService adminService
     }
 
     [HttpPost("draw")]
+    [HttpPost("cards/draw")]
     public async Task<ActionResult<ApiResponse<DrawResultDto>>> Draw([FromBody] DrawRequest request, CancellationToken cancellationToken)
     {
         try
@@ -139,5 +177,33 @@ public class GameController(IGameService gameService, IAdminService adminService
     {
         var result = await gameService.GetMachineStateAsync(id, cancellationToken);
         return Ok(result);
+    }
+
+    [HttpPost("jackpot/rank")]
+    public async Task<ActionResult<ApiResponse<JackpotInfoDto>>> ChangeJackpotRank([FromBody] ChangeJackpotRankRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await gameService.ChangeJackpotRankAsync(request.MachineId, request.Rank, cancellationToken);
+            return Ok(ApiResponse<JackpotInfoDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ApiResponse<JackpotInfoDto>(false, ex.Message, null, [], HttpContext.TraceIdentifier));
+        }
+    }
+
+    [HttpPost("machine/{machineId}/reset")]
+    public async Task<ActionResult<ApiResponse<object>>> ResetMachine(int machineId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await gameService.ResetMachineAsync(UserId, machineId, cancellationToken);
+            return Ok(ApiResponse<object>.Ok(result, traceId: HttpContext.TraceIdentifier));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<object>(false, ex.Message, null, [], HttpContext.TraceIdentifier));
+        }
     }
 }

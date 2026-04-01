@@ -6,6 +6,11 @@ using System.Collections.Concurrent;
 
 public sealed class InMemoryDataStore
 {
+    public InMemoryDataStore()
+    {
+        PreSeedData();
+    }
+
     public readonly ConcurrentDictionary<Guid, User> Profiles = new();
     public readonly ConcurrentDictionary<int, Machine> Machines = new();
     public readonly ConcurrentDictionary<Guid, MachineSessionState> MachineSessions = new();

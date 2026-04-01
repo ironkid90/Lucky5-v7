@@ -63,19 +63,19 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
 
     public Task<IReadOnlyList<AdminMachineDto>> ListMachinesAsync(CancellationToken cancellationToken)
     {
-        var machines = store.Machines.OrderBy(m => m.Id).Select(ToAdminMachineDto).ToArray();
+        var machines = store.Machines.Values.OrderBy(machine => machine.Id).Select(ToAdminMachineDto).ToArray();
         return Task.FromResult<IReadOnlyList<AdminMachineDto>>(machines);
     }
 
     public Task<AdminMachineDto> GetMachineAsync(int machineId, CancellationToken cancellationToken)
     {
-        var machine = store.Machines.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
+        var machine = store.Machines.Values.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
         return Task.FromResult(ToAdminMachineDto(machine));
     }
 
     public Task<AdminMachineDto> ResetMachineAsync(Guid adminId, int machineId, CancellationToken cancellationToken)
     {
-        var machine = store.Machines.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
+        var machine = store.Machines.Values.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
         if (store.ActiveRounds.Values.Any(r => r.MachineId == machineId && !r.IsCompleted))
             throw new InvalidOperationException("Cannot reset machine with active rounds");
         if (!store.MachineLedgers.TryGetValue(machineId, out var ledger))

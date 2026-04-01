@@ -6,9 +6,13 @@ using Lucky5.Application.Requests;
 using Lucky5.Application.Interfaces;
 using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
+using Lucky5.Infrastructure.Data.Repositories;
 
-public sealed class GameService(IDataStore store, IEntropyGenerator entropyGenerator) : IGameService
+public sealed class GameService : IGameService
 {
+    private readonly InMemoryDataStore store;
+    private readonly IDataStore dataStore;
+    private readonly IEntropyGenerator entropyGenerator;
     private const decimal CashInUnit = 200_000m;
     private const decimal MaxSessionCashIn = 1_000_000m;
     private static readonly EngineConfig EngineCfg = EngineConfig.Default;
@@ -26,13 +30,20 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         ["TwoPair"] = 2
     };
 
+    public GameService(InMemoryDataStore store, IEntropyGenerator entropyGenerator)
+    {
+        this.store = store;
+        this.entropyGenerator = entropyGenerator;
+        dataStore = new InMemoryDataStoreAdapter(store);
+    }
+
     public Task<IReadOnlyList<string>> GetGamesAsync(CancellationToken cancellationToken)
         => Task.FromResult<IReadOnlyList<string>>(["Lucky5", "VideoPoker"]);
 
-    public Task<IReadOnlyList<MachineListingDto>> GetMachinesAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<MachineListingDto>> GetMachinesAsync(CancellationToken cancellationToken)
     {
-        var machines = store.GetMachinesAsync(cancellationToken).Result;
-        return Task.FromResult<IReadOnlyList<MachineListingDto>>(machines.Select(x => new MachineListingDto(x.Id, x.Name, x.IsOpen, x.MinBet, x.MaxBet)).ToArray());
+        var machines = await dataStore.GetMachinesAsync(cancellationToken);
+        return machines.Select(x => new MachineListingDto(x.Id, x.Name, x.IsOpen, x.MinBet, x.MaxBet)).ToArray();
     }
 
     public Task<DefaultRulesDto> GetDefaultRulesAsync(CancellationToken cancellationToken)
@@ -46,28 +57,33 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
     public async Task<MachineSessionDto> GetMachineSessionAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
-        var profile = await store.RequireProfileAsync(userId, cancellationToken);
-        var session = await store.RequireMachineSessionAsync(userId, machineId, createIfMissing: true, cancellationToken);
-        var memberProfile = await store.GetMemberProfileAsync(userId, cancellationToken);
+        _ = await dataStore.RequireProfileAsync(userId, cancellationToken);
+        var session = await dataStore.RequireMachineSessionAsync(userId, machineId, createIfMissing: true, cancellationToken);
+        var memberProfile = await dataStore.GetMemberProfileAsync(userId, cancellationToken);
         var walletBalance = memberProfile?.WalletBalance ?? 0;
         return ToMachineSessionDto(session, walletBalance);
     }
 
     public async Task<MachineSessionDto> CashInAsync(Guid userId, int machineId, decimal amount, CancellationToken cancellationToken)
     {
-        var profile = await store.RequireProfileAsync(userId, cancellationToken);
-        await store.RequireMachineAsync(machineId, cancellationToken);
-        var session = await store.RequireMachineSessionAsync(userId, machineId, createIfMissing: true, cancellationToken);
+        _ = await dataStore.RequireProfileAsync(userId, cancellationToken);
+        await dataStore.RequireMachineAsync(machineId, cancellationToken);
+        var session = await dataStore.RequireMachineSessionAsync(userId, machineId, createIfMissing: true, cancellationToken);
+        var memberProfile = await dataStore.GetMemberProfileAsync(userId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Member profile not found: {userId}");
 
         if (amount < CashInUnit || amount > MaxSessionCashIn || amount % CashInUnit != 0)
             throw new InvalidOperationException("Cash in must be in 200,000 increments up to 1,000,000");
+        if (memberProfile.WalletBalance < amount)
+            throw new InvalidOperationException("Insufficient wallet balance");
 
-        session.Credits += amount;
-        var memberProfile = await store.RequireProfileAsync(userId, cancellationToken).ContinueWith(t => store.GetMemberProfileAsync(userId, cancellationToken).Result, cancellationToken);
-        
-        if (memberProfile != null)
+        memberProfile.WalletBalance -= amount;
+        session.MachineCredits += amount;
+        session.TotalCashIn += amount;
         session.LastUpdatedUtc = DateTime.UtcNow;
         session.IsMachineClosed = session.MachineCredits >= MachineCloseCredits;
+        await dataStore.UpdateMemberProfileAsync(memberProfile, cancellationToken);
+        await dataStore.UpdateMachineSessionAsync(session, cancellationToken);
 
         store.Ledger.Add(new WalletLedgerEntry
         {
@@ -75,27 +91,33 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             Amount = -amount,
             Type = "MachineCashIn",
             Reference = $"machine:{machineId}:cashin",
-            BalanceAfter = profile.WalletBalance,
+            BalanceAfter = memberProfile.WalletBalance,
             CreatedUtc = DateTime.UtcNow
         });
 
-        return Task.FromResult(ToMachineSessionDto(session, profile.WalletBalance));
+        return ToMachineSessionDto(session, memberProfile.WalletBalance);
     }
 
-    public Task<MachineSessionDto> CashOutAsync(Guid userId, int machineId, CancellationToken cancellationToken)
+    public async Task<MachineSessionDto> CashOutAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
-        var profile = RequireProfile(userId);
-        var session = RequireMachineSession(userId, machineId, createIfMissing: false);
+        var session = await dataStore.RequireMachineSessionAsync(userId, machineId, createIfMissing: false, cancellationToken);
+        var memberProfile = await dataStore.GetMemberProfileAsync(userId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Member profile not found: {userId}");
+
         if (session.MachineCredits <= 0)
             throw new InvalidOperationException("No machine credits to cash out");
+        if (!session.IsMachineClosed && session.MachineCredits < Math.Max(session.TotalCashIn * 2m, CashInUnit))
+            throw new InvalidOperationException("Machine cash-out requires the machine to be closed or credits to reach the payout threshold.");
 
 
         var amount = session.MachineCredits;
-        profile.WalletBalance += amount;
+        memberProfile.WalletBalance += amount;
         session.MachineCredits = 0;
         session.TotalCashIn = 0;
         session.IsMachineClosed = false;
         session.LastUpdatedUtc = DateTime.UtcNow;
+        await dataStore.UpdateMemberProfileAsync(memberProfile, cancellationToken);
+        await dataStore.UpdateMachineSessionAsync(session, cancellationToken);
 
         // We do NOT reset the ledger (NetSinceLastClose or LastCloseRoundNumber) here.
         // A player cashing out does not reset the machine's state or RTP calculations.
@@ -107,11 +129,11 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             Amount = amount,
             Type = "MachineCashOut",
             Reference = $"machine:{machineId}:cashout",
-            BalanceAfter = profile.WalletBalance,
+            BalanceAfter = memberProfile.WalletBalance,
             CreatedUtc = DateTime.UtcNow
         });
 
-        return Task.FromResult(ToMachineSessionDto(session, profile.WalletBalance));
+        return ToMachineSessionDto(session, memberProfile.WalletBalance);
     }
 
     public Task<DealResultDto> DealAsync(Guid userId, DealRequest request, CancellationToken cancellationToken)
@@ -390,8 +412,10 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             throw new KeyNotFoundException("Round not found");
 
         var sessionBank = RequireMachineSession(userId, round.MachineId, createIfMissing: false);
-        // Double-up is always offered, override any previous checks
-        round.DoubleUpOffered = true;
+        if (!round.DoubleUpOffered || !round.IsCompleted || round.WinAmount <= 0)
+        {
+            return new RewardStatusDto(request.RoundId, "Unavailable", round.WinAmount, sessionBank.MachineCredits);
+        }
 
         var result = await GuessDoubleUpAsync(userId, request.RoundId, request.Guess, cancellationToken);
         var status = result.Status switch
@@ -562,10 +586,10 @@ switch (resolution.Outcome)
 
     public async Task<DoubleUpResultDto> CashoutDoubleUpAsync(Guid userId, Guid roundId, CancellationToken cancellationToken)
     {
-        var round = await store.GetRoundAsync(roundId);
+        var round = await dataStore.GetRoundAsync(roundId, cancellationToken);
         if (round == null || round.UserId != userId)
             throw new KeyNotFoundException("Round not found");
-        var session = await RequireMachineSessionAsync(userId, round.MachineId, createIfMissing: false);
+        var session = await RequireMachineSessionAsync(userId, round.MachineId, createIfMissing: false, cancellationToken);
         var cashoutAmount = round.DoubleUpSession != null ? round.DoubleUpSession.CurrentAmount : (int)round.WinAmount;
         if (round.IsPayoutSettled)
         {
@@ -590,23 +614,23 @@ switch (resolution.Outcome)
             ledger.LastWinChannel = round.JackpotWinAmount > 0 ? WinChannel.Jackpot : WinChannel.BaseGame;
             ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
             
-            await store.UpdateMachineLedgerAsync(ledger);
+            await dataStore.UpdateMachineLedgerAsync(ledger, cancellationToken);
             
             session.IsMachineClosed = session.MachineCredits >= MachineCloseCredits;
-            await store.UpdateMachineSessionAsync(session);
+            await dataStore.UpdateMachineSessionAsync(session, cancellationToken);
             
-            var profile = await RequireProfileAsync(userId);
-            await store.AddWalletLedgerEntryAsync(new WalletLedgerEntry
+            _ = await RequireProfileAsync(userId, cancellationToken);
+            await dataStore.AddWalletLedgerEntryAsync(new WalletLedgerEntry
             {
                 UserId = userId,
                 Amount = cashoutAmount,
                 BalanceAfter = session.MachineCredits, // represents machine context here
-                TransactionType = "Cashout",
-                ReferenceId = round.RoundId.ToString("N"),
+                Type = "Cashout",
+                Reference = round.RoundId.ToString("N"),
                 CreatedUtc = DateTime.UtcNow
-            });
+            }, cancellationToken);
             
-            await store.SaveRoundAsync(round);
+            await dataStore.SaveRoundAsync(round, cancellationToken);
         }
         var status = session.IsMachineClosed ? "MachineClosed" : "Cashout";
         return new DoubleUpResultDto(roundId, status, cashoutAmount, session.MachineCredits);
@@ -614,7 +638,7 @@ switch (resolution.Outcome)
 
     public async Task<DoubleUpResultDto> TakeHalfAsync(Guid userId, Guid roundId, CancellationToken cancellationToken)
     {
-        var round = await store.GetRoundAsync(roundId);
+        var round = await dataStore.GetRoundAsync(roundId, cancellationToken);
         if (round == null || round.UserId != userId)
             throw new KeyNotFoundException("Round not found");
         if (round.IsPayoutSettled)
@@ -622,7 +646,7 @@ switch (resolution.Outcome)
         if (round.TakeHalfUsed)
             throw new InvalidOperationException("Take-half already used this round");
         
-        var session = await RequireMachineSessionAsync(userId, round.MachineId, createIfMissing: false);
+        var session = await RequireMachineSessionAsync(userId, round.MachineId, createIfMissing: false, cancellationToken);
         var currentAmount = round.DoubleUpSession != null ? round.DoubleUpSession.CurrentAmount : (int)round.WinAmount;
         if (currentAmount <= 1) throw new InvalidOperationException("Amount too small to split");
 
@@ -644,19 +668,19 @@ switch (resolution.Outcome)
         if (delta != 0) ledger.CapitalOut += delta;
         ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
         
-        await store.UpdateMachineLedgerAsync(ledger);
-        await store.UpdateMachineSessionAsync(session);
+        await dataStore.UpdateMachineLedgerAsync(ledger, cancellationToken);
+        await dataStore.UpdateMachineSessionAsync(session, cancellationToken);
 
         // Record ledger entry
-        await store.AddWalletLedgerEntryAsync(new WalletLedgerEntry
+        await dataStore.AddWalletLedgerEntryAsync(new WalletLedgerEntry
         {
             UserId = userId,
             Amount = half,
             BalanceAfter = session.MachineCredits,
-            TransactionType = "TakeHalf",
-            ReferenceId = round.RoundId.ToString("N"),
+            Type = "TakeHalf",
+            Reference = round.RoundId.ToString("N"),
             CreatedUtc = DateTime.UtcNow
-        });
+        }, cancellationToken);
 
         // Update double-up session if active
         if (round.DoubleUpSession != null)
@@ -664,7 +688,7 @@ switch (resolution.Outcome)
             round.DoubleUpSession = round.DoubleUpSession with { CurrentAmount = remaining };
         }
 
-        await store.SaveRoundAsync(round);
+        await dataStore.SaveRoundAsync(round, cancellationToken);
 
         var noise = GenerateNoise(round.RoundEntropySeed, 0);
         return new DoubleUpResultDto(roundId, "TookHalf", remaining, session.MachineCredits,
@@ -680,16 +704,16 @@ switch (resolution.Outcome)
         
         var ledger = await RequireMachineLedgerAsync(machineId);
         ledger.JackpotFullHouseRank = rank;
-        await store.UpdateMachineLedgerAsync(ledger);
+        await dataStore.UpdateMachineLedgerAsync(ledger, cancellationToken);
         
         return SnapshotJackpots(ledger);
     }
 
     public async Task<ActiveRoundStateDto?> GetActiveRoundAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
-        var round = await store.GetLatestRoundAsync(userId, machineId);
+        var round = await dataStore.GetLatestRoundAsync(userId, machineId, cancellationToken);
 
-        if (round is null || round.IsCompleted)
+        if (round is null || round.IsPayoutSettled)
             return null;
 
         var state = round.CleanRoomState;
@@ -783,7 +807,7 @@ switch (resolution.Outcome)
 
     public async Task<object> ResetMachineAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
-        _ = await RequireProfileAsync(userId);
+        _ = await RequireProfileAsync(userId, cancellationToken);
         
         var ledger = await RequireMachineLedgerAsync(machineId);
         ledger.CapitalIn = 0;
@@ -808,10 +832,10 @@ switch (resolution.Outcome)
         ledger.JackpotStraightFlush = EngineCfg.JackpotStraightFlushStart;
         ledger.ActiveFourOfAKindSlot = 0;
 
-        await store.UpdateMachineLedgerAsync(ledger);
+        await dataStore.UpdateMachineLedgerAsync(ledger, cancellationToken);
 
         // Clear IsMachineClosed on all sessions for this machine
-        var sessions = await store.GetMachineSessionsAsync(machineId);
+        var sessions = await dataStore.GetMachineSessionsAsync(machineId, cancellationToken);
         foreach (var session in sessions)
         {
             session.IsMachineClosed = false;
@@ -819,7 +843,7 @@ switch (resolution.Outcome)
             session.TotalCashIn = 0;
             session.CounterplayScore = 0;
             session.LastUpdatedUtc = DateTime.UtcNow;
-            await store.UpdateMachineSessionAsync(session);
+            await dataStore.UpdateMachineSessionAsync(session, cancellationToken);
         }
 
         // We would need a method to clear active rounds for a machine, 
@@ -862,17 +886,17 @@ switch (resolution.Outcome)
         }
         ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
 
-        await store.UpdateMachineLedgerAsync(ledger);
+        await dataStore.UpdateMachineLedgerAsync(ledger, CancellationToken.None);
 
-        await store.AddWalletLedgerEntryAsync(new WalletLedgerEntry
+        await dataStore.AddWalletLedgerEntryAsync(new WalletLedgerEntry
         {
             UserId = round.UserId,
             Amount = cashoutCredits,
             BalanceAfter = session.MachineCredits,
-            TransactionType = cashoutCredits > 0 ? "DoubleUpCashout" : "DoubleUpLoss",
-            ReferenceId = round.RoundId.ToString("N"),
+            Type = cashoutCredits > 0 ? "DoubleUpCashout" : "DoubleUpLoss",
+            Reference = round.RoundId.ToString("N"),
             CreatedUtc = DateTime.UtcNow
-        });
+        }, CancellationToken.None);
     }
 
     private static PresentationNoiseDto GenerateNoise(ulong seed, int roundIndex)
@@ -916,7 +940,7 @@ switch (resolution.Outcome)
 
     private Machine RequireMachine(int machineId)
     {
-        var machine = store.Machines.FirstOrDefault(m => m.Id == machineId && m.IsOpen);
+        var machine = store.Machines.Values.FirstOrDefault(m => m.Id == machineId && m.IsOpen);
         if (machine is null) throw new KeyNotFoundException("Machine not found");
         return machine;
     }
@@ -927,7 +951,7 @@ switch (resolution.Outcome)
         return ledger;
     }
 
-    private MemberProfile RequireProfile(Guid userId)
+    private User RequireProfile(Guid userId)
     {
         if (!store.Profiles.TryGetValue(userId, out var profile)) throw new KeyNotFoundException("Profile not found");
         return profile;
@@ -935,13 +959,25 @@ switch (resolution.Outcome)
 
     private MachineSessionState RequireMachineSession(Guid userId, int machineId, bool createIfMissing)
     {
-        var key = $"{userId:N}:{machineId}";
-        if (store.MachineSessions.TryGetValue(key, out var existing)) return existing;
+        var existing = store.MachineSessions.Values.FirstOrDefault(session => session.UserId == userId && session.MachineId == machineId);
+        if (existing is not null) return existing;
         if (!createIfMissing) throw new KeyNotFoundException("Machine session not found");
         var session = new MachineSessionState { UserId = userId, MachineId = machineId };
-        store.MachineSessions[key] = session;
+        store.MachineSessions[session.SessionId] = session;
         return session;
     }
+
+    private Task<User> RequireProfileAsync(Guid userId, CancellationToken cancellationToken = default)
+        => dataStore.RequireProfileAsync(userId, cancellationToken);
+
+    private Task<MachineSessionState> RequireMachineSessionAsync(Guid userId, int machineId, bool createIfMissing, CancellationToken cancellationToken = default)
+        => dataStore.RequireMachineSessionAsync(userId, machineId, createIfMissing, cancellationToken);
+
+    private Task<MachineLedgerState> RequireMachineLedgerAsync(int machineId, CancellationToken cancellationToken = default)
+        => dataStore.RequireMachineLedgerAsync(machineId, cancellationToken);
+
+    private void FinalizeDoubleUp(GameRound round, MachineSessionState session, int cashoutCredits)
+        => FinalizeDoubleUpAsync(round, session, cashoutCredits).GetAwaiter().GetResult();
 
 
 
@@ -972,6 +1008,10 @@ switch (resolution.Outcome)
         session.LastUpdatedUtc = DateTime.UtcNow;
     }
 
-private static MachineSessionDto ToMachineSessionDto(MachineSessionState session, decimal walletBalance)
-    => new(session.SessionId, session.MachineId, session.MachineCredits, session.TotalCashIn, session.TotalCashIn * 2m, true, session.IsMachineClosed, walletBalance);
+    private static MachineSessionDto ToMachineSessionDto(MachineSessionState session, decimal walletBalance)
+    {
+        var cashOutThreshold = session.TotalCashIn <= 0m ? CashInUnit : session.TotalCashIn * 2m;
+        var canCashOut = session.IsMachineClosed || session.MachineCredits >= cashOutThreshold;
+        return new MachineSessionDto(session.SessionId, session.MachineId, session.MachineCredits, session.TotalCashIn, cashOutThreshold, canCashOut, session.IsMachineClosed, walletBalance);
+    }
 }

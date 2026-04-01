@@ -10,7 +10,8 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
     public Task<(AuthTokens Tokens, MemberProfileDto Profile)> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
         var user = store.Users.Values.FirstOrDefault(x => x.Username.Equals(request.Username, StringComparison.OrdinalIgnoreCase));
-        if (user is null || user.PasswordHash != request.Password)
+        var passwordMatches = user is not null && (user.PasswordHash == request.Password || BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash));
+        if (user is null || !passwordMatches)
         {
             throw new InvalidOperationException("Invalid credentials");
         }
@@ -47,6 +48,7 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
         };
 
         store.Users[user.Id] = user;
+        store.Profiles[user.Id] = user;
         store.MemberProfiles[user.Id] = new MemberProfile
         {
             UserId = user.Id,

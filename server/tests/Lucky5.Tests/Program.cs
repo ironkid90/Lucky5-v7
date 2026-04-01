@@ -61,13 +61,13 @@ var tokenService = new SimpleTokenService(configuration);
 var authService = new AuthService(store, tokenService);
 var gameService = new GameService(store, new DefaultEntropyGenerator());
 
-var profile = await authService.SignupAsync(new SignupRequest("tester", "password", "+9610000000"), CancellationToken.None);
-Assert(profile.Username == "tester", "Signup should return created profile");
+var profile = await authService.SignupAsync(new SignupRequest("bootstrap-player", "password", "+9610099999"), CancellationToken.None);
+Assert(profile.Username == "bootstrap-player", "Signup should return created profile");
 
-var otpVerified = await authService.VerifyOtpAsync(new VerifyOtpRequest("tester", "123456"), CancellationToken.None);
+var otpVerified = await authService.VerifyOtpAsync(new VerifyOtpRequest("bootstrap-player", "123456"), CancellationToken.None);
 Assert(otpVerified, "OTP should verify using bootstrap code");
 
-var login = await authService.LoginAsync(new LoginRequest("tester", "password"), CancellationToken.None);
+var login = await authService.LoginAsync(new LoginRequest("bootstrap-player", "password"), CancellationToken.None);
 Assert(login.Tokens.AccessToken.Length > 10, "Login should issue access token");
 
 var machine = (await gameService.GetMachinesAsync(CancellationToken.None)).First();

@@ -67,6 +67,7 @@ ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-}"
 ADMIN_USER="${LUCKY5_ADMIN_USERNAME:-admin}"
 ADMIN_PASSWORD="${LUCKY5_ADMIN_PASSWORD:-}"
 ADMIN_PHONE="${LUCKY5_ADMIN_PHONE:-+96100000000}"
+DB_CONNECTION_STRING="${DB_CONNECTION_STRING:-}"
 
 prompt_default AZURE_SUBSCRIPTION_ID "Azure subscription id" "${CURRENT_SUBSCRIPTION:-your-subscription-id}"
 prompt_default RESOURCE_GROUP "Azure resource group" "lucky5-rg"
@@ -85,6 +86,12 @@ if [[ -z "${ADMIN_PASSWORD}" ]]; then
     ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin123-change-me}"
   else
     ADMIN_PASSWORD="admin123-change-me"
+  fi
+fi
+
+if [[ -z "${DB_CONNECTION_STRING}" ]]; then
+  if [[ -t 0 ]]; then
+    read -r -p "PostgreSQL Connection String (leave empty for in-memory): " DB_CONNECTION_STRING
   fi
 fi
 
@@ -200,6 +207,7 @@ az webapp config appsettings set \
     "LUCKY5_ADMIN_USERNAME=${ADMIN_USER}" \
     "LUCKY5_ADMIN_PASSWORD=${ADMIN_PASSWORD}" \
     "LUCKY5_ADMIN_PHONE=${ADMIN_PHONE}" \
+    "ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}" \
   --output none
 
 echo

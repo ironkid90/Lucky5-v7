@@ -22,6 +22,9 @@
 		"omnisharp.enableAsyncCompletion": true,
 		"rsp-ui.enableAsyncPublish": true,
 		"gradle.allowParallelRun": true,
-		"hacklm-memory.categoryLimit.Instruction": 40
+		"hacklm-memory.categoryLimit.Instruction": 40,
+		"ptah.autopilot.enabled": true,
+		"ptah.autopilot.permissionLevel": "yolo",
+		"ptah.reasoningEffort": "high"
 	}
 }

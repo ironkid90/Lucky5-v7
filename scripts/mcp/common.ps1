@@ -62,7 +62,8 @@ function Import-McpLocalEnvironment {
             continue
         }
 
-        if (-not [Environment]::GetEnvironmentVariable($name, 'Process')) {
+        $existingValue = [Environment]::GetEnvironmentVariable($name, 'Process')
+        if ($null -eq $existingValue) {
             [Environment]::SetEnvironmentVariable($name, $value, 'Process')
         }
     }
@@ -101,10 +102,74 @@ function Test-McpHttpEndpoint {
         }
     }
     catch {
+        $errorRecord = $_
+        $statusCode = $null
+        $message = $errorRecord.Exception.Message
+        $response = $errorRecord.Exception.Response
+
+        if ($null -ne $response) {
+            $reasonPhrase = $null
+            $responseBody = $null
+
+            try {
+                if ($null -ne $response.StatusCode) {
+                    $statusCode = [int]$response.StatusCode
+                }
+            }
+            catch {
+            }
+
+            try {
+                if (-not [string]::IsNullOrWhiteSpace($response.ReasonPhrase)) {
+                    $reasonPhrase = $response.ReasonPhrase.Trim()
+                }
+            }
+            catch {
+            }
+
+            try {
+                if ($null -ne $response.Content) {
+                    $responseBody = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                    if (-not [string]::IsNullOrWhiteSpace($responseBody)) {
+                        $responseBody = $responseBody.Trim()
+                        if ($responseBody.Length -gt 200) {
+                            $responseBody = $responseBody.Substring(0, 200) + '...'
+                        }
+                    }
+                    else {
+                        $responseBody = $null
+                    }
+                }
+            }
+            catch {
+            }
+
+            if ([string]::IsNullOrWhiteSpace($responseBody)) {
+                try {
+                    if ($null -ne $errorRecord.ErrorDetails -and -not [string]::IsNullOrWhiteSpace($errorRecord.ErrorDetails.Message)) {
+                        $responseBody = $errorRecord.ErrorDetails.Message.Trim()
+                    }
+                }
+                catch {
+                }
+            }
+
+            if ($null -ne $statusCode) {
+                $message = "HTTP $statusCode"
+                if ($reasonPhrase) {
+                    $message = "$message $reasonPhrase"
+                }
+
+                if ($responseBody) {
+                    $message = "$message - $responseBody"
+                }
+            }
+        }
+
         return [pscustomobject]@{
             Reachable  = $false
-            StatusCode = $null
-            Message    = $_.Exception.Message
+            StatusCode = $statusCode
+            Message    = $message
         }
     }
 }

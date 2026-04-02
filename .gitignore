@@ -70,6 +70,7 @@ venv/
 .env
 *.env.local
 *.env.*.local
+scripts/mcp/.env.mcp
 
 
 # Copilot Orchestrator temporary files

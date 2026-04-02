@@ -71,3 +71,9 @@ venv/
 *.env.local
 *.env.*.local
 
+
+# Copilot Orchestrator temporary files
+.orchestrator/
+.worktrees/
+.copilot-cli/
+.github/instructions/orchestrator-*.instructions.md

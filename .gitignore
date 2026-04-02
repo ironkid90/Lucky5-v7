@@ -74,8 +74,13 @@ venv/
 
 # Copilot Orchestrator temporary files
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 .orchestrator/
 .worktrees/
+=======
+.worktrees/
+.orchestrator/
+>>>>>>> Stashed changes
 =======
 .worktrees/
 .orchestrator/

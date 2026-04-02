@@ -1,4 +1,5 @@
 # Instructions
 
-How Copilot should behave in this project.
 
+
+- [copilot-behavior] How Copilot should behave in this project.

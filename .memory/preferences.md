@@ -1,4 +1,5 @@
 # Preferences
 
-Style, tone, and design choices for this project.
 
+
+- [style-tone-design] Style, tone, and design choices for this project.

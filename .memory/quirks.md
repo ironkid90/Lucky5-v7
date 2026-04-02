@@ -1,4 +1,5 @@
 # Quirks
 
-Project-specific weirdness — the non-obvious stuff.
 
+
+- [project-weirdness] Project-specific weirdness — the non-obvious stuff.

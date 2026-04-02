@@ -1,0 +1,27 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"docwriter.style": "Auto-detect",
+		"chatgpt.followUpQueueMode": "steer",
+		"chatgpt.runCodexInWindowsSubsystemForLinux": true,
+		"ptah.authMethod": "openrouter",
+		"ptah.model.selected": "opus",
+		"github.copilot.chat.agentHistorySummarizationCacheFriendly": true,
+		"github.copilot.chat.responsesApi.promptCacheKey.enabled": true,
+		"githubRepositories.indexing.cacheRepoLimit": 6,
+		"githubRepositories.indexing.cacheSizeLimit": 500,
+		"github.copilot.chat.anthropic.contextEditing.mode": "clear-both",
+		"opencodeZen.promptCaching.anthropicTtl": "1h",
+		"websearch.useSearchResultsDirectly": true,
+		"mssql.enableConnectionPooling": true,
+		"terminal.integrated.enableImages": true,
+		"omnisharp.enableAsyncCompletion": true,
+		"rsp-ui.enableAsyncPublish": true,
+		"gradle.allowParallelRun": true,
+		"hacklm-memory.categoryLimit.Instruction": 40
+	}
+}

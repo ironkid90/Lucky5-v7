@@ -1,3 +1,8 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "ptah": {
+      "type": "http",
+      "url": "http://localhost:51820"
+    }
+  }
 }

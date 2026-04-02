@@ -1,10 +1,9 @@
 # Security
 
-<<<<<<< Updated upstream
+- <<<<<<< Updated upstream
 
 
 - [rules-never-broken] Rules that must NEVER be broken. Always read this file.
-=======
-Rules that must NEVER be broken. Always read this file.
+- =======
 
->>>>>>> Stashed changes
+- >>>>>>> Stashed changes

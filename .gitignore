@@ -73,7 +73,12 @@ venv/
 
 
 # Copilot Orchestrator temporary files
+<<<<<<< Updated upstream
 .orchestrator/
 .worktrees/
+=======
+.worktrees/
+.orchestrator/
+>>>>>>> Stashed changes
 .copilot-cli/
 .github/instructions/orchestrator-*.instructions.md

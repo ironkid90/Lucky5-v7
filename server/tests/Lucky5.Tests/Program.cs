@@ -59,7 +59,7 @@ var configuration = new ConfigurationBuilder()
 var store = new InMemoryDataStore();
 var tokenService = new SimpleTokenService(configuration);
 var authService = new AuthService(store, tokenService);
-var gameService = new GameService(store, new DefaultEntropyGenerator());
+var gameService = new GameService(store, new DefaultEntropyGenerator(), new NoOpPersistentStateStore());
 
 var profile = await authService.SignupAsync(new SignupRequest("bootstrap-player", "password", "+9610099999"), CancellationToken.None);
 Assert(profile.Username == "bootstrap-player", "Signup should return created profile");

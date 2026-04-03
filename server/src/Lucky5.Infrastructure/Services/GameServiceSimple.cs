@@ -9,9 +9,12 @@ public sealed class GameServiceSimple : IGameService
 {
     private readonly GameService inner;
 
-    public GameServiceSimple(InMemoryDataStore store, IEntropyGenerator entropyGenerator)
+    public GameServiceSimple(
+        InMemoryDataStore store,
+        IEntropyGenerator entropyGenerator,
+        IPersistentStateStore persistentStateStore)
     {
-        inner = new GameService(store, entropyGenerator);
+        inner = new GameService(store, entropyGenerator, persistentStateStore);
     }
 
     public Task<IReadOnlyList<string>> GetGamesAsync(CancellationToken cancellationToken) => inner.GetGamesAsync(cancellationToken);

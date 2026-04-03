@@ -20,7 +20,7 @@ public static class ReplayTests
         // 1. Setup Environment A (Reference)
         var store1 = new InMemoryDataStore();
         var entropy1 = new MockEntropyGenerator(0xCAFEBABE12345678UL);
-        var svc1 = new GameService(store1, entropy1);
+        var svc1 = new GameService(store1, entropy1, new NoOpPersistentStateStore());
 
         var userId = Guid.Parse("00000000-0000-0000-0000-000000000001");
         SeedPlayer(store1, userId, "replay-a", 2_000_000m);
@@ -29,7 +29,7 @@ public static class ReplayTests
         // 2. Setup Environment B (Clone)
         var store2 = new InMemoryDataStore();
         var entropy2 = new MockEntropyGenerator(0xCAFEBABE12345678UL);
-        var svc2 = new GameService(store2, entropy2);
+        var svc2 = new GameService(store2, entropy2, new NoOpPersistentStateStore());
 
         SeedPlayer(store2, userId, "replay-b", 2_000_000m);
 

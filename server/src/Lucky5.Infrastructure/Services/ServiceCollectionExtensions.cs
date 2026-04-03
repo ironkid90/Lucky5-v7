@@ -36,6 +36,7 @@ public static class ServiceCollectionExtensions
             return new RedisPersistentStateStore(multiplexer);
         });
         services.AddHostedService<StateRecoveryHostedService>();
+        services.AddHostedService<StateCheckpointHostedService>();
         services.AddSingleton<ITokenService, SimpleTokenService>();
         services.AddSingleton<IEntropyGenerator, DefaultEntropyGenerator>();
         services.AddScoped<IAuthService, AuthService>();

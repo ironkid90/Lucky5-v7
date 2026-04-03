@@ -18,6 +18,7 @@ public static class GameServiceRegressionTests
         await CompletedButUnsettledRoundRemainsRecoverableAsync(failures);
         await GetActiveRoundKeepsDrawnStateUntilPayoutSettledAsync(failures);
         await ClosedMachineSessionsCanCashOutAndResetAsync(failures);
+        await CashOutIsIdempotentAfterDrainedClosedSessionAsync(failures);
         await MachineSessionCashOutEligibilityFollowsRulesAsync(failures);
         await CashOutRejectsBelowThresholdWhenMachineIsNotClosedAsync(failures);
         await AdminViewsAndResetRespectRecoverableRoundsAsync(failures);
@@ -35,6 +36,7 @@ public static class GameServiceRegressionTests
         var expectedSlot = 1 - (int)(fixedSeed % 2);
 
         var store = new InMemoryDataStore();
+        var service = new GameService(store, new SignalingEntropyGenerator(fixedSeed, seedRequested), new NoOpPersistentStateStore());
         var service = new GameService(new InMemoryDataStoreAdapter(store), new SignalingEntropyGenerator(fixedSeed, seedRequested));
 
         var userId = Guid.Parse("10000000-0000-0000-0000-000000000001");
@@ -104,7 +106,7 @@ public static class GameServiceRegressionTests
     private static async Task GetActiveRoundKeepsDrawnStateUntilPayoutSettledAsync(List<string> failures)
     {
         var store = new InMemoryDataStore();
-        var service = new GameService(store, new DefaultEntropyGenerator());
+        var service = new GameService(store, new DefaultEntropyGenerator(), new NoOpPersistentStateStore());
 
         var userId = Guid.Parse("10000000-0000-0000-0000-000000000002");
         SeedPlayer(store, userId, "reconnect", 2_000_000m);
@@ -156,7 +158,7 @@ public static class GameServiceRegressionTests
     private static async Task ClosedMachineSessionsCanCashOutAndResetAsync(List<string> failures)
     {
         var store = new InMemoryDataStore();
-        var service = new GameService(store, new DefaultEntropyGenerator());
+        var service = new GameService(store, new DefaultEntropyGenerator(), new NoOpPersistentStateStore());
 
         var userId = Guid.Parse("10000000-0000-0000-0000-000000000003");
         var adminId = Guid.Parse("10000000-0000-0000-0000-000000000004");
@@ -213,10 +215,52 @@ public static class GameServiceRegressionTests
         }
     }
 
+    private static async Task CashOutIsIdempotentAfterDrainedClosedSessionAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = new GameService(store, new DefaultEntropyGenerator(), new NoOpPersistentStateStore());
+
+        var userId = Guid.Parse("10000000-0000-0000-0000-000000000007");
+        SeedPlayer(store, userId, "idempotent-cashout", 2_000_000m);
+
+        var machineId = store.Machines.Values.First().Id;
+        var session = new MachineSessionState
+        {
+            UserId = userId,
+            MachineId = machineId,
+            MachineCredits = 1_000_000m,
+            TotalCashIn = 1_000_000m,
+            IsMachineClosed = true,
+            LastUpdatedUtc = DateTime.UtcNow
+        };
+        store.MachineSessions[session.SessionId] = session;
+
+        var first = await service.CashOutAsync(userId, machineId, CancellationToken.None);
+        if (first.MachineCredits != 0m || first.IsMachineClosed)
+        {
+            failures.Add("First cash-out should fully drain machine credits and reopen the closed session.");
+        }
+
+        var threw = false;
+        try
+        {
+            _ = await service.CashOutAsync(userId, machineId, CancellationToken.None);
+        }
+        catch (InvalidOperationException)
+        {
+            threw = true;
+        }
+
+        if (threw)
+        {
+            failures.Add("Repeated cash-out on an already drained closed session should be idempotent and not throw.");
+        }
+    }
+
     private static async Task MachineSessionCashOutEligibilityFollowsRulesAsync(List<string> failures)
     {
         var store = new InMemoryDataStore();
-        var service = new GameService(store, new DefaultEntropyGenerator());
+        var service = new GameService(store, new DefaultEntropyGenerator(), new NoOpPersistentStateStore());
 
         var userId = Guid.Parse("20000000-0000-0000-0000-000000000001");
         SeedPlayer(store, userId, "cashout-rules", 2_000_000m);
@@ -255,6 +299,7 @@ public static class GameServiceRegressionTests
     private static async Task CashOutRejectsBelowThresholdWhenMachineIsNotClosedAsync(List<string> failures)
     {
         var store = new InMemoryDataStore();
+        var service = new GameService(store, new DefaultEntropyGenerator(), new NoOpPersistentStateStore());
         var service = new GameService(new InMemoryDataStoreAdapter(store), new DefaultEntropyGenerator());
         var userId = Guid.Parse("20000000-0000-0000-0000-000000000002");
         store.Profiles[userId] = new MemberProfile
@@ -330,6 +375,7 @@ public static class GameServiceRegressionTests
     private static async Task AdminViewsAndResetRespectRecoverableRoundsAsync(List<string> failures)
     {
         var store = new InMemoryDataStore();
+        var adminService = new AdminService(store, new NoOpPersistentStateStore());
         var adminService = new AdminService(store);
         var adminId = Guid.Parse("00000000-0000-0000-0000-000000000001");
         var userId = Guid.Parse("20000000-0000-0000-0000-000000000004");
@@ -392,6 +438,8 @@ public static class GameServiceRegressionTests
     private static async Task AdminResetRejectsOutstandingMachineCreditsAsync(List<string> failures)
     {
         var store = new InMemoryDataStore();
+        var service = new GameService(store, new DefaultEntropyGenerator(), new NoOpPersistentStateStore());
+        var adminService = new AdminService(store, new NoOpPersistentStateStore());
         var service = new GameService(new InMemoryDataStoreAdapter(store), new DefaultEntropyGenerator());
         var adminService = new AdminService(store);
         var adminId = Guid.Parse("00000000-0000-0000-0000-000000000001");

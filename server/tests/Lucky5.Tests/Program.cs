@@ -60,6 +60,7 @@ var configuration = new ConfigurationBuilder()
 var store = new InMemoryDataStore();
 var tokenService = new SimpleTokenService(configuration);
 var authService = new AuthService(store, tokenService);
+var gameService = new GameService(store, new DefaultEntropyGenerator(), new NoOpPersistentStateStore());
 var gameService = new GameService(new InMemoryDataStoreAdapter(store), new DefaultEntropyGenerator());
 
 var profile = await authService.SignupAsync(new SignupRequest("bootstrap-player", "password", "+9610099999"), CancellationToken.None);

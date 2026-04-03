@@ -92,3 +92,9 @@ scripts/mcp/.env.mcp
 .orchestrator/
 .worktrees/
 
+
+# Copilot Orchestrator temporary files
+.worktrees/
+.orchestrator/
+.copilot-cli/
+.github/instructions/orchestrator-*.instructions.md

@@ -36,6 +36,32 @@ public sealed class MachinePolicyState
     public decimal JackpotRtp => CreditsIn <= 0m ? 0m : decimal.Round(JackpotCreditsOut / CreditsIn, 4);
     public decimal DoubleUpRtp => CreditsIn <= 0m ? 0m : decimal.Round(DoubleUpCreditsOut / CreditsIn, 4);
     public decimal Drift => ObservedRtp - TargetRtp;
+
+    public decimal ComputeSmoothedObservedRtp(EngineConfig? config = null)
+    {
+        var cfg = config ?? EngineConfig.Default;
+        var window = Math.Max(1, cfg.RtpSmoothingWindow);
+        var rounds = Math.Max(0, RoundCount);
+
+        if (rounds <= 0 || CreditsIn <= 0m)
+        {
+            return TargetRtp;
+        }
+
+        var sampleWeight = Math.Min(1m, rounds / (decimal)Math.Max(cfg.RtpMinSamplesForControl, 1));
+        var windowWeight = Math.Min(1m, CreditsIn / window);
+        var blend = Math.Min(1m, Math.Max(sampleWeight, windowWeight));
+
+        return decimal.Round((ObservedRtp * blend) + (TargetRtp * (1m - blend)), 4);
+    }
+
+    public decimal ComputeSmoothedDrift(EngineConfig? config = null)
+    {
+        var cfg = config ?? EngineConfig.Default;
+        var smoothedObserved = ComputeSmoothedObservedRtp(cfg);
+        var raw = smoothedObserved - TargetRtp;
+        return Math.Clamp(raw, -cfg.MaxDriftClamp, cfg.MaxDriftClamp);
+    }
 }
 
 public readonly record struct PayoutScaleResult(
@@ -101,7 +127,7 @@ public static class MachinePolicy
             && state.NetSinceLastClose < cfg.CloseThreshold)
             return PolicyDistributionMode.Neutral;
 
-        var drift = state.Drift;
+        var drift = state.ComputeSmoothedDrift(cfg);
         var rng = new SplitMix64Rng(DeterministicSeed.Derive(entropySeed, "policy-mode"));
         var noise = (decimal)((rng.NextUnit() - 0.5) * (double)(cfg.JitterAmplitude * 2m));
         var adjustedDrift = drift + noise;
@@ -166,7 +192,7 @@ public static class MachinePolicy
         var rampFactor = cfg.ConvergenceHorizon <= 0
             ? 1m
             : Math.Min(1m, state.RoundCount / (decimal)cfg.ConvergenceHorizon);
-        var drift = state.Drift;
+        var drift = state.ComputeSmoothedDrift(cfg);
 
         decimal correction;
         if (Math.Abs(drift) <= cfg.DeadZone)

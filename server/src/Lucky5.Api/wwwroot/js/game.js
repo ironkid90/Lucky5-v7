@@ -428,10 +428,10 @@ function updateActive4kHighlight() {
 }
 
 function updateJackpotSelectedRow() {
-    // Show solid box around the active jackpot hand in paytable (like clone's FULL HOUSE highlight)
+    // Show solid box around the dedicated jackpot row beneath Two Pair.
     document.querySelectorAll('.pay-row').forEach(row => row.classList.remove('jackpot-selected'));
-    const fhRow = document.querySelector('.pay-row.fh');
-    if (fhRow) fhRow.classList.add('jackpot-selected');
+    const straightRow = document.querySelector('.pay-row.st');
+    if (straightRow) straightRow.classList.add('jackpot-selected');
 }
 
 function updateBonusHandText() {
@@ -1091,9 +1091,10 @@ async function doDeal() {
                             await animateJackpotFill(jackpotWon, balance, handName);
                             if (result.jackpots) updateJackpotDisplay(result.jackpots);
                         }
+                        machineSessionClosed = Number(finalMachineCredits) >= MACHINE_CREDIT_LIMIT;
                         setTimeout(() => {
                             if (gameState === 'win') {
-                                if (finalMachineCredits + winAmount >= MACHINE_CREDIT_LIMIT) {
+                                if (isMachineClosedForUi()) {
                                     showMessage('MACHINE CLOSED - TAKE SCORE & CASH OUT FROM MENU', 'win');
                                     return;
                                 }
@@ -2389,7 +2390,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const gameBackBtn = document.getElementById('game-back-lobby');
     if (gameBackBtn) {
-        gameBackBtn.addEventListener('click', backToLobbyFromGame);
+        gameBackBtn.addEventListener('click', async () => {
+            if (!machineId || machineId <= 0) {
+                setMenuPanelOpen(false);
+                await showLobby();
+                return;
+            }
+            await backToLobbyFromGame();
+        });
     }
 
     const lobbyLogoutBtn = document.getElementById('lobby-logout-btn');

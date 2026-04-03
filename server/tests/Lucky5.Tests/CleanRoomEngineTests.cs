@@ -181,6 +181,20 @@ public static class CleanRoomEngineTests
             seed);
         Assert(failures, "Equilibrium payout scales should sit inside the current 80% controller band", equilibriumScale.SmallScale is >= 1.60m and <= 1.75m && equilibriumScale.MediumScale is >= 1.68m and <= 1.82m && equilibriumScale.BigScale is >= 1.76m and <= 1.90m);
 
+        var earlyOutlierState = new MachinePolicyState
+        {
+            CreditsIn = 200_000m,
+            CreditsOut = 5_000m,
+            BaseCreditsOut = 2_000m,
+            JackpotCreditsOut = 1_000m,
+            DoubleUpCreditsOut = 2_000m,
+            TargetRtp = defaultConfig.TargetRtp,
+            RoundCount = 6
+        };
+        var rawDrift = earlyOutlierState.Drift;
+        var smoothedDrift = earlyOutlierState.ComputeSmoothedDrift(defaultConfig);
+        Assert(failures, "Adaptive RTP smoothing should damp early outlier drift versus raw drift", Math.Abs(smoothedDrift) < Math.Abs(rawDrift));
+
         var overTargetOfferRate = MachinePolicy.ComputeDoubleUpOfferRate(
             new MachinePolicyState
             {

@@ -114,6 +114,27 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
+            "paytable colors should map royal flush to yellow and full house to light blue for screenshot parity",
+            gameCss.Contains(".pay-row.rf { color: #ffd84d; }", StringComparison.Ordinal)
+                && gameCss.Contains(".pay-row.fh { color: #7fd7ff; }", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "paytable jackpot-selected row should sit beneath two pair using the straight row selector",
+            gameJs.Contains("const straightRow = document.querySelector('.pay-row.st');", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "jackpot counters should use white baseline text with green 4K side counters and red center counter",
+            Regex.IsMatch(
+                gameCss,
+                @"\.jp-counter\s*\{[\s\S]{0,180}?color:\s*#ffffff;",
+                RegexOptions.CultureInvariant)
+                && gameCss.Contains("#jp-counter-a,", StringComparison.Ordinal)
+                && gameCss.Contains("#jp-counter-center {", StringComparison.Ordinal));
+
+        Assert(
+            failures,
             "win amount display should only show A/B slot tags when a 4K slot is actually relevant",
             Regex.IsMatch(
                 gameJs,

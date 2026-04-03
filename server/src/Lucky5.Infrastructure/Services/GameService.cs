@@ -15,6 +15,7 @@ public sealed class GameService : IGameService
 {
     private readonly InMemoryDataStore store;
     private readonly IDataStore dataStore;
+    private readonly IPersistentStateStore persistentStateStore;
     private readonly IEntropyGenerator entropyGenerator;
     private const decimal CashInUnit = 200_000m;
     private const decimal MaxSessionCashIn = 1_000_000m;
@@ -38,10 +39,14 @@ public sealed class GameService : IGameService
         ["TwoPair"] = 2
     };
 
-    public GameService(InMemoryDataStore store, IEntropyGenerator entropyGenerator)
+    public GameService(
+        InMemoryDataStore store,
+        IEntropyGenerator entropyGenerator,
+        IPersistentStateStore persistentStateStore)
     {
         this.store = store;
         this.entropyGenerator = entropyGenerator;
+        this.persistentStateStore = persistentStateStore;
         dataStore = new InMemoryDataStoreAdapter(store);
     }
 
@@ -133,6 +138,7 @@ public sealed class GameService : IGameService
             CreatedUtc = DateTime.UtcNow
         });
 
+        await PersistStateSafeAsync(cancellationToken);
         return await ToMachineSessionDtoAsync(userId, session, memberProfile.WalletBalance, cancellationToken);
     }
 
@@ -151,7 +157,20 @@ public sealed class GameService : IGameService
             ?? throw new KeyNotFoundException($"Member profile not found: {userId}");
 
         if (session.MachineCredits <= 0)
-            throw new InvalidOperationException("No machine credits to cash out");
+        {
+            var canRecover = await HasRecoverableRoundAsync(userId, machineId, cancellationToken);
+            if (canRecover)
+            {
+                throw new InvalidOperationException("Finish the current round before cashing out");
+            }
+
+            // Idempotent path: treat repeated cash-out on already drained sessions as success.
+            session.IsMachineClosed = false;
+            session.LastUpdatedUtc = DateTime.UtcNow;
+            await dataStore.UpdateMachineSessionAsync(session, cancellationToken);
+            await PersistStateSafeAsync(cancellationToken);
+            return await ToMachineSessionDtoAsync(userId, session, memberProfile.WalletBalance, cancellationToken);
+        }
         if (await HasRecoverableRoundAsync(userId, machineId, cancellationToken))
             throw new InvalidOperationException("Finish the current round before cashing out");
         if (!CanCashOut(session))
@@ -187,6 +206,7 @@ public sealed class GameService : IGameService
             CreatedUtc = DateTime.UtcNow
         });
 
+        await PersistStateSafeAsync(cancellationToken);
         return await ToMachineSessionDtoAsync(userId, session, memberProfile.WalletBalance, cancellationToken);
     }
 
@@ -291,6 +311,8 @@ public sealed class GameService : IGameService
 
         var jackpots = SnapshotJackpots(ledger);
         var advisedHolds = FiveCardDrawEngine.ComputeAdvisedHolds(hand);
+        PersistStateSafe(cancellationToken);
+        return Task.FromResult(new DealResultDto(round.RoundId, cards.Select(ToDto).ToArray(), request.BetAmount, session.MachineCredits, jackpots, advisedHolds));
         
         return new DealResultDto(round.RoundId, cards.Select(ToDto).ToArray(), request.BetAmount, session.MachineCredits, jackpots, advisedHolds);
     }
@@ -448,6 +470,8 @@ public sealed class GameService : IGameService
         await store.UpdateMachineSessionAsync(session);
         await store.SaveRoundAsync(round);
 
+        PersistStateSafe(cancellationToken);
+        return Task.FromResult(new DrawResultDto(round.RoundId, finalCards.Select(ToDto).ToArray(), handRankName, payout, session.MachineCredits, jackpotWon, jackpots, doubleUpAvailable));
         var jackpots = SnapshotJackpots(ledger);
 
         return new DrawResultDto(round.RoundId, finalCards.Select(ToDto).ToArray(), handRankName, payout, session.MachineCredits, jackpotWon, jackpots, doubleUpAvailable);
@@ -519,6 +543,8 @@ public sealed class GameService : IGameService
         await store.SaveRoundAsync(round);
         
         var noise = GenerateNoise(round.RoundEntropySeed, 0);
+        PersistStateSafe(cancellationToken);
+        return Task.FromResult(new DoubleUpResultDto(roundId, "Started", session.CurrentAmount, sessionBank.MachineCredits,
         return new DoubleUpResultDto(roundId, "Started", session.CurrentAmount, sessionBank.MachineCredits,
             DealerCard: ToCleanRoomDto(session.DealerCard),
             SwitchesRemaining: session.Options.MaxSwitchesPerRound - session.SwitchCountInRound,
@@ -555,6 +581,9 @@ public sealed class GameService : IGameService
         
         if (session.IsTerminal && session.TerminalOutcome == Lucky5DoubleUpOutcome.MachineClosed)
         {
+            FinalizeDoubleUp(round, sessionBank, session.CashoutCredits);
+            PersistStateSafe(cancellationToken);
+            return Task.FromResult(new DoubleUpResultDto(roundId, "MachineClosed", session.CashoutCredits, sessionBank.MachineCredits,
             await FinalizeDoubleUpAsync(round, sessionBank, session.CashoutCredits);
             return new DoubleUpResultDto(roundId, "MachineClosed", session.CashoutCredits, sessionBank.MachineCredits,
                 DealerCard: ToCleanRoomDto(session.DealerCard),
@@ -563,6 +592,8 @@ public sealed class GameService : IGameService
                 LuckyMultiplier: luckyMult,
                 Noise: noise);
         }
+        PersistStateSafe(cancellationToken);
+        return Task.FromResult(new DoubleUpResultDto(roundId, isLucky ? "Lucky5" : "Switched", session.CurrentAmount, sessionBank.MachineCredits,
         
         return new DoubleUpResultDto(roundId, isLucky ? "Lucky5" : "Switched", session.CurrentAmount, sessionBank.MachineCredits,
             DealerCard: ToCleanRoomDto(session.DealerCard),
@@ -594,6 +625,7 @@ public sealed class GameService : IGameService
 switch (resolution.Outcome)
 {
     case Lucky5DoubleUpOutcome.Win:
+        PersistStateSafe(cancellationToken);
         await store.SaveRoundAsync(round);
         return new DoubleUpResultDto(
             roundId,
@@ -607,6 +639,8 @@ switch (resolution.Outcome)
             Noise: noise);
 
     case Lucky5DoubleUpOutcome.SafeFail:
+        FinalizeDoubleUp(round, sessionBank, resolution.CashoutCredits);
+        PersistStateSafe(cancellationToken);
         await FinalizeDoubleUpAsync(round, sessionBank, resolution.CashoutCredits);
         return new DoubleUpResultDto(
             roundId,
@@ -620,6 +654,8 @@ switch (resolution.Outcome)
             Noise: noise);
 
     case Lucky5DoubleUpOutcome.MachineClosed:
+        FinalizeDoubleUp(round, sessionBank, resolution.CashoutCredits);
+        PersistStateSafe(cancellationToken);
         await FinalizeDoubleUpAsync(round, sessionBank, resolution.CashoutCredits);
         return new DoubleUpResultDto(
             roundId,
@@ -634,6 +670,7 @@ switch (resolution.Outcome)
     default:
         await FinalizeDoubleUpAsync(round, sessionBank, 0);
         round.WinAmount = 0;
+        PersistStateSafe(cancellationToken);
         await store.SaveRoundAsync(round);
         return new DoubleUpResultDto(
             roundId,
@@ -713,6 +750,7 @@ switch (resolution.Outcome)
             await dataStore.SaveRoundAsync(round, cancellationToken);
         }
         var status = session.IsMachineClosed ? "MachineClosed" : "Cashout";
+        await PersistStateSafeAsync(cancellationToken);
         return new DoubleUpResultDto(roundId, status, cashoutAmount, session.MachineCredits);
     }
 
@@ -791,6 +829,7 @@ switch (resolution.Outcome)
         await dataStore.SaveRoundAsync(round, cancellationToken);
 
         var noise = GenerateNoise(round.RoundEntropySeed, 0);
+        await PersistStateSafeAsync(cancellationToken);
         return new DoubleUpResultDto(roundId, "TookHalf", remaining, session.MachineCredits,
             DealerCard: round.DoubleUpSession != null ? ToCleanRoomDto(round.DoubleUpSession.DealerCard) : null,
             SwitchesRemaining: round.DoubleUpSession != null ? round.DoubleUpSession.Options.MaxSwitchesPerRound - round.DoubleUpSession.SwitchCountInRound : 0,
@@ -806,6 +845,7 @@ switch (resolution.Outcome)
         ledger.JackpotFullHouseRank = rank;
         await store.UpdateMachineLedgerAsync(ledger);
         await dataStore.UpdateMachineLedgerAsync(ledger, cancellationToken);
+        await PersistStateSafeAsync(cancellationToken);
         
         return SnapshotJackpots(ledger);
     }
@@ -967,6 +1007,7 @@ switch (resolution.Outcome)
         // but for now relying on the ledger reset is sufficient for the demo.
         // In a real app we'd add: await store.ClearActiveRoundsAsync(machineId);
 
+        await PersistStateSafeAsync(cancellationToken);
         return new { success = true, message = "Machine state reset" };
     }
 
@@ -1203,5 +1244,20 @@ switch (resolution.Outcome)
     {
         var cashOutThreshold = session.TotalCashIn <= 0m ? CashInUnit : session.TotalCashIn * 2m;
         return new MachineSessionDto(session.SessionId, session.MachineId, session.MachineCredits, session.TotalCashIn, cashOutThreshold, canCashOut, session.IsMachineClosed, walletBalance);
+    }
+
+    private void PersistStateSafe(CancellationToken cancellationToken)
+        => PersistStateSafeAsync(cancellationToken).GetAwaiter().GetResult();
+
+    private async Task PersistStateSafeAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await persistentStateStore.PersistAsync(store, cancellationToken);
+        }
+        catch
+        {
+            // External persistence is best-effort; gameplay must continue.
+        }
     }
 }

@@ -548,22 +548,22 @@ body {
 .pay-row .hand-name { font-weight: bold; }
 .pay-row .pay-amount { text-align: right; min-width: 70px; }
 
-.pay-row.rf { color: #ffffff; }
-.pay-row.rf .pay-amount { color: #ffffff; }
+.pay-row.rf { color: #ffd84d; }
+.pay-row.rf .pay-amount { color: #ffd84d; }
 .pay-row.sf { color: #ff3333; }
 .pay-row.sf .pay-amount { color: #ff3333; }
 .pay-row.foak { color: #00bb00; }
 .pay-row.foak .pay-amount { color: #00bb00; }
-.pay-row.fh { color: #ffff00; }
-.pay-row.fh .pay-amount { color: #ffff00; }
+.pay-row.fh { color: #7fd7ff; }
+.pay-row.fh .pay-amount { color: #7fd7ff; }
 .pay-row.fl { color: #ff3333; }
 .pay-row.fl .pay-amount { color: #ff3333; }
-.pay-row.st { color: #33cc33; }
-.pay-row.st .pay-amount { color: #33cc33; }
+.pay-row.st { color: #ffffff; }
+.pay-row.st .pay-amount { color: #ffffff; }
 .pay-row.tok { color: #00ffff; }
 .pay-row.tok .pay-amount { color: #00ffff; }
-.pay-row.tp { color: #ffff00; }
-.pay-row.tp .pay-amount { color: #ffff00; }
+.pay-row.tp { color: #ffffff; }
+.pay-row.tp .pay-amount { color: #ffffff; }
 
 .pay-row.active {
     background: rgba(0, 255, 255, 0.15);
@@ -589,6 +589,15 @@ body {
 
 .pay-row.jackpot-selected .hand-name {
     color: #fff;
+}
+
+.pay-row.fh .hand-name {
+    text-shadow:
+        -1px 0 #ffffff,
+        0 1px #ffffff,
+        1px 0 #ffffff,
+        0 -1px #ffffff,
+        0 0 4px rgba(255,255,255,0.45);
 }
 
 .pay-row.du-highlight {
@@ -852,8 +861,8 @@ body {
 
 .jp-counter {
     font-size: 14px;
-    color: #00bb00;
-    text-shadow: 0 0 6px rgba(0,187,0,0.5);
+    color: #ffffff;
+    text-shadow: 0 0 6px rgba(255,255,255,0.42);
     letter-spacing: 1px;
     display: inline-flex;
     align-items: center;
@@ -885,6 +894,12 @@ body {
     text-shadow: 0 0 8px rgba(255,51,51,0.6);
 }
 
+#jp-counter-a,
+#jp-counter-b {
+    color: #00bb00;
+    text-shadow: 0 0 8px rgba(0,187,0,0.55);
+}
+
 #jackpot-full-house {
     display: flex;
     justify-content: center;
@@ -901,8 +916,8 @@ body {
 }
 
 .jp-counter-fh {
-    color: #FFD700;
-    text-shadow: 0 0 8px rgba(255,215,0,0.55);
+    color: #7fd7ff;
+    text-shadow: 0 0 8px rgba(127,215,255,0.6);
 }
 
 #machine-serial {

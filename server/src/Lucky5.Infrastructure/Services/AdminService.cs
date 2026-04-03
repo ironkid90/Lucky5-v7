@@ -7,7 +7,7 @@ using Lucky5.Application.Requests;
 using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
 
-public sealed class AdminService(InMemoryDataStore store) : IAdminService
+public sealed class AdminService(InMemoryDataStore store, IPersistentStateStore persistentStateStore) : IAdminService
 {
     public Task<IReadOnlyList<AdminUserDto>> ListUsersAsync(CancellationToken cancellationToken)
     {
@@ -58,6 +58,7 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
             CreatedUtc = DateTime.UtcNow
         };
         store.Ledger.Add(row);
+        PersistStateSafe(cancellationToken);
         return Task.FromResult(new WalletLedgerEntryDto(row.Id, row.Amount, row.BalanceAfter, row.Type, row.Reference, row.CreatedUtc));
     }
 
@@ -127,6 +128,7 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
             CreatedUtc = DateTime.UtcNow
         });
 
+        PersistStateSafe(cancellationToken);
         return Task.FromResult(ToAdminMachineDto(machine));
     }
 
@@ -198,5 +200,17 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
         }
         var slug = sb.ToString().Trim('-');
         return slug.Length == 0 ? "note" : slug[..Math.Min(slug.Length, 40)];
+    }
+
+    private void PersistStateSafe(CancellationToken cancellationToken)
+    {
+        try
+        {
+            persistentStateStore.PersistAsync(store, cancellationToken).GetAwaiter().GetResult();
+        }
+        catch
+        {
+            // Best-effort persistence only.
+        }
     }
 }

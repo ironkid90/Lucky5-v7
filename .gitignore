@@ -70,6 +70,7 @@ venv/
 .env
 *.env.local
 *.env.*.local
+<<<<<<< Updated upstream
 scripts/mcp/.env.mcp
 
 
@@ -90,6 +91,12 @@ scripts/mcp/.env.mcp
 .copilot-cli/
 .github/instructions/orchestrator-*.instructions.md
 =======
+.orchestrator/
+.worktrees/
+>>>>>>> Stashed changes
+=======
+
+# Copilot Orchestrator temporary files
 .orchestrator/
 .worktrees/
 >>>>>>> Stashed changes

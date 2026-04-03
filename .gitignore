@@ -70,6 +70,27 @@ venv/
 .env
 *.env.local
 *.env.*.local
+scripts/mcp/.env.mcp
+
+
+# Copilot Orchestrator temporary files
+.orchestrator/
+.worktrees/
+.orchestrator/
+.worktrees/
+=======
+.worktrees/
+.orchestrator/
+.copilot-cli/
+.github/instructions/orchestrator-*.instructions.md
+=======
+.orchestrator/
+.worktrees/
+
+
+# Copilot Orchestrator temporary files
+.orchestrator/
+.worktrees/
 
 
 # Copilot Orchestrator temporary files

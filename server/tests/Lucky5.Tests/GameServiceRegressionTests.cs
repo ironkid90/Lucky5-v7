@@ -5,6 +5,7 @@ using Lucky5.Application.Contracts;
 using Lucky5.Application.Requests;
 using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
+using Lucky5.Infrastructure.Data.Repositories;
 using Lucky5.Infrastructure.Services;
 
 public static class GameServiceRegressionTests
@@ -12,6 +13,9 @@ public static class GameServiceRegressionTests
     public static async Task RunAsync(List<string> failures)
     {
         await FourOfAKindSlotIsCapturedAtomicallyAtDealAsync(failures);
+        await MachineSessionCashOutEligibilityFollowsRulesAsync(failures);
+        await CashOutRejectsBelowThresholdWhenMachineIsNotClosedAsync(failures);
+        await CompletedButUnsettledRoundRemainsRecoverableAsync(failures);
         await GetActiveRoundKeepsDrawnStateUntilPayoutSettledAsync(failures);
         await ClosedMachineSessionsCanCashOutAndResetAsync(failures);
         await CashOutIsIdempotentAfterDrainedClosedSessionAsync(failures);
@@ -33,6 +37,7 @@ public static class GameServiceRegressionTests
 
         var store = new InMemoryDataStore();
         var service = new GameService(store, new SignalingEntropyGenerator(fixedSeed, seedRequested), new NoOpPersistentStateStore());
+        var service = new GameService(new InMemoryDataStoreAdapter(store), new SignalingEntropyGenerator(fixedSeed, seedRequested));
 
         var userId = Guid.Parse("10000000-0000-0000-0000-000000000001");
         SeedPlayer(store, userId, "slot-race", 2_000_000m);
@@ -84,6 +89,20 @@ public static class GameServiceRegressionTests
         }
     }
 
+    private static async Task MachineSessionCashOutEligibilityFollowsRulesAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = new GameService(new InMemoryDataStoreAdapter(store), new DefaultEntropyGenerator());
+        var userId = Guid.Parse("20000000-0000-0000-0000-000000000001");
+        store.Profiles[userId] = new MemberProfile
+        {
+            UserId = userId,
+            Username = "cashout-rules",
+            WalletBalance = 2_000_000m,
+            LastSeenUtc = DateTime.UtcNow
+        };
+
+        var machineId = store.Machines.First().Id;
     private static async Task GetActiveRoundKeepsDrawnStateUntilPayoutSettledAsync(List<string> failures)
     {
         var store = new InMemoryDataStore();
@@ -255,6 +274,7 @@ public static class GameServiceRegressionTests
             failures.Add("Machine session should not be cash-out eligible before reaching the 2x threshold or a machine-close event.");
         }
 
+        var session = store.MachineSessions[$"{userId:N}:{machineId}"];
         var session = store.MachineSessions.Values.First(s => s.UserId == userId && s.MachineId == machineId);
         session.MachineCredits = 400_000m;
         session.LastUpdatedUtc = DateTime.UtcNow;
@@ -280,6 +300,18 @@ public static class GameServiceRegressionTests
     {
         var store = new InMemoryDataStore();
         var service = new GameService(store, new DefaultEntropyGenerator(), new NoOpPersistentStateStore());
+        var service = new GameService(new InMemoryDataStoreAdapter(store), new DefaultEntropyGenerator());
+        var userId = Guid.Parse("20000000-0000-0000-0000-000000000002");
+        store.Profiles[userId] = new MemberProfile
+        {
+            UserId = userId,
+            Username = "cashout-blocked",
+            WalletBalance = 2_000_000m,
+            LastSeenUtc = DateTime.UtcNow
+        };
+
+        var machineId = store.Machines.First().Id;
+        var service = new GameService(store, new DefaultEntropyGenerator());
 
         var userId = Guid.Parse("20000000-0000-0000-0000-000000000002");
         SeedPlayer(store, userId, "cashout-blocked", 2_000_000m);
@@ -303,10 +335,59 @@ public static class GameServiceRegressionTests
         }
     }
 
+    private static async Task CompletedButUnsettledRoundRemainsRecoverableAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = new GameService(new InMemoryDataStoreAdapter(store), new DefaultEntropyGenerator());
+        var userId = Guid.Parse("20000000-0000-0000-0000-000000000003");
+        var machineId = store.Machines.First().Id;
+
+        store.ActiveRounds[Guid.Parse("30000000-0000-0000-0000-000000000001")] = new GameRound
+        {
+            RoundId = Guid.Parse("30000000-0000-0000-0000-000000000001"),
+            UserId = userId,
+            MachineId = machineId,
+            BetAmount = 5_000m,
+            HandRank = "TwoPair",
+            WinAmount = 10_000m,
+            OriginalWinAmount = 10_000m,
+            IsCompleted = true,
+            IsPayoutSettled = false,
+            CleanRoomState = CreateState(
+                RoundPhase.Drawn,
+                RoundState.Evaluate,
+                ["AS", "AD", "8C", "8H", "2S"])
+        };
+
+        var round = await service.GetActiveRoundAsync(userId, machineId, CancellationToken.None);
+        if (round is null)
+        {
+            failures.Add("GetActiveRoundAsync should return completed-but-unsettled winning rounds so refresh/reconnect can restore them.");
+            return;
+        }
+
+        if (!string.Equals(round.Phase, "Drawn", StringComparison.Ordinal))
+        {
+            failures.Add($"Recoverable winning rounds should hydrate as Drawn, but the API returned '{round.Phase}'.");
+        }
+    }
+
     private static async Task AdminViewsAndResetRespectRecoverableRoundsAsync(List<string> failures)
     {
         var store = new InMemoryDataStore();
         var adminService = new AdminService(store, new NoOpPersistentStateStore());
+        var adminService = new AdminService(store);
+        var adminId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var userId = Guid.Parse("20000000-0000-0000-0000-000000000004");
+        var machineId = store.Machines.First().Id;
+
+        store.Profiles[userId] = new MemberProfile
+        {
+            UserId = userId,
+            Username = "recoverable-round",
+            WalletBalance = 2_000_000m,
+            LastSeenUtc = DateTime.UtcNow
+        };
 
         var adminId = Guid.Parse("20000000-0000-0000-0000-000000000003");
         var userId = Guid.Parse("20000000-0000-0000-0000-000000000004");
@@ -359,6 +440,21 @@ public static class GameServiceRegressionTests
         var store = new InMemoryDataStore();
         var service = new GameService(store, new DefaultEntropyGenerator(), new NoOpPersistentStateStore());
         var adminService = new AdminService(store, new NoOpPersistentStateStore());
+        var service = new GameService(new InMemoryDataStoreAdapter(store), new DefaultEntropyGenerator());
+        var adminService = new AdminService(store);
+        var adminId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var userId = Guid.Parse("20000000-0000-0000-0000-000000000005");
+        var machineId = store.Machines.First().Id;
+
+        store.Profiles[userId] = new MemberProfile
+        {
+            UserId = userId,
+            Username = "reset-credits",
+            WalletBalance = 2_000_000m,
+            LastSeenUtc = DateTime.UtcNow
+        };
+        var service = new GameService(store, new DefaultEntropyGenerator());
+        var adminService = new AdminService(store);
 
         var adminId = Guid.Parse("20000000-0000-0000-0000-000000000005");
         var userId = Guid.Parse("20000000-0000-0000-0000-000000000006");

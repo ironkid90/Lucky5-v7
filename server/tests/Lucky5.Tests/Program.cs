@@ -2,6 +2,7 @@ using Lucky5.Application.Contracts;
 using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game;
 using Lucky5.Domain.Game.CleanRoom;
+using Lucky5.Infrastructure.Data.Repositories;
 using Lucky5.Infrastructure.Services;
 using Lucky5.Application.Requests;
 using Microsoft.Extensions.Configuration;
@@ -59,7 +60,7 @@ var configuration = new ConfigurationBuilder()
 var store = new InMemoryDataStore();
 var tokenService = new SimpleTokenService(configuration);
 var authService = new AuthService(store, tokenService);
-var gameService = new GameService(store, new DefaultEntropyGenerator());
+var gameService = new GameService(new InMemoryDataStoreAdapter(store), new DefaultEntropyGenerator());
 
 var profile = await authService.SignupAsync(new SignupRequest("bootstrap-player", "password", "+9610099999"), CancellationToken.None);
 Assert(profile.Username == "bootstrap-player", "Signup should return created profile");
@@ -131,8 +132,8 @@ var guardedLegacyResult = await gameService.DoubleUpAsync(
     profile.UserId,
     new DoubleUpRequest(guardedRound.RoundId, "big"),
     CancellationToken.None);
-Assert(guardedLegacyResult.Status == "Unavailable", "Legacy double-up should report unavailable instead of throwing when gated off");
-Assert(guardedLegacyResult.UpdatedWinAmount == guardedRound.WinAmount, "Unavailable double-up should preserve the current win amount");
+Assert(guardedLegacyResult.Status is "Won" or "Lost", "Live double-up should resolve even if an older round snapshot had DoubleUpOffered=false");
+Assert(guardedLegacyResult.UpdatedWinAmount >= 0, "Live double-up resolution should keep the win amount non-negative");
 
 var takeHalfRound = new GameRound
 {

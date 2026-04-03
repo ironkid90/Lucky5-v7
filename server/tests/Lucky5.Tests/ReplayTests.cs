@@ -3,6 +3,7 @@ namespace Lucky5.Tests;
 using Lucky5.Application.Contracts;
 using Lucky5.Application.Requests;
 using Lucky5.Domain.Entities;
+using Lucky5.Infrastructure.Data.Repositories;
 using Lucky5.Infrastructure.Services;
 
 public sealed class MockEntropyGenerator(ulong fixedSeed) : IEntropyGenerator
@@ -20,7 +21,7 @@ public static class ReplayTests
         // 1. Setup Environment A (Reference)
         var store1 = new InMemoryDataStore();
         var entropy1 = new MockEntropyGenerator(0xCAFEBABE12345678UL);
-        var svc1 = new GameService(store1, entropy1);
+        var svc1 = new GameService(new InMemoryDataStoreAdapter(store1), entropy1);
 
         var userId = Guid.Parse("00000000-0000-0000-0000-000000000001");
         SeedPlayer(store1, userId, "replay-a", 2_000_000m);
@@ -29,7 +30,7 @@ public static class ReplayTests
         // 2. Setup Environment B (Clone)
         var store2 = new InMemoryDataStore();
         var entropy2 = new MockEntropyGenerator(0xCAFEBABE12345678UL);
-        var svc2 = new GameService(store2, entropy2);
+        var svc2 = new GameService(new InMemoryDataStoreAdapter(store2), entropy2);
 
         SeedPlayer(store2, userId, "replay-b", 2_000_000m);
 

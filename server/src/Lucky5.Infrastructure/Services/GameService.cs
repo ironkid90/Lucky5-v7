@@ -185,6 +185,7 @@ public sealed class GameService : IGameService
         session.LastUpdatedUtc = DateTime.UtcNow;
         await dataStore.UpdateMemberProfileAsync(memberProfile, cancellationToken);
         await dataStore.UpdateMachineSessionAsync(session, cancellationToken);
+        await EnsureLatestRoundSettledAsync(userId, machineId, cancellationToken);
 
         await store.UpdateMachineSessionAsync(session);
         await store.UpdateProfileAsync(profile);
@@ -1212,6 +1213,27 @@ switch (resolution.Outcome)
     {
         var round = await dataStore.GetLatestRoundAsync(userId, machineId, cancellationToken);
         return IsRoundRecoverable(round);
+    }
+
+    private async Task EnsureLatestRoundSettledAsync(Guid userId, int machineId, CancellationToken cancellationToken)
+    {
+        var round = await dataStore.GetLatestRoundAsync(userId, machineId, cancellationToken);
+        if (round is null || IsRoundRecoverable(round))
+        {
+            return;
+        }
+
+        if (!round.IsCompleted)
+        {
+            round.IsCompleted = true;
+        }
+
+        if (!round.IsPayoutSettled)
+        {
+            round.IsPayoutSettled = true;
+        }
+
+        await dataStore.SaveRoundAsync(round, cancellationToken);
     }
 
     private static bool IsRoundRecoverable(GameRound? round)

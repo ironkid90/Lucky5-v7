@@ -148,12 +148,16 @@ export function Lucky5Cabinet() {
   const [messageTone, setMessageTone] = useState<MessageTone>("ready");
   const [busy, setBusy] = useState(false);
 
+  const MACHINE_CREDIT_LIMIT = 40000000;
+
   const selectedMachine = machines.find((machine) => machine.id === machineId) ?? null;
   const activeCards = drawResult?.cards ?? dealResult?.cards ?? [];
   const openRoundId = dealResult?.roundId ?? null;
   const hasWin = (drawResult?.winAmount ?? 0) > 0;
+  const isMachineClosed = (profile?.walletBalance ?? 0) >= MACHINE_CREDIT_LIMIT;
+
   const payoutRows = Object.entries(rules?.payoutMultipliers ?? {}).sort(
-    (left, right) => right[1] - left[1],
+    (left, right) => Number(right[1]) - Number(left[1]),
   );
 
   const refreshBootstrap = useEffectEvent(async () => {
@@ -469,6 +473,22 @@ export function Lucky5Cabinet() {
                       </small>
                     </button>
                   ))}
+                  <button
+                    className="machine-button action-button ghost"
+                    style={{ marginTop: "1rem" }}
+                    onClick={() => {
+                        setMachineId(null);
+                        setDealResult(null);
+                        setDrawResult(null);
+                        setDoubleUpResult(null);
+                        setMessage("Returned to lobby. Pick a machine.");
+                        setMessageTone("ready");
+                    }}
+                    type="button"
+                    disabled={!machineId || busy}
+                  >
+                    <strong>BACK TO LOBBY</strong>
+                  </button>
                 </div>
               </div>
             </div>

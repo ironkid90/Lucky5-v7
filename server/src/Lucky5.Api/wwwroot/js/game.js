@@ -1,7 +1,12 @@
 const API = '';
+
+function normalizeRole(role) {
+    return String(role || 'player').trim().toLowerCase();
+}
+
 let token = sessionStorage.getItem('lucky5_token') || null;
 let currentUsername = sessionStorage.getItem('lucky5_username') || '';
-let currentRole = sessionStorage.getItem('lucky5_role') || 'player';
+let currentRole = normalizeRole(sessionStorage.getItem('lucky5_role'));
 let balance = 0;
 let walletBalance = 0;
 let currentBet = 5000;
@@ -955,10 +960,12 @@ function restoreRoundFromSnapshot(snapshot) {
 async function doDeal() {
     if (gameState === 'idle') {
         if (!machineJoined) {
+            if (!isHubConnected()) {
+                await setupSignalR();
+            }
             await joinMachine(machineId);
             if (!machineJoined) {
-                showMessage('MACHINE NOT READY - TRY AGAIN', 'lose');
-                return;
+                console.warn('Machine join unavailable; continuing without realtime sync.');
             }
         }
         if (balance < currentBet * 2) {
@@ -1684,7 +1691,7 @@ function storeToken(t) {
 
 function storeUserInfo(username, role) {
     currentUsername = username;
-    currentRole = role || 'player';
+    currentRole = normalizeRole(role);
     sessionStorage.setItem('lucky5_username', currentUsername);
     sessionStorage.setItem('lucky5_role', currentRole);
 }
@@ -1701,6 +1708,12 @@ function clearToken() {
 
 async function setupSignalR() {
     if (!token) return;
+    if (typeof signalR === 'undefined' || !signalR?.HubConnectionBuilder) {
+        console.warn('SignalR client unavailable; continuing without realtime machine sync.');
+        hubConnection = null;
+        machineJoined = false;
+        return;
+    }
     if (hubConnection) {
         try { await hubConnection.stop(); } catch (_) {}
     }
@@ -1729,6 +1742,9 @@ async function setupSignalR() {
         await hubConnection.start();
     } catch (e) {
         console.error('SignalR connection failed:', e);
+        machineJoined = false;
+        try { await hubConnection.stop(); } catch (_) {}
+        hubConnection = null;
     }
 }
 

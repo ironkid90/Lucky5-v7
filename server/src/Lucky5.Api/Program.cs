@@ -5,6 +5,9 @@ using Lucky5.Realtime.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Ensure appsettings.json can be loaded properly
+builder.Configuration.AddEnvironmentVariables();
+
 var port = Environment.GetEnvironmentVariable("PORT")
     ?? Environment.GetEnvironmentVariable("WEBSITES_PORT");
 if (!string.IsNullOrWhiteSpace(port))

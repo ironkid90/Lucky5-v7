@@ -272,12 +272,12 @@ public sealed record PresentationNoisePlan(
 /// </summary>
 public sealed record EngineConfig(
     // === Payout Scale ===
-    decimal TargetRtp = 0.80m,
+    decimal TargetRtp = 0.85m,
     decimal TargetDoubleUpRtp = 0.090m,
     decimal MinimumObservedBaseRtp = 0.3800m,
-    decimal DefaultPayoutScale = 1.80m,
-    decimal MinPayoutScale = 1.20m,
-    decimal MaxPayoutScale = 2.10m,
+    decimal DefaultPayoutScale = 2.00m,
+    decimal MinPayoutScale = 1.25m,
+    decimal MaxPayoutScale = 2.35m,
     int WarmupRounds = 60,
     int ConvergenceHorizon = 250,
     decimal CorrectionGain = 1.15m,

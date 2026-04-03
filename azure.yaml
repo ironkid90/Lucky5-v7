@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: lucky5-v7
+metadata:
+    template: azd-init@1.23.13
+services:
+    kilo:
+        project: .kilo
+        host: containerapp
+        language: js
+    kilocode:
+        project: .kilocode
+        host: containerapp
+        language: js
+    lucky5-api:
+        project: server/src/Lucky5.Api
+        host: containerapp
+        language: dotnet
+        docker:
+            path: Dockerfile
+    lucky5-simulation:
+        project: server/src/Lucky5.Simulation
+        host: containerapp
+        language: dotnet
+    lucky5-tests:
+        project: server/tests/Lucky5.Tests
+        host: containerapp
+        language: dotnet
+    mobile:
+        project: mobile
+        host: containerapp
+        language: js
+resources:
+    kilo:
+        type: host.containerapp
+        port: 80
+    kilocode:
+        type: host.containerapp
+        port: 80
+    lucky5-api:
+        type: host.containerapp
+        port: 8080
+    lucky5-simulation:
+        type: host.containerapp
+        port: 8080
+    lucky5-tests:
+        type: host.containerapp
+        port: 8080
+    mobile:
+        type: host.containerapp
+        port: 80

@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "slug": "lucky5-v7",
+  "analyzedAt": "2026-04-02T23:30:29.123Z",
+  "model": "opus",
+  "totalDurationMs": 1138,
+  "phases": {
+    "project-profile": {
+      "status": "failed",
+      "file": "01-project-profile.md",
+      "durationMs": 950,
+      "error": "Claude Code process exited with code 1"
+    },
+    "architecture-assessment": {
+      "status": "failed",
+      "file": "02-architecture-assessment.md",
+      "durationMs": 59,
+      "error": "Claude Code process exited with code 1"
+    },
+    "quality-audit": {
+      "status": "failed",
+      "file": "03-quality-audit.md",
+      "durationMs": 61,
+      "error": "Claude Code process exited with code 1"
+    },
+    "elevation-plan": {
+      "status": "failed",
+      "file": "04-elevation-plan.md",
+      "durationMs": 63,
+      "error": "Claude Code process exited with code 1"
+    }
+  }
+}

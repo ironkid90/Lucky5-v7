@@ -23,7 +23,7 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
         var q = query.Trim();
         var users = store.Users.Values
             .Where(user => user.Username.Contains(q, StringComparison.OrdinalIgnoreCase)
-                || (store.Profiles.TryGetValue(user.Id, out var p) && (
+                || (store.MemberProfiles.TryGetValue(user.Id, out var p) && (
                     p.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                     p.PhoneNumber.Contains(q, StringComparison.OrdinalIgnoreCase))))
             .OrderBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
@@ -41,7 +41,7 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
 
     public Task<WalletLedgerEntryDto> AdminCreditAsync(Guid adminId, AdminCreditRequest request, CancellationToken cancellationToken)
     {
-        if (!store.Profiles.TryGetValue(request.TargetUserId, out var profile))
+        if (!store.MemberProfiles.TryGetValue(request.TargetUserId, out var profile))
             throw new KeyNotFoundException("Target user not found");
         if (request.Amount == 0) throw new InvalidOperationException("Amount must be non-zero");
         if (string.IsNullOrWhiteSpace(request.Reason)) throw new InvalidOperationException("Reason is required");
@@ -63,19 +63,20 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
 
     public Task<IReadOnlyList<AdminMachineDto>> ListMachinesAsync(CancellationToken cancellationToken)
     {
-        var machines = store.Machines.OrderBy(m => m.Id).Select(ToAdminMachineDto).ToArray();
+        var machines = store.Machines.Values.OrderBy(machine => machine.Id).Select(ToAdminMachineDto).ToArray();
         return Task.FromResult<IReadOnlyList<AdminMachineDto>>(machines);
     }
 
     public Task<AdminMachineDto> GetMachineAsync(int machineId, CancellationToken cancellationToken)
     {
-        var machine = store.Machines.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
+        var machine = store.Machines.Values.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
         return Task.FromResult(ToAdminMachineDto(machine));
     }
 
     public Task<AdminMachineDto> ResetMachineAsync(Guid adminId, int machineId, CancellationToken cancellationToken)
     {
         var machine = store.Machines.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
+        var machine = store.Machines.Values.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
         if (store.ActiveRounds.Values.Any(r => r.MachineId == machineId && IsRoundRecoverable(r)))
             throw new InvalidOperationException("Cannot reset machine with active rounds");
         if (store.MachineSessions.Values.Any(s => s.MachineId == machineId && s.MachineCredits > 0m))
@@ -122,7 +123,7 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
             Amount = 0,
             Type = "AdminMachineReset",
             Reference = $"machine:{machineId}:reset",
-            BalanceAfter = store.Profiles.TryGetValue(adminId, out var p) ? p.WalletBalance : 0,
+            BalanceAfter = store.MemberProfiles.TryGetValue(adminId, out var p) ? p.WalletBalance : 0,
             CreatedUtc = DateTime.UtcNow
         });
 
@@ -131,7 +132,7 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
 
     private AdminUserDto ToAdminUserDto(User user)
     {
-        store.Profiles.TryGetValue(user.Id, out var profile);
+        store.MemberProfiles.TryGetValue(user.Id, out var profile);
         return new AdminUserDto(user.Id, user.Username, profile?.DisplayName ?? user.Username, user.PhoneNumber, profile?.WalletBalance ?? 0, user.Role, user.CreatedUtc, profile?.LastSeenUtc ?? user.CreatedUtc);
     }
 
@@ -145,7 +146,7 @@ public sealed class AdminService(InMemoryDataStore store) : IAdminService
             .Select(s => new AdminMachineSessionDto(
                 s.SessionId,
                 s.UserId,
-                store.Profiles.TryGetValue(s.UserId, out var p) ? p.Username : s.UserId.ToString("N"),
+                store.MemberProfiles.TryGetValue(s.UserId, out var p) ? p.Username : s.UserId.ToString("N"),
                 s.MachineCredits,
                 s.TotalCashIn,
                 s.IsMachineClosed,

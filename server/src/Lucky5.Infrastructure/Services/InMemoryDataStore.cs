@@ -2,62 +2,29 @@ namespace Lucky5.Infrastructure.Services;
 
 using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
+using System.Collections.Concurrent;
 
 public sealed class InMemoryDataStore
 {
     public InMemoryDataStore()
     {
-        foreach (var machine in Machines)
-        {
-            MachineLedgers[machine.Id] = new MachineLedgerState
-            {
-                MachineId = machine.Id,
-                TargetRtp = EngineConfig.Default.TargetRtp
-            };
-        }
-
-        var adminId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var adminUsername = Environment.GetEnvironmentVariable("LUCKY5_ADMIN_USERNAME") ?? "admin";
-        var adminPassword = Environment.GetEnvironmentVariable("LUCKY5_ADMIN_PASSWORD") ?? "admin123";
-        var adminPhone = Environment.GetEnvironmentVariable("LUCKY5_ADMIN_PHONE") ?? "+96100000000";
-
-        Users[adminId] = new User
-        {
-            Id = adminId,
-            Username = adminUsername,
-            PasswordHash = adminPassword,
-            PhoneNumber = adminPhone,
-            IsOtpVerified = true,
-            Role = "admin",
-            CreatedUtc = DateTime.UtcNow
-        };
-
-        Profiles[adminId] = new MemberProfile
-        {
-            UserId = adminId,
-            Username = adminUsername,
-            DisplayName = "System Admin",
-            PhoneNumber = adminPhone,
-            WalletBalance = 5_000_000m,
-            LastSeenUtc = DateTime.UtcNow
-        };
+        PreSeedData();
     }
 
-    public object LedgerSync { get; } = new();
+    public readonly ConcurrentDictionary<Guid, User> Profiles = new();
+    public readonly ConcurrentDictionary<int, Machine> Machines = new();
+    public readonly ConcurrentDictionary<Guid, MachineSessionState> MachineSessions = new();
+    public readonly ConcurrentDictionary<int, MachineLedgerState> MachineLedgers = new();
+    public readonly ConcurrentDictionary<Guid, GameRound> ActiveRounds = new();
+    public readonly ConcurrentBag<WalletLedgerEntry> Ledger = new();
+    public readonly object LedgerSync = new();
 
+    // Legacy properties for compatibility
     public Dictionary<Guid, User> Users { get; } = new();
-    public Dictionary<Guid, MemberProfile> Profiles { get; } = new();
-    public List<WalletLedgerEntry> Ledger { get; } = [];
-    public Dictionary<Guid, GameRound> ActiveRounds { get; } = new();
-    public Dictionary<string, MachineSessionState> MachineSessions { get; } = new(StringComparer.OrdinalIgnoreCase);
-    public Dictionary<int, MachineLedgerState> MachineLedgers { get; } = new();
-    public List<Machine> Machines { get; } =
-    [
-        new() { Id = 1, Name = "Lucky 5 - Beirut", MinBet = 5000, MaxBet = 10000, IsOpen = true },
-        new() { Id = 2, Name = "Lucky 5 - Hamra", MinBet = 5000, MaxBet = 10000, IsOpen = true },
-        new() { Id = 3, Name = "Lucky 5 - VIP", MinBet = 5000, MaxBet = 10000, IsOpen = true }
-    ];
-
+    public Dictionary<Guid, MemberProfile> MemberProfiles { get; } = new();
+    public List<WalletLedgerEntry> WalletLedger { get; } = new();
+    public Dictionary<string, MachineSessionState> MachineSessionStates { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<Machine> MachinesList { get; set; } = [];
     public List<Offer> Offers { get; } =
     [
         new() { Id = 1, Title = "Welcome Bonus", Description = "First deposit bonus", BonusAmount = 10 },
@@ -92,4 +59,82 @@ public sealed class InMemoryDataStore
         ["email"] = "support@lucky5.local",
         ["phone"] = "+961-01-000-000"
     };
+
+    public void PreSeedData()
+    {
+        var defaultRtp = EngineConfig.Default.TargetRtp;
+        var defaultScale = EngineConfig.Default.DefaultPayoutScale;
+
+        Machines.TryAdd(1, new Machine { Id = 1, Name = "Beirut 5K", IsOpen = true, MinBet = 5000, MaxBet = 10000 });
+        MachineLedgers.TryAdd(1, new MachineLedgerState { TargetRtp = defaultRtp, LastPayoutScale = defaultScale });
+
+        Machines.TryAdd(2, new Machine { Id = 2, Name = "Hamra 10K", IsOpen = true, MinBet = 10000, MaxBet = 20000 });
+        MachineLedgers.TryAdd(2, new MachineLedgerState { TargetRtp = defaultRtp, LastPayoutScale = defaultScale });
+
+        Machines.TryAdd(3, new Machine { Id = 3, Name = "VIP 50K", IsOpen = false, MinBet = 50000, MaxBet = 100000 });
+        MachineLedgers.TryAdd(3, new MachineLedgerState { TargetRtp = defaultRtp, LastPayoutScale = defaultScale });
+
+        // Update legacy collections
+        MachinesList = Machines.Values.ToList();
+
+        var adminId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var adminUser = new User
+        {
+            Id = adminId,
+            Username = "admin",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
+            PhoneNumber = "+96100000000",
+            Role = "Admin",
+            IsOtpVerified = true
+        };
+        Profiles.TryAdd(adminId, adminUser);
+        Users[adminId] = adminUser;
+        
+        MemberProfiles[adminId] = new MemberProfile
+        {
+            UserId = adminId,
+            Username = adminUser.Username,
+            DisplayName = adminUser.Username,
+            Email = "admin@lucky5.local",
+            PhoneNumber = adminUser.PhoneNumber,
+            WalletBalance = 1_000_000_000
+        };
+
+        var testId = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        var testUser = new User
+        {
+            Id = testId,
+            Username = "tester",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("password"),
+            PhoneNumber = "+96101000000",
+            Role = "Player",
+            IsOtpVerified = true
+        };
+        Profiles.TryAdd(testId, testUser);
+        Users[testId] = testUser;
+        
+        MemberProfiles[testId] = new MemberProfile
+        {
+            UserId = testId,
+            Username = testUser.Username,
+            DisplayName = testUser.Username,
+            Email = "tester@lucky5.local",
+            PhoneNumber = testUser.PhoneNumber,
+            WalletBalance = 50_000_000
+        };
+    }
+
+    public void ClearStaleRounds(TimeSpan maxAge)
+    {
+        var now = DateTime.UtcNow;
+        var staleIds = ActiveRounds
+            .Where(kvp => now - kvp.Value.CreatedUtc > maxAge)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var id in staleIds)
+        {
+            ActiveRounds.TryRemove(id, out _);
+        }
+    }
 }

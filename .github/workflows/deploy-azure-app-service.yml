@@ -95,6 +95,8 @@ jobs:
               "WEBSITES_ENABLE_APP_SERVICE_STORAGE=false" \
               "ASPNETCORE_ENVIRONMENT=Production" \
               "CORS__ALLOWED_ORIGINS=https://${AZURE_WEBAPP_NAME}.azurewebsites.net" \
+              "ConnectionStrings__Redis=${{ secrets.LUCKY5_REDIS_CONNECTION }}" \
+              "LUCKY5_REDIS_CONNECTION=${{ secrets.LUCKY5_REDIS_CONNECTION }}" \
             --output none
 
       - name: Point App Service at the new image

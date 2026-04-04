@@ -409,6 +409,21 @@ export function Lucky5Cabinet() {
     );
   }
 
+  const jackpotSnapshot = machineState?.jackpots;
+  const fourOfAKindA = Number(
+    (jackpotSnapshot as unknown as Record<string, number | undefined> | undefined)?.fourOfAKindA ?? 0,
+  );
+  const fourOfAKindB = Number(
+    (jackpotSnapshot as unknown as Record<string, number | undefined> | undefined)?.fourOfAKindB ?? 0,
+  );
+
+  // Sprint 1 cabinet regrouping:
+  // - paytable / ledger header
+  // - card stage
+  // - jackpot strip
+  // - lower control deck
+  // - telemetry as secondary side content
+
   return (
     <div className="cabinet-shell">
       <section className="cabinet">
@@ -494,142 +509,174 @@ export function Lucky5Cabinet() {
             </div>
           </div>
 
-          <div className="message-box">
-            <span>{message}</span>
-            <span className="message-pill">
-              {messageTone === "danger" ? "Fault" : messageTone === "warning" ? "Alert" : "Ready"}
-            </span>
-          </div>
-
-          <div className="card-stage">
-            <div className="deal-banner">
-              <div>
-                <div className="label-kicker">Round monitor</div>
-                <strong>{openRoundId ? `Round ${openRoundId.slice(0, 8)}` : "No active round"}</strong>
+          <div className="screen-body">
+            <div className="playfield-stack">
+              <div className="message-box">
+                <span>{message}</span>
+                <span className="message-pill">
+                  {messageTone === "danger" ? "Fault" : messageTone === "warning" ? "Alert" : "Ready"}
+                </span>
               </div>
-              <span className="hint">
-                {dealResult && !drawResult ? "Tap HOLD under each card, then DRAW." : "DEAL opens a new five-card round."}
-              </span>
-            </div>
 
-            <div className="card-row">
-              {Array.from({ length: 5 }, (_, index) => activeCards[index] ?? null).map((card, index) => (
-                <PlayingCard key={`card-${index}`} card={card} label={`Card ${index + 1}`} />
-              ))}
-            </div>
-          </div>
+              <div className="card-stage">
+                <div className="deal-banner">
+                  <div>
+                    <div className="label-kicker">Round monitor</div>
+                    <strong>{openRoundId ? `Round ${openRoundId.slice(0, 8)}` : "No active round"}</strong>
+                  </div>
+                  <span className="hint">
+                    {dealResult && !drawResult ? "Tap HOLD under each card, then DRAW." : "DEAL opens a new five-card round."}
+                  </span>
+                </div>
 
-          <div className="control-deck">
-            {!profile ? (
-              <div className="auth-panel">
-                <div className="section-title">Boot the cabinet</div>
-                <div className="auth-hint">
-                  This follows the Flutter bootstrap: sign up if needed, verify OTP `123456`, then log in.
-                </div>
-                <div className="auth-grid">
-                  <label>
-                    Username
-                    <input value={username} onChange={(event) => setUsername(event.target.value)} />
-                  </label>
-                  <label>
-                    Password
-                    <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-                  </label>
-                  <label>
-                    OTP
-                    <input value={otpCode} onChange={(event) => setOtpCode(event.target.value)} />
-                  </label>
-                </div>
-                <button className="auth-button" type="button" onClick={() => void handleBoot()} disabled={busy}>
-                  {busy ? "BOOTING" : "SIGN UP / LOGIN"}
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="hold-row">
-                  {Array.from({ length: 5 }, (_, index) => (
-                    <button
-                      key={index}
-                      className={`hold-button ${holdIndexes.includes(index) ? "active" : ""}`}
-                      type="button"
-                      onClick={() => toggleHold(index)}
-                      disabled={!dealResult || !!drawResult || busy}
-                    >
-                      {holdIndexes.includes(index) ? "HELD" : "HOLD"}
-                    </button>
+                <div className="card-row">
+                  {Array.from({ length: 5 }, (_, index) => activeCards[index] ?? null).map((card, index) => (
+                    <PlayingCard key={`card-${index}`} card={card} label={`Card ${index + 1}`} />
                   ))}
                 </div>
+              </div>
 
-                <div className="control-row primary">
-                  <div className="bet-input">
-                    <label>
-                      Bet amount
-                      <input
-                        inputMode="numeric"
-                        value={betAmount}
-                        onChange={(event) => setBetAmount(event.target.value.replace(/[^\d]/g, ""))}
-                      />
-                    </label>
+              <div className="jackpot-strip" aria-label="Live jackpot strip">
+                <div className="jackpot-strip-header">
+                  <div>
+                    <div className="label-kicker">Live jackpots</div>
+                    <strong>Cabinet meter band</strong>
                   </div>
-                  <button className="action-button main" type="button" onClick={() => void handleDealOrDraw()} disabled={busy || !machineId}>
-                    {busy ? "WORKING" : dealResult && !drawResult ? "DRAW" : "DEAL"}
-                  </button>
+                  <span className="hint">APK-priority payout strip kept ahead of telemetry.</span>
                 </div>
-
-                <div className="control-row secondary">
-                  <button className="action-button warning" type="button" onClick={() => void handleStartDoubleUp()} disabled={busy || !hasWin || !!doubleUpResult}>
-                    DOUBLE UP
-                  </button>
-                  <button className="action-button success" type="button" onClick={() => void handleTakeHalf()} disabled={busy || !openRoundId || (!hasWin && !doubleUpResult)}>
-                    TAKE HALF
-                  </button>
-                  <button className="action-button ghost" type="button" onClick={() => void handleCashout()} disabled={busy || !openRoundId || (!hasWin && !doubleUpResult)}>
-                    TAKE SCORE
-                  </button>
-                </div>
-
-                <div className="double-up-panel">
-                  <div className="section-title">Double-up deck</div>
-                  <div className="double-up-cards">
-                    <PlayingCard card={doubleUpResult?.dealerCard} label="Dealer" />
-                    <PlayingCard card={doubleUpResult?.challengerCard} label="Challenger" />
+                <div className="jackpot-strip-grid">
+                  <div className="jackpot-meter jackpot-meter-side">
+                    <span>4K A</span>
+                    <strong>{jackpotSnapshot ? formatMoney(fourOfAKindA) : "--"}</strong>
                   </div>
-                  <div className="double-up-meta">
-                    <div className="status-chip">
-                      <span>Status</span>
-                      <strong>{doubleUpResult?.status ?? "Standby"}</strong>
-                    </div>
-                    <div className="status-chip">
-                      <span>Amount</span>
-                      <strong>{formatMoney(doubleUpResult?.currentAmount ?? drawResult?.winAmount ?? 0)}</strong>
-                    </div>
-                    <div className="status-chip">
-                      <span>Switches</span>
-                      <strong>{doubleUpResult?.switchesRemaining ?? 0}</strong>
-                    </div>
+                  <div className="jackpot-meter jackpot-meter-main">
+                    <span>Full house</span>
+                    <strong>{jackpotSnapshot ? formatMoney(jackpotSnapshot.fullHouse) : "--"}</strong>
                   </div>
-                  <div className="control-row tertiary">
-                    <button className="action-button ghost" type="button" onClick={() => void handleSwitch()} disabled={busy || !doubleUpResult}>
-                      SWITCH
-                    </button>
-                    <button className="guess-button small" type="button" onClick={() => void handleGuess("small")} disabled={busy || !doubleUpResult}>
-                      SMALL
-                    </button>
-                    <button className="guess-button big" type="button" onClick={() => void handleGuess("big")} disabled={busy || !doubleUpResult}>
-                      BIG
-                    </button>
+                  <div className="jackpot-meter jackpot-meter-center">
+                    <span>Straight flush</span>
+                    <strong>{jackpotSnapshot ? formatMoney(jackpotSnapshot.straightFlush) : "--"}</strong>
+                  </div>
+                  <div className="jackpot-meter jackpot-meter-side">
+                    <span>4K B</span>
+                    <strong>{jackpotSnapshot ? formatMoney(fourOfAKindB) : "--"}</strong>
                   </div>
                 </div>
-              </>
-            )}
+              </div>
+
+              <div className="control-deck">
+                {!profile ? (
+                  <div className="auth-panel">
+                    <div className="section-title">Boot the cabinet</div>
+                    <div className="auth-hint">
+                      This follows the Flutter bootstrap: sign up if needed, verify OTP `123456`, then log in.
+                    </div>
+                    <div className="auth-grid">
+                      <label>
+                        Username
+                        <input value={username} onChange={(event) => setUsername(event.target.value)} />
+                      </label>
+                      <label>
+                        Password
+                        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+                      </label>
+                      <label>
+                        OTP
+                        <input value={otpCode} onChange={(event) => setOtpCode(event.target.value)} />
+                      </label>
+                    </div>
+                    <button className="auth-button" type="button" onClick={() => void handleBoot()} disabled={busy}>
+                      {busy ? "BOOTING" : "SIGN UP / LOGIN"}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="hold-row">
+                      {Array.from({ length: 5 }, (_, index) => (
+                        <button
+                          key={index}
+                          className={`hold-button ${holdIndexes.includes(index) ? "active" : ""}`}
+                          type="button"
+                          onClick={() => toggleHold(index)}
+                          disabled={!dealResult || !!drawResult || busy}
+                        >
+                          {holdIndexes.includes(index) ? "HELD" : "HOLD"}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="control-row primary">
+                      <div className="bet-input">
+                        <label>
+                          Bet amount
+                          <input
+                            inputMode="numeric"
+                            value={betAmount}
+                            onChange={(event) => setBetAmount(event.target.value.replace(/[^\d]/g, ""))}
+                          />
+                        </label>
+                      </div>
+                      <button className="action-button main" type="button" onClick={() => void handleDealOrDraw()} disabled={busy || !machineId}>
+                        {busy ? "WORKING" : dealResult && !drawResult ? "DRAW" : "DEAL"}
+                      </button>
+                    </div>
+
+                    <div className="control-row secondary">
+                      <button className="action-button warning" type="button" onClick={() => void handleStartDoubleUp()} disabled={busy || !hasWin || !!doubleUpResult}>
+                        DOUBLE UP
+                      </button>
+                      <button className="action-button success" type="button" onClick={() => void handleTakeHalf()} disabled={busy || !openRoundId || (!hasWin && !doubleUpResult)}>
+                        TAKE HALF
+                      </button>
+                      <button className="action-button ghost" type="button" onClick={() => void handleCashout()} disabled={busy || !openRoundId || (!hasWin && !doubleUpResult)}>
+                        TAKE SCORE
+                      </button>
+                    </div>
+
+                    <div className="double-up-panel">
+                      <div className="section-title">Double-up deck</div>
+                      <div className="double-up-cards">
+                        <PlayingCard card={doubleUpResult?.dealerCard} label="Dealer" />
+                        <PlayingCard card={doubleUpResult?.challengerCard} label="Challenger" />
+                      </div>
+                      <div className="double-up-meta">
+                        <div className="status-chip">
+                          <span>Status</span>
+                          <strong>{doubleUpResult?.status ?? "Standby"}</strong>
+                        </div>
+                        <div className="status-chip">
+                          <span>Amount</span>
+                          <strong>{formatMoney(doubleUpResult?.currentAmount ?? drawResult?.winAmount ?? 0)}</strong>
+                        </div>
+                        <div className="status-chip">
+                          <span>Switches</span>
+                          <strong>{doubleUpResult?.switchesRemaining ?? 0}</strong>
+                        </div>
+                      </div>
+                      <div className="control-row tertiary">
+                        <button className="action-button ghost" type="button" onClick={() => void handleSwitch()} disabled={busy || !doubleUpResult}>
+                          SWITCH
+                        </button>
+                        <button className="guess-button small" type="button" onClick={() => void handleGuess("small")} disabled={busy || !doubleUpResult}>
+                          SMALL
+                        </button>
+                        <button className="guess-button big" type="button" onClick={() => void handleGuess("big")} disabled={busy || !doubleUpResult}>
+                          BIG
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       <aside className="side-column">
-        <section className="diagnostics">
+        <section className="diagnostics diagnostics-secondary">
           <div className="section-title">Machine telemetry</div>
-          <div className="section-subtitle">Pulled from the authoritative backend state.</div>
+          <div className="section-subtitle">Operational backend state, kept secondary to the cabinet playfield.</div>
           <div className="diagnostic-grid">
             <div className="diagnostic-card">
               <span>Observed RTP</span>

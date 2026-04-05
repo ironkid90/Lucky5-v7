@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lucky 5 - Video Poker</title>
-    <link rel="stylesheet" href="/css/game.css?v=16">
+    <link rel="stylesheet" href="/css/game.css?v=17">
+    <link rel="stylesheet" href="/css/cabinet-layout-vnext.css?v=1">
+    <link rel="stylesheet" href="/css/cabinet-labels-vnext.css?v=2">
+    <link rel="stylesheet" href="/css/cabinet-shell-vnext.css?v=1">
     <link rel="icon" href="/assets/images/coin.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -175,8 +178,8 @@
             </div>
         </div>
 
-        <div id="game-screen">
-            <div id="paytable">
+        <div id="game-screen" data-zone="game-screen">
+            <div id="paytable" data-zone="paytable">
                 <div class="pay-row rf jackpot-major" data-hand="RoyalFlush">
                     <span class="hand-name">ROYAL FLUSH</span>
                     <span class="pay-amount" data-mult="1000">0</span>
@@ -211,24 +214,24 @@
                 </div>
             </div>
 
-            <div id="lucky5-banner">LUCKY 5 IS ACTIVE</div>
+            <div id="lucky5-banner" data-zone="label-band">LUCKY 5 IS ACTIVE</div>
 
-            <div id="credit-stake-bar">
+            <div id="credit-stake-bar" data-zone="credit-stake">
                 <div id="credits" class="credit-val">CREDIT<br><span>0</span></div>
                 <div id="win-indicator"></div>
                 <div id="stake-display" class="stake-val">STAKE<br><span>0</span></div>
             </div>
 
-            <div id="card-area"></div>
+            <div id="card-area" data-zone="card-stage"></div>
 
             <!-- Large win amount display (clone-style golden outlined number) -->
-            <div id="win-amount-display">
+            <div id="win-amount-display" data-zone="win-amount">
                 <span id="win-slot-tag"></span>
                 <span id="win-amount-value"></span>
             </div>
 
             <!-- Machine info & jackpot block (clone-style SERIE/KENT/S/N + counters) -->
-            <div id="machine-info-block">
+            <div id="machine-info-block" data-zone="machine-info">
                 <div id="machine-identity">
                     <span class="mi-line"><span class="mi-label">SERIE</span> <span class="mi-sep">-</span> <span id="mi-serie" class="mi-val">1</span></span>
                     <span class="mi-line"><span class="mi-label">KENT</span> <span class="mi-sep">/3 :</span> <span id="mi-kent" class="mi-val">1</span></span>
@@ -248,7 +251,7 @@
                 <div id="bonus-hand-text"></div>
             </div>
 
-            <div id="du-info-panel">
+            <div id="du-info-panel" data-zone="du-info">
                 <div id="du-info-left">
                     <div id="du-label">HI LO GAMBLE</div>
                     <div id="du-ace-info">ACE COUNTS HI OR LO</div>
@@ -256,7 +259,7 @@
                 </div>
             </div>
 
-            <div id="info-bar">
+            <div id="info-bar" data-zone="info-bar">
                 <div id="game-message">INSERT COIN</div>
             </div>
 
@@ -266,7 +269,7 @@
 
             <div id="lucky5-flash"></div>
 
-            <div id="controls">
+            <div id="controls" data-zone="controls">
                 <div id="hold-row">
                     <button class="cab-btn cab-hold" data-index="0" disabled></button>
                     <button class="cab-btn cab-hold" data-index="1" disabled></button>
@@ -304,6 +307,10 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
-    <script src="/js/game.js?v=17"></script>
+    <script src="/js/game-config.js?v=1"></script>
+    <script src="/js/game.js?v=18"></script>
+    <script src="/js/cabinet-stage-vnext.js?v=1"></script>
+    <script src="/js/cabinet-pace-vnext.js?v=1"></script>
+    <script src="/js/cabinet-shell-vnext.js?v=1"></script>
 </body>
 </html>

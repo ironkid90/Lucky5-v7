@@ -1,186 +1,180 @@
 /*
  * cabinet-labels-vnext.css
  * OWNER: Codex Agent 1
- * PURPOSE: Label system — paytable colors, credit/stake, machine-info block, banners.
+ * PURPOSE: Label system — paytable colors, credit/stake labels, jackpot surface text.
  * LOADS AFTER: cabinet-layout-vnext.css
  * DO NOT EDIT: game.css, any .js files, index.html
  */
 
-/* ─── PAYTABLE ROW COLORS (clone-faithful rainbow) ─────────────────────── */
+/* Pixel typography baseline on cabinet face */
+#game-screen,
+#game-screen * {
+    font-family: 'Press Start 2P', 'Arcade', monospace;
+}
 
-.pay-row { font-size: 9px; line-height: 1.5; padding: 0 2px; }
-.pay-row .hand-name { font-weight: normal; letter-spacing: 0.3px; }
-.pay-row .pay-amount { font-weight: bold; text-align: right; min-width: 60px; font-size: 9px; }
+/* PAYTABLE */
+#paytable .pay-row {
+    border-radius: 0;
+    line-height: 1.45;
+    font-size: 8px;
+    letter-spacing: 0.25px;
+    padding: 0 2px;
+}
 
-.pay-row.rf  { color: #ff4444; }
-.pay-row.rf  .pay-amount { color: #ff4444; }
+#paytable .pay-amount {
+    text-align: right;
+    min-width: 58px;
+    font-size: 8px;
+}
 
-.pay-row.sf  { color: #ff7700; }
-.pay-row.sf  .pay-amount { color: #ff7700; }
+#paytable .pay-row.rf,
+#paytable .pay-row.rf .pay-amount { color: #ff4444; }
 
-.pay-row.foak { color: #44ffcc; }
-.pay-row.foak .pay-amount { color: #44ffcc; }
+#paytable .pay-row.sf,
+#paytable .pay-row.sf .pay-amount { color: #ff8800; }
 
-.pay-row.fh  { color: #ffff00; }
-.pay-row.fh  .pay-amount { color: #ffff00; }
+#paytable .pay-row.foak,
+#paytable .pay-row.foak .pay-amount { color: #44ffcc; }
 
-.pay-row.fl  { color: #ff6666; }
-.pay-row.fl  .pay-amount { color: #ff6666; }
+#paytable .pay-row.fh,
+#paytable .pay-row.fh .pay-amount { color: #ffff00; }
 
-.pay-row.st  { color: #44ff88; }
-.pay-row.st  .pay-amount { color: #44ff88; }
+#paytable .pay-row.fl,
+#paytable .pay-row.fl .pay-amount { color: #ff6666; }
 
-.pay-row.tok { color: #44ddff; }
-.pay-row.tok .pay-amount { color: #44ddff; }
+#paytable .pay-row.st,
+#paytable .pay-row.st .pay-amount { color: #44ff88; }
 
-.pay-row.tp  { color: #ddddaa; }
-.pay-row.tp  .pay-amount { color: #ddddaa; }
+#paytable .pay-row.tok,
+#paytable .pay-row.tok .pay-amount { color: #44ddff; }
 
-/* Jackpot selected row: solid box highlight */
-.pay-row.jackpot-selected {
+#paytable .pay-row.tp,
+#paytable .pay-row.tp .pay-amount { color: #ddddaa; }
+
+/* Solid selection box (not glow-only) */
+#paytable .pay-row.jackpot-selected {
     outline: 2px solid currentColor;
     background: rgba(255, 255, 255, 0.08);
-    border-radius: 2px;
 }
 
-/* Active winning hand during result */
-.pay-row.active {
-    background: rgba(0, 255, 200, 0.14);
-}
-.pay-row.active .hand-name,
-.pay-row.active .pay-amount {
-    color: #00ffcc !important;
-    text-shadow: 0 0 8px rgba(0, 255, 200, 0.7);
+/* CREDIT / STAKE */
+#credit-stake-bar {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 3px;
+    text-align: right;
 }
 
-/* ─── CREDIT / STAKE LABELS ─────────────────────────────────────────────── */
-
-.credit-val {
-    font-size: 7px;
+#credits.credit-val {
     color: #00ff44;
-    text-align: right;
-    line-height: 1.2;
-    letter-spacing: 0.5px;
-}
-
-.credit-val span {
-    display: block;
-    font-size: 16px;
-    color: #ffffff;
-    line-height: 1.1;
-}
-
-.stake-val {
-    font-size: 7px;
-    color: #ffcc00;
-    text-align: right;
-    line-height: 1.2;
-    letter-spacing: 0.5px;
-}
-
-.stake-val span {
-    display: block;
-    font-size: 16px;
-    color: #ffffff;
-    line-height: 1.1;
-}
-
-/* ─── LUCKY5 BANNER ─────────────────────────────────────────────────────── */
-
-#lucky5-banner {
     font-size: 8px;
-    color: #00ffcc;
-    letter-spacing: 3px;
-    text-shadow: 0 0 10px rgba(0, 255, 200, 0.8);
+    line-height: 1.15;
+    letter-spacing: 0.35px;
+}
+
+#stake-display.stake-val {
+    color: #ffcc00;
+    font-size: 8px;
+    line-height: 1.15;
+    letter-spacing: 0.35px;
+}
+
+#credits.credit-val span,
+#stake-display.stake-val span {
+    color: #ffffff;
+    display: block;
+    font-size: 15px;
+    line-height: 1.05;
+}
+
+/* LUCKY5 LABEL BAND */
+#lucky5-banner {
+    color: #00ff44;
+    font-size: 8px;
+    letter-spacing: 2px;
     text-align: center;
     visibility: hidden;
     opacity: 0;
-    transition: opacity 0.2s;
 }
 
 #lucky5-banner.active {
     visibility: visible;
     opacity: 1;
+    animation: lucky5-banner-flicker 0.18s steps(2, end) 7, neon-blink 1.5s ease-in-out 0.7s infinite;
 }
 
-/* ─── WIN AMOUNT DISPLAY ─────────────────────────────────────────────────── */
+/* WIN AMOUNT */
+#win-amount-display {
+    text-align: center;
+}
 
+#win-slot-tag,
 #win-amount-value {
-    font-size: 18px;
     color: #ffcc00;
-    text-shadow:
-        -1px -1px 0 #7a5c00,
-         1px -1px 0 #7a5c00,
-        -1px  1px 0 #7a5c00,
-         1px  1px 0 #7a5c00,
-        0 0 12px rgba(255, 204, 0, 0.5);
-    letter-spacing: 1px;
-    font-weight: bold;
 }
 
 #win-slot-tag {
     font-size: 10px;
-    color: #ffcc00;
-    font-weight: bold;
-    margin-right: 4px;
-    text-shadow: 0 0 6px rgba(255, 204, 0, 0.7);
 }
 
-/* ─── MACHINE INFO BLOCK ─────────────────────────────────────────────────── */
-
-#machine-identity {
-    display: flex;
-    gap: 10px;
-    align-items: center;
+#win-amount-value {
+    font-size: 22px;
+    text-shadow:
+        1px 1px 0 #000000,
+        -1px -1px 0 #000000,
+        1px -1px 0 #000000,
+        -1px 1px 0 #000000;
 }
 
-.mi-line { font-size: 8px; letter-spacing: 0.3px; }
-.mi-label { color: #44ff44; }
-.mi-sep   { color: #44ff44; opacity: 0.7; }
-.mi-val   { color: #ffffff; font-size: 9px; }
+/* MACHINE INFO BLOCK */
+#machine-identity,
+#machine-serial,
+#bonus-hand-text {
+    text-align: center;
+}
 
-/* Three jackpot counters: 4K A (green) | SF (red, large) | 4K B (green) */
+#machine-identity .mi-label,
+#machine-identity .mi-sep,
+#machine-identity .mi-val,
+#machine-serial .mi-label,
+#machine-serial .mi-val {
+    color: #44ff88;
+    font-size: 8px;
+}
+
 #jackpot-counters {
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
     gap: 6px;
 }
 
-.jp-counter {
-    font-size: 12px;
-    letter-spacing: 0.5px;
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 1px 4px;
-    border: 1px solid transparent;
-    border-radius: 3px;
-}
-
-.jp-tag  { font-size: 7px; opacity: 0.85; }
-.jp-cval { font-weight: bold; }
-
 #jp-counter-a,
 #jp-counter-b {
-    color: #00cc00;
-    text-shadow: 0 0 6px rgba(0, 200, 0, 0.5);
+    color: #44ff88;
 }
 
 #jp-counter-center {
-    font-size: 14px;
     color: #ff4444;
-    text-shadow: 0 0 8px rgba(255, 68, 68, 0.6);
 }
 
-/* Active 4K slot highlight */
+#jp-counter-a .jp-tag,
+#jp-counter-b .jp-tag,
+#jp-counter-center .jp-tag,
+#jp-counter-a .jp-cval,
+#jp-counter-b .jp-cval,
+#jp-counter-center .jp-cval {
+    color: inherit;
+}
+
 .jp-counter.jp-active {
-    border-color: #ffcc00;
-    box-shadow: 0 0 8px rgba(255, 204, 0, 0.4);
-    background: rgba(255, 204, 0, 0.07);
+    outline: 2px solid #ffcc00;
+    background: rgba(255, 200, 0, 0.1);
 }
 
-/* Full House meter — black text on white container (clone spec) */
+/* FH meter + rank: black text on white container */
 #jackpot-full-house {
     display: flex;
     align-items: center;
@@ -188,72 +182,57 @@
     gap: 6px;
 }
 
-.jp-meter-label {
-    font-size: 8px;
-    color: #ffcc00;
-    letter-spacing: 0.5px;
-}
-
-.jp-counter-fh {
+#jackpot-full-house .jp-meter-label {
+    color: #111111;
     background: #ffffff;
-    color: #111111 !important;
-    text-shadow: none !important;
-    padding: 1px 6px;
-    border-radius: 2px;
-    font-size: 11px;
+    padding: 2px 6px;
 }
 
-.jp-counter-fh .jp-cval {
+#jp-fh-rank {
+    color: #111111;
+    background: #ffffff;
+    padding: 0 2px;
+}
+
+#jp-counter-fh {
+    color: #111111;
+    background: #ffffff;
+    padding: 2px 6px;
+}
+
+#jp-counter-fh .jp-cval {
     color: #111111;
 }
 
-/* Machine serial */
-#machine-serial {
-    font-size: 9px;
-}
-
-#machine-serial .mi-label { color: #44ff44; }
-#machine-serial .mi-val   { color: #ffcc00; font-size: 12px; font-weight: bold; }
-
-/* "4 OF A KIND WINS BONUS" persistent statement */
 #bonus-hand-text {
-    text-align: center;
-    font-size: 9px;
     color: #ffffff;
-    letter-spacing: 2px;
-}
-
-/* ─── INFO BAR MESSAGES ──────────────────────────────────────────────────── */
-
-#game-message {
-    font-size: 8px;
-    color: #33cc33;
-    letter-spacing: 0.5px;
-    text-align: center;
-}
-
-#game-message.win  { color: #44ff44; font-size: 9px; }
-#game-message.lose { color: #ff4444; }
-
-#bonus-text {
-    font-size: 8px;
-    color: #ffcc00;
+    font-size: 10px;
     letter-spacing: 1px;
+}
+
+/* INFO BAR */
+#info-bar,
+#game-message {
+    text-align: center;
+    color: #ffffff;
+    font-size: 8px;
+}
+
+/* DOUBLE-UP LABEL BAND */
+#du-label {
+    color: #ffcc00;
+    font-size: 8px;
     text-align: center;
 }
 
-/* ─── DOUBLE-UP INFO BAND ────────────────────────────────────────────────── */
-
-#du-label     { font-size: 9px;  color: #ffcc00; letter-spacing: 1px; text-align: center; }
-#du-ace-info  { font-size: 7px;  color: #44ff44; text-align: center; margin-top: 1px; }
-#du-lucky-info{ font-size: 7px;  color: #ffcc00; letter-spacing: 0.5px; text-align: center; }
-
-/* ─── HOLD BADGE (HELD label on card) ───────────────────────────────────── */
-
-.hold-badge {
-    font-size: 6px;
-    color: #ffcc00;
-    text-shadow: 0 0 4px rgba(255, 204, 0, 0.7);
+#du-ace-info {
+    color: #ffffff;
+    font-size: 7px;
     text-align: center;
-    height: 12px;
+}
+
+#du-lucky-info {
+    color: #44ddff;
+    font-size: 7px;
+    text-align: center;
 }

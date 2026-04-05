@@ -1,4 +1,22 @@
-const API = '';
+// ╔════════════════════════════════════════════════════════════════════════╗
+// ║  LUCKY5 ENGINE  —  game.js                                           ║
+// ║  Variant config lives in game-config.js (loaded before this file)    ║
+// ╚════════════════════════════════════════════════════════════════════════╝
+//
+// Section map:
+//   1. ENGINE BOOTSTRAP     — GAME_CONFIG aliases, card-code builder
+//   2. RUNTIME STATE        — mutable session variables
+//   3. API LAYER            — apiCall wrapper + endpoint helpers
+//   4. SESSION MANAGEMENT   — machine session, token, credits
+//   5. STATE MACHINE        — refreshIdleMachineState, restoreRoundFromSnapshot
+//   6. RENDERING            — renderCards, renderDoubleUpCards
+//   7. ANIMATION HELPERS    — startShuffle / stopShuffle, flash effects
+//   8. JACKPOT & PAYTABLE   — updateJackpotDisplay, updatePaytable
+//   9. ACTIONS              — doDeal, doDraw, doDoubleUp, doSwitch, TAKE/HOLD
+//  10. SHELL / LOBBY        — showLobby, showWallet, showAdmin, initGame
+//  11. DOM BOOTSTRAP        — DOMContentLoaded initialization
+
+const API = ''; // base URL prefix — empty = same-origin
 
 function normalizeRole(role) {
     return String(role || 'player').trim().toLowerCase();
@@ -24,6 +42,7 @@ let duIsNoLoseActive = false;
 let duSessionStarted = false;
 let duDealerCard = null;
 let duCardTrail = [];
+let duLastRenderedTrailLength = 0;
 let roundDoubleUpAvailable = false;
 let takeHalfUsedThisRound = false;
 let jackpots = null;
@@ -46,46 +65,32 @@ let adminUsers = [];
 let adminMachines = [];
 let lucky5FlashResetTimer = null;
 
-const MACHINE_CREDIT_LIMIT = 40000000;
+// ── 1. ENGINE BOOTSTRAP ───────────────────────────────────────────────────
+// Local aliases so engine logic never hard-codes variant-specific values.
+// All values come from GAME_CONFIG (game-config.js, loaded first).
 
-const RANK_NAMES = {
-    2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 10: '10',
-    11: 'J', 12: 'Q', 13: 'K', 14: 'A'
-};
+const MACHINE_CREDIT_LIMIT = GAME_CONFIG.rules.machineCreditLimit;
+const RANK_NAMES           = GAME_CONFIG.rules.rankNames;
+const JACKPOT_HANDS        = GAME_CONFIG.rules.jackpotHands;
+const JACKPOT_RESET        = GAME_CONFIG.rules.jackpotReset;
+const HAND_DISPLAY         = GAME_CONFIG.paytableMap;
+const CARD_BACK_SRC        = GAME_CONFIG.assets.cardBack;
 
-const JACKPOT_HANDS = ['FourOfAKind', 'FullHouse', 'StraightFlush'];
+// T = short timing alias; use T.propMs throughout instead of magic numbers.
+const T = GAME_CONFIG.timing;
 
-// Jackpot reset values must mirror EngineConfig defaults on the server.
-const JACKPOT_RESET = {
-    FullHouse:     90_000,
-    FourOfAKind:   140_000,
-    StraightFlush: 850_000
-};
-
-const HAND_DISPLAY = {
-    'RoyalFlush': 'ROYAL FLUSH',
-    'StraightFlush': 'STRAIGHT FLUSH',
-    'FourOfAKind': '4 OF A KIND',
-    'FullHouse': 'FULL HOUSE',
-    'Flush': 'FLUSH',
-    'Straight': 'STRAIGHT',
-    'ThreeOfAKind': '3 OF A KIND',
-    'TwoPair': '2 PAIR',
-    'Nothing': 'NO WIN'
-};
-
-const CARD_BACK_SRC = '/assets/images/cards/bside.png';
-
+// Build the full 52-card code list (e.g. '2H', 'AS', '10D' …)
 const ALL_CARD_CODES = [];
 (function buildCardCodes() {
     const suits = ['H','D','C','S'];
     const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
     for (const r of ranks) {
-        for (const s of suits) {
-            ALL_CARD_CODES.push(r + s);
-        }
+        for (const s of suits) { ALL_CARD_CODES.push(r + s); }
     }
 })();
+
+// ── 2. RUNTIME STATE ──────────────────────────────────────────────────────
+// Mutable session variables — reset on logout / machine leave.
 
 const preloadedImages = {};
 
@@ -149,6 +154,9 @@ function randomCardSrc() {
 function $(sel) { return document.querySelector(sel); }
 function $$(sel) { return document.querySelectorAll(sel); }
 
+// ── 3. API LAYER ─────────────────────────────────────────────────────────
+// All backend calls go through apiCall().  Endpoint strings come from
+// GAME_CONFIG.api so swapping the backend only requires editing game-config.js.
 async function apiCall(method, path, body) {
     const opts = {
         method,
@@ -206,8 +214,10 @@ function isMachineClosedForUi() {
     return machineSessionClosed || balance >= MACHINE_CREDIT_LIMIT;
 }
 
+// ── 4. SESSION MANAGEMENT ──────────────────────────────────────────────
+// Machine session, token helpers, credit sync.
 async function fetchMachineSession() {
-    const session = await apiCall('GET', `/api/Game/machine/${machineId}/session`);
+    const session = await apiCall('GET', GAME_CONFIG.api.machineSession(machineId));
     syncMachineCreditsFromResponse(session);
     syncMachineSessionState(session);
     walletBalance = session.walletBalance ?? walletBalance;
@@ -216,11 +226,11 @@ async function fetchMachineSession() {
 }
 
 async function fetchActiveRoundState() {
-    return await apiCall('GET', `/api/Game/machine/${machineId}/active-round`);
+    return await apiCall('GET', GAME_CONFIG.api.machineRound(machineId));
 }
 
 async function cashInMachine(amount) {
-    const session = await apiCall('POST', `/api/Game/machine/${machineId}/cash-in`, { amount });
+    const session = await apiCall('POST', GAME_CONFIG.api.machineCashIn(machineId), { amount });
     syncMachineCreditsFromResponse(session);
     syncMachineSessionState(session);
     walletBalance = session.walletBalance ?? walletBalance;
@@ -229,7 +239,7 @@ async function cashInMachine(amount) {
 }
 
 async function cashOutMachine() {
-    const session = await apiCall('POST', `/api/Game/machine/${machineId}/cash-out`);
+    const session = await apiCall('POST', GAME_CONFIG.api.machineCashOut(machineId));
     syncMachineCreditsFromResponse(session);
     syncMachineSessionState(session);
     walletBalance = session.walletBalance ?? walletBalance;
@@ -250,6 +260,7 @@ function syncMachineCreditsFromResponse(source) {
     return balance;
 }
 
+// ── 5. STATE MACHINE ──────────────────────────────────────────────────
 function refreshIdleMachineState(messageText = null, type = 'win') {
     stopShuffle();
     hideDuInfo();
@@ -259,6 +270,7 @@ function refreshIdleMachineState(messageText = null, type = 'win') {
     duIsNoLoseActive = false;
     duDealerCard = null;
     duCardTrail = [];
+    duLastRenderedTrailLength = 0;
     roundDoubleUpAvailable = false;
     takeHalfUsedThisRound = false;
     currentHandRank = null;
@@ -370,6 +382,7 @@ function highlightPaytableDU(handRank, amount) {
     });
 }
 
+// ── 8. JACKPOT & PAYTABLE ───────────────────────────────────────────────
 function updateJackpotDisplay(jp) {
     if (jp) {
         jackpots = jp;
@@ -536,6 +549,7 @@ function hideIdleTitle() {
     area.innerHTML = '';
 }
 
+// ── 6. RENDERING ─────────────────────────────────────────────────────────
 function renderCards(cardData, animate) {
     const area = $('#card-area');
     area.innerHTML = '';
@@ -543,9 +557,14 @@ function renderCards(cardData, animate) {
     for (let i = 0; i < 5; i++) {
         const slot = document.createElement('div');
         slot.className = 'card-slot';
+        slot.dataset.slot = i;
         if (holdIndexes.has(i)) slot.classList.add('held');
 
-        if (animate) {
+        // Held cards on a draw stay visually stable — no drop animation.
+        const isHeld = holdIndexes.has(i);
+        const shouldAnimate = animate && !isHeld;
+
+        if (shouldAnimate) {
             slot.classList.add('deal-in');
         }
 
@@ -563,11 +582,11 @@ function renderCards(cardData, animate) {
         slot.addEventListener('click', () => toggleHold(i));
         area.appendChild(slot);
 
-        if (animate) {
+        if (shouldAnimate) {
             setTimeout(() => {
                 slot.classList.remove('deal-in');
                 slot.classList.add('deal-in-done');
-            }, 100 + i * 180);
+            }, T.dealBaseMs + i * T.dealStaggerMs);
         } else {
             slot.classList.add('deal-in-done');
         }
@@ -591,12 +610,13 @@ function toggleHold(index) {
 
     const holdBtns = $$('.cab-hold');
     holdBtns[index].classList.toggle('active', holdIndexes.has(index));
+    if (window.CabinetStage) CabinetStage.setHold(index, holdIndexes.has(index));
 }
 
 function cycleJackpotRank() {
     if (!canAdjustJackpotRank()) return;
     jackpotRank = jackpotRank >= 14 ? 2 : jackpotRank + 1;
-    apiCall('POST', '/api/Game/jackpot/rank', { machineId, rank: jackpotRank })
+    apiCall('POST', GAME_CONFIG.api.jackpotRank, { machineId, rank: jackpotRank })
         .then(jp => updateJackpotDisplay(jp))
         .catch(() => {});
     const elRank = $('#jp-fh-rank');
@@ -679,7 +699,7 @@ async function doSwitchDealer() {
     stopShuffle();
 
     try {
-        const result = await apiCall('POST', '/api/Game/double-up/switch', { roundId });
+        const result = await apiCall('POST', GAME_CONFIG.api.duSwitch, { roundId });
         duSwitchesRemaining = result.switchesRemaining;
         duIsNoLoseActive = result.isNoLoseActive;
         winAmount = result.currentAmount;
@@ -738,6 +758,8 @@ function triggerLucky5Flash() {
         flash.classList.add('active');
     }
 
+    if (window.CabinetStage) CabinetStage.showLucky5Active();
+
     const screen = document.getElementById('game-screen');
     if (screen) {
         void screen.offsetWidth;
@@ -745,7 +767,7 @@ function triggerLucky5Flash() {
         lucky5FlashResetTimer = setTimeout(() => {
             screen.classList.remove('lucky5-active');
             lucky5FlashResetTimer = null;
-        }, 1600);
+        }, T.lucky5ActiveScreenMs);
     }
 }
 
@@ -874,6 +896,7 @@ function applyHeldIndexes(indexes) {
     indexes.forEach(i => {
         if (slots[i]) slots[i].classList.add('held');
         if (holdBtns[i]) holdBtns[i].classList.add('active');
+        if (window.CabinetStage) CabinetStage.setHold(i, true);
     });
 }
 
@@ -911,6 +934,7 @@ function restoreRoundFromSnapshot(snapshot) {
         duIsNoLoseActive = false;
         duDealerCard = null;
         duCardTrail = [];
+        duLastRenderedTrailLength = 0;
         gameState = 'hold';
         renderCards(cards, false);
         applyHeldIndexes(Array.from(holdIndexes));
@@ -929,6 +953,7 @@ function restoreRoundFromSnapshot(snapshot) {
         duSwitchesRemaining = Number(duSnapshot.switchesRemaining || 0);
         duIsNoLoseActive = Boolean(duSnapshot.isNoLoseActive);
         duCardTrail = duDealerCard ? [{ card: duDealerCard, label: 'DEALER' }] : [];
+        duLastRenderedTrailLength = 0;
         gameState = 'doubleup';
         showDuInfo();
         renderDoubleUpCards(duDealerCard, true, null);
@@ -949,6 +974,7 @@ function restoreRoundFromSnapshot(snapshot) {
     duIsNoLoseActive = false;
     duDealerCard = null;
     duCardTrail = [];
+    duLastRenderedTrailLength = 0;
     gameState = 'win';
     renderCards(cards, false);
     updateWinIndicator(winAmount);
@@ -957,6 +983,7 @@ function restoreRoundFromSnapshot(snapshot) {
     setButtonStates();
 }
 
+// ── 9. ACTIONS ───────────────────────────────────────────────────────────
 async function doDeal() {
     if (gameState === 'idle') {
         if (!machineJoined) {
@@ -988,7 +1015,7 @@ async function doDeal() {
         duDealerCard = null;
 
         try {
-            const result = await apiCall('POST', '/api/Game/cards/deal', {
+            const result = await apiCall('POST', GAME_CONFIG.api.deal, {
                 machineId,
                 betAmount: currentBet
             });
@@ -1034,7 +1061,7 @@ async function doDeal() {
         showMessage('DRAWING...');
 
         try {
-            const result = await apiCall('POST', '/api/Game/cards/draw', {
+            const result = await apiCall('POST', GAME_CONFIG.api.draw, {
                 roundId,
                 holdIndexes: Array.from(holdIndexes)
             });
@@ -1055,11 +1082,11 @@ async function doDeal() {
                             if (face) face.src = cardImagePath(cards[i]);
                             slot.classList.remove('deal-in');
                             slot.classList.add('deal-in-done');
-                        }, 100 + dropDelay);
-                        dropDelay += 180;
+                        }, T.dealBaseMs + dropDelay);
+                        dropDelay += T.dealStaggerMs;
                     }
                 });
-            }, 60);
+            }, T.drawRevealStartMs);
 
             setTimeout(() => {
                 const handName = result.handRank || 'Nothing';
@@ -1105,7 +1132,7 @@ async function doDeal() {
                                     setButtonStates();
                                 }
                             }
-                        }, 500);
+                        }, T.winToDuPromptMs);
                     };
 
                     proceedToDoubleUp();
@@ -1117,9 +1144,9 @@ async function doDeal() {
                     updateWinAmountDisplay(0);
                     setTimeout(() => {
                         if (gameState === 'idle') showIdleTitle();
-                    }, 2000);
+                    }, T.postLossIdleTitleMs);
                 }
-            }, 500);
+            }, T.drawResultDelayMs);
         } catch (e) {
             showMessage(e.message, 'lose');
             gameState = 'idle';
@@ -1134,6 +1161,7 @@ function cancelHold() {
     holdIndexes.clear();
     $$('.card-slot').forEach(s => s.classList.remove('held'));
     $$('.cab-hold').forEach(btn => btn.classList.remove('active'));
+    if (window.CabinetStage) CabinetStage.clearAllHolds();
 }
 
 function showDuInfo() {
@@ -1151,46 +1179,57 @@ function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
 
     stopShuffle();
 
-    // Pagination: fit cards into pages of DU_PAGE_SIZE slots.
-    // When a page is full, the last card of the current page becomes
-    // the first card of the next page (carry-over).
-    const DU_PAGE_SIZE = 4;
-    const extraCount = (challengerCard || showShuffle) ? 1 : 0;
-    const maxTrailOnPage = DU_PAGE_SIZE - extraCount;
+    // 5-slot page model with carry-over.
+    // Each page shows 4 trail cards + 1 active slot (shuffle or challenger) = 5 visible.
+    // The LAST trail card of page N carries over as the FIRST trail card of page N+1,
+    // giving players visual continuity across pages (step = maxTrailPerPage - 1 = 3).
+    const MAX_TRAIL_PER_PAGE = GAME_CONFIG.doubleUp.maxTrailPerPage; // from game-config.js
+    const CARRY_STEP = MAX_TRAIL_PER_PAGE - 1; // carry-over step
     let startIndex = 0;
-    // Only paginate when trail exceeds one page; guard maxTrailOnPage > 1
-    // to avoid zero step (edge case when page is entirely the extra card).
-    if (duCardTrail.length > maxTrailOnPage && maxTrailOnPage > 1) {
-        // step = new cards each page adds (capacity minus the carry-over card)
-        const step = maxTrailOnPage - 1;
-        // overshoot = how many cards spill beyond the first page
-        const overshoot = duCardTrail.length - maxTrailOnPage;
-        const pages = Math.ceil(overshoot / step);
-        startIndex = pages * step;
+    if (duCardTrail.length > MAX_TRAIL_PER_PAGE) {
+        const overshoot = duCardTrail.length - MAX_TRAIL_PER_PAGE;
+        const pages = Math.ceil(overshoot / CARRY_STEP);
+        startIndex = pages * CARRY_STEP;
     }
+    // isPageBreak: the viewport just advanced to a new page since the last render
+    const isPageBreak = startIndex > 0 && duLastRenderedTrailLength <= startIndex;
 
     // Render visible trail cards (current page only)
-    for (let i = startIndex; i < duCardTrail.length; i++) {
-        const entry = duCardTrail[i];
+    const cardsOnPage = duCardTrail.slice(startIndex);
+    cardsOnPage.forEach((entry, pageSlot) => {
+        const absIndex = startIndex + pageSlot;
+        // Carry-over card (pageSlot=0 on a page break) was already visible — no animation.
+        // New cards on the fresh page stagger in, skipping slot 0 (the carry-over).
+        const isCarryOver = isPageBreak && pageSlot === 0;
+        const isNew = !isCarryOver && (isPageBreak || absIndex >= duLastRenderedTrailLength);
+        const staggerMs = isPageBreak && pageSlot > 0 ? (pageSlot - 1) * T.duStaggerPerCardMs : 0;
+
         const slot = document.createElement('div');
-        slot.className = 'du-card-slot du-trail-card';
+        slot.className = 'du-card-slot du-trail-card' + (isNew ? ' du-new' : '');
+        if (isNew && staggerMs > 0) slot.style.setProperty('--du-stagger', staggerMs + 'ms');
+
         const label = document.createElement('div');
         label.className = 'du-card-label';
         label.textContent = entry.label || '';
+
         const frame = document.createElement('div');
         frame.className = 'du-card-frame';
-        if (i === duCardTrail.length - 1) frame.classList.add('dealer-card');
+        if (pageSlot === cardsOnPage.length - 1) frame.classList.add('dealer-card');
         const isLucky = entry.card && entry.card.code === '5S';
         if (isLucky) frame.classList.add('lucky5-glow');
         frame.innerHTML = `<img src="${cardImagePath(entry.card)}" alt="card">`;
+
         slot.appendChild(label);
         slot.appendChild(frame);
         area.appendChild(slot);
-    }
+    });
+
+    // Update tracker so next call knows which cards were already visible
+    duLastRenderedTrailLength = duCardTrail.length;
 
     if (challengerCard) {
         const challSlot = document.createElement('div');
-        challSlot.className = 'du-card-slot slide-in-done';
+        challSlot.className = 'du-card-slot du-chall-in';
         const challLabel = document.createElement('div');
         challLabel.className = 'du-card-label';
         challLabel.textContent = '';
@@ -1220,6 +1259,7 @@ function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
     }
 }
 
+// ── 7. ANIMATION HELPERS ────────────────────────────────────────────────
 let shuffleRAF = null;
 let shuffleLastTime = 0;
 
@@ -1230,7 +1270,7 @@ function startShuffle() {
     if (frame) frame.classList.add('du-flip-in');
 
     function tick(ts) {
-        if (ts - shuffleLastTime >= 120) {
+        if (ts - shuffleLastTime >= T.shuffleFrameMs) {
             shuffleLastTime = ts;
             const f = document.querySelector('#du-shuffle-frame img');
             if (f) {
@@ -1271,12 +1311,13 @@ async function startDoubleUpFlow() {
     }
 
     try {
-        const result = await apiCall('POST', '/api/Game/double-up/start', { roundId });
+        const result = await apiCall('POST', GAME_CONFIG.api.duStart, { roundId });
         duSessionStarted = true;
         duSwitchesRemaining = result.switchesRemaining;
         duIsNoLoseActive = result.isNoLoseActive;
         duDealerCard = result.dealerCard;
         duCardTrail = [{card: duDealerCard, label: 'DEALER'}];
+        duLastRenderedTrailLength = 0;
         gameState = 'doubleup';
 
         showDuInfo();
@@ -1310,10 +1351,15 @@ async function doDoubleUp(guess) {
     setButtonStates();
     showMessage('FLIPPING...', '');
 
+    // Snap shuffle frame to the card back BEFORE stopping so the loop
+    // never freezes on a random intermediate card face.
+    // Players only see the actual server-provided card result.
+    const shuffleImg = document.querySelector('#du-shuffle-frame img');
+    if (shuffleImg) shuffleImg.src = CARD_BACK_SRC;
     stopShuffle();
 
     try {
-        const result = await apiCall('POST', '/api/Game/double-up/guess', { roundId, guess });
+        const result = await apiCall('POST', GAME_CONFIG.api.duGuess, { roundId, guess });
 
         setTimeout(() => {
             renderDoubleUpCards(duDealerCard, false, result.challengerCard);
@@ -1337,7 +1383,7 @@ async function doDoubleUp(guess) {
                         duIsNoLoseActive = result.isNoLoseActive;
                         setButtonStates();
                     }
-                }, 900);
+                }, T.duWinHoldMs);
             } else if (result.status === 'SafeFail') {
                 roundDoubleUpAvailable = false;
                 triggerLucky5Flash();
@@ -1359,7 +1405,7 @@ async function doDoubleUp(guess) {
                     syncMachineCreditsFromResponse(result);
                     await fetchMachineSession();
                     refreshIdleMachineState();
-                }, 1200);
+                }, T.drainDelayMs);
             } else if (result.status === 'MachineClosed') {
                 roundDoubleUpAvailable = false;
                 const closedAmount = result.currentAmount;
@@ -1384,7 +1430,7 @@ async function doDoubleUp(guess) {
                     } catch (_) {
                         showMessage('MACHINE CLOSED - USE MENU TO CASH OUT', 'win');
                     }
-                }, 1200);
+                }, T.drainDelayMs);
             } else {
                 roundDoubleUpAvailable = false;
                 winAmount = 0;
@@ -1392,13 +1438,13 @@ async function doDoubleUp(guess) {
                 updateWinIndicator(0);
                 updateWinAmountDisplay(0);
                 showMessage('YOU LOSE!', 'lose');
-                setTimeout(() => exitDoubleUp(), 1000);
+                setTimeout(() => exitDoubleUp(), T.exitDuLoseMs);
             }
             setButtonStates();
-        }, 400);
+        }, T.duRevealDelayMs);
     } catch (e) {
         showMessage(e.message, 'lose');
-        setTimeout(() => exitDoubleUp(), 1500);
+        setTimeout(() => exitDoubleUp(), T.exitDuCatchMs);
     }
 }
 
@@ -1409,6 +1455,7 @@ function exitDoubleUp() {
     duIsNoLoseActive = false;
     duDealerCard = null;
     duCardTrail = [];
+    duLastRenderedTrailLength = 0;
     clearLucky5Effects();
     updateWinAmountDisplay(0);
 
@@ -1433,7 +1480,7 @@ function exitDoubleUp() {
 
 function animateJackpotFill(amount, startBalance, handName) {
     return new Promise((resolve) => {
-        const duration = Math.min(15000, Math.max(10000, amount / 500000 * 3000));
+        const duration = Math.min(T.jackpotFillMaxMs, Math.max(T.jackpotFillMinMs, amount / 500000 * 3000));
         const creditsSpan = $('#credits span');
         const winEl = $('#win-indicator');
         const msgEl = $('#game-message');
@@ -1488,7 +1535,7 @@ function animateDrainToCredits(amount, startBalance) {
         takeScoreAnimating = true;
         setButtonStates();
 
-        const totalDuration = Math.min(5000, Math.max(1500, amount / 500000 * 4000));
+        const totalDuration = Math.min(T.countUpMaxMs, Math.max(T.countUpMinMs, amount / 500000 * 4000));
         const creditsEl = $('#credits');
         const creditsSpan = $('#credits span');
         const winEl = $('#win-indicator');
@@ -1507,7 +1554,7 @@ function animateDrainToCredits(amount, startBalance) {
             balance = startBalance + credited;
             creditsSpan.textContent = formatNum(balance);
 
-            if (ts - lastTickToggle > 120) {
+            if (ts - lastTickToggle > T.creditTickMs) {
                 lastTickToggle = ts;
                 creditsEl.classList.toggle('credit-ticking');
             }
@@ -1561,7 +1608,7 @@ async function mainTakeScore() {
 
     let machineClosed = false;
     try {
-        const result = await apiCall('POST', '/api/Game/double-up/cashout', { roundId });
+        const result = await apiCall('POST', GAME_CONFIG.api.duCashout, { roundId });
         const cashoutAmount = result.currentAmount;
 
         await animateDrainToCredits(cashoutAmount, balance);
@@ -1596,7 +1643,7 @@ async function mainTakeHalf() {
     const wasInDoubleUp = gameState === 'doubleup';
 
     try {
-        const result = await apiCall('POST', '/api/Game/double-up/take-half', { roundId });
+        const result = await apiCall('POST', GAME_CONFIG.api.duTakeHalf, { roundId });
 
         syncMachineCreditsFromResponse(result);
         winAmount = result.currentAmount;
@@ -1635,7 +1682,7 @@ async function mainTakeHalf() {
                             setButtonStates();
                         }
                     }
-                }, 800);
+                }, T.takeHalfContinueMs);
             }
         }
     } catch (e) {
@@ -1786,6 +1833,13 @@ async function doLogout() {
     }
     machineJoined = false;
     setMenuPanelOpen(false);
+    stopShuffle();
+    hideDuInfo();
+    clearLucky5Effects();
+    duCardTrail = [];
+    duLastRenderedTrailLength = 0;
+    duSessionStarted = false;
+    duDealerCard = null;
     clearToken();
     clearCurrentMachineSelection();
     gameState = 'idle';
@@ -1805,9 +1859,10 @@ async function addDemoCredits() {
 // Available games will be populated from backend machines
 let AVAILABLE_GAMES = [];
 
+// ── 10. SHELL / LOBBY ──────────────────────────────────────────────────
 async function loadAvailableMachines() {
     try {
-        const machineData = await apiCall('GET', '/api/Game/games/machines');
+        const machineData = await apiCall('GET', GAME_CONFIG.api.machines);
         // Convert machines to game cards
         AVAILABLE_GAMES = machineData.map(machine => ({
             id: `machine-${machine.id}`,
@@ -1943,7 +1998,7 @@ async function loadWalletHistory() {
     if (!list) return;
 
     try {
-        const history = await apiCall('GET', '/api/Auth/MemberHistory');
+        const history = await apiCall('GET', GAME_CONFIG.api.memberHistory);
         if (!history || history.length === 0) {
             list.innerHTML = '<div class="wallet-history-empty">NO TRANSACTIONS YET</div>';
             return;
@@ -2028,8 +2083,8 @@ async function loadAdminUsers(query = '') {
     wrap.innerHTML = '<div class="wallet-history-empty">LOADING USERS...</div>';
     try {
         adminUsers = query
-            ? await apiCall('GET', `/api/Admin/users/search?q=${encodeURIComponent(query)}`)
-            : await apiCall('GET', '/api/Admin/users');
+            ? await apiCall('GET', GAME_CONFIG.api.adminUserSearch(query))
+            : await apiCall('GET', GAME_CONFIG.api.adminUsers);
         if (!adminUsers.length) {
             wrap.innerHTML = '<div class="wallet-history-empty">NO USERS FOUND</div>';
             return;
@@ -2065,13 +2120,13 @@ async function adminAdjustWallet(userId, isDebit) {
     const reason = prompt('Reason / note:', isDebit ? 'manual debit' : 'manual credit');
     if (!reason) return;
     try {
-        await apiCall('POST', '/api/Admin/users/credit', {
+        await apiCall('POST', GAME_CONFIG.api.adminCredit, {
             targetUserId: userId,
             amount: isDebit ? -amount : amount,
             reason
         });
         loadAdminUsers(document.getElementById('admin-user-search')?.value || '');
-        const profile = await apiCall('GET', '/api/Auth/GetUserById');
+        const profile = await apiCall('GET', GAME_CONFIG.api.profile);
         walletBalance = profile.walletBalance;
         updateLobbyBalance();
     } catch (e) {
@@ -2084,7 +2139,7 @@ async function loadAdminMachines() {
     if (!wrap) return;
     wrap.innerHTML = '<div class="wallet-history-empty">LOADING MACHINES...</div>';
     try {
-        adminMachines = await apiCall('GET', '/api/Admin/machines');
+        adminMachines = await apiCall('GET', GAME_CONFIG.api.adminMachines);
         if (!adminMachines.length) {
             wrap.innerHTML = '<div class="wallet-history-empty">NO MACHINES FOUND</div>';
             return;
@@ -2118,7 +2173,7 @@ async function loadAdminMachines() {
         wrap.querySelectorAll('[data-reset-machine]').forEach(btn => btn.addEventListener('click', async () => {
             if (!confirm(`Reset machine ${btn.dataset.resetMachine}? Active rounds must be empty.`)) return;
             try {
-                await apiCall('POST', `/api/Game/machine/${btn.dataset.resetMachine}/reset`);
+                await apiCall('POST', GAME_CONFIG.api.machineReset(btn.dataset.resetMachine));
                 await loadAdminMachines();
             } catch (e) {
                 alert(e.message);
@@ -2142,6 +2197,10 @@ async function backToLobbyFromGame() {
     stopShuffle();
     hideDuInfo();
     clearLucky5Effects();
+    duCardTrail = [];
+    duLastRenderedTrailLength = 0;
+    duSessionStarted = false;
+    duDealerCard = null;
     gameState = 'idle';
     jackpotRankArmed = false;
     winAmount = 0;
@@ -2161,8 +2220,8 @@ async function initGame(options = {}) {
     const { allowLobbyFallback = false } = options;
     try {
         const [machineData, rulesData] = await Promise.all([
-            apiCall('GET', '/api/Game/games/machines'),
-            apiCall('GET', '/api/Game/defaultRules')
+            apiCall('GET', GAME_CONFIG.api.machines),
+            apiCall('GET', GAME_CONFIG.api.defaultRules)
         ]);
         machines = machineData;
         paytable = rulesData.payoutMultipliers;
@@ -2185,7 +2244,7 @@ async function initGame(options = {}) {
             }
         }
 
-        const profile = await apiCall('GET', '/api/Auth/GetUserById');
+        const profile = await apiCall('GET', GAME_CONFIG.api.profile);
         walletBalance = profile.walletBalance;
         const session = await fetchMachineSession();
         updateCredits();
@@ -2195,7 +2254,7 @@ async function initGame(options = {}) {
         updateBonusHandText();
 
         try {
-            const machineState = await apiCall('GET', `/api/Game/machine/${machineId}/state`);
+            const machineState = await apiCall('GET', GAME_CONFIG.api.machineState(machineId));
             if (machineState && machineState.jackpots) {
                 updateJackpotDisplay(machineState.jackpots);
             }
@@ -2224,6 +2283,7 @@ async function initGame(options = {}) {
     }
 }
 
+// ── 11. DOM BOOTSTRAP ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     const authBtn = $('#auth-submit');
     authBtn.disabled = true;
@@ -2234,6 +2294,7 @@ document.addEventListener('DOMContentLoaded', () => {
         assetsReady = true;
         authBtn.disabled = false;
         authBtn.textContent = 'LOGIN';
+        if (window.CabinetStage) CabinetStage.initButtonAssets();
     });
 
     const authScreen = $('#auth-screen');
@@ -2371,7 +2432,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#btn-reset-machine').addEventListener('click', async () => {
             if (!confirm('Reset machine state only? Active rounds must be empty.')) return;
             try {
-                await apiCall('POST', `/api/Game/machine/${machineId}/reset`);
+                await apiCall('POST', GAME_CONFIG.api.machineReset(machineId));
                 await fetchMachineSession();
                 setMenuPanelOpen(false);
                 showMessage('MACHINE RESET COMPLETE', 'win');
@@ -2439,7 +2500,7 @@ document.addEventListener('DOMContentLoaded', () => {
         authScreen.style.display = 'none';
         (async () => {
             try {
-                const profile = await apiCall('GET', '/api/Auth/GetUserById');
+                const profile = await apiCall('GET', GAME_CONFIG.api.profile);
                 walletBalance = profile.walletBalance;
                 storeUserInfo(profile.username, profile.role);
                 const savedMachine = sessionStorage.getItem('lucky5_machineId');

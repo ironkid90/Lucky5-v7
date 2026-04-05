@@ -39,7 +39,10 @@
 
 window.CabinetStage = (function () {
 
-    const CARD_BACK = '/assets/images/cards/bside.png';
+    // Use variant config if available, otherwise fall back to known defaults.
+    const _cfg  = (typeof GAME_CONFIG !== 'undefined') ? GAME_CONFIG : null;
+    const CARD_BACK = _cfg ? _cfg.assets.cardBack : '/assets/images/cards/bside.png';
+    const SHUFFLE_MS = _cfg ? _cfg.timing.shuffleFrameMs : 120;
     let _shuffleInterval = null;
     let _isDoubleUpMode = false;
 
@@ -387,7 +390,7 @@ window.CabinetStage = (function () {
                 const code = allCodes[Math.floor(Math.random() * allCodes.length)];
                 img.src = `/assets/images/cards/${code}.png`;
             }
-        }, 80);
+        }, SHUFFLE_MS);
     }
 
     function _stopShuffle() {

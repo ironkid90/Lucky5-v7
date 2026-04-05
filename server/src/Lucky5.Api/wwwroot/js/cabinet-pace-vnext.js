@@ -13,7 +13,14 @@
 
 window.CabinetPace = (function () {
 
-    const _fmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+    const _fmt  = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+    // Pull timing from variant config; fall back to Lucky5 defaults.
+    const _cfg  = (typeof GAME_CONFIG !== 'undefined') ? GAME_CONFIG.timing : null;
+    const COUNT_UP_MIN  = _cfg ? _cfg.countUpMinMs        : 1500;
+    const COUNT_UP_MAX  = _cfg ? _cfg.countUpMaxMs        : 5000;
+    const JP_FILL_MIN   = _cfg ? _cfg.jackpotFillMinMs    : 10000;
+    const JP_FILL_MAX   = _cfg ? _cfg.jackpotFillMaxMs    : 15000;
+    const FLASH_ACTIVE  = _cfg ? _cfg.lucky5ActiveScreenMs: 1400;
 
     /* ── countUp ─────────────────────────────────────────────────────────── */
     /**
@@ -67,8 +74,8 @@ window.CabinetPace = (function () {
         const winEl = document.getElementById('win-amount-value');
         if (winEl) winEl.textContent = _fmt.format(winAmount);
 
-        // Scale duration: 1500ms base, +200ms per 50k, capped at 5000ms
-        const duration = Math.min(1500 + Math.floor(winAmount / 50000) * 200, 5000);
+        // Scale duration from COUNT_UP_MIN to COUNT_UP_MAX based on win size
+        const duration = Math.min(COUNT_UP_MIN + Math.floor(winAmount / 50000) * 200, COUNT_UP_MAX);
 
         // Brief pause then count credits up
         setTimeout(() => {
@@ -91,8 +98,8 @@ window.CabinetPace = (function () {
      */
     function fillJackpot(jpCvalElement, fromValue, toValue, onComplete) {
         const delta = toValue - fromValue;
-        // 10000ms base, +1000ms per 500k delta, capped at 15000ms
-        const duration = Math.min(10000 + Math.floor(delta / 500000) * 1000, 15000);
+        // Scale jackpot fill from JP_FILL_MIN to JP_FILL_MAX based on amount
+        const duration = Math.min(JP_FILL_MIN + Math.floor(delta / 500000) * 1000, JP_FILL_MAX);
         countUp(jpCvalElement, fromValue, toValue, duration, onComplete);
     }
 
@@ -107,7 +114,7 @@ window.CabinetPace = (function () {
             // force reflow
             void flashEl.offsetWidth;
             flashEl.classList.add('active');
-            setTimeout(() => flashEl.classList.remove('active'), 1400);
+            setTimeout(() => flashEl.classList.remove('active'), FLASH_ACTIVE);
         }
 
         // Also trigger stage glow/banner

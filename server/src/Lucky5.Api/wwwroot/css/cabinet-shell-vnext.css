@@ -1,150 +1,78 @@
 /*
  * cabinet-shell-vnext.css
  * OWNER: Lead Agent
- * PURPOSE: Shell screens (auth, lobby, wallet, admin) visual family — black/wood aesthetic.
+ * PURPOSE: Shell additions only — game.css already covers all shell screens.
+ *          This file adds only the genuinely missing pieces and targeted overrides.
  * LOADS AFTER: cabinet-labels-vnext.css
  * DO NOT EDIT: game.css, any .js files, index.html
  */
 
-/* ─── SHELL VISUAL FAMILY ────────────────────────────────────────────────── */
-/* All shell screens share black play surfaces, warm brown accents,
-   pixel/compact typography. No generic SaaS styling. */
+/* ─── ADMIN INPUT ────────────────────────────────────────────────────────── */
+/* game.css does not define admin-input-lite */
 
-/* ─── AUTH SCREEN ────────────────────────────────────────────────────────── */
-/* game.css already has a good auth screen. Minimal overrides here. */
-
-#auth-screen .logo {
-    width: 140px;
-    image-rendering: pixelated;
-}
-
-/* ─── LOBBY SCREEN ───────────────────────────────────────────────────────── */
-
-#lobby-screen {
-    position: absolute;
-    inset: 0;
-    background: #000;
-    display: none;
-    flex-direction: column;
-    overflow: hidden;
-    font-family: 'Press Start 2P', 'Arcade', monospace;
-}
-
-#lobby-screen.active {
-    display: flex;
-}
-
-.lobby-top-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 12px 8px;
-    border-bottom: 1px solid #2a1a0d;
-    background: linear-gradient(180deg, #1a0f06 0%, #0a0703 100%);
-    flex-shrink: 0;
-}
-
-.lobby-balance-box {
-    display: flex;
-    flex-direction: column;
-}
-
-.lobby-balance-label {
-    font-size: 7px;
-    color: #00ff44;
-    letter-spacing: 1px;
-}
-
-.lobby-balance-value {
-    font-size: 16px;
-    color: #ffffff;
-    letter-spacing: 0.5px;
-}
-
-.lobby-user-box {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 6px;
-}
-
-.lobby-username {
-    font-size: 8px;
-    color: #ffcc00;
-    letter-spacing: 1px;
-}
-
-.lobby-btn {
+.admin-input-lite {
     font-family: 'Press Start 2P', 'Arcade', monospace;
     font-size: 7px;
-    letter-spacing: 1px;
-    padding: 6px 10px;
-    background: linear-gradient(180deg, #3d2815, #2a1a0d);
+    background: #111;
+    border: 1px solid #3d2815;
     color: #ffcc00;
-    border: 1px solid #5a3a1a;
-    cursor: pointer;
+    padding: 8px 10px;
+    letter-spacing: 1px;
     border-radius: 2px;
+    outline: none;
+    transition: border-color 0.15s;
 }
 
-.lobby-btn:active { filter: brightness(1.2); }
-
-.lobby-btn-sm {
-    padding: 4px 8px;
-    font-size: 6px;
+.admin-input-lite:focus {
+    border-color: #ffcc00;
 }
 
-.lobby-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+/* ─── LUCKY5 CARD GLOW (applied by CabinetStage.showLucky5Active) ────────── */
+/* game.css has .du-card-slot lucky5-glow but not .card-slot.lucky5-active */
+
+.card-slot.lucky5-active .card-face {
+    box-shadow: 0 0 18px rgba(255, 215, 0, 0.85), 0 0 36px rgba(255, 215, 0, 0.35);
+    animation: lucky5-card-slot-glow 0.6s ease-out forwards;
 }
 
-.lobby-section-title {
-    font-size: 7px;
-    color: #ffcc00;
-    letter-spacing: 2px;
-    margin-bottom: 8px;
-    padding-bottom: 4px;
-    border-bottom: 1px solid #2a1a0d;
+@keyframes lucky5-card-slot-glow {
+    0%   { box-shadow: 0 0 24px rgba(255,215,0,0.9), 0 0 48px rgba(255,215,0,0.5); }
+    100% { box-shadow: 2px 2px 6px rgba(0,0,0,0.8); }
 }
 
-/* Machine selection cards — cabinet family style */
-.lobby-game-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
+/* ─── LOBBY MACHINE CARD (used by CabinetShell.renderLobbyMachineCards) ──── */
+/* Additive — not a replacement for .game-card, just an alternative class     */
 
 .lobby-machine-card {
-    background: linear-gradient(180deg, #1a0f06, #110a04);
-    border: 1px solid #3d2815;
-    border-radius: 3px;
+    background: linear-gradient(180deg, rgba(50,32,14,0.95) 0%, rgba(20,12,4,0.98) 100%);
+    border: 2px solid #5a3a1a;
+    border-radius: 4px;
     padding: 10px 12px;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-family: 'Press Start 2P', 'Arcade', monospace;
     transition: border-color 0.15s;
+    position: relative;
 }
 
 .lobby-machine-card:hover,
 .lobby-machine-card:active {
     border-color: #ffcc00;
-    background: linear-gradient(180deg, #221408, #160d05);
+    background: linear-gradient(180deg, rgba(60,38,14,0.98) 0%, rgba(26,14,5,0.99) 100%);
 }
 
 .lobby-machine-card.unavailable {
     opacity: 0.4;
     cursor: not-allowed;
+    pointer-events: none;
 }
 
 .lobby-machine-name {
     font-size: 9px;
     color: #ffffff;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
 }
 
 .lobby-machine-bet {
@@ -152,263 +80,28 @@
     color: #44ff44;
 }
 
-/* Wallet summary block in lobby */
-.lobby-wallet-summary {
-    background: linear-gradient(180deg, #111, #0a0a0a);
-    border: 1px solid #2a1a0d;
-    border-radius: 3px;
-    padding: 8px 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.lobby-wallet-bal-label {
-    font-size: 7px;
-    color: #ffcc00;
-    display: block;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-}
-
-.lobby-wallet-bal-value {
-    font-size: 14px;
-    color: #ffffff;
-}
-
-.lobby-wallet-actions {
-    display: flex;
-    gap: 6px;
-}
-
-/* Bottom navigation bar */
-.lobby-nav-bar {
-    display: flex;
-    border-top: 1px solid #2a1a0d;
-    background: #0a0703;
-    flex-shrink: 0;
-}
-
-.lobby-nav-item {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 4px;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 6px;
-    color: #666;
-    cursor: pointer;
-    background: none;
-    border: none;
-    border-top: 2px solid transparent;
-    gap: 4px;
-    letter-spacing: 0.5px;
-}
+/* ─── LOBBY NAV ACTIVE INDICATOR (override game.css gold with amber) ──────── */
 
 .lobby-nav-item.active {
     color: #ffcc00;
-    border-top-color: #ffcc00;
+    border-top: 2px solid #ffcc00;
 }
 
-.lobby-nav-icon {
-    font-size: 14px;
-    line-height: 1;
-}
-
-/* ─── WALLET SCREEN ──────────────────────────────────────────────────────── */
-
-#wallet-screen {
-    position: absolute;
-    inset: 0;
-    background: #000;
-    display: none;
-    flex-direction: column;
-    font-family: 'Press Start 2P', 'Arcade', monospace;
-}
-
-#wallet-screen.active {
-    display: flex;
-}
-
-.wallet-header {
-    display: flex;
-    align-items: center;
-    padding: 10px 12px;
-    border-bottom: 1px solid #2a1a0d;
-    background: linear-gradient(180deg, #1a0f06, #0a0703);
-    flex-shrink: 0;
-    gap: 10px;
-}
-
-.wallet-title {
-    flex: 1;
-    text-align: center;
-    font-size: 10px;
-    color: #ffcc00;
-    letter-spacing: 3px;
-}
-
-.wallet-spacer {
-    width: 60px;
-}
-
-.wallet-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.wallet-balance-card {
-    background: linear-gradient(180deg, #1a0f06, #110a04);
-    border: 1px solid #5a3a1a;
-    border-radius: 3px;
-    padding: 14px 12px;
-    text-align: center;
-}
-
-.wallet-balance-label {
-    font-size: 7px;
-    color: #ffcc00;
-    letter-spacing: 2px;
-    display: block;
-    margin-bottom: 8px;
-}
-
-.wallet-balance-amount {
-    font-size: 22px;
-    color: #ffffff;
-    letter-spacing: 1px;
-}
-
-.wallet-deposit-withdraw {
-    display: flex;
-    gap: 8px;
-}
-
-.wallet-action-btn {
-    flex: 1;
-    text-align: center;
-    justify-content: center;
-}
-
-.wallet-coming-soon {
-    font-size: 6px;
-    color: #555;
-    text-align: center;
-    letter-spacing: 1px;
-}
-
-.wallet-history-title {
-    font-size: 7px;
-    color: #ffcc00;
-    letter-spacing: 2px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid #2a1a0d;
-}
-
-.wallet-history-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.wallet-history-empty {
-    font-size: 7px;
-    color: #444;
-    text-align: center;
-    padding: 10px 0;
-    letter-spacing: 1px;
-}
-
-/* ─── ADMIN SCREEN ───────────────────────────────────────────────────────── */
-
-#admin-screen {
-    position: absolute;
-    inset: 0;
-    background: #000;
-    display: none;
-    flex-direction: column;
-    font-family: 'Press Start 2P', 'Arcade', monospace;
-}
-
-#admin-screen.active {
-    display: flex;
-}
-
-.admin-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.admin-input-lite {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 7px;
-    background: #111;
-    border: 1px solid #333;
-    color: #ffcc00;
-    padding: 6px 8px;
-    letter-spacing: 1px;
-    border-radius: 2px;
-}
-
-/* ─── MENU OVERLAY (machine-mounted, not full-page drawer) ───────────────── */
-
-.menu-panel {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.88);
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 24px;
-    z-index: 9999;
-    font-family: 'Press Start 2P', monospace;
-}
-
-.menu-panel.is-open {
-    display: flex;
-}
+/* ─── MENU OVERLAY TITLE (override game.css yellow with gold) ─────────────── */
 
 .menu-panel-title {
-    font-size: 10px;
+    font-size: 11px;
     color: #ffcc00;
     letter-spacing: 3px;
-    margin-bottom: 8px;
 }
 
-.menu-panel-btn,
-.menu-panel-close {
-    min-width: 200px;
-    padding: 10px 20px;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
-    letter-spacing: 1px;
-    cursor: pointer;
-    border-radius: 2px;
+/* ─── WALLET DEPOSIT/WITHDRAW PLACEHOLDER TEXT ────────────────────────────── */
+
+.wallet-coming-soon {
+    font-family: 'Press Start 2P', 'Arcade', monospace;
+    font-size: 6px;
+    color: #444;
     text-align: center;
-    border: 2px solid transparent;
-}
-
-.menu-panel-btn-cashin   { background: linear-gradient(180deg, #0a0, #070); border-color: #0c0; color: #fff; }
-.menu-panel-btn-cashout  { background: linear-gradient(180deg, #aa0, #770); border-color: #ff0; color: #fff; }
-.menu-panel-btn-lobby    { background: linear-gradient(180deg, #06c, #048); border-color: #4af; color: #fff; }
-.menu-panel-btn-reset    { background: linear-gradient(180deg, #600, #400); border-color: #f44; color: #fff; }
-.menu-panel-btn-logout   { background: linear-gradient(180deg, #333, #222); border-color: #666; color: #aaa; }
-
-.menu-panel-close {
-    background: none;
-    color: #888;
-    border-color: #444;
-    margin-top: 4px;
+    letter-spacing: 1px;
+    padding: 4px 0;
 }

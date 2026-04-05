@@ -717,7 +717,7 @@ body {
 }
 
 #card-area.du-mode {
-    gap: 6px;
+    gap: 4px;
     justify-content: flex-start;
     overflow: hidden;
 }
@@ -945,22 +945,38 @@ body {
 
 .du-card-slot {
     position: relative;
-    width: 22%;
-    min-width: 60px;
+    flex: 1 1 0;
+    min-width: 0;
     max-width: 120px;
     height: 100%;
     text-align: center;
-    flex-shrink: 0;
+    flex-shrink: 1;
 }
 
 .du-trail-card {
     opacity: 1;
-    animation: du-page-in 0.25s ease-out;
+    /* No default animation — old trail cards appear instantly on re-render */
+}
+
+/* Only newly-arrived cards (tracked by JS) animate in */
+.du-trail-card.du-new {
+    animation: du-page-in 0.22s ease-out both;
+    animation-delay: var(--du-stagger, 0ms);
 }
 
 @keyframes du-page-in {
-    from { opacity: 0; transform: translateX(12px); }
-    to   { opacity: 1; transform: translateX(0); }
+    from { opacity: 0; transform: translateY(-28px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* Challenger card reveal: drop in from above, slightly faster */
+.du-card-slot.du-chall-in .du-card-frame {
+    animation: du-chall-drop 0.2s ease-out both;
+}
+
+@keyframes du-chall-drop {
+    from { opacity: 0; transform: translateY(-40px) scale(0.9); }
+    to   { opacity: 1; transform: translateY(0)     scale(1); }
 }
 
 .du-spacer { width: 14px; flex-shrink: 0; }

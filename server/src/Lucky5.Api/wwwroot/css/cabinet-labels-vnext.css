@@ -248,3 +248,44 @@
     font-size: 0.73cqh;
     text-align: center;
 }
+
+/* ── Full House selector card display (centered, normal card) ─────── */
+.idle-selector {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    pointer-events: none;
+}
+
+.idle-selector-card {
+    position: relative;
+    width: 12cqw;
+    height: 16cqw;
+    transform: scale(1.2);
+    transition: transform 0.4s ease-in-out;
+}
+
+.idle-selector-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 0.5cqw;
+    box-shadow: 0 0.8cqw 2cqw rgba(0, 0, 0, 0.6);
+}
+
+.idle-selector-card.is-flipping {
+    animation: cardFlip 0.8s ease-in-out;
+}
+
+@keyframes cardFlip {
+    0% { transform: scale(1.2) rotateY(0deg); }
+    50% { transform: scale(1.2) rotateY(90deg); }
+    100% { transform: scale(1.2) rotateY(0deg); }
+}
+
+.idle-selector-title,
+.idle-selector-help {
+    display: none; /* Hide text elements, show only the card */
+}

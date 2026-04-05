@@ -269,27 +269,30 @@
 
             <div id="lucky5-flash"></div>
 
+            <!-- Control deck (board background) -->
             <div id="controls" data-zone="controls">
-                <div id="hold-row">
-                    <button class="cab-btn cab-hold" data-index="0" disabled></button>
-                    <button class="cab-btn cab-hold" data-index="1" disabled></button>
-                    <button class="cab-btn cab-hold" data-index="2" disabled></button>
-                    <button class="cab-btn cab-hold" data-index="3" disabled></button>
-                    <button class="cab-btn cab-hold" data-index="4" disabled></button>
+                <!-- Idle overlay appears on board when machine is idle -->
+                <div id="idle-overlay">
+                    <div id="idle-overlay-text">LUCKY 5 POKER</div>
                 </div>
-                <div id="action-row">
-                    <button class="cab-btn cab-big" id="btn-big" disabled></button>
-                    <button class="cab-btn cab-small" id="btn-small" disabled></button>
-                    <button class="cab-btn cab-cancel" id="btn-cancel" disabled></button>
-                    <button class="cab-btn cab-deal" id="btn-deal" disabled></button>
-                    <button class="cab-btn cab-bet" id="btn-bet"></button>
+                <div id="hold-row" data-zone="hold-row" class="hold-row">
+                    <button class="cab-btn cab-hold" data-index="0"></button>
+                    <button class="cab-btn cab-hold" data-index="1"></button>
+                    <button class="cab-btn cab-hold" data-index="2"></button>
+                    <button class="cab-btn cab-hold" data-index="3"></button>
+                    <button class="cab-btn cab-hold" data-index="4"></button>
                 </div>
-                <div id="bottom-row">
-                    <button class="cab-btn cab-takehalf" id="btn-take-half" disabled></button>
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-                        <button class="cab-btn cab-menu" id="btn-menu">&#9776;</button>
-                        <span style="font-family:'Press Start 2P',monospace;font-size:6px;color:#aaa;letter-spacing:1px;">MENU</span>
-                    </div>
+                <div id="action-row" data-zone="action-row" class="action-row">
+                    <button id="btn-big" class="cab-btn cab-big"></button>
+                    <button id="btn-small" class="cab-btn cab-small"></button>
+                    <button id="btn-cancel" class="cab-btn cab-cancel"></button>
+                    <button id="btn-deal" class="cab-btn cab-deal"></button>
+                    <button id="btn-bet" class="cab-btn cab-bet"></button>
+                </div>
+                <div id="bottom-row" data-zone="bottom-row" class="bottom-row">
+                    <button id="btn-take-half" class="cab-btn cab-takehalf"></button>
+                    <button id="btn-menu" class="cab-btn cab-menu"></button>
+                    <button id="btn-take-score" class="cab-btn cab-takescore"></button>
                     <button class="cab-btn cab-takescore" id="btn-take-score" disabled></button>
                 </div>
             </div>
@@ -307,10 +310,13 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
-    <script src="/js/game-config.js?v=2"></script>
-    <script src="/js/game.js?v=18"></script>
+    <script src="/js/game-config.js?v=3"></script>
+    <script src="/js/game.js?v=19"></script>
     <script src="/js/cabinet-stage-vnext.js?v=1"></script>
     <script src="/js/cabinet-pace-vnext.js?v=1"></script>
     <script src="/js/cabinet-shell-vnext.js?v=1"></script>
+    <link rel="stylesheet" href="/css/cabinet-layout-vnext.css?v=3">
+    <link rel="stylesheet" href="/css/cabinet-labels-vnext.css?v=3">
+    <link rel="stylesheet" href="/css/cabinet-shell-vnext.css?v=1">
 </body>
 </html>

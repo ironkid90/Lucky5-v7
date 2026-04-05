@@ -525,24 +525,79 @@ function canAdjustJackpotRank() {
     return gameState === 'idle' && jackpotRankArmed;
 }
 
+// ── Idle overlay management ────────────────────────────────────────────────
+let idleOverlayTimer = null;
+let idleOverlayVisible = false;
+
+function showIdleOverlay() {
+    const overlay = $('#idle-overlay');
+    if (overlay && !idleOverlayVisible) {
+        overlay.classList.add('visible');
+        idleOverlayVisible = true;
+    }
+}
+
+function hideIdleOverlay() {
+    const overlay = $('#idle-overlay');
+    if (overlay && idleOverlayVisible) {
+        overlay.classList.remove('visible');
+        idleOverlayVisible = false;
+    }
+}
+
+function resetIdleOverlayTimer() {
+    // Clear existing timer
+    if (idleOverlayTimer) {
+        clearTimeout(idleOverlayTimer);
+        idleOverlayTimer = null;
+    }
+    
+    // Hide overlay immediately if visible
+    hideIdleOverlay();
+    
+    // Show overlay after 3 seconds if conditions are met
+    idleOverlayTimer = setTimeout(() => {
+        if (gameState === 'idle' && holdIndexes.size === 0 && !isDoubleUpMode()) {
+            showIdleOverlay();
+        }
+    }, 3000);
+}
+
+function updateIdleOverlayVisibility() {
+    // Hide overlay immediately if not idle or cards are held or in DU mode
+    if (gameState !== 'idle' || holdIndexes.size > 0 || isDoubleUpMode()) {
+        hideIdleOverlay();
+        if (idleOverlayTimer) {
+            clearTimeout(idleOverlayTimer);
+            idleOverlayTimer = null;
+        }
+    } else {
+        // Reset timer to potentially show overlay after delay
+        resetIdleOverlayTimer();
+    }
+}
+
 function showIdleTitle(animateSelector = false) {
     const area = $('#card-area');
     area.innerHTML = '';
     area.classList.remove('du-mode');
     const selector = document.createElement('div');
     selector.className = 'idle-selector';
-    if (animateSelector) selector.classList.add('is-flipping');
-    selector.innerHTML = `
-        <div class="idle-selector-title">FULL HOUSE</div>
-        <div class="idle-selector-card"><img src="/assets/images/cards/${fullHouseSelectorCode()}.png" alt="full house selector"></div>
-        <div class="idle-selector-help">${canAdjustJackpotRank() ? 'HOLD 1 TO CHANGE' : 'PRESS BET, THEN HOLD 1'}</div>
-    `;
+    const card = document.createElement('div');
+    card.className = 'idle-selector-card';
+    if (animateSelector) card.classList.add('is-flipping');
+    card.innerHTML = `<img src="/assets/images/cards/${fullHouseSelectorCode()}.png" alt="full house selector">`;
+    selector.appendChild(card);
     area.appendChild(selector);
+    // Reset idle overlay timer when showing idle title
+    resetIdleOverlayTimer();
 }
 
 function hideIdleTitle() {
     const area = $('#card-area');
     area.innerHTML = '';
+    // Reset idle overlay timer when hiding idle title
+    resetIdleOverlayTimer();
 }
 
 // ── 6. RENDERING ─────────────────────────────────────────────────────────
@@ -607,6 +662,9 @@ function toggleHold(index) {
     const holdBtns = $$('.cab-hold');
     holdBtns[index].classList.toggle('active', holdIndexes.has(index));
     if (window.CabinetStage) CabinetStage.setHold(index, holdIndexes.has(index));
+    
+    // Update idle overlay visibility when holds change
+    updateIdleOverlayVisibility();
 }
 
 function cycleJackpotRank() {
@@ -952,6 +1010,7 @@ function restoreRoundFromSnapshot(snapshot) {
         duLastRenderedTrailLength = 0;
         gameState = 'doubleup';
         showDuInfo();
+        updateIdleOverlayVisibility();
         renderDoubleUpCards(duDealerCard, true, null);
         updateWinIndicator(winAmount);
         updateWinAmountDisplay(winAmount, getFourOfAKindSlotTag(currentHandRank));
@@ -1001,6 +1060,7 @@ async function doDeal() {
         setButtonStates();
         showMessage('DEALING...');
         updateBonusBar(null);
+        updateIdleOverlayVisibility();
         updateWinIndicator(0);
         hideDuInfo();
         hideIdleTitle();
@@ -1045,6 +1105,7 @@ async function doDeal() {
             gameState = 'idle';
             setButtonStates();
             showIdleTitle();
+            updateIdleOverlayVisibility();
         }
     } else if (gameState === 'hold') {
         if (balance < currentBet) {
@@ -1055,6 +1116,7 @@ async function doDeal() {
         gameState = 'drawing';
         setButtonStates();
         showMessage('DRAWING...');
+        updateIdleOverlayVisibility();
 
         try {
             const result = await apiCall('POST', GAME_CONFIG.api.draw, {
@@ -1108,6 +1170,7 @@ async function doDeal() {
                     updateWinAmountDisplay(winAmount, getFourOfAKindSlotTag(handName));
                     gameState = 'win';
                     setButtonStates();
+                    updateIdleOverlayVisibility();
 
                     const proceedToDoubleUp = async () => {
                         if (jackpotWon > 0) {
@@ -1158,6 +1221,9 @@ function cancelHold() {
     $$('.card-slot').forEach(s => s.classList.remove('held'));
     $$('.cab-hold').forEach(btn => btn.classList.remove('active'));
     if (window.CabinetStage) CabinetStage.clearAllHolds();
+    
+    // Update idle overlay visibility when holds are cleared
+    updateIdleOverlayVisibility();
 }
 
 function showDuInfo() {
@@ -1606,8 +1672,10 @@ async function mainTakeScore() {
     updatePaytable();
     updateBonusBar(null);
     updateWinAmountDisplay(0);
-    currentHandRank = null;
+    updateWinIndicator(0);
+    setButtonStates();
     showIdleTitle();
+    updateIdleOverlayVisibility();
 
     let machineClosed = false;
     try {
@@ -1666,6 +1734,7 @@ async function mainTakeHalf() {
             updateWinAmountDisplay(0);
             showMessage('PLACE YOUR BET');
             showIdleTitle();
+            updateIdleOverlayVisibility();
         } else {
             showMessage(`${formatNum(winAmount)} REMAINS - DOUBLE UP!`, 'win');
             if (currentHandRank) highlightPaytableDU(currentHandRank, winAmount);

@@ -104,7 +104,7 @@ function preloadAllAssets() {
             'cancel_hold.png', 'cancel_hold_on.png', 'hold_off.png', 'hold_on.png',
             'take_half.png', 'take_half_on.png', 'take_score.png', 'take_score_on.png'
         ];
-        buttonFiles.forEach(f => allPaths.push(`/assets/images/buttons/${f}`));
+        buttonFiles.forEach(f => allPaths.push(`/assets/images/${f}`));
 
         allPaths.push('/assets/images/board.png');
         allPaths.push('/assets/images/lucky5.png');

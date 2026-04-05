@@ -1,5 +1,6 @@
 namespace Lucky5.Infrastructure.Services;
 
+using System.Net;
 using Lucky5.Application.Contracts;
 using Lucky5.Application.Interfaces;
 using Lucky5.Infrastructure.Data.Repositories;

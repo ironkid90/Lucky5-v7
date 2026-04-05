@@ -76,7 +76,6 @@ public sealed class AdminService(InMemoryDataStore store, IPersistentStateStore 
 
     public Task<AdminMachineDto> ResetMachineAsync(Guid adminId, int machineId, CancellationToken cancellationToken)
     {
-        var machine = store.Machines.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
         var machine = store.Machines.Values.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
         if (store.ActiveRounds.Values.Any(r => r.MachineId == machineId && IsRoundRecoverable(r)))
             throw new InvalidOperationException("Cannot reset machine with active rounds");

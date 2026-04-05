@@ -3,6 +3,7 @@ namespace Lucky5.Infrastructure.Services;
 using Lucky5.Application.Contracts;
 using Lucky5.Application.Dtos;
 using Lucky5.Application.Requests;
+using Lucky5.Infrastructure.Data.Repositories;
 
 // Kept as a compatibility shim while the repo converges on GameService again.
 public sealed class GameServiceSimple : IGameService
@@ -14,7 +15,8 @@ public sealed class GameServiceSimple : IGameService
         IEntropyGenerator entropyGenerator,
         IPersistentStateStore persistentStateStore)
     {
-        inner = new GameService(store, entropyGenerator, persistentStateStore);
+        _ = persistentStateStore;
+        inner = new GameService(new InMemoryDataStoreAdapter(store), entropyGenerator);
     }
 
     public Task<IReadOnlyList<string>> GetGamesAsync(CancellationToken cancellationToken) => inner.GetGamesAsync(cancellationToken);

@@ -42,24 +42,24 @@ public class InMemoryDataStoreAdapter : IDataStore
 
     public Task<MemberProfile?> GetProfileAsync(Guid userId)
     {
-        _store.Profiles.TryGetValue(userId, out var profile);
+        _store.MemberProfiles.TryGetValue(userId, out var profile);
         return Task.FromResult(profile);
     }
 
     public Task UpdateProfileAsync(MemberProfile profile)
     {
-        _store.Profiles[profile.UserId] = profile;
+        _store.MemberProfiles[profile.UserId] = profile;
         return Task.CompletedTask;
     }
 
     public Task<List<Machine>> GetMachinesAsync()
     {
-        return Task.FromResult(_store.Machines.ToList());
+        return Task.FromResult(_store.Machines.Values.ToList());
     }
 
     public Task<Machine?> GetMachineAsync(int machineId)
     {
-        var machine = _store.Machines.FirstOrDefault(m => m.Id == machineId);
+        var machine = _store.Machines.Values.FirstOrDefault(m => m.Id == machineId);
         return Task.FromResult(machine);
     }
 
@@ -84,27 +84,20 @@ public class InMemoryDataStoreAdapter : IDataStore
 
     public Task CreateMachineSessionAsync(MachineSessionState session)
     {
-        _store.MachineSessions[$"{session.UserId:N}:{session.MachineId}"] = session;
+        _store.MachineSessions[session.SessionId] = session;
         return Task.CompletedTask;
     }
 
     public Task UpdateMachineSessionAsync(MachineSessionState session)
     {
         session.LastUpdatedUtc = DateTime.UtcNow;
-        _store.MachineSessions[$"{session.UserId:N}:{session.MachineId}"] = session;
+        _store.MachineSessions[session.SessionId] = session;
         return Task.CompletedTask;
     }
 
     public Task DeleteMachineSessionAsync(Guid sessionId)
     {
-        var key = _store.MachineSessions
-            .Where(pair => pair.Value.SessionId == sessionId)
-            .Select(pair => pair.Key)
-            .FirstOrDefault();
-        if (key is not null)
-        {
-            _store.MachineSessions.Remove(key);
-        }
+        _store.MachineSessions.TryRemove(sessionId, out _);
         return Task.CompletedTask;
     }
 

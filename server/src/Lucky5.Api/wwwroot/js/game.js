@@ -53,8 +53,8 @@ let currentHandRank = null;
 let jackpotRank = 14;
 let active4kSlot = 0;
 let machineSerial = 0;
-let machineSerie = 1;
-let machineKent = 1;
+let machineSerie = 0;
+let machineKent = 0;
 let hubConnection = null;
 let machineJoined = false;
 let jackpotRankArmed = false;
@@ -430,21 +430,17 @@ function updateJackpotDisplay(jp) {
 }
 
 function updateActive4kHighlight() {
-    const slots = document.querySelectorAll('[data-jackpot-slot^="4k-"]');
-    slots.forEach((slot, i) => {
-        if (i === active4kSlot) {
-            slot.classList.add('jp-active');
-        } else {
-            slot.classList.remove('jp-active');
-        }
-    });
+    const starA = document.getElementById('jp-star-a');
+    const starB = document.getElementById('jp-star-b');
+    if (starA) starA.style.display = active4kSlot === 0 ? 'inline' : 'none';
+    if (starB) starB.style.display = active4kSlot === 1 ? 'inline' : 'none';
 }
 
 function updateJackpotSelectedRow() {
-    // Show solid box around the dedicated jackpot row beneath Two Pair.
+    // Show solid box around the Full House row (FH jackpot rank is selected there).
     document.querySelectorAll('.pay-row').forEach(row => row.classList.remove('jackpot-selected'));
-    const straightRow = document.querySelector('.pay-row.st');
-    if (straightRow) straightRow.classList.add('jackpot-selected');
+    const fhRow = document.querySelector('.pay-row.fh');
+    if (fhRow) fhRow.classList.add('jackpot-selected');
 }
 
 function updateBonusHandText() {
@@ -1539,20 +1535,26 @@ function animateDrainToCredits(amount, startBalance) {
         const creditsEl = $('#credits');
         const creditsSpan = $('#credits span');
         const winEl = $('#win-indicator');
+        const winAmountEl = $('#win-amount-value');
         const msgEl = $('#game-message');
         let startTime = null;
-
         let lastTickToggle = 0;
 
         function frame(ts) {
             if (!startTime) startTime = ts;
             const elapsed = ts - startTime;
-            const progress = Math.min(elapsed / totalDuration, 1);
-            const credited = Math.floor(amount * progress);
+            const rawProgress = Math.min(elapsed / totalDuration, 1);
+            // ease-out cubic so the drain starts fast and slows as it finishes
+            const ease = 1 - Math.pow(1 - rawProgress, 3);
+            const credited = Math.floor(amount * ease);
             const remaining = amount - credited;
 
+            // Credits count UP
             balance = startBalance + credited;
             creditsSpan.textContent = formatNum(balance);
+
+            // Win amount drains DOWN simultaneously
+            if (winAmountEl) winAmountEl.textContent = remaining > 0 ? formatNum(remaining) : '';
 
             if (ts - lastTickToggle > T.creditTickMs) {
                 lastTickToggle = ts;
@@ -1566,16 +1568,17 @@ function animateDrainToCredits(amount, startBalance) {
             }
 
             if (msgEl) {
-                msgEl.textContent = `COLLECTING... ${formatNum(credited)} / ${formatNum(amount)}`;
+                msgEl.textContent = `COLLECTING...`;
                 msgEl.className = 'win';
             }
 
-            if (progress < 1) {
+            if (rawProgress < 1) {
                 requestAnimationFrame(frame);
             } else {
                 balance = startBalance + amount;
                 updateCredits();
                 winEl.textContent = '';
+                if (winAmountEl) winAmountEl.textContent = '';
                 creditsEl.classList.remove('credit-ticking');
                 takeScoreAnimating = false;
                 resolve();

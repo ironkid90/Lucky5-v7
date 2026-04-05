@@ -36,7 +36,7 @@ const GAME_CONFIG = Object.freeze({
         dealAnimDurationMs:   220,  // CSS transition length for the drop itself
 
         // Double-up: shuffle animation
-        shuffleFrameMs:       120,  // how often the shuffle swaps to a random card
+        shuffleFrameMs:       250,  // how often the shuffle swaps to a random card
 
         // Double-up: reveal sequence
         duRevealDelayMs:      150,  // wait after server responds before showing challenger card
@@ -44,8 +44,8 @@ const GAME_CONFIG = Object.freeze({
         duStaggerPerCardMs:   80,   // stagger between cards on a fresh DU page
 
         // Win collection / drain-to-credits
-        countUpMinMs:         1500,
-        countUpMaxMs:         5000,
+        countUpMinMs:         3000,
+        countUpMaxMs:         8000,
         creditTickMs:         120,  // toggle interval for the credit-ticking flash class
 
         // Jackpot fill animation (for jackpot-level wins)

@@ -86,7 +86,9 @@ scripts/mcp/.env.mcp
 =======
 .orchestrator/
 .worktrees/
-
+New folder/
+.New folder/
+.kilocode\tasks\
 
 # Copilot Orchestrator temporary files
 .orchestrator/

@@ -14,13 +14,63 @@
 window.CabinetPace = (function () {
 
     const _fmt  = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
-    // Pull timing from variant config; fall back to Lucky5 defaults.
-    const _cfg  = (typeof GAME_CONFIG !== 'undefined') ? GAME_CONFIG.timing : null;
-    const COUNT_UP_MIN  = _cfg ? _cfg.countUpMinMs        : 1500;
-    const COUNT_UP_MAX  = _cfg ? _cfg.countUpMaxMs        : 5000;
-    const JP_FILL_MIN   = _cfg ? _cfg.jackpotFillMinMs    : 10000;
-    const JP_FILL_MAX   = _cfg ? _cfg.jackpotFillMaxMs    : 15000;
-    const FLASH_ACTIVE  = _cfg ? _cfg.lucky5ActiveScreenMs: 1400;
+    let _activeAnimations = new WeakMap();
+    let _timers = new Set();
+
+    function _resolveConfig(overrides) {
+        const _cfg = (typeof GAME_CONFIG !== 'undefined') ? GAME_CONFIG.timing : null;
+        const next = {
+            countUpMinMs: _cfg ? _cfg.countUpMinMs : 1500,
+            countUpMaxMs: _cfg ? _cfg.countUpMaxMs : 5000,
+            jackpotFillMinMs: _cfg ? _cfg.jackpotFillMinMs : 10000,
+            jackpotFillMaxMs: _cfg ? _cfg.jackpotFillMaxMs : 15000,
+            lucky5ActiveMs: _cfg ? _cfg.lucky5ActiveScreenMs : 1400,
+            collectDelayMs: 400
+        };
+        if (overrides && typeof overrides === 'object') {
+            Object.assign(next, overrides);
+        }
+        return next;
+    }
+
+    let _config = _resolveConfig();
+
+    function configure(overrides) {
+        _config = _resolveConfig(overrides);
+        return getConfig();
+    }
+
+    function getConfig() {
+        return {
+            countUpMinMs: _config.countUpMinMs,
+            countUpMaxMs: _config.countUpMaxMs,
+            jackpotFillMinMs: _config.jackpotFillMinMs,
+            jackpotFillMaxMs: _config.jackpotFillMaxMs,
+            lucky5ActiveMs: _config.lucky5ActiveMs,
+            collectDelayMs: _config.collectDelayMs
+        };
+    }
+
+    function _safeNumber(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    function _setTimer(fn, ms) {
+        const id = setTimeout(() => {
+            _timers.delete(id);
+            fn();
+        }, ms);
+        _timers.add(id);
+        return id;
+    }
+
+    function _cancelElementAnimation(element) {
+        if (!element) return;
+        const active = _activeAnimations.get(element);
+        if (active && active.rafId) cancelAnimationFrame(active.rafId);
+        _activeAnimations.delete(element);
+    }
 
     /* ── countUp ─────────────────────────────────────────────────────────── */
     /**

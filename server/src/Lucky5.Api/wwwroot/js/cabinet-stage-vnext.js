@@ -39,12 +39,32 @@
 
 window.CabinetStage = (function () {
 
-    // Use variant config if available, otherwise fall back to known defaults.
-    const _cfg  = (typeof GAME_CONFIG !== 'undefined') ? GAME_CONFIG : null;
-    const CARD_BACK = _cfg ? _cfg.assets.cardBack : '/assets/images/cards/bside.png';
-    const SHUFFLE_MS = _cfg ? _cfg.timing.shuffleFrameMs : 120;
+    function _resolveConfig(overrides) {
+        const _cfg = (typeof GAME_CONFIG !== 'undefined') ? GAME_CONFIG : null;
+        const timing = _cfg && _cfg.timing ? _cfg.timing : {};
+        const assets = _cfg && _cfg.assets ? _cfg.assets : {};
+
+        const next = {
+            cardBack: assets.cardBack || '/assets/images/cards/bside.png',
+            dealStaggerMs: Number(timing.dealStaggerMs) || 100,
+            dealDurationMs: Number(timing.dealAnimDurationMs) || 120,
+            drawOutMs: 60,
+            drawInMs: 80,
+            drawStaggerMs: 40,
+            shuffleFrameMs: Number(timing.shuffleFrameMs) || 80,
+            lucky5ActiveMs: Number(timing.lucky5ActiveScreenMs) || 700
+        };
+
+        if (overrides && typeof overrides === 'object') {
+            Object.assign(next, overrides);
+        }
+        return next;
+    }
+
+    let _config = _resolveConfig();
     let _shuffleInterval = null;
     let _isDoubleUpMode = false;
+    let _lucky5Timer = null;
 
     /* ── helpers ─────────────────────────────────────────────────────────── */
 
@@ -62,6 +82,24 @@ window.CabinetStage = (function () {
 
     function _holdBtn(index) {
         return document.querySelector(`#hold-row .cab-hold[data-index="${index}"]`);
+    }
+
+    function configure(overrides) {
+        _config = _resolveConfig(overrides);
+        return getConfig();
+    }
+
+    function getConfig() {
+        return {
+            cardBack: _config.cardBack,
+            dealStaggerMs: _config.dealStaggerMs,
+            dealDurationMs: _config.dealDurationMs,
+            drawOutMs: _config.drawOutMs,
+            drawInMs: _config.drawInMs,
+            drawStaggerMs: _config.drawStaggerMs,
+            shuffleFrameMs: _config.shuffleFrameMs,
+            lucky5ActiveMs: _config.lucky5ActiveMs
+        };
     }
 
     /* ── initCardSlots ───────────────────────────────────────────────────── */
@@ -82,7 +120,7 @@ window.CabinetStage = (function () {
             face.className = 'card-face';
 
             const img = document.createElement('img');
-            img.src = CARD_BACK;
+            img.src = _config.cardBack;
             img.alt = '';
 
             face.appendChild(img);
@@ -106,7 +144,8 @@ window.CabinetStage = (function () {
      */
     function dealCards(cardArray, onComplete) {
         clearAllHolds();
-        const stagger = 110; // ms between each card
+        const stagger = Math.max(40, Number(_config.dealStaggerMs) || 100);
+        const duration = Math.max(80, Number(_config.dealDurationMs) || 120);
         cardArray.forEach((card, i) => {
             setTimeout(() => {
                 const slotEl = _slot(i);
@@ -122,13 +161,13 @@ window.CabinetStage = (function () {
                 // animate in
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
-                        slotEl.style.transition = 'opacity 0.18s ease-out, transform 0.22s ease-out';
+                        slotEl.style.transition = `opacity ${duration}ms ease-out, transform ${duration}ms ease-out`;
                         slotEl.style.opacity = '1';
                         slotEl.style.transform = 'translateY(0)';
                     });
                 });
                 if (i === cardArray.length - 1 && onComplete) {
-                    setTimeout(onComplete, 250);
+                    setTimeout(onComplete, duration + 40);
                 }
             }, i * stagger);
         });
@@ -145,6 +184,10 @@ window.CabinetStage = (function () {
         const held = new Set(heldIndexes);
         let pending = 0;
 
+        const outMs = Math.max(40, Number(_config.drawOutMs) || 60);
+        const inMs = Math.max(60, Number(_config.drawInMs) || 80);
+        const staggerMs = Math.max(20, Number(_config.drawStaggerMs) || 40);
+
         newCardArray.forEach((card, i) => {
             if (held.has(i)) return; // held — no change
             pending++;
@@ -157,19 +200,19 @@ window.CabinetStage = (function () {
             // flip out
             setTimeout(() => {
                 if (face) {
-                    face.style.transition = 'opacity 0.07s ease-in';
+                    face.style.transition = `opacity ${outMs}ms ease-in`;
                     face.style.opacity = '0';
                 }
                 setTimeout(() => {
                     img.src = _cardSrc(card.code);
                     if (face) {
-                        face.style.transition = 'opacity 0.1s ease-out';
+                        face.style.transition = `opacity ${inMs}ms ease-out`;
                         face.style.opacity = '1';
                     }
                     pending--;
                     if (pending === 0 && onComplete) onComplete();
-                }, 75);
-            }, i * 40);
+                }, outMs);
+            }, i * staggerMs);
         });
 
         if (pending === 0 && onComplete) onComplete();
@@ -191,6 +234,8 @@ window.CabinetStage = (function () {
             btn.style.backgroundImage = isHeld
                 ? "url('/assets/images/hold_on.png')"
                 : "url('/assets/images/hold_off.png')";
+            btn.setAttribute('aria-label', isHeld ? 'HOLD ON' : 'HOLD OFF');
+            btn.title = isHeld ? 'HOLD' : '';
         }
     }
 
@@ -217,7 +262,7 @@ window.CabinetStage = (function () {
 
         Object.entries(BTN_ASSETS).forEach(([id, [off, on]]) => {
             const btn = document.getElementById(id);
-            if (!btn) return;
+            if (!btn || btn.dataset.assetsBound === '1') return;
             const offUrl = `url('/assets/images/${off}')`;
             const onUrl  = `url('/assets/images/${on}')`;
             btn.style.backgroundImage = offUrl;
@@ -227,21 +272,43 @@ window.CabinetStage = (function () {
             btn.addEventListener('touchstart',  press,   { passive: true });
             btn.addEventListener('mouseup',     release);
             btn.addEventListener('touchend',    release, { passive: true });
+            btn.addEventListener('touchcancel', release, { passive: true });
             btn.addEventListener('mouseleave',  release);
+            btn.dataset.assetsBound = '1';
         });
 
         // Hold buttons
         document.querySelectorAll('#hold-row .cab-hold').forEach(btn => {
+            if (btn.dataset.assetsBound === '1') return;
             const isActive = () => btn.classList.contains('active');
+            const syncVisual = () => {
+                const held = isActive();
+                btn.style.backgroundImage = held
+                    ? "url('/assets/images/hold_on.png')"
+                    : "url('/assets/images/hold_off.png')";
+                btn.setAttribute('aria-label', held ? 'HOLD ON' : 'HOLD OFF');
+                btn.title = held ? 'HOLD' : '';
+            };
             btn.addEventListener('mousedown',  () => {
                 btn.style.backgroundImage = "url('/assets/images/hold_on.png')";
             });
             btn.addEventListener('mouseup',    () => {
-                if (!isActive()) btn.style.backgroundImage = "url('/assets/images/hold_off.png')";
+                syncVisual();
             });
             btn.addEventListener('mouseleave', () => {
-                if (!isActive()) btn.style.backgroundImage = "url('/assets/images/hold_off.png')";
+                syncVisual();
             });
+            btn.addEventListener('touchstart', () => {
+                btn.style.backgroundImage = "url('/assets/images/hold_on.png')";
+            }, { passive: true });
+            btn.addEventListener('touchend', () => {
+                syncVisual();
+            }, { passive: true });
+            btn.addEventListener('touchcancel', () => {
+                syncVisual();
+            }, { passive: true });
+            syncVisual();
+            btn.dataset.assetsBound = '1';
         });
     }
 
@@ -272,7 +339,7 @@ window.CabinetStage = (function () {
             frame.className = 'du-card-frame';
 
             const img = document.createElement('img');
-            img.src = CARD_BACK;
+            img.src = _config.cardBack;
             img.alt = '';
 
             frame.appendChild(img);
@@ -339,7 +406,7 @@ window.CabinetStage = (function () {
             } else {
                 // Keep shuffling
                 if (!challSlot.classList.contains('du-shuffling')) {
-                    _startShuffle(4);
+                    shuffleChallenger();
                 }
             }
         }
@@ -359,15 +426,16 @@ window.CabinetStage = (function () {
         const banner = document.getElementById('lucky5-banner');
         if (banner) {
             banner.classList.add('active');
-            if (window.lucky5FlashResetTimer) clearTimeout(window.lucky5FlashResetTimer);
-            window.lucky5FlashResetTimer = setTimeout(() => {
+            if (_lucky5Timer) clearTimeout(_lucky5Timer);
+            _lucky5Timer = setTimeout(() => {
                 banner.classList.remove('active');
-            }, 700);
+                _lucky5Timer = null;
+            }, Math.max(200, Number(_config.lucky5ActiveMs) || 700));
         }
         // Glow on all card slots
         document.querySelectorAll('.card-slot').forEach(s => {
             s.classList.add('lucky5-active');
-            setTimeout(() => s.classList.remove('lucky5-active'), 700);
+            setTimeout(() => s.classList.remove('lucky5-active'), Math.max(200, Number(_config.lucky5ActiveMs) || 700));
         });
     }
 
@@ -385,12 +453,17 @@ window.CabinetStage = (function () {
         const img = slotEl.querySelector('img');
         if (!img) return;
         const allCodes = window.ALL_CARD_CODES || [];
+        const frameMs = Math.max(60, Number(_config.shuffleFrameMs) || 80);
         _shuffleInterval = setInterval(() => {
             if (allCodes.length > 0) {
                 const code = allCodes[Math.floor(Math.random() * allCodes.length)];
                 img.src = `/assets/images/cards/${code}.png`;
             }
-        }, SHUFFLE_MS);
+        }, frameMs);
+    }
+
+    function shuffleChallenger() {
+        _startShuffle(4);
     }
 
     function _stopShuffle() {
@@ -403,6 +476,8 @@ window.CabinetStage = (function () {
     /* ── public API ──────────────────────────────────────────────────────── */
 
     return {
+        configure,
+        getConfig,
         initCardSlots,
         dealCards,
         drawCards,
@@ -411,6 +486,7 @@ window.CabinetStage = (function () {
         initButtonAssets,
         enterDoubleUp,
         updateDoubleUpTrail,
+        shuffleChallenger,
         exitDoubleUp,
         showLucky5Active,
     };

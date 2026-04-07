@@ -157,7 +157,7 @@ window.CabinetStage = (function () {
                 slotEl.style.opacity = '0';
                 slotEl.style.transform = 'translateY(-60px)';
                 // set image
-                img.src = _cardSrc(card.code);
+                img.src = card && card.code ? _cardSrc(card.code) : _config.cardBack;
                 // animate in
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
@@ -204,7 +204,7 @@ window.CabinetStage = (function () {
                     face.style.opacity = '0';
                 }
                 setTimeout(() => {
-                    img.src = _cardSrc(card.code);
+                    img.src = card && card.code ? _cardSrc(card.code) : _config.cardBack;
                     if (face) {
                         face.style.transition = `opacity ${inMs}ms ease-out`;
                         face.style.opacity = '1';

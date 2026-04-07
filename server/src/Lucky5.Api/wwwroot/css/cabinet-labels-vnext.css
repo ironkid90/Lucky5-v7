@@ -129,6 +129,12 @@
 }
 
 /* MACHINE INFO BLOCK */
+#machine-info-block {
+    display: grid;
+    align-content: start;
+    gap: 0.35cqh;
+}
+
 #machine-identity,
 #machine-serial,
 #bonus-hand-text {
@@ -169,10 +175,23 @@
     color: inherit;
 }
 
-/* 4K active star indicator — red blinking asterisk, no amber box */
+/* Active jackpot slot highlight: solid amber frame. */
+.jp-counter.jp-active {
+    outline: 2px solid #ffcc00;
+    background: rgba(255, 200, 0, 0.1);
+}
+
+/* Fallback for legacy star-only active slot signaling. */
+#jp-counter-a:has(#jp-star-a[style*="inline"]),
+#jp-counter-b:has(#jp-star-b[style*="inline"]) {
+    outline: 2px solid #ffcc00;
+    background: rgba(255, 200, 0, 0.1);
+}
+
+/* Legacy star still supported but visually secondary. */
 .jp-4k-star {
     color: #ff2222;
-    font-size: 1.04cqh;
+    font-size: 0.9cqh;
     margin-right: 0.3cqh;
     animation: jp-star-blink 0.9s steps(1, end) infinite;
     display: none; /* shown by JS for the active slot only */
@@ -214,7 +233,7 @@
 }
 
 #bonus-hand-text {
-    color: #ffcc00;
+    color: #ffffff;
     font-size: 1.25cqh;
     letter-spacing: 0.21cqh;
     text-align: center;
@@ -247,6 +266,17 @@
     color: #44ddff;
     font-size: 0.73cqh;
     text-align: center;
+}
+
+#du-info-panel {
+    visibility: hidden;
+    opacity: 0;
+}
+
+#du-info-panel.visible,
+#du-info-panel.active {
+    visibility: visible;
+    opacity: 1;
 }
 
 /* ── Full House selector card display (centered, normal card) ─────── */

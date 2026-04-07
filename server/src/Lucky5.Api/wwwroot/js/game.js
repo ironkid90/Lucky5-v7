@@ -384,12 +384,14 @@ function highlightPaytableDU(handRank, amount) {
 
 // ── 8. JACKPOT & PAYTABLE ───────────────────────────────────────────────
 function updateJackpotDisplay(jp) {
+    const prevJackpots = jackpots ? { ...jackpots } : null;
     if (jp) {
         jackpots = jp;
         if (jp.fullHouseRank) jackpotRank = jp.fullHouseRank;
         if (jp.activeFourOfAKindSlot !== undefined) active4kSlot = jp.activeFourOfAKindSlot;
     }
     if (!jackpots) return;
+    if (window.CabinetPace) CabinetPace.animateJackpotCounters(jackpots, prevJackpots);
 
     // Machine-info-block jackpot counters: 4K-A, SF, 4K-B plus a dedicated FH meter.
     const jpA = document.querySelector('#jp-counter-a .jp-cval');
@@ -770,6 +772,10 @@ async function doSwitchDealer() {
         }
 
         renderDoubleUpCards(duDealerCard, true, null);
+        if (window.CabinetStage) {
+            const trailCards = duCardTrail.slice(0, -1).map(e => e.card);
+            CabinetStage.updateDoubleUpTrail(trailCards, duDealerCard, null, 'pending');
+        }
         if (isLucky5) {
             showMessage(`5\u2660 LUCKY 5 ACTIVE! WIN: ${formatNum(result.currentAmount)}`, 'win');
         } else {
@@ -1012,6 +1018,7 @@ function restoreRoundFromSnapshot(snapshot) {
         showDuInfo();
         updateIdleOverlayVisibility();
         renderDoubleUpCards(duDealerCard, true, null);
+        if (window.CabinetStage) CabinetStage.enterDoubleUp(duDealerCard);
         updateWinIndicator(winAmount);
         updateWinAmountDisplay(winAmount, getFourOfAKindSlotTag(currentHandRank));
         if (duIsNoLoseActive) {
@@ -1082,6 +1089,7 @@ async function doDeal() {
             updateWinAmountDisplay(0);
             holdIndexes.clear();
             renderCards(cards, true);
+            if (window.CabinetStage) CabinetStage.dealCards(cards);
             $$('.cab-hold').forEach(btn => btn.classList.remove('active'));
             gameState = 'hold';
 
@@ -1129,6 +1137,7 @@ async function doDeal() {
             if (result.jackpots) updateJackpotDisplay(result.jackpots);
 
             renderCards(cards, false);
+            if (window.CabinetStage) CabinetStage.drawCards(cards, holdIndexes);
             setTimeout(() => {
                 let dropDelay = 0;
                 $$('.card-slot').forEach((slot, i) => {
@@ -1393,6 +1402,7 @@ async function startDoubleUpFlow() {
         updateWinIndicator(result.currentAmount);
         if (currentHandRank) highlightPaytableDU(currentHandRank, result.currentAmount);
         renderDoubleUpCards(duDealerCard, true, null);
+        if (window.CabinetStage) CabinetStage.enterDoubleUp(duDealerCard);
         setButtonStates();
     } catch (e) {
         if ((e.message || '').toLowerCase().includes('not available')) {
@@ -1425,6 +1435,11 @@ async function doDoubleUp(guess) {
 
         setTimeout(() => {
             renderDoubleUpCards(duDealerCard, false, result.challengerCard);
+            if (window.CabinetStage) {
+                const trailCards = duCardTrail.slice(0, -1).map(e => e.card);
+                CabinetStage.updateDoubleUpTrail(trailCards, duDealerCard, result.challengerCard,
+                    result.status === 'Win' ? 'win' : result.status === 'SafeFail' ? 'push' : 'lose');
+            }
 
             if (result.status === 'Win') {
                 winAmount = result.currentAmount;
@@ -1441,6 +1456,10 @@ async function doDoubleUp(guess) {
                         duCardTrail.push({card: result.challengerCard, label: guess.toUpperCase()});
                         duDealerCard = result.dealerCard;
                         renderDoubleUpCards(duDealerCard, true, null);
+                        if (window.CabinetStage) {
+                            const trailCards = duCardTrail.slice(0, -1).map(e => e.card);
+                            CabinetStage.updateDoubleUpTrail(trailCards, duDealerCard, null, 'pending');
+                        }
                         duSwitchesRemaining = result.switchesRemaining;
                         duIsNoLoseActive = result.isNoLoseActive;
                         setButtonStates();
@@ -1513,6 +1532,7 @@ async function doDoubleUp(guess) {
 function exitDoubleUp() {
     stopShuffle();
     hideDuInfo();
+    if (window.CabinetStage) CabinetStage.exitDoubleUp();
     duSessionStarted = false;
     duIsNoLoseActive = false;
     duDealerCard = null;
@@ -1969,6 +1989,7 @@ function updateLobbyBalance() {
     if (lobbyBal) lobbyBal.textContent = fmt;
     if (lobbyWalBal) lobbyWalBal.textContent = fmt;
     if (walletBal) walletBal.textContent = fmt;
+    if (window.CabinetShell) CabinetShell.updateLobbyBalance(walletBalance);
 }
 
 function updateLobbyUsername() {
@@ -1981,6 +2002,18 @@ function updateLobbyUsername() {
 }
 
 function renderGameGrid() {
+    if (window.CabinetShell) {
+        const rawMachines = AVAILABLE_GAMES.map(g => ({
+            id: g.machineId,
+            name: g.name,
+            minBet: g.minBet,
+            maxBet: g.maxBet,
+            isOpen: g.status === 'playable'
+        }));
+        CabinetShell.renderLobbyMachineCards(rawMachines, machine => openGame(`machine-${machine.id}`, machine.id));
+        return;
+    }
+
     const grid = document.getElementById('lobby-game-grid');
     if (!grid) return;
     grid.innerHTML = '';
@@ -2366,7 +2399,10 @@ document.addEventListener('DOMContentLoaded', () => {
         assetsReady = true;
         authBtn.disabled = false;
         authBtn.textContent = 'LOGIN';
-        if (window.CabinetStage) CabinetStage.initButtonAssets();
+        if (window.CabinetStage) {
+            CabinetStage.initButtonAssets();
+            CabinetStage.initCardSlots();
+        }
     });
 
     const authScreen = $('#auth-screen');

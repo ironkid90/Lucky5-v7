@@ -49,15 +49,13 @@ public static class FrontendRegressionTests
             "game.js should not directly map result.walletBalance into machine credit state",
             !Regex.IsMatch(gameJs, @"balance\s*=\s*result\.walletBalance\b", RegexOptions.CultureInvariant));
 
-        var menuCashInRefreshesSession = Regex.IsMatch(
-            gameJs,
-            @"const\s+session\s*=\s*await\s+cashInMachine\(amount\);[\s\S]{0,600}?await\s+fetchMachineSession\(\);",
-            RegexOptions.CultureInvariant);
-
         Assert(
             failures,
             "menu cash-in should refresh machine session state before re-enabling actions",
-            menuCashInRefreshesSession);
+            Regex.IsMatch(
+                gameJs,
+                @"const\s+session\s*=\s*await\s+cashInMachine\(amount\);[\s\S]{0,600}?await\s+fetchMachineSession\(\);",
+                RegexOptions.CultureInvariant));
 
         Assert(
             failures,
@@ -67,15 +65,13 @@ public static class FrontendRegressionTests
                 @"const\s+session\s*=\s*await\s+cashInMachine\(amount\);[\s\S]{0,600}?await\s+fetchMachineSession\(\);[\s\S]{0,250}?refreshIdleMachineState\(",
                 RegexOptions.CultureInvariant));
 
-        var menuCashOutRefreshesSession = Regex.IsMatch(
-            gameJs,
-            @"const\s+session\s*=\s*await\s+cashOutMachine\(\);[\s\S]{0,600}?await\s+fetchMachineSession\(\);",
-            RegexOptions.CultureInvariant);
-
         Assert(
             failures,
             "menu cash-out should refresh machine session state before re-enabling actions",
-            menuCashOutRefreshesSession);
+            Regex.IsMatch(
+                gameJs,
+                @"const\s+session\s*=\s*await\s+cashOutMachine\(\);[\s\S]{0,600}?await\s+fetchMachineSession\(\);",
+                RegexOptions.CultureInvariant));
 
         Assert(
             failures,
@@ -120,8 +116,9 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
-            "paytable jackpot-selected row should sit beneath two pair using the straight row selector",
-            gameJs.Contains("const straightRow = document.querySelector('.pay-row.st');", StringComparison.Ordinal));
+            "paytable jackpot-selected row should continue to highlight the Full House row for the selected jackpot rank",
+            gameJs.Contains("const fhRow = document.querySelector('.pay-row.fh');", StringComparison.Ordinal)
+                && gameJs.Contains("if (fhRow) fhRow.classList.add('jackpot-selected');", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -148,10 +145,18 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
-            "game.js should fetch active-round recovery state through a dedicated helper",
+            "game.js should define a dedicated helper for the active-round hydration endpoint",
             Regex.IsMatch(
                 gameJs,
-                @"async\s+function\s+fetchActiveRoundState\(\)\s*\{[\s\S]{0,300}?/api/Game/machine/\$\{machineId\}/active-round",
+                @"function\s+getMachineActiveRoundPath\(targetMachineId\s*=\s*machineId\)\s*\{[\s\S]{0,200}?/api/Game/machine/\$\{targetMachineId\}/active-round",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "fetchActiveRoundState should hydrate through the shared active-round path helper",
+            Regex.IsMatch(
+                gameJs,
+                @"async\s+function\s+fetchActiveRoundState\(\)\s*\{[\s\S]{0,120}?getMachineActiveRoundPath\(\)",
                 RegexOptions.CultureInvariant));
 
         Assert(
@@ -159,7 +164,7 @@ public static class FrontendRegressionTests
             "game.js should restore recoverable rounds through a dedicated snapshot hydrator",
             Regex.IsMatch(
                 gameJs,
-                @"function\s+restoreRoundFromSnapshot\(snapshot\)\s*\{[\s\S]{0,1200}?snapshot\.phase[\s\S]{0,1200}?snapshot\.cards",
+                @"function\s+restoreRoundFromSnapshot\(snapshot\)\s*\{[\s\S]{0,1600}?snapshot\.phase[\s\S]{0,1600}?snapshot\.cards",
                 RegexOptions.CultureInvariant));
 
         Assert(
@@ -177,11 +182,27 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
-            "game.js should route lobby, wallet, admin, and game activation through a shared setActiveScreen helper",
+            "allowLobbyFallback should clear remembered machine selection and return safely to the lobby when no active round exists",
+            Regex.IsMatch(
+                gameJs,
+                @"if\s*\(allowLobbyFallback\)\s*\{[\s\S]{0,180}?clearCurrentMachineSelection\(\);[\s\S]{0,120}?await\s+showLobby\(\);[\s\S]{0,80}?return;",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "game.js should route lobby, wallet, admin, and game activation through shared shell helpers",
             Regex.IsMatch(
                 gameJs,
                 @"function\s+setActiveScreen\(screenName\)\s*\{[\s\S]{0,1200}?\['lobby','wallet','admin','game'\]",
-                RegexOptions.CultureInvariant));
+                RegexOptions.CultureInvariant)
+                && Regex.IsMatch(
+                    gameJs,
+                    @"function\s+activateShellScreen\(screenName,\s*navTarget\s*=\s*screenName\s*===\s*'game'\s*\?\s*null\s*:\s*screenName\)",
+                    RegexOptions.CultureInvariant)
+                && gameJs.Contains("activateShellScreen('game', null);", StringComparison.Ordinal)
+                && gameJs.Contains("activateShellScreen('lobby', 'lobby');", StringComparison.Ordinal)
+                && gameJs.Contains("activateShellScreen('wallet', 'wallet');", StringComparison.Ordinal)
+                && gameJs.Contains("activateShellScreen('admin', 'admin');", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -196,22 +217,61 @@ public static class FrontendRegressionTests
             "menu panel markup should move away from giant inline overlay styling",
             indexHtml.Contains("id=\"menu-panel\" class=\"menu-panel\"", StringComparison.Ordinal)
                 && !Regex.IsMatch(indexHtml, @"<div\s+id=""menu-panel""\s+style=", RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "menu panel should own the Back to Lobby action instead of a separate game back bar",
+            Regex.IsMatch(
+                indexHtml,
+                @"<div\s+id=""menu-panel""[\s\S]{0,500}?id=""game-back-lobby""",
+                RegexOptions.CultureInvariant)
+                && !indexHtml.Contains("id=\"game-back-bar\"", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "game.js should centralize machine close copy and CTA emphasis through a dedicated helper",
+            Regex.IsMatch(
+                gameJs,
+                @"function\s+getMachineCloseMessage\(context\s*=\s*'menu'\)",
+                RegexOptions.CultureInvariant)
+                && gameJs.Contains("getMachineCloseMessage('take-score')", StringComparison.Ordinal)
+                && gameJs.Contains("getMachineCloseMessage('cashing-out')", StringComparison.Ordinal)
+                && gameJs.Contains("showMessage(getMachineCloseMessage(), 'win');", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "player and admin machine reset actions should use their dedicated routes instead of sharing brittle inline endpoints",
+            Regex.IsMatch(
+                gameJs,
+                @"function\s+getPlayerMachineResetPath\(targetMachineId\s*=\s*machineId\)",
+                RegexOptions.CultureInvariant)
+                && Regex.IsMatch(
+                    gameJs,
+                    @"function\s+getAdminMachineResetPath\(targetMachineId\)",
+                    RegexOptions.CultureInvariant)
+                && gameJs.Contains("await apiCall('POST', getPlayerMachineResetPath());", StringComparison.Ordinal)
+                && gameJs.Contains("await apiCall('POST', getAdminMachineResetPath(btn.dataset.resetMachine));", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "critical shell buttons should be wired to concrete handlers",
+            gameJs.Contains("lobbyWalletBtn.addEventListener('click', showWallet);", StringComparison.Ordinal)
+                && gameJs.Contains("walletBackBtn.addEventListener('click', showLobby);", StringComparison.Ordinal)
+                && gameJs.Contains("adminBackBtn.addEventListener('click', showLobby);", StringComparison.Ordinal)
+                && gameJs.Contains("navLobby.addEventListener('click', showLobby);", StringComparison.Ordinal)
+                && gameJs.Contains("navWallet.addEventListener('click', showWallet);", StringComparison.Ordinal)
+                && gameJs.Contains("navAdmin.addEventListener('click', showAdmin);", StringComparison.Ordinal)
+                && gameJs.Contains("gameBackBtn.addEventListener('click', async () =>", StringComparison.Ordinal));
     }
 
     private static string ResolveGameJsPath()
-    {
-        return ResolveWwwrootFilePath("js", "game.js");
-    }
+        => ResolveWwwrootFilePath("js", "game.js");
 
     private static string ResolveIndexHtmlPath()
-    {
-        return ResolveWwwrootFilePath("index.html");
-    }
+        => ResolveWwwrootFilePath("index.html");
 
     private static string ResolveGameCssPath()
-    {
-        return ResolveWwwrootFilePath("css", "game.css");
-    }
+        => ResolveWwwrootFilePath("css", "game.css");
 
     private static string ResolveWwwrootFilePath(params string[] segments)
     {

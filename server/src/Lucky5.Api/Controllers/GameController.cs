@@ -66,6 +66,7 @@ public class GameController(IGameService gameService) : ControllerBase
     }
 
     [HttpGet("active-round/{machineId}")]
+    [HttpGet("machine/{machineId}/active-round")]
     public async Task<ActionResult<ApiResponse<ActiveRoundStateDto?>>> GetActiveRound(int machineId, CancellationToken cancellationToken)
     {
         var result = await gameService.GetActiveRoundAsync(UserId, machineId, cancellationToken);

@@ -103,8 +103,12 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
     {
         var profile = await RequireProfileAsync(userId);
         var session = await RequireMachineSessionAsync(userId, machineId, createIfMissing: false);
-        if (session.MachineCredits <= 0)
-            throw new InvalidOperationException("No machine credits to cash out");
+
+        if (session.MachineCredits <= 0m)
+        {
+            return await ToMachineSessionDtoAsync(userId, session, profile.WalletBalance);
+        }
+
         if (await HasRecoverableRoundAsync(userId, machineId))
             throw new InvalidOperationException("Finish the current round before cashing out");
         if (!CanCashOut(session))
@@ -112,8 +116,8 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
         var amount = session.MachineCredits;
         profile.WalletBalance += amount;
-        session.MachineCredits = 0;
-        session.TotalCashIn = 0;
+        session.MachineCredits = 0m;
+        session.TotalCashIn = 0m;
         session.IsMachineClosed = false;
         session.LastUpdatedUtc = DateTime.UtcNow;
 
@@ -816,50 +820,57 @@ switch (resolution.Outcome)
 
     public async Task<object> ResetMachineAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
-        _ = await RequireProfileAsync(userId);
-        
-        var ledger = await RequireMachineLedgerAsync(machineId);
-        ledger.CapitalIn = 0;
-        ledger.CapitalOut = 0;
-        ledger.BaseCapitalOut = 0;
-        ledger.JackpotCapitalOut = 0;
-        ledger.DoubleUpCapitalOut = 0;
-        ledger.RoundCount = 0;
-        ledger.ConsecutiveLosses = 0;
-        ledger.RoundsSinceMediumWin = 0;
-        ledger.CooldownRoundsRemaining = 0;
-        ledger.NetSinceLastClose = 0;
-        ledger.LastCloseRoundNumber = 0;
-        ledger.RoundsSinceLucky5Hit = 0;
-        ledger.TargetRtp = EngineCfg.TargetRtp;
-        ledger.LastPayoutScale = EngineCfg.DefaultPayoutScale;
-        ledger.LastDistributionMode = DistributionMode.Neutral;
-        ledger.JackpotFullHouse = EngineCfg.JackpotFullHouseStart;
-        ledger.JackpotFullHouseRank = 14;
-        ledger.JackpotFourOfAKindA = EngineCfg.JackpotFourOfAKindStart;
-        ledger.JackpotFourOfAKindB = EngineCfg.JackpotFourOfAKindStart;
-        ledger.JackpotStraightFlush = EngineCfg.JackpotStraightFlushStart;
-        ledger.ActiveFourOfAKindSlot = 0;
+        var profile = await RequireProfileAsync(userId);
+        await RequireMachineAsync(machineId);
 
-        await store.UpdateMachineLedgerAsync(ledger);
+        if (await HasRecoverableRoundAsync(userId, machineId))
+            throw new InvalidOperationException("Cannot reset machine while an active round still exists");
 
-        // This is a simplified reset that doesn't explicitly clean up sessions or rounds,
-        // since those are not easily accessible via IDataStore interface currently.
-        // It relies on the machine ledger being reset for main logic.
-        // A true database reset would probably clear out session states and rounds as well.
+        var session = await store.GetMachineSessionAsync(userId, machineId);
+        if (session is null)
+        {
+            return new { success = true, message = "Machine session reset", walletBalance = profile.WalletBalance };
+        }
 
-        return new { success = true, message = "Machine state reset" };
+        if (session.MachineCredits > 0m)
+        {
+            if (!CanCashOut(session))
+                throw new InvalidOperationException("Cash out is only available when the machine is closed or credits reach the 2x session threshold");
+
+            var amount = session.MachineCredits;
+            profile.WalletBalance += amount;
+            await store.UpdateProfileAsync(profile);
+
+            await store.AddWalletLedgerEntryAsync(new WalletLedgerEntry
+            {
+                UserId = userId,
+                Amount = amount,
+                TransactionType = "MachineCashOut",
+                ReferenceId = $"machine:{machineId}:reset",
+                BalanceAfter = profile.WalletBalance,
+                CreatedUtc = DateTime.UtcNow
+            });
+        }
+
+        await store.DeleteMachineSessionAsync(session.SessionId);
+
+        return new { success = true, message = "Machine session reset", walletBalance = profile.WalletBalance };
     }
 
     private async Task FinalizeDoubleUpAsync(GameRound round, MachineSessionState session, int cashoutCredits)
     {
+        if (round.IsPayoutSettled)
+        {
+            return;
+        }
+
         session.MachineCredits += cashoutCredits;
         session.LastUpdatedUtc = DateTime.UtcNow;
         session.IsMachineClosed = session.MachineCredits >= MachineCloseCredits;
         round.IsPayoutSettled = true;
         round.SettledAmount += cashoutCredits;
         var ledgerDelta = round.SettledAmount - round.OriginalWinAmount;
-        
+
         var ledger = await RequireMachineLedgerAsync(round.MachineId);
         if (ledgerDelta != 0)
         {
@@ -885,12 +896,14 @@ switch (resolution.Outcome)
         ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
 
         await store.UpdateMachineLedgerAsync(ledger);
+        await store.UpdateMachineSessionAsync(session);
+        await store.SaveRoundAsync(round);
 
         await store.AddWalletLedgerEntryAsync(new WalletLedgerEntry
         {
             UserId = round.UserId,
             Amount = cashoutCredits,
-            BalanceAfter = session.MachineCredits, // Context is machine credits
+            BalanceAfter = session.MachineCredits,
             TransactionType = cashoutCredits > 0 ? "DoubleUpCashout" : "DoubleUpLoss",
             ReferenceId = round.RoundId.ToString("N"),
             CreatedUtc = DateTime.UtcNow

@@ -79,8 +79,6 @@ public sealed class AdminService(InMemoryDataStore store, IPersistentStateStore 
         var machine = store.Machines.Values.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
         if (store.ActiveRounds.Values.Any(r => r.MachineId == machineId && IsRoundRecoverable(r)))
             throw new InvalidOperationException("Cannot reset machine with active rounds");
-        if (store.MachineSessions.Values.Any(s => s.MachineId == machineId && s.MachineCredits > 0m))
-            throw new InvalidOperationException("Cannot reset machine while player credits remain - cash out first");
         if (!store.MachineLedgers.TryGetValue(machineId, out var ledger))
             throw new KeyNotFoundException("Machine ledger not found");
 
@@ -113,7 +111,11 @@ public sealed class AdminService(InMemoryDataStore store, IPersistentStateStore 
 
             foreach (var session in store.MachineSessions.Values.Where(s => s.MachineId == machineId))
             {
+                session.MachineCredits = 0m;
+                session.TotalCashIn = 0m;
                 session.IsMachineClosed = false;
+                session.CounterplayScore = 0;
+                session.LastUpdatedUtc = DateTime.UtcNow;
             }
         }
 

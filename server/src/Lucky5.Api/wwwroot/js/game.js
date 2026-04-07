@@ -193,6 +193,39 @@ function setMenuPanelOpen(isOpen) {
     menuPanel.classList.toggle('is-open', Boolean(isOpen));
 }
 
+function activateShellScreen(screenName, navTarget = screenName === 'game' ? null : screenName) {
+    setMenuPanelOpen(false);
+    setActiveScreen(screenName);
+    setLobbyNavActive(navTarget);
+}
+
+function getMachineSessionPath(targetMachineId = machineId) {
+    return `/api/Game/machine/${targetMachineId}/session`;
+}
+
+function getMachineActiveRoundPath(targetMachineId = machineId) {
+    return `/api/Game/machine/${targetMachineId}/active-round`;
+}
+
+function getPlayerMachineResetPath(targetMachineId = machineId) {
+    return `/api/Game/machine/${targetMachineId}/reset`;
+}
+
+function getAdminMachineResetPath(targetMachineId) {
+    return `/api/Admin/machines/${targetMachineId}/reset`;
+}
+
+function getMachineCloseMessage(context = 'menu') {
+    switch (context) {
+        case 'take-score':
+            return 'MACHINE CLOSED - TAKE SCORE THEN CASH OUT FROM MENU';
+        case 'cashing-out':
+            return 'MACHINE CLOSED - CASHING OUT...';
+        default:
+            return 'MACHINE CLOSED - CASH OUT FROM MENU TO CONTINUE';
+    }
+}
+
 function clearCurrentMachineSelection() {
     machineId = 0;
     machineCanCashOut = false;
@@ -217,7 +250,7 @@ function isMachineClosedForUi() {
 // ── 4. SESSION MANAGEMENT ──────────────────────────────────────────────
 // Machine session, token helpers, credit sync.
 async function fetchMachineSession() {
-    const session = await apiCall('GET', GAME_CONFIG.api.machineSession(machineId));
+    const session = await apiCall('GET', getMachineSessionPath());
     syncMachineCreditsFromResponse(session);
     syncMachineSessionState(session);
     walletBalance = session.walletBalance ?? walletBalance;
@@ -226,7 +259,7 @@ async function fetchMachineSession() {
 }
 
 async function fetchActiveRoundState() {
-    return await apiCall('GET', GAME_CONFIG.api.machineRound(machineId));
+    return await apiCall('GET', getMachineActiveRoundPath());
 }
 
 async function cashInMachine(amount) {
@@ -287,7 +320,7 @@ function refreshIdleMachineState(messageText = null, type = 'win') {
     if (messageText) {
         showMessage(messageText, type);
     } else if (isMachineClosedForUi()) {
-        showMessage('MACHINE CLOSED - CASH OUT FROM MENU TO CONTINUE', 'win');
+        showMessage(getMachineCloseMessage(), 'win');
     } else if (balance > 0 && machineCanCashOut) {
         showMessage(`CASH OUT AVAILABLE AT ${formatNum(machineCashOutThreshold)}`, 'win');
     } else if (balance > 0) {
@@ -1190,7 +1223,7 @@ async function doDeal() {
                         setTimeout(() => {
                             if (gameState === 'win') {
                                 if (isMachineClosedForUi()) {
-                                    showMessage('MACHINE CLOSED - TAKE SCORE & CASH OUT FROM MENU', 'win');
+                                    showMessage(getMachineCloseMessage('take-score'), 'win');
                                     return;
                                 }
                                 if (roundDoubleUpAvailable) {
@@ -1495,7 +1528,7 @@ async function doDoubleUp(guess) {
                 updateCredits();
                 updateWinIndicator(closedAmount);
                 updateWinAmountDisplay(closedAmount, getFourOfAKindSlotTag(currentHandRank));
-                showMessage('MACHINE CLOSED - MAX CREDITS!', 'win');
+                showMessage(getMachineCloseMessage('take-score'), 'win');
                 stopShuffle();
                 hideDuInfo();
                 duSessionStarted = false;
@@ -1503,13 +1536,13 @@ async function doDoubleUp(guess) {
                 setTimeout(async () => {
                     await animateDrainToCredits(closedAmount, balance);
                     syncMachineCreditsFromResponse(result);
-                    refreshIdleMachineState('MACHINE CLOSED - CASHING OUT...', 'win');
+                    refreshIdleMachineState(getMachineCloseMessage('cashing-out'), 'win');
                     try {
                         await cashOutMachine();
                         await fetchMachineSession();
                         refreshIdleMachineState('CASHED OUT - MACHINE READY', 'win');
                     } catch (_) {
-                        showMessage('MACHINE CLOSED - USE MENU TO CASH OUT', 'win');
+                        showMessage(getMachineCloseMessage(), 'win');
                     }
                 }, T.drainDelayMs);
             } else {
@@ -1707,13 +1740,13 @@ async function mainTakeScore() {
 
         if (result.status === 'MachineClosed') {
             machineClosed = true;
-            showMessage('MACHINE CLOSED - CASHING OUT...', 'win');
+            showMessage(getMachineCloseMessage('cashing-out'), 'win');
             try {
                 await cashOutMachine();
                 await fetchMachineSession();
                 refreshIdleMachineState('CASHED OUT - MACHINE READY', 'win');
             } catch (_) {
-                showMessage('MACHINE CLOSED - USE MENU TO CASH OUT', 'win');
+                showMessage(getMachineCloseMessage(), 'win');
             }
         }
     } catch (e) {
@@ -2072,30 +2105,24 @@ async function openGame(gameId, selectedMachineId, options = {}) {
 
     // All our games are Lucky 5 machines, so just open the game screen
     if (gameId.startsWith('machine-')) {
-        setMenuPanelOpen(false);
-        setActiveScreen('game');
-        setLobbyNavActive(null);
+        activateShellScreen('game', null);
         await initGame(options);
     }
 }
 
 async function showLobby() {
-    setMenuPanelOpen(false);
-    setActiveScreen('lobby');
+    activateShellScreen('lobby', 'lobby');
     updateLobbyBalance();
     updateLobbyUsername();
     // Load machines from backend before rendering
     await loadAvailableMachines();
     renderGameGrid();
-    setLobbyNavActive('lobby');
 }
 
 function showWallet() {
-    setMenuPanelOpen(false);
-    setActiveScreen('wallet');
+    activateShellScreen('wallet', 'wallet');
     updateLobbyBalance();
     loadWalletHistory();
-    setLobbyNavActive('wallet');
 }
 
 async function loadWalletHistory() {
@@ -2175,9 +2202,7 @@ function formatTransactionDate(utcStr) {
 
 function showAdmin() {
     if (currentRole !== 'admin') return;
-    setMenuPanelOpen(false);
-    setActiveScreen('admin');
-    setLobbyNavActive('admin');
+    activateShellScreen('admin', 'admin');
     loadAdminUsers();
     loadAdminMachines();
 }
@@ -2278,7 +2303,7 @@ async function loadAdminMachines() {
         wrap.querySelectorAll('[data-reset-machine]').forEach(btn => btn.addEventListener('click', async () => {
             if (!confirm(`Reset machine ${btn.dataset.resetMachine}? Active rounds must be empty.`)) return;
             try {
-                await apiCall('POST', GAME_CONFIG.api.machineReset(btn.dataset.resetMachine));
+                await apiCall('POST', getAdminMachineResetPath(btn.dataset.resetMachine));
                 await loadAdminMachines();
             } catch (e) {
                 alert(e.message);
@@ -2369,15 +2394,14 @@ async function initGame(options = {}) {
         if (activeRound) {
             restoreRoundFromSnapshot(activeRound);
         } else {
-            gameState = 'idle';
-            jackpotRankArmed = false;
-            refreshIdleMachineState();
-            const hasRecoverableSession = session.machineCredits > 0 || session.isMachineClosed || activeRound;
-            if (allowLobbyFallback && !hasRecoverableSession) {
+            if (allowLobbyFallback) {
                 clearCurrentMachineSelection();
                 await showLobby();
                 return;
             }
+            gameState = 'idle';
+            jackpotRankArmed = false;
+            refreshIdleMachineState();
         }
 
         await setupSignalR();
@@ -2540,7 +2564,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#btn-reset-machine').addEventListener('click', async () => {
             if (!confirm('Reset machine state only? Active rounds must be empty.')) return;
             try {
-                await apiCall('POST', GAME_CONFIG.api.machineReset(machineId));
+                await apiCall('POST', getPlayerMachineResetPath());
                 await fetchMachineSession();
                 setMenuPanelOpen(false);
                 showMessage('MACHINE RESET COMPLETE', 'win');
@@ -2614,8 +2638,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const savedMachine = sessionStorage.getItem('lucky5_machineId');
                 if (savedMachine) {
                     machineId = parseInt(savedMachine, 10);
-                    setActiveScreen('game');
-                    setLobbyNavActive(null);
+                    activateShellScreen('game', null);
                     await initGame({ allowLobbyFallback: true });
                 } else {
                     await showLobby();

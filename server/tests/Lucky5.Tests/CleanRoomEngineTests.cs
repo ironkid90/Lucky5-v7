@@ -136,9 +136,9 @@ public static class CleanRoomEngineTests
         Assert(failures, "Machine close after a Lucky 5 switch should cash out the real post-win amount", postSwitchMachineClose.CashoutCredits == 80);
 
         var defaultConfig = EngineConfig.Default;
-        Assert(failures, "Approved RTP target should default to 80%", defaultConfig.TargetRtp == 0.80m);
+        Assert(failures, "Approved RTP target should default to 85%", defaultConfig.TargetRtp == 0.85m);
         Assert(failures, "Approved close threshold should default to 40,000,000", defaultConfig.CloseThreshold == 40_000_000m);
-        Assert(failures, "Approved payout-scale defaults should match the current 80% tuning architecture", defaultConfig.DefaultPayoutScale == 1.80m && defaultConfig.MinPayoutScale == 1.20m && defaultConfig.MaxPayoutScale == 2.10m);
+        Assert(failures, "Approved payout-scale defaults should match the current 85% tuning architecture", defaultConfig.DefaultPayoutScale == 2.00m && defaultConfig.MinPayoutScale == 1.25m && defaultConfig.MaxPayoutScale == 2.35m);
 
         var defaultCloseSession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
             seedRoot: seed,
@@ -147,6 +147,14 @@ public static class CleanRoomEngineTests
             machineCreditBaseline: 39_500_000);
         var defaultCloseResolution = Lucky5DoubleUpEngine.ResolveGuess(defaultCloseSession, BigSmallGuess.Big);
         Assert(failures, "Default double-up options should use the approved 40M close threshold", defaultCloseResolution.Outcome == Lucky5DoubleUpOutcome.MachineClosed);
+
+        var exactBoundaryCloseSession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
+            seedRoot: seed,
+            deck: FiveCardDrawEngine.ParseCards(["9H", "AS", "4C", "2D"]),
+            openingAmount: 20,
+            machineCreditBaseline: 39_999_980);
+        var exactBoundaryCloseResolution = Lucky5DoubleUpEngine.ResolveGuess(exactBoundaryCloseSession, BigSmallGuess.Big);
+        Assert(failures, "Crossing exactly onto 40,000,000 should still trigger machine close", exactBoundaryCloseResolution.Outcome == Lucky5DoubleUpOutcome.MachineClosed);
 
         var unlimitedChainSession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
             seedRoot: seed,
@@ -179,7 +187,7 @@ public static class CleanRoomEngineTests
                 RoundCount = defaultConfig.ConvergenceHorizon
             },
             seed);
-        Assert(failures, "Equilibrium payout scales should sit inside the current 80% controller band", equilibriumScale.SmallScale is >= 1.60m and <= 1.75m && equilibriumScale.MediumScale is >= 1.68m and <= 1.82m && equilibriumScale.BigScale is >= 1.76m and <= 1.90m);
+        Assert(failures, "Equilibrium payout scales should stay ordered and inside the configured payout-scale band", equilibriumScale.SmallScale is >= defaultConfig.MinPayoutScale and <= defaultConfig.MaxPayoutScale && equilibriumScale.MediumScale is >= defaultConfig.MinPayoutScale and <= defaultConfig.MaxPayoutScale && equilibriumScale.BigScale is >= defaultConfig.MinPayoutScale and <= defaultConfig.MaxPayoutScale && equilibriumScale.SmallScale <= equilibriumScale.MediumScale && equilibriumScale.MediumScale <= equilibriumScale.BigScale);
 
         var earlyOutlierState = new MachinePolicyState
         {

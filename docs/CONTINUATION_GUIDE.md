@@ -104,6 +104,37 @@ Current admin features:
 3. Add the new backend controller/service if the game needs its own logic
 4. Keep the existing Lucky5 frontend isolated so variants do not break the live cabinet
 
+## Session continuity + close/reset hardening
+
+Recent reliability work tightened the live vanilla cabinet flow without changing gameplay math or cabinet identity.
+
+### Active-round hydration
+
+- `GET /api/Game/machine/{id}/session` remains the authoritative machine-credit/session snapshot
+- `GET /api/Game/machine/{id}/active-round` is now the canonical frontend resume route
+- `GET /api/Game/active-round/{id}` remains aliased for older callers
+- `game.js` hydrates backend truth into three cabinet phases:
+  - `Dealt` → waiting for draw / hold selection
+  - `Drawn` → win shown, waiting for TAKE SCORE or DOUBLE UP
+  - `DoubleUp` → active dealer-card resume with switches/no-lose state
+- remembered machine selection with **no active round** now exits safely back to the lobby instead of trapping the player in an empty cabinet view
+
+### Close / cash-out / reset semantics
+
+- machine close remains a **player session gameplay state**, not a machine-ledger reset
+- repeated machine cash-out after a drained close path is treated as idempotent and returns the current session snapshot instead of throwing
+- player-side machine reset now:
+  - blocks only when the player still has a recoverable round on that machine
+  - auto-cashes-out eligible/closed machine credits back to the wallet
+  - clears the player machine session instead of wiping machine RTP history
+- admin machine reset now blocks only on recoverable rounds and no longer blocks merely because a closed machine session still holds credits
+
+### Frontend shell helpers
+
+- screen transitions now route through shared helpers instead of scattered `classList` toggles
+- the in-game `BACK TO LOBBY` action now lives inside the existing menu panel
+- machine-close copy is centralized so idle, take-score, and cash-out CTA text stay in sync
+
 ## Known limitation / next important step
 
 Machine ledgers and machine sessions still live in memory. That means they can survive for long-running single-instance deployments, but **not** across process restarts or redeploys.

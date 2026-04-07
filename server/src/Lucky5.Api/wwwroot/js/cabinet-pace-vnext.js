@@ -84,30 +84,40 @@ window.CabinetPace = (function () {
      */
     function countUp(element, startValue, endValue, durationMs, onComplete) {
         if (!element) { if (onComplete) onComplete(); return; }
-        if (startValue === endValue) {
-            element.textContent = _fmt.format(endValue);
+        _cancelElementAnimation(element);
+
+        const startNum = _safeNumber(startValue);
+        const endNum = _safeNumber(endValue);
+        const duration = Math.max(60, _safeNumber(durationMs));
+        if (startNum === endNum) {
+            element.textContent = _fmt.format(endNum);
             if (onComplete) onComplete();
             return;
         }
+
         const start = performance.now();
-        const range = endValue - startValue;
+        const range = endNum - startNum;
 
         function step(now) {
+            const currentAnim = _activeAnimations.get(element);
+            if (!currentAnim) return;
             const elapsed = now - start;
-            const progress = Math.min(elapsed / durationMs, 1);
+            const progress = Math.min(elapsed / duration, 1);
             // ease-out cubic
             const ease = 1 - Math.pow(1 - progress, 3);
-            const current = Math.round(startValue + range * ease);
+            const current = Math.round(startNum + range * ease);
             element.textContent = _fmt.format(current);
             if (progress < 1) {
-                requestAnimationFrame(step);
+                currentAnim.rafId = requestAnimationFrame(step);
             } else {
-                element.textContent = _fmt.format(endValue);
+                element.textContent = _fmt.format(endNum);
+                _activeAnimations.delete(element);
                 if (onComplete) onComplete();
             }
         }
 
-        requestAnimationFrame(step);
+        const animState = { rafId: requestAnimationFrame(step) };
+        _activeAnimations.set(element, animState);
     }
 
     /* ── collectWin ──────────────────────────────────────────────────────── */
@@ -119,23 +129,38 @@ window.CabinetPace = (function () {
      * @param {number} newCredits       — credits AFTER collection
      * @param {function} [onComplete]
      */
-    function collectWin(winAmount, currentCredits, newCredits, onComplete) {
+    function collectWin(winAmount, currentCredits, newCreditsOrCallback, onComplete) {
+        const amount = _safeNumber(winAmount);
+        const fromCredits = _safeNumber(currentCredits);
+        let toCredits = fromCredits + amount;
+        let done = onComplete;
+        if (typeof newCreditsOrCallback === 'number') {
+            toCredits = _safeNumber(newCreditsOrCallback);
+        } else if (typeof newCreditsOrCallback === 'function') {
+            done = newCreditsOrCallback;
+        }
+
         // Show win amount immediately
         const winEl = document.getElementById('win-amount-value');
-        if (winEl) winEl.textContent = _fmt.format(winAmount);
+        if (winEl) winEl.textContent = _fmt.format(amount);
 
-        // Scale duration from COUNT_UP_MIN to COUNT_UP_MAX based on win size
-        const duration = Math.min(COUNT_UP_MIN + Math.floor(winAmount / 50000) * 200, COUNT_UP_MAX);
+        // Scale duration from config min/max based on amount tiers
+        const minMs = Math.max(200, _safeNumber(_config.countUpMinMs));
+        const maxMs = Math.max(minMs, _safeNumber(_config.countUpMaxMs));
+        const duration = Math.min(
+            maxMs,
+            minMs + Math.floor(amount / 50000) * 200
+        );
 
         // Brief pause then count credits up
-        setTimeout(() => {
+        _setTimer(() => {
             const credEl = document.querySelector('#credits span');
             if (credEl) {
-                countUp(credEl, currentCredits, newCredits, duration, onComplete);
+                countUp(credEl, fromCredits, toCredits, duration, done);
             } else {
-                if (onComplete) onComplete();
+                if (done) done();
             }
-        }, 350);
+        }, Math.max(0, _safeNumber(_config.collectDelayMs)));
     }
 
     /* ── fillJackpot ─────────────────────────────────────────────────────── */
@@ -147,10 +172,14 @@ window.CabinetPace = (function () {
      * @param {function} [onComplete]
      */
     function fillJackpot(jpCvalElement, fromValue, toValue, onComplete) {
-        const delta = toValue - fromValue;
-        // Scale jackpot fill from JP_FILL_MIN to JP_FILL_MAX based on amount
-        const duration = Math.min(JP_FILL_MIN + Math.floor(delta / 500000) * 1000, JP_FILL_MAX);
-        countUp(jpCvalElement, fromValue, toValue, duration, onComplete);
+        const fromNum = _safeNumber(fromValue);
+        const toNum = _safeNumber(toValue);
+        const delta = Math.abs(toNum - fromNum);
+        const minMs = Math.max(500, _safeNumber(_config.jackpotFillMinMs));
+        const maxMs = Math.max(minMs, _safeNumber(_config.jackpotFillMaxMs));
+        // Scale jackpot fill from config min/max based on delta.
+        const duration = Math.min(minMs + Math.floor(delta / 500000) * 1000, maxMs);
+        countUp(jpCvalElement, fromNum, toNum, duration, onComplete);
     }
 
     /* ── flashLucky5 ─────────────────────────────────────────────────────── */
@@ -164,7 +193,13 @@ window.CabinetPace = (function () {
             // force reflow
             void flashEl.offsetWidth;
             flashEl.classList.add('active');
-            setTimeout(() => flashEl.classList.remove('active'), FLASH_ACTIVE);
+            _setTimer(() => flashEl.classList.remove('active'), Math.max(80, _safeNumber(_config.lucky5ActiveMs)));
+        }
+
+        const banner = document.getElementById('lucky5-banner');
+        if (banner) {
+            banner.classList.add('banner-flicker');
+            _setTimer(() => banner.classList.remove('banner-flicker'), 700);
         }
 
         // Also trigger stage glow/banner
@@ -197,14 +232,23 @@ window.CabinetPace = (function () {
         });
     }
 
+    function stopAll() {
+        _timers.forEach((id) => clearTimeout(id));
+        _timers.clear();
+        _activeAnimations = new WeakMap();
+    }
+
     /* ── public API ──────────────────────────────────────────────────────── */
 
     return {
+        configure,
+        getConfig,
         countUp,
         collectWin,
         fillJackpot,
         flashLucky5,
         animateJackpotCounters,
+        stopAll,
     };
 
 }());

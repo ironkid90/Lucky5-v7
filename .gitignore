@@ -100,3 +100,4 @@ New folder/
 .orchestrator/
 .copilot-cli/
 .github/instructions/orchestrator-*.instructions.md
+.windsurf/mcp.json

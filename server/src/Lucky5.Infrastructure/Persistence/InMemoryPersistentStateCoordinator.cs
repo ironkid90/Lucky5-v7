@@ -11,61 +11,87 @@ namespace Lucky5.Infrastructure.Persistence;
 public sealed class InMemoryPersistentStateCoordinator : IPersistentStateCoordinator
 {
     private readonly IDataStore dataStore;
+    private readonly Lucky5.Infrastructure.Services.InMemoryDataStore inMemoryStore;
 
-    public InMemoryPersistentStateCoordinator(IDataStore dataStore)
+    public InMemoryPersistentStateCoordinator(IDataStore dataStore, Lucky5.Infrastructure.Services.InMemoryDataStore inMemoryStore)
     {
         this.dataStore = dataStore;
+        this.inMemoryStore = inMemoryStore;
     }
 
     public Task<PersistentStateSnapshot> CaptureAsync(CancellationToken cancellationToken)
     {
-        // Capture all current state from the in-memory store
-        // Note: Since IDataStore doesn't have bulk retrieval methods, we'll return empty collections
-        // In a real implementation, you would need to add these methods to IDataStore
-        return Task.FromResult(new PersistentStateSnapshot
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var snapshot = new PersistentStateSnapshot
         {
-            Users = Array.Empty<User>(),
-            Profiles = Array.Empty<MemberProfile>(),
-            MachineSessions = Array.Empty<MachineSessionState>(),
-            MachineLedgers = Array.Empty<MachineLedgerState>(),
-            ActiveRounds = Array.Empty<GameRound>(),
-            WalletLedgerEntries = Array.Empty<WalletLedgerEntry>()
-        });
+            Users = inMemoryStore.Users.Values.ToArray(),
+            Profiles = inMemoryStore.MemberProfiles.Values.ToArray(),
+            MachineSessions = inMemoryStore.MachineSessions.Values.ToArray(),
+            MachineLedgers = inMemoryStore.MachineLedgers.Values.ToArray(),
+            ActiveRounds = inMemoryStore.ActiveRounds.Values.ToArray(),
+            WalletLedgerEntries = inMemoryStore.Ledger.ToArray()
+        };
+
+        return Task.FromResult(snapshot);
     }
 
     public async Task RestoreAsync(PersistentStateSnapshot snapshot, CancellationToken cancellationToken)
     {
-        // Restore all state to the in-memory store
-        // Note: This is a simplified implementation - in a real scenario,
-        // you'd need to handle conflicts and ensure atomic restoration
-        
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Replace current in-memory authoritative state with the durable snapshot.
+        inMemoryStore.Users.Clear();
+        inMemoryStore.MemberProfiles.Clear();
+        inMemoryStore.MachineSessions.Clear();
+        inMemoryStore.MachineLedgers.Clear();
+        inMemoryStore.ActiveRounds.Clear();
+
+        while (inMemoryStore.Ledger.TryTake(out _))
+        {
+        }
+
         foreach (var user in snapshot.Users)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await dataStore.UpdateUserAsync(user);
         }
 
         foreach (var profile in snapshot.Profiles)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await dataStore.UpdateProfileAsync(profile);
         }
 
         foreach (var session in snapshot.MachineSessions)
         {
-            await dataStore.UpdateMachineSessionAsync(session);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var normalizedSession = session;
+            if (normalizedSession.MachineCredits <= 0m)
+            {
+                normalizedSession.TotalCashIn = 0m;
+                normalizedSession.IsMachineClosed = false;
+            }
+
+            await dataStore.UpdateMachineSessionAsync(normalizedSession);
         }
 
         foreach (var ledger in snapshot.MachineLedgers)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await dataStore.UpdateMachineLedgerAsync(ledger);
         }
 
         foreach (var round in snapshot.ActiveRounds)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await dataStore.SaveRoundAsync(round);
         }
 
         foreach (var entry in snapshot.WalletLedgerEntries)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await dataStore.AddWalletLedgerEntryAsync(entry);
         }
     }

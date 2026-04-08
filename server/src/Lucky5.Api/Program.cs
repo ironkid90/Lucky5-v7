@@ -1,9 +1,3 @@
-// IMMEDIATE DIAGNOSTIC: This should execute before anything else
-Console.WriteLine("=== LUCKY5 APPLICATION STARTING ===");
-Console.WriteLine($"Runtime: {Environment.Version}");
-Console.WriteLine($"Platform: {Environment.OSVersion}");
-Console.WriteLine($"Working Directory: {Environment.CurrentDirectory}");
-
 using Lucky5.Api.Middleware;
 using Lucky5.Infrastructure.Services;
 using Lucky5.Realtime;
@@ -11,6 +5,12 @@ using Lucky5.Realtime.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+
+// IMMEDIATE DIAGNOSTIC: This should execute before anything else
+Console.WriteLine("=== LUCKY5 APPLICATION STARTING ===");
+Console.WriteLine($"Runtime: {Environment.Version}");
+Console.WriteLine($"Platform: {Environment.OSVersion}");
+Console.WriteLine($"Working Directory: {Environment.CurrentDirectory}");
 
 try
 {

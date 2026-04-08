@@ -1,0 +1,119 @@
+--- a/src/web/components/lucky5-cabinet.tsx
++++ b/src/web/components/lucky5-cabinet.tsx
+@@
+-import { startTransition, useEffect, useEffectEvent, useState } from "react";
++import { startTransition, useEffect, useEffectEvent, useState } from "react";
+@@
+ import type {
+   DealResult,
+   DefaultRules,
+   DoubleUpResult,
+@@
+   WalletLedgerEntry,
+ } from "@/lib/types";
++import {
++  isTerminalDoubleUpStatus,
++  mapDoubleUpResultToViewModel,
++} from "@/models/DoubleUpViewModel";
+@@
+   const selectedMachine = machines.find((machine) => machine.id === machineId) ?? null;
+   const activeCards = drawResult?.cards ?? dealResult?.cards ?? [];
+   const openRoundId = dealResult?.roundId ?? null;
+   const hasWin = (drawResult?.winAmount ?? 0) > 0;
++  const doubleUpViewModel = mapDoubleUpResultToViewModel(doubleUpResult);
++  const doubleUpAmount = doubleUpViewModel?.currentAmount ?? drawResult?.winAmount ?? 0;
+   const payoutRows = Object.entries(rules?.payoutMultipliers ?? {}).sort(
+     (left, right) => right[1] - left[1],
+   );
++
++  function clearActiveRoundState() {
++    setDealResult(null);
++    setDrawResult(null);
++    setHoldIndexes([]);
++  }
+@@
+   async function handleGuess(guess: "big" | "small") {
+@@
+       const result = await guessDoubleUp(openRoundId, guess, accessToken);
+       setDoubleUpResult(result);
+       syncWallet(result.walletBalance);
+       setMessage(`${guess.toUpperCase()} resolved: ${result.status}. Current amount ${formatMoney(result.currentAmount)}.`);
+       setMessageTone(toneForStatus(result.status));
++      if (isTerminalDoubleUpStatus(result.status)) {
++        clearActiveRoundState();
++      }
+       await Promise.all([refreshHistory(), refreshMachineState()]);
+     });
+   }
+@@
+   async function handleCashout() {
+@@
+-    if (!doubleUpResult) {
+-      setMessage("Score taken. The wallet already reflects the round payout.");
+-      setMessageTone("ready");
+-      return;
+-    }
+-
+     await runAction(async () => {
+       const result = await cashoutDoubleUp(openRoundId, accessToken);
+       setDoubleUpResult(result);
+       syncWallet(result.walletBalance);
+       setMessage(`Score taken: ${formatMoney(result.currentAmount)}.`);
+       setMessageTone("ready");
++      clearActiveRoundState();
+       await Promise.all([refreshHistory(), refreshMachineState()]);
+     });
+   }
+@@
+       const result = await takeHalf(openRoundId, accessToken);
+       setDoubleUpResult(result);
+       syncWallet(result.walletBalance);
+       setMessage(`Half banked. ${formatMoney(result.currentAmount)} stays in play.`);
+       setMessageTone("warning");
++      if (isTerminalDoubleUpStatus(result.status)) {
++        clearActiveRoundState();
++      }
+       await Promise.all([refreshHistory(), refreshMachineState()]);
+     });
+   }
+@@
+                 <div className="double-up-panel">
+                   <div className="section-title">Double-up deck</div>
+                   <div className="double-up-cards">
+-                    <PlayingCard card={doubleUpResult?.dealerCard} label="Dealer" />
+-                    <PlayingCard card={doubleUpResult?.challengerCard} label="Challenger" />
++                    <PlayingCard card={doubleUpViewModel?.dealerCard} label="Dealer" />
++                    <PlayingCard card={doubleUpViewModel?.challengerCard} label="Challenger" />
+                   </div>
+                   <div className="double-up-meta">
+                     <div className="status-chip">
+                       <span>Status</span>
+-                      <strong>{doubleUpResult?.status ?? "Standby"}</strong>
++                      <strong>{doubleUpViewModel?.status ?? (hasWin ? "Collectable" : "Standby")}</strong>
+                     </div>
+                     <div className="status-chip">
+                       <span>Amount</span>
+-                      <strong>{formatMoney(doubleUpResult?.currentAmount ?? drawResult?.winAmount ?? 0)}</strong>
++                      <strong>{formatMoney(doubleUpAmount)}</strong>
+                     </div>
+                     <div className="status-chip">
+                       <span>Switches</span>
+-                      <strong>{doubleUpResult?.switchesRemaining ?? 0}</strong>
++                      <strong>{doubleUpViewModel?.switchesRemaining ?? 0}</strong>
+                     </div>
+                   </div>
+                   <div className="control-row tertiary">
+-                    <button className="action-button ghost" type="button" onClick={() => void handleSwitch()} disabled={busy || !doubleUpResult}>
++                    <button className="action-button ghost" type="button" onClick={() => void handleSwitch()} disabled={busy || !doubleUpViewModel?.canSwitch}>
+                       SWITCH
+                     </button>
+-                    <button className="guess-button small" type="button" onClick={() => void handleGuess("small")} disabled={busy || !doubleUpResult}>
++                    <button className="guess-button small" type="button" onClick={() => void handleGuess("small")} disabled={busy || !doubleUpViewModel?.canGuess}>
+                       SMALL
+                     </button>
+-                    <button className="guess-button big" type="button" onClick={() => void handleGuess("big")} disabled={busy || !doubleUpResult}>
++                    <button className="guess-button big" type="button" onClick={() => void handleGuess("big")} disabled={busy || !doubleUpViewModel?.canGuess}>
+                       BIG
+                     </button>
+                   </div>
+                 </div>

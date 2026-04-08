@@ -30,21 +30,25 @@ import type {
   PokerCard,
   WalletLedgerEntry,
 } from "@/lib/types";
+import {
+  isTerminalDoubleUpStatus,
+  mapDoubleUpResultToViewModel,
+} from "@/models/DoubleUpViewModel";
 
 const DEFAULT_USERNAME = "tester";
 const DEFAULT_PASSWORD = "password";
 const DEFAULT_OTP = "123456";
 
-const PAYTABLE_COLORS = [
-  "#ffffff",  // Royal Flush
-  "#ffd447",  // Straight Flush
-  "#84ff55",  // Four of a Kind
-  "#9ce6ff",  // Full House
-  "#c8d8ff",  // Flush
-  "#88aaff",  // Straight
-  "#dddddd",  // Three of a Kind
-  "#cc99ff",  // Two Pair
-  "#a89880",  // Jacks or Better / others
+// APK clone rainbow colors — hand order matches APK paytable top-to-bottom.
+const PAYTABLE_ROWS: Array<{ key: string; label: string; color: string }> = [
+  { key: "RoyalFlush",    label: "ROYAL FLUSH",    color: "#ff4444" },
+  { key: "StraightFlush", label: "STRAIGHT FLUSH", color: "#ff7700" },
+  { key: "FourOfAKind",   label: "4 OF A KIND",    color: "#44ffcc" },
+  { key: "FullHouse",     label: "FULL HOUSE",      color: "#ffff00" },
+  { key: "Flush",         label: "FLUSH",           color: "#ff6666" },
+  { key: "Straight",      label: "STRAIGHT",        color: "#44ff88" },
+  { key: "ThreeOfAKind",  label: "3 OF A KIND",     color: "#44ddff" },
+  { key: "TwoPair",       label: "2 PAIR",          color: "#ddddaa" },
 ];
 
 type MessageTone = "ready" | "warning" | "danger";
@@ -96,34 +100,123 @@ function toneForStatus(status: string): MessageTone {
   return "ready";
 }
 
-function PlayingCard({ card, label }: { card?: PokerCard | null; label: string }) {
-  if (!card) {
-    return (
-      <div className="playing-card">
-        <div className="card-corner">--</div>
-        <div className="card-center">?</div>
-        <div className="card-corner" style={{ textAlign: "right" }}>
-          {label}
+// Card image path matches the vanilla cabinet asset convention.
+function cardImgSrc(card: PokerCard): string {
+  return `/assets/images/cards/${card.rank}${card.suit}.png`;
+}
+
+function PlayingCard({ card, label, held, onClick }: {
+  card?: PokerCard | null;
+  label?: string;
+  held?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <div
+      className={`playing-card-apk${held ? " held" : ""}${onClick ? " clickable" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => e.key === "Enter" && onClick() : undefined}
+    >
+      {held && <div className="hold-badge-apk">HOLD</div>}
+      {card
+        ? <img src={cardImgSrc(card)} alt={`${card.rank}${card.suit}`} className="card-img" />
+        : <div className="card-back-apk" />
+      }
+      {label && <div className="card-label-apk">{label}</div>}
+    </div>
+  );
+}
+
+// ── PaytablePanel ────────────────────────────────────────────────────────────
+function PaytablePanel({
+  payouts,
+  activeHand,
+  jackpotFh,
+}: {
+  payouts: Record<string, number>;
+  activeHand?: string | null;
+  jackpotFh?: number;
+}) {
+  return (
+    <div className="apk-paytable">
+      {PAYTABLE_ROWS.map(({ key, label, color }) => {
+        const multiplier = payouts[key];
+        const display = key === "FullHouse" && jackpotFh
+          ? formatMoney(jackpotFh)
+          : multiplier !== undefined
+            ? String(multiplier * 5000)
+            : "0";
+        const isActive = activeHand === key;
+        return (
+          <div
+            key={key}
+            className={`apk-pay-row${isActive ? " apk-pay-row--active" : ""}`}
+            style={{ color }}
+          >
+            <span className="apk-hand-name">{label}</span>
+            <span className="apk-pay-amount">{display}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── CreditStakeBar ───────────────────────────────────────────────────────────
+function CreditStakeBar({ credit, stake }: { credit: number; stake: number | string }) {
+  return (
+    <div className="apk-credit-stake">
+      <div className="apk-credit-label">CREDIT</div>
+      <div className="apk-credit-value">{formatMoney(credit)}</div>
+      <div className="apk-stake-label">STAKE</div>
+      <div className="apk-stake-value">{typeof stake === "number" ? formatMoney(stake) : stake}</div>
+    </div>
+  );
+}
+
+// ── MachineInfoBlock ─────────────────────────────────────────────────────────
+function MachineInfoBlock({
+  machineName,
+  jackpots,
+  fourOfAKindA,
+  fourOfAKindB,
+  bonusText,
+}: {
+  machineName?: string | null;
+  jackpots?: MachineState["jackpots"] | null;
+  fourOfAKindA: number;
+  fourOfAKindB: number;
+  bonusText?: string | null;
+}) {
+  return (
+    <div className="apk-machine-info">
+      <div className="apk-identity-row">
+        <span className="apk-mi-label">SERIE</span>
+        <span className="apk-mi-sep"> - </span>
+        <span className="apk-mi-val">{machineName ?? ""}</span>
+        <span className="apk-mi-label" style={{ marginLeft: 12 }}>KENT /3</span>
+        <span className="apk-mi-sep"> . </span>
+        <span className="apk-mi-val">1</span>
+      </div>
+      <div className="apk-jp-counters">
+        <div className="apk-jp apk-jp-side">
+          <span className="apk-jp-tag">× </span>
+          <span className="apk-jp-val">{jackpots ? formatMoney(fourOfAKindA) : "--"}</span>
+        </div>
+        <div className="apk-jp apk-jp-center">
+          <span className="apk-jp-val">{jackpots ? formatMoney(jackpots.straightFlush) : "--"}</span>
+        </div>
+        <div className="apk-jp apk-jp-side">
+          <span className="apk-jp-val">{jackpots ? formatMoney(fourOfAKindB) : "--"}</span>
         </div>
       </div>
-    );
-  }
-
-  const glyph = cardSuitGlyph(card.suit);
-
-  return (
-    <div className={`playing-card ${cardSuitClass(card.suit)}`}>
-      <div className="card-corner">
-        {card.rank}
-        <br />
-        {glyph}
+      <div className="apk-jp-fh-row">
+        <span className="apk-jp-fh-label">K</span>
+        <span className="apk-jp-fh-val">{jackpots ? formatMoney(jackpots.fullHouse) : "--"}</span>
       </div>
-      <div className="card-center">{glyph}</div>
-      <div className="card-corner" style={{ textAlign: "right" }}>
-        {card.rank}
-        <br />
-        {glyph}
-      </div>
+      {bonusText && <div className="apk-bonus-bar">{bonusText}</div>}
     </div>
   );
 }
@@ -154,6 +247,14 @@ export function Lucky5Cabinet() {
   const activeCards = drawResult?.cards ?? dealResult?.cards ?? [];
   const openRoundId = dealResult?.roundId ?? null;
   const hasWin = (drawResult?.winAmount ?? 0) > 0;
+  const doubleUpViewModel = mapDoubleUpResultToViewModel(doubleUpResult);
+  const doubleUpAmount = doubleUpViewModel?.currentAmount ?? drawResult?.winAmount ?? 0;
+
+  function clearActiveRoundState() {
+    setDealResult(null);
+    setDrawResult(null);
+    setHoldIndexes([]);
+  }
   const isMachineClosed = (profile?.walletBalance ?? 0) >= MACHINE_CREDIT_LIMIT;
 
   const payoutRows = Object.entries(rules?.payoutMultipliers ?? {}).sort(
@@ -357,6 +458,9 @@ export function Lucky5Cabinet() {
       syncWallet(result.walletBalance);
       setMessage(`${guess.toUpperCase()} resolved: ${result.status}. Current amount ${formatMoney(result.currentAmount)}.`);
       setMessageTone(toneForStatus(result.status));
+      if (isTerminalDoubleUpStatus(result.status)) {
+        clearActiveRoundState();
+      }
       await Promise.all([refreshHistory(), refreshMachineState()]);
     });
   }
@@ -366,18 +470,13 @@ export function Lucky5Cabinet() {
       return;
     }
 
-    if (!doubleUpResult) {
-      setMessage("Score taken. The wallet already reflects the round payout.");
-      setMessageTone("ready");
-      return;
-    }
-
     await runAction(async () => {
       const result = await cashoutDoubleUp(openRoundId, accessToken);
       setDoubleUpResult(result);
       syncWallet(result.walletBalance);
       setMessage(`Score taken: ${formatMoney(result.currentAmount)}.`);
       setMessageTone("ready");
+      clearActiveRoundState();
       await Promise.all([refreshHistory(), refreshMachineState()]);
     });
   }
@@ -393,6 +492,9 @@ export function Lucky5Cabinet() {
       syncWallet(result.walletBalance);
       setMessage(`Half banked. ${formatMoney(result.currentAmount)} stays in play.`);
       setMessageTone("warning");
+      if (isTerminalDoubleUpStatus(result.status)) {
+        clearActiveRoundState();
+      }
       await Promise.all([refreshHistory(), refreshMachineState()]);
     });
   }
@@ -417,266 +519,270 @@ export function Lucky5Cabinet() {
     (jackpotSnapshot as unknown as Record<string, number | undefined> | undefined)?.fourOfAKindB ?? 0,
   );
 
-  // Sprint 1 cabinet regrouping:
-  // - paytable / ledger header
-  // - card stage
-  // - jackpot strip
-  // - lower control deck
-  // - telemetry as secondary side content
+  const isInDoubleUp = doubleUpViewModel !== null && !doubleUpViewModel.isTerminal;
+  const bonusText = drawResult?.handRank
+    ? `${drawResult.handRank.toUpperCase().replace(/([A-Z])/g, " $1").trim()} WINS BONUS`
+    : null;
 
   return (
     <div className="cabinet-shell">
       <section className="cabinet">
         <div className="screen">
-          <div className="screen-header">
-            <div className="paytable">
-              <div className="paytable-title">Lucky5 payout glass</div>
-              <div className="paytable-grid">
-                {payoutRows.map(([hand, payout], rowIndex) => {
-                  const rowColor = PAYTABLE_COLORS[rowIndex] ?? "#a89880";
-                  return (
-                    <div
-                      className="paytable-row"
-                      key={hand}
-                      style={{ color: rowColor, borderBottomColor: `${rowColor}22` }}
-                    >
-                      <span>{hand.replace(/([A-Z])/g, " $1").trim()}</span>
-                      <strong style={{ color: rowColor }}>x{payout}</strong>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
 
-            <div className="status-stack">
-              <div className="status-box">
-                <div className="status-title">Machine ledger</div>
-                <div className="status-grid">
-                  <div className="status-chip ledger">
-                    <span>Credit</span>
-                    <strong>{formatMoney(profile?.walletBalance ?? 0)}</strong>
-                  </div>
-                  <div className="status-chip ledger">
-                    <span>Stake</span>
-                    <strong>{betAmount || "5000"}</strong>
-                  </div>
-                  <div className="status-chip">
-                    <span>Hand</span>
-                    <strong>{drawResult?.handRank ?? (dealResult ? "Open" : "Idle")}</strong>
-                  </div>
-                  <div className="status-chip">
-                    <span>Machine</span>
-                    <strong>{selectedMachine?.name ?? "Not linked"}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="status-box machine-bar">
-                <div className="status-title">Cabinet line-up</div>
-                <div className="machine-buttons">
-                  {machines.map((machine) => (
-                    <button
-                      className={`machine-button ${machine.id === machineId ? "active" : ""}`}
-                      key={machine.id}
-                      onClick={() => void handleMachineSelection(machine)}
-                      type="button"
-                      disabled={!machine.isOpen || busy}
-                    >
-                      <strong>{machine.name}</strong>
-                      <small>
-                        {formatMoney(machine.minBet)} - {formatMoney(machine.maxBet)}
-                      </small>
-                    </button>
-                  ))}
-                  <button
-                    className="machine-button action-button ghost"
-                    style={{ marginTop: "1rem" }}
-                    onClick={() => {
-                        setMachineId(null);
-                        setDealResult(null);
-                        setDrawResult(null);
-                        setDoubleUpResult(null);
-                        setMessage("Returned to lobby. Pick a machine.");
-                        setMessageTone("ready");
-                    }}
-                    type="button"
-                    disabled={!machineId || busy}
-                  >
-                    <strong>BACK TO LOBBY</strong>
-                  </button>
-                </div>
-              </div>
-            </div>
+          {/* ── Top band: paytable (left 62%) + credit/stake (right 38%) ── */}
+          <div className="apk-top-band">
+            <PaytablePanel
+              payouts={rules?.payoutMultipliers ?? {}}
+              activeHand={drawResult?.handRank ?? null}
+              jackpotFh={jackpotSnapshot?.fullHouse}
+            />
+            <CreditStakeBar
+              credit={profile?.walletBalance ?? 0}
+              stake={betAmount || "5000"}
+            />
           </div>
 
-          <div className="screen-body">
-            <div className="playfield-stack">
-              <div className="message-box">
-                <span>{message}</span>
-                <span className="message-pill">
-                  {messageTone === "danger" ? "Fault" : messageTone === "warning" ? "Alert" : "Ready"}
-                </span>
+          {/* ── Label band ── */}
+          {isInDoubleUp && (
+            <div className="apk-label-band apk-du-label">DOUBLE UP</div>
+          )}
+
+          {/* ── Card stage ── */}
+          <div className="apk-card-stage">
+            {isInDoubleUp ? (
+              /* Double-up view: dealer card left + challenger card right */
+              <div className="apk-du-card-row">
+                <PlayingCard card={doubleUpViewModel?.dealerCard ?? null} label={doubleUpViewModel?.isLucky5Active ? "LUCKY 5!" : "DEALER"} />
+                <PlayingCard card={doubleUpViewModel?.challengerCard ?? null} label="BIG / SMALL ?" />
               </div>
+            ) : (
+              /* Normal 5-card row with hold-click */
+              <div className="apk-card-row">
+                {Array.from({ length: 5 }, (_, index) => activeCards[index] ?? null).map((card, index) => (
+                  <PlayingCard
+                    key={`card-${index}`}
+                    card={card}
+                    held={holdIndexes.includes(index)}
+                    onClick={() => toggleHold(index)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
 
-              <div className="card-stage">
-                <div className="deal-banner">
-                  <div>
-                    <div className="label-kicker">Round monitor</div>
-                    <strong>{openRoundId ? `Round ${openRoundId.slice(0, 8)}` : "No active round"}</strong>
-                  </div>
-                  <span className="hint">
-                    {dealResult && !drawResult ? "Tap HOLD under each card, then DRAW." : "DEAL opens a new five-card round."}
-                  </span>
+          {/* ── Win amount display ── */}
+          {(drawResult?.winAmount ?? 0) > 0 && (
+            <div className="apk-win-amount">
+              {formatMoney(doubleUpAmount)}
+            </div>
+          )}
+
+          {/* ── Machine info block ── */}
+          <MachineInfoBlock
+            machineName={selectedMachine?.name}
+            jackpots={jackpotSnapshot}
+            fourOfAKindA={fourOfAKindA}
+            fourOfAKindB={fourOfAKindB}
+            bonusText={bonusText}
+          />
+
+          {/* ── Control deck ── */}
+          <div className="apk-control-deck">
+            {!profile ? (
+              /* Auth panel when not logged in */
+              <div className="auth-panel">
+                <div className="section-title">Boot the cabinet</div>
+                <div className="auth-hint">
+                  Sign up if needed, verify OTP 123456, then log in.
                 </div>
-
-                <div className="card-row">
-                  {Array.from({ length: 5 }, (_, index) => activeCards[index] ?? null).map((card, index) => (
-                    <PlayingCard key={`card-${index}`} card={card} label={`Card ${index + 1}`} />
+                <div className="auth-grid">
+                  <label>
+                    Username
+                    <input value={username} onChange={(event) => setUsername(event.target.value)} />
+                  </label>
+                  <label>
+                    Password
+                    <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+                  </label>
+                  <label>
+                    OTP
+                    <input value={otpCode} onChange={(event) => setOtpCode(event.target.value)} />
+                  </label>
+                </div>
+                <button className="auth-button" type="button" onClick={() => void handleBoot()} disabled={busy}>
+                  {busy ? "BOOTING" : "SIGN UP / LOGIN"}
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Row 1 — HOLD buttons */}
+                <div className="apk-hold-row">
+                  {Array.from({ length: 5 }, (_, index) => (
+                    <button
+                      key={index}
+                      className={`apk-hold-btn${holdIndexes.includes(index) ? " active" : ""}`}
+                      type="button"
+                      onClick={() => toggleHold(index)}
+                      disabled={!dealResult || !!drawResult || busy || isInDoubleUp}
+                    >
+                      HOLD
+                    </button>
                   ))}
                 </div>
-              </div>
 
-              <div className="jackpot-strip" aria-label="Live jackpot strip">
-                <div className="jackpot-strip-header">
-                  <div>
-                    <div className="label-kicker">Live jackpots</div>
-                    <strong>Cabinet meter band</strong>
-                  </div>
-                  <span className="hint">APK-priority payout strip kept ahead of telemetry.</span>
+                {/* Row 2 — BIG | SMALL | CANCEL HOLD | DEAL/DRAW | BET */}
+                <div className="apk-action-row">
+                  <button
+                    className="apk-btn apk-btn-big"
+                    type="button"
+                    onClick={() => void handleGuess("big")}
+                    disabled={busy || !doubleUpViewModel?.canGuess}
+                  >
+                    BIG
+                  </button>
+                  <button
+                    className="apk-btn apk-btn-small"
+                    type="button"
+                    onClick={() => void handleGuess("small")}
+                    disabled={busy || !doubleUpViewModel?.canGuess}
+                  >
+                    SMALL
+                  </button>
+                  <button
+                    className="apk-btn apk-btn-cancel"
+                    type="button"
+                    onClick={() => {
+                      setHoldIndexes([]);
+                    }}
+                    disabled={busy || !dealResult || !!drawResult || isInDoubleUp}
+                  >
+                    CANCEL<br />HOLD
+                  </button>
+                  <button
+                    className="apk-btn apk-btn-deal"
+                    type="button"
+                    onClick={() => void handleDealOrDraw()}
+                    disabled={busy || !machineId || isInDoubleUp}
+                  >
+                    {busy ? "WAIT" : dealResult && !drawResult ? "DRAW" : "DEAL"}<br />
+                    {dealResult && !drawResult ? "" : "DRAW"}
+                  </button>
+                  <button
+                    className="apk-btn apk-btn-bet"
+                    type="button"
+                    onClick={() => {
+                      const next = selectedMachine
+                        ? Math.min(Number(betAmount) + (selectedMachine.minBet), selectedMachine.maxBet)
+                        : Number(betAmount);
+                      setBetAmount(String(next));
+                    }}
+                    disabled={busy || !!dealResult || isInDoubleUp}
+                  >
+                    BET
+                  </button>
                 </div>
-                <div className="jackpot-strip-grid">
-                  <div className="jackpot-meter jackpot-meter-side">
-                    <span>4K A</span>
-                    <strong>{jackpotSnapshot ? formatMoney(fourOfAKindA) : "--"}</strong>
-                  </div>
-                  <div className="jackpot-meter jackpot-meter-main">
-                    <span>Full house</span>
-                    <strong>{jackpotSnapshot ? formatMoney(jackpotSnapshot.fullHouse) : "--"}</strong>
-                  </div>
-                  <div className="jackpot-meter jackpot-meter-center">
-                    <span>Straight flush</span>
-                    <strong>{jackpotSnapshot ? formatMoney(jackpotSnapshot.straightFlush) : "--"}</strong>
-                  </div>
-                  <div className="jackpot-meter jackpot-meter-side">
-                    <span>4K B</span>
-                    <strong>{jackpotSnapshot ? formatMoney(fourOfAKindB) : "--"}</strong>
-                  </div>
-                </div>
-              </div>
 
-              <div className="control-deck">
-                {!profile ? (
-                  <div className="auth-panel">
-                    <div className="section-title">Boot the cabinet</div>
-                    <div className="auth-hint">
-                      This follows the Flutter bootstrap: sign up if needed, verify OTP `123456`, then log in.
-                    </div>
-                    <div className="auth-grid">
-                      <label>
-                        Username
-                        <input value={username} onChange={(event) => setUsername(event.target.value)} />
-                      </label>
-                      <label>
-                        Password
-                        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-                      </label>
-                      <label>
-                        OTP
-                        <input value={otpCode} onChange={(event) => setOtpCode(event.target.value)} />
-                      </label>
-                    </div>
-                    <button className="auth-button" type="button" onClick={() => void handleBoot()} disabled={busy}>
-                      {busy ? "BOOTING" : "SIGN UP / LOGIN"}
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="hold-row">
-                      {Array.from({ length: 5 }, (_, index) => (
+                {/* Row 3 — TAKE HALF | MENU (machine select) | TAKE SCORE */}
+                <div className="apk-bottom-row">
+                  <button
+                    className="apk-btn apk-btn-take-half"
+                    type="button"
+                    onClick={() => void handleTakeHalf()}
+                    disabled={busy || !openRoundId || (!hasWin && !doubleUpResult)}
+                  >
+                    TAKE<br />HALF
+                  </button>
+
+                  {/* MENU — machine selector overlay */}
+                  <div className="apk-menu-wrap">
+                    <div className="apk-menu-btn-label">MENU</div>
+                    <div className="apk-menu-popup">
+                      {machines.map((machine) => (
                         <button
-                          key={index}
-                          className={`hold-button ${holdIndexes.includes(index) ? "active" : ""}`}
+                          key={machine.id}
+                          className={`machine-button${machine.id === machineId ? " active" : ""}`}
                           type="button"
-                          onClick={() => toggleHold(index)}
-                          disabled={!dealResult || !!drawResult || busy}
+                          onClick={() => void handleMachineSelection(machine)}
+                          disabled={!machine.isOpen || busy}
                         >
-                          {holdIndexes.includes(index) ? "HELD" : "HOLD"}
+                          <strong>{machine.name}</strong>
+                          <small>{formatMoney(machine.minBet)} – {formatMoney(machine.maxBet)}</small>
                         </button>
                       ))}
+                      <button
+                        className="machine-button"
+                        type="button"
+                        disabled={!machineId || busy}
+                        onClick={() => {
+                          setMachineId(null);
+                          setDealResult(null);
+                          setDrawResult(null);
+                          setDoubleUpResult(null);
+                          setMessage("Returned to lobby. Pick a machine.");
+                          setMessageTone("ready");
+                        }}
+                      >
+                        <strong>BACK TO LOBBY</strong>
+                      </button>
                     </div>
+                  </div>
 
-                    <div className="control-row primary">
-                      <div className="bet-input">
-                        <label>
-                          Bet amount
-                          <input
-                            inputMode="numeric"
-                            value={betAmount}
-                            onChange={(event) => setBetAmount(event.target.value.replace(/[^\d]/g, ""))}
-                          />
-                        </label>
-                      </div>
-                      <button className="action-button main" type="button" onClick={() => void handleDealOrDraw()} disabled={busy || !machineId}>
-                        {busy ? "WORKING" : dealResult && !drawResult ? "DRAW" : "DEAL"}
-                      </button>
-                    </div>
+                  <button
+                    className="apk-btn apk-btn-take-score"
+                    type="button"
+                    onClick={() => void handleCashout()}
+                    disabled={busy || !openRoundId || (!hasWin && !doubleUpResult)}
+                  >
+                    TAKE<br />SCORE
+                  </button>
+                </div>
 
-                    <div className="control-row secondary">
-                      <button className="action-button warning" type="button" onClick={() => void handleStartDoubleUp()} disabled={busy || !hasWin || !!doubleUpResult}>
-                        DOUBLE UP
-                      </button>
-                      <button className="action-button success" type="button" onClick={() => void handleTakeHalf()} disabled={busy || !openRoundId || (!hasWin && !doubleUpResult)}>
-                        TAKE HALF
-                      </button>
-                      <button className="action-button ghost" type="button" onClick={() => void handleCashout()} disabled={busy || !openRoundId || (!hasWin && !doubleUpResult)}>
-                        TAKE SCORE
-                      </button>
+                {/* SWITCH + DOUBLE-UP entry — shown below bottom row when applicable */}
+                {(hasWin || isInDoubleUp) && (
+                  <div className="apk-du-action-row">
+                    <button
+                      className="apk-btn apk-btn-switch"
+                      type="button"
+                      onClick={() => void handleSwitch()}
+                      disabled={busy || !doubleUpViewModel?.canSwitch}
+                    >
+                      SWITCH<br />DEALER
+                    </button>
+                    <button
+                      className="apk-btn apk-btn-double-up"
+                      type="button"
+                      onClick={() => void handleStartDoubleUp()}
+                      disabled={busy || !hasWin || isInDoubleUp}
+                    >
+                      DOUBLE<br />UP
+                    </button>
+                    <div className="apk-du-info">
+                      <div className="apk-du-status">{doubleUpViewModel?.status ?? "—"}</div>
+                      <div className="apk-du-amount">
+                        {formatMoney(doubleUpAmount)}
+                      </div>
+                      {(doubleUpViewModel?.switchesRemaining ?? 0) > 0 && (
+                        <div className="apk-du-switches">
+                          SW: {doubleUpViewModel!.switchesRemaining}
+                        </div>
+                      )}
                     </div>
-
-                    <div className="double-up-panel">
-                      <div className="section-title">Double-up deck</div>
-                      <div className="double-up-cards">
-                        <PlayingCard card={doubleUpResult?.dealerCard} label="Dealer" />
-                        <PlayingCard card={doubleUpResult?.challengerCard} label="Challenger" />
-                      </div>
-                      <div className="double-up-meta">
-                        <div className="status-chip">
-                          <span>Status</span>
-                          <strong>{doubleUpResult?.status ?? "Standby"}</strong>
-                        </div>
-                        <div className="status-chip">
-                          <span>Amount</span>
-                          <strong>{formatMoney(doubleUpResult?.currentAmount ?? drawResult?.winAmount ?? 0)}</strong>
-                        </div>
-                        <div className="status-chip">
-                          <span>Switches</span>
-                          <strong>{doubleUpResult?.switchesRemaining ?? 0}</strong>
-                        </div>
-                      </div>
-                      <div className="control-row tertiary">
-                        <button className="action-button ghost" type="button" onClick={() => void handleSwitch()} disabled={busy || !doubleUpResult}>
-                          SWITCH
-                        </button>
-                        <button className="guess-button small" type="button" onClick={() => void handleGuess("small")} disabled={busy || !doubleUpResult}>
-                          SMALL
-                        </button>
-                        <button className="guess-button big" type="button" onClick={() => void handleGuess("big")} disabled={busy || !doubleUpResult}>
-                          BIG
-                        </button>
-                      </div>
-                    </div>
-                  </>
+                  </div>
                 )}
-              </div>
-            </div>
+
+                {/* Message bar */}
+                <div className={`apk-message-bar apk-message-${messageTone}`}>{message}</div>
+              </>
+            )}
           </div>
         </div>
       </section>
 
+      {/* ── Side column: telemetry + history ── */}
       <aside className="side-column">
         <section className="diagnostics diagnostics-secondary">
           <div className="section-title">Machine telemetry</div>
-          <div className="section-subtitle">Operational backend state, kept secondary to the cabinet playfield.</div>
+          <div className="section-subtitle">Operational backend state.</div>
           <div className="diagnostic-grid">
             <div className="diagnostic-card">
               <span>Observed RTP</span>

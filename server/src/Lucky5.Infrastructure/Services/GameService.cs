@@ -465,7 +465,9 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             DealerCard: ToCleanRoomDto(session.DealerCard),
             SwitchesRemaining: session.Options.MaxSwitchesPerRound - session.SwitchCountInRound,
             IsNoLoseActive: session.IsNoLoseActive,
-            Noise: noise);
+            Noise: noise,
+            CardTrail: BuildCardTrail(session),
+            IsLucky5Active: session.IsNoLoseActive);
     }
 
     public async Task<DoubleUpResultDto> SwitchDealerAsync(Guid userId, Guid roundId, CancellationToken cancellationToken)
@@ -503,7 +505,9 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
                 SwitchesRemaining: 0,
                 IsNoLoseActive: session.IsNoLoseActive,
                 LuckyMultiplier: luckyMult,
-                Noise: noise);
+                Noise: noise,
+                CardTrail: BuildCardTrail(session),
+                IsLucky5Active: session.IsNoLoseActive);
         }
         
         return new DoubleUpResultDto(roundId, isLucky ? "Lucky5" : "Switched", session.CurrentAmount, sessionBank.MachineCredits,
@@ -511,7 +515,9 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             SwitchesRemaining: session.Options.MaxSwitchesPerRound - session.SwitchCountInRound,
             IsNoLoseActive: session.IsNoLoseActive,
             LuckyMultiplier: luckyMult,
-            Noise: noise);
+            Noise: noise,
+            CardTrail: BuildCardTrail(session),
+            IsLucky5Active: session.IsNoLoseActive);
     }
 
     public async Task<DoubleUpResultDto> GuessDoubleUpAsync(Guid userId, Guid roundId, string guess, CancellationToken cancellationToken)
@@ -546,7 +552,9 @@ switch (resolution.Outcome)
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: resolution.Session.Options.MaxSwitchesPerRound - resolution.Session.SwitchCountInRound,
             IsNoLoseActive: resolution.Session.IsNoLoseActive,
-            Noise: noise);
+            Noise: noise,
+            CardTrail: BuildCardTrail(resolution.Session),
+            IsLucky5Active: resolution.Session.IsNoLoseActive);
 
     case Lucky5DoubleUpOutcome.SafeFail:
         await FinalizeDoubleUpAsync(round, sessionBank, resolution.CashoutCredits);
@@ -559,7 +567,9 @@ switch (resolution.Outcome)
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: 0,
             IsNoLoseActive: false,
-            Noise: noise);
+            Noise: noise,
+            CardTrail: BuildCardTrail(resolution.Session),
+            IsLucky5Active: false);
 
     case Lucky5DoubleUpOutcome.MachineClosed:
         await FinalizeDoubleUpAsync(round, sessionBank, resolution.CashoutCredits);
@@ -571,7 +581,9 @@ switch (resolution.Outcome)
             DealerCard: ToCleanRoomDto(resolution.DealerCard),
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: 0,
-            Noise: noise);
+            Noise: noise,
+            CardTrail: BuildCardTrail(resolution.Session),
+            IsLucky5Active: false);
 
     default:
         await FinalizeDoubleUpAsync(round, sessionBank, 0);
@@ -585,7 +597,9 @@ switch (resolution.Outcome)
             DealerCard: ToCleanRoomDto(resolution.DealerCard),
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: 0,
-            Noise: noise);
+            Noise: noise,
+            CardTrail: BuildCardTrail(resolution.Session),
+            IsLucky5Active: false);
 }
     }
 
@@ -927,6 +941,9 @@ switch (resolution.Outcome)
         ledger.JackpotFullHouse = Math.Min(ledger.JackpotFullHouse + cfg.JackpotFullHouseContribution, cfg.JackpotFullHouseCap);
         ledger.JackpotStraightFlush = Math.Min(ledger.JackpotStraightFlush + cfg.JackpotStraightFlushContribution, cfg.JackpotStraightFlushCap);
     }
+
+    private static IReadOnlyList<PokerCardDto> BuildCardTrail(Lucky5DoubleUpSession session)
+        => session.Deck.Take(session.DealerIndex + 1).Select(ToCleanRoomDto).ToArray();
 
     private static PokerCardDto ToDto(PokerCard c) => new(c.Rank, c.Suit, c.Code);
     private static PokerCardDto ToCleanRoomDto(CleanRoomCard c)

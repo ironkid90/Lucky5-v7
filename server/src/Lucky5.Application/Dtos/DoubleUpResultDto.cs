@@ -10,7 +10,9 @@ public sealed record DoubleUpResultDto(
     int SwitchesRemaining = 0,
     bool IsNoLoseActive = false,
     int LuckyMultiplier = 0,
-    PresentationNoiseDto? Noise = null);
+    PresentationNoiseDto? Noise = null,
+    IReadOnlyList<PokerCardDto>? CardTrail = null,
+    bool IsLucky5Active = false);
 
 public sealed record PresentationNoiseDto(
     int SuspenseMs,

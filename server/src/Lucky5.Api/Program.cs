@@ -2,6 +2,7 @@ using Lucky5.Api.Middleware;
 using Lucky5.Infrastructure.Services;
 using Lucky5.Realtime;
 using Lucky5.Realtime.Services;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +21,12 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSignalR();
 builder.Services.AddLucky5Infrastructure(builder.Configuration);
 builder.Services.AddLucky5Realtime();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 var isDevelopment = builder.Environment.IsDevelopment();
 
@@ -48,6 +55,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseMiddleware<ApiExceptionMiddleware>();
 app.UseMiddleware<BearerTokenMiddleware>();
 app.UseCors("Lucky5Cors");

@@ -1,6 +1,35 @@
 using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
 
+// Parse command line arguments
+var rounds = 10_000;
+var minRtp = 0.78m;
+var maxRtp = 0.82m;
+var isCertificationRun = false;
+
+for (int i = 0; i < args.Length; i++)
+{
+    switch (args[i])
+    {
+        case "--rounds":
+            if (i + 1 < args.Length && int.TryParse(args[i + 1], out var r))
+                rounds = r;
+            break;
+        case "--min-rtp":
+            if (i + 1 < args.Length && decimal.TryParse(args[i + 1], out var min))
+                minRtp = min;
+            break;
+        case "--max-rtp":
+            if (i + 1 < args.Length && decimal.TryParse(args[i + 1], out var max))
+                maxRtp = max;
+            break;
+        case "--certification":
+            isCertificationRun = true;
+            rounds = 500_000;
+            break;
+    }
+}
+
 const int Bet = 5_000;
 
 var cfg = EngineConfig.Default;
@@ -10,6 +39,7 @@ Console.WriteLine("=== Lucky5 RTP Monte Carlo Simulation ===");
 Console.WriteLine($"Bet: {Bet:N0} | Paytable: {paytable.Name}");
 Console.WriteLine($"Target RTP: {cfg.TargetRtp:P2} = Base {cfg.TargetScaledBaseRtp:P2} + Jackpot {cfg.TargetJackpotRtp:P2} + Double-Up {cfg.TargetDoubleUpRtp:P2}");
 Console.WriteLine($"Machine close threshold: {cfg.CloseThreshold:N0} | Double-up offer floor: {cfg.DoubleUpOfferFloor:P0} | Offer ceiling: {cfg.DoubleUpOfferMax:P0}");
+Console.WriteLine($"Run type: {(isCertificationRun ? "Certification" : "CI Gate")} | Rounds: {rounds:N0} | RTP range: [{minRtp:P2}, {maxRtp:P2}]");
 Console.WriteLine();
 
 var balanced10kSamples = Enumerable.Range(0, 9)
@@ -20,20 +50,22 @@ var balanced10kMedian = balanced10kSamples[balanced10kSamples.Length / 2];
 var balanced100k = RunSimulation(100_000, PlayerBehavior.Balanced, 0);
 var balanced1M = RunSimulation(1_000_000, PlayerBehavior.Balanced, 1);
 
-Console.WriteLine("--- Balanced calibration windows ---");
-PrintSummary("10K median across 9 samples", balanced10kMedian);
-PrintSummary("100K single run", balanced100k);
-PrintSummary("1M single run", balanced1M);
+// Run the main simulation with enhanced telemetry
+var mainResult = RunSimulation(rounds, PlayerBehavior.Balanced, 0, true);
+
+Console.WriteLine("--- Main Simulation Results ---");
+PrintEnhancedSummary($"{rounds:N0} rounds", mainResult);
+
+// Determine pass/fail based on RTP bounds
+var passed = mainResult.TotalRtp >= minRtp && mainResult.TotalRtp <= maxRtp;
 Console.WriteLine();
+Console.WriteLine($"=== RESULT: {(passed ? "PASS" : "FAIL")} ===");
+Console.WriteLine($"Final RTP: {mainResult.TotalRtp:P2} (target range: [{minRtp:P2}, {maxRtp:P2}])");
 
-Console.WriteLine("--- 100K behavior comparison ---");
-foreach (var behavior in Enum.GetValues<PlayerBehavior>())
-{
-    var result = RunSimulation(100_000, behavior, 2);
-    PrintSummary(DescribeBehavior(behavior), result);
-}
+// Exit with appropriate code
+Environment.Exit(passed ? 0 : 1);
 
-SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIndex)
+SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIndex, bool enhancedTelemetry = false)
 {
     var ledger = new MachineLedgerState { MachineId = 1, TargetRtp = cfg.TargetRtp };
     var session = new SessionState();
@@ -56,7 +88,18 @@ SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIn
 
         var seed = DeterministicSeed.FromString($"rtp-{DescribeBehavior(behavior)}-{rounds}-{sampleIndex}-{roundIndex}");
         var policyState = BuildPolicyState(ledger);
-        var policyMode = MachinePolicy.ResolveDistributionMode(policyState, seed);
+        var policyResolution = MachinePolicy.ResolvePolicy(policyState, seed);
+        var policyMode = policyResolution.DistributionMode;
+        
+        // Track enhanced telemetry
+        if (enhancedTelemetry)
+        {
+            if (policyResolution.Telemetry.IsWarmupActive) result.WarmupActivations++;
+            if (policyResolution.Telemetry.IsPityActive) result.PityActivations++;
+            if (policyResolution.Telemetry.IsCrisisActive) result.CrisisActivations++;
+            result.JackpotLeakAdjustments += policyResolution.Telemetry.JackpotLeakAdjustment;
+            result.DoubleUpLeakAdjustments += policyResolution.Telemetry.DoubleUpLeakAdjustment;
+        }
 
         ledger.CapitalIn += Bet;
         ledger.RoundCount++;
@@ -97,7 +140,8 @@ SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIn
         var evaluation = FiveCardDrawEngine.EvaluateHand(drawState.Hand);
         var basePayout = FiveCardDrawEngine.ResolvePayout(evaluation, Bet, paytable);
         var scaleState = BuildPolicyState(ledger);
-        var payoutScale = MachinePolicy.ResolvePayoutScale(scaleState, seed).ForTier(MachinePolicy.ClassifyHand(evaluation.Category));
+        var scaleResolution = MachinePolicy.ResolvePolicy(scaleState, seed);
+        var payoutScale = scaleResolution.ForTier(MachinePolicy.ClassifyHand(evaluation.Category));
         ledger.LastPayoutScale = payoutScale;
         result.PayoutScaleSum += payoutScale;
         result.PayoutScaleSamples++;
@@ -141,6 +185,13 @@ SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIn
 
         result.ScaledBaseOut += scaledBasePayout;
         result.JackpotOverlayOut += jackpotOverlay;
+        
+        // Track RTP windows for enhanced telemetry
+        if (enhancedTelemetry && (roundIndex + 1) % 1000 == 0)
+        {
+            var currentRtp = ledger.CapitalIn <= 0m ? 0m : decimal.Round((ledger.CapitalOut) / ledger.CapitalIn, 4);
+            result.RtpWindows.Add(currentRtp);
+        }
 
         if (payout > 0)
         {
@@ -507,6 +558,26 @@ static void PrintSummary(string label, SimulationResult result)
     Console.WriteLine($"  Entered DU gain {result.RealizedIncrementalGainPerEnteredChain:P2} of trigger win | Avg scale {result.AveragePayoutScale:F3} | 40M closes {result.MachineCloses40M:N0} | 50M take-half+continue {result.Over50MViaTakeHalfContinuation:N0}");
 }
 
+static void PrintEnhancedSummary(string label, SimulationResult result)
+{
+    Console.WriteLine($"{label,-32} | RTP {result.TotalRtp:P2} | Base {result.BaseRtp:P2} | Jackpot {result.JackpotRtp:P2} | DU {result.DoubleUpRtp:P2}");
+    Console.WriteLine($"  Paying spins {result.DirectPayingSpinFrequency:P2} | Medium+ {result.MediumOrBetterFrequency:P2} | DU offer/win {result.OfferRateOnWinningRounds:P2} | Accept {result.AcceptRate:P2}");
+    Console.WriteLine($"  Entered DU gain {result.RealizedIncrementalGainPerEnteredChain:P2} of trigger win | Avg scale {result.AveragePayoutScale:F3} | 40M closes {result.MachineCloses40M:N0} | 50M take-half+continue {result.Over50MViaTakeHalfContinuation:N0}");
+    
+    // Enhanced telemetry
+    Console.WriteLine($"  Warmup activations: {result.WarmupActivations:N0} | Pity activations: {result.PityActivations:N0} | Crisis activations: {result.CrisisActivations:N0}");
+    Console.WriteLine($"  Jackpot leak adjustments: {result.JackpotLeakAdjustments:F4} | Double-up leak adjustments: {result.DoubleUpLeakAdjustments:F4}");
+    
+    // RTP windows (1k, 5k, 50k if available)
+    if (result.RtpWindows.Count > 0)
+    {
+        var window1k = result.RtpWindows.Count >= 1 ? result.RtpWindows[0] : 0m;
+        var window5k = result.RtpWindows.Count >= 5 ? result.RtpWindows[4] : 0m;
+        var window50k = result.RtpWindows.Count >= 50 ? result.RtpWindows[49] : 0m;
+        Console.WriteLine($"  RTP windows: 1k {window1k:P2} | 5k {window5k:P2} | 50k {window50k:P2}");
+    }
+}
+
 static string DescribeBehavior(PlayerBehavior behavior) => behavior switch
 {
     PlayerBehavior.ConservativeCollectFirst => "Conservative collect-first",
@@ -570,6 +641,14 @@ sealed class SimulationResult(PlayerBehavior behavior, int rounds)
     public decimal FinalBaseRtp { get; set; }
     public decimal FinalJackpotRtp { get; set; }
     public decimal FinalDoubleUpRtp { get; set; }
+    
+    // Enhanced telemetry fields
+    public int WarmupActivations { get; set; }
+    public int PityActivations { get; set; }
+    public int CrisisActivations { get; set; }
+    public decimal JackpotLeakAdjustments { get; set; }
+    public decimal DoubleUpLeakAdjustments { get; set; }
+    public List<decimal> RtpWindows { get; set; } = new();
 
     public decimal TotalRtp => TotalIn <= 0m ? 0m : decimal.Round((ScaledBaseOut + JackpotOverlayOut + DoubleUpOverlayOut) / TotalIn, 4);
     public decimal BaseRtp => TotalIn <= 0m ? 0m : decimal.Round(ScaledBaseOut / TotalIn, 4);

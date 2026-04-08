@@ -4,6 +4,7 @@ using System.Net;
 using Lucky5.Application.Contracts;
 using Lucky5.Application.Interfaces;
 using Lucky5.Infrastructure.Data.Repositories;
+using Lucky5.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -15,30 +16,39 @@ public static class ServiceCollectionExtensions
     {
         services.AddSingleton<InMemoryDataStore>();
         services.AddSingleton<IDataStore, InMemoryDataStoreAdapter>();
-        services.AddSingleton<IPersistentStateStore>(_ =>
+        
+        // Register new persistence services from migration pack
+        services.AddOptions<PersistentStateCheckpointOptions>()
+            .Bind(configuration.GetSection("Persistence"));
+        
+        // Register Redis distributed cache
+        services.AddStackExchangeRedisCache(options =>
         {
             var connectionString = configuration.GetConnectionString("Redis")
                 ?? configuration["LUCKY5_REDIS_CONNECTION"]
                 ?? configuration["Redis:ConnectionString"]
                 ?? configuration["REDIS:CONNECTION"];
 
-            if (string.IsNullOrWhiteSpace(connectionString))
+            if (!string.IsNullOrWhiteSpace(connectionString))
             {
-                return new NoOpPersistentStateStore();
+                options.Configuration = connectionString;
+                options.AbortOnConnectFail = false;
+                
+                var configOptions = ConfigurationOptions.Parse(connectionString);
+                if (configOptions.EndPoints.Any(endpoint => endpoint is DnsEndPoint dns && dns.Host.EndsWith(".redis.azure.net", StringComparison.OrdinalIgnoreCase)))
+                {
+                    options.ConfigurationOptions.Ssl = true;
+                }
             }
-
-            var options = ConfigurationOptions.Parse(connectionString);
-            options.AbortOnConnectFail = false;
-            if (options.EndPoints.Any(endpoint => endpoint is DnsEndPoint dns && dns.Host.EndsWith(".redis.azure.net", StringComparison.OrdinalIgnoreCase)))
-            {
-                options.Ssl = true;
-            }
-
-            var multiplexer = ConnectionMultiplexer.Connect(options);
-            return new RedisPersistentStateStore(multiplexer);
         });
-        services.AddHostedService<StateRecoveryHostedService>();
-        services.AddHostedService<StateCheckpointHostedService>();
+        
+        services.AddSingleton<IPersistentStateStore, RedisPersistentStateStore>();
+        services.AddSingleton<IPersistentStateCoordinator, InMemoryPersistentStateCoordinator>();
+        services.AddHostedService<PersistentStateCheckpointService>();
+        
+        // Add health checks
+        services.AddHealthChecks()
+            .AddCheck<PersistentStateHealthCheck>("persistence");
         services.AddOptions<MachineCacheTtlOptions>()
             .Bind(configuration.GetSection("MachineCache"));
         services.AddSingleton<IMachineStateCache>(sp =>

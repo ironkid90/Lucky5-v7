@@ -7,7 +7,7 @@ using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
 using Lucky5.Application.Interfaces;
 
-public sealed class GameService(IDataStore store, IEntropyGenerator entropyGenerator, IMachineStateCache stateCache) : IGameService
+public sealed class GameService(IDataStore store, IEntropyGenerator entropyGenerator, IMachineStateCache stateCache, IPersistentStateCoordinator? persistentStateCoordinator = null) : IGameService
 {
     private const decimal CashInUnit = 200_000m;
     private const decimal MaxSessionCashIn = 1_000_000m;
@@ -165,23 +165,10 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         var ledger = await RequireMachineLedgerAsync(machine.Id);
         
         seed = entropyGenerator.CreateSeed(userId, machine.Id, request.BetAmount, ledger);
-        policyState = new MachinePolicyState
-        {
-            CreditsIn = ledger.CapitalIn,
-            CreditsOut = ledger.CapitalOut,
-            BaseCreditsOut = ledger.BaseCapitalOut,
-            JackpotCreditsOut = ledger.JackpotCapitalOut,
-            DoubleUpCreditsOut = ledger.DoubleUpCapitalOut,
-            TargetRtp = ledger.TargetRtp,
-            RoundCount = ledger.RoundCount,
-            ConsecutiveLosses = ledger.ConsecutiveLosses,
-            RoundsSinceMediumWin = ledger.RoundsSinceMediumWin,
-            CooldownRoundsRemaining = ledger.CooldownRoundsRemaining,
-            NetSinceLastClose = ledger.NetSinceLastClose,
-            RoundsSinceLucky5Hit = ledger.RoundsSinceLucky5Hit
-        };
+        policyState = BuildMachinePolicyState(ledger);
         
-        policyMode = MachinePolicy.ResolveDistributionMode(policyState, seed);
+        var policyResolution = MachinePolicy.ResolvePolicy(policyState, seed);
+        policyMode = policyResolution.DistributionMode;
         if (session.CounterplayScore >= 3 && policyMode == PolicyDistributionMode.Cold)
         {
             policyMode = PolicyDistributionMode.Neutral;
@@ -306,23 +293,9 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
         decimal payoutScale;
         
-        var scaleState = new MachinePolicyState
-        {
-            CreditsIn = ledger.CapitalIn,
-            CreditsOut = ledger.CapitalOut,
-            BaseCreditsOut = ledger.BaseCapitalOut,
-            JackpotCreditsOut = ledger.JackpotCapitalOut,
-            DoubleUpCreditsOut = ledger.DoubleUpCapitalOut,
-            TargetRtp = ledger.TargetRtp,
-            RoundCount = ledger.RoundCount,
-            ConsecutiveLosses = ledger.ConsecutiveLosses,
-            RoundsSinceMediumWin = ledger.RoundsSinceMediumWin,
-            CooldownRoundsRemaining = ledger.CooldownRoundsRemaining,
-            NetSinceLastClose = ledger.NetSinceLastClose,
-            RoundsSinceLucky5Hit = ledger.RoundsSinceLucky5Hit
-        };
-        var scaleResult = MachinePolicy.ResolvePayoutScale(scaleState, round.RoundEntropySeed);
-        payoutScale = scaleResult.ForTier(MachinePolicy.ClassifyHand(evaluation.Category));
+        var scaleState = BuildMachinePolicyState(ledger);
+        var policyResolution = MachinePolicy.ResolvePolicy(scaleState, round.RoundEntropySeed);
+        payoutScale = policyResolution.ForTier(MachinePolicy.ClassifyHand(evaluation.Category));
         ledger.LastPayoutScale = payoutScale;
 
         var payout = basePayout > 0 ? (int)Math.Round(basePayout * payoutScale, MidpointRounding.AwayFromZero) : 0;
@@ -1065,7 +1038,38 @@ return guessResult;
     private async Task<MachineSessionDto> ToMachineSessionDtoAsync(Guid userId, MachineSessionState session, decimal walletBalance)
     {
         var canCashOut = !await HasRecoverableRoundAsync(userId, session.MachineId) && CanCashOut(session);
-        return ToMachineSessionDto(session, walletBalance, canCashOut);
+        
+        // Attach transparency telemetry if available
+        MachineTransparencyDto? transparency = null;
+        try
+        {
+            var ledger = await RequireMachineLedgerAsync(session.MachineId);
+            var policyState = BuildMachinePolicyState(ledger);
+            var policyResolution = MachinePolicy.ResolvePolicy(policyState, 0UL); // Use zero seed for deterministic telemetry
+            
+            transparency = new MachineTransparencyDto(
+                IsWarmupActive: policyResolution.Telemetry.IsWarmupActive,
+                IsPityActive: policyResolution.Telemetry.IsPityActive,
+                IsCrisisActive: policyResolution.Telemetry.IsCrisisActive,
+                BaseScale: policyResolution.Telemetry.BaseScale,
+                WarmupBias: policyResolution.Telemetry.WarmupBias,
+                PityBoost: policyResolution.Telemetry.PityBoost,
+                JackpotLeakAdjustment: policyResolution.Telemetry.JackpotLeakAdjustment,
+                DoubleUpLeakAdjustment: policyResolution.Telemetry.DoubleUpLeakAdjustment,
+                EffectiveScale: policyResolution.Telemetry.EffectiveScale,
+                EnvelopeMode: policyResolution.Telemetry.EnvelopeMode.ToString(),
+                RoundCount: policyResolution.Telemetry.RoundCount,
+                ConsecutiveLosses: policyResolution.Telemetry.ConsecutiveLosses,
+                RoundsSinceMediumWin: policyResolution.Telemetry.RoundsSinceMediumWin,
+                ObservedRtp: policyResolution.Telemetry.ObservedRtp,
+                TargetRtp: policyResolution.Telemetry.TargetRtp);
+        }
+        catch
+        {
+            // If we can't get transparency data, continue without it
+        }
+        
+        return ToMachineSessionDto(session, walletBalance, canCashOut, transparency);
     }
 
     private async Task<bool> HasRecoverableRoundAsync(Guid userId, int machineId)
@@ -1094,6 +1098,25 @@ return guessResult;
         return session.TotalCashIn > 0m && session.MachineCredits >= session.TotalCashIn * 2m;
     }
 
-    private static MachineSessionDto ToMachineSessionDto(MachineSessionState session, decimal walletBalance, bool canCashOut)
-        => new(session.SessionId, session.MachineId, session.MachineCredits, session.TotalCashIn, session.TotalCashIn * 2m, canCashOut, session.IsMachineClosed, walletBalance);
+    private static MachineSessionDto ToMachineSessionDto(MachineSessionState session, decimal walletBalance, bool canCashOut, MachineTransparencyDto? transparency = null)
+        => new(session.SessionId, session.MachineId, session.MachineCredits, session.TotalCashIn, session.TotalCashIn * 2m, canCashOut, session.IsMachineClosed, walletBalance, transparency);
+
+    private static MachinePolicyState BuildMachinePolicyState(MachineLedgerState ledger)
+    {
+        return new MachinePolicyState
+        {
+            CreditsIn = ledger.CapitalIn,
+            CreditsOut = ledger.CapitalOut,
+            BaseCreditsOut = ledger.BaseCapitalOut,
+            JackpotCreditsOut = ledger.JackpotCapitalOut,
+            DoubleUpCreditsOut = ledger.DoubleUpCapitalOut,
+            TargetRtp = ledger.TargetRtp,
+            RoundCount = ledger.RoundCount,
+            ConsecutiveLosses = ledger.ConsecutiveLosses,
+            RoundsSinceMediumWin = ledger.RoundsSinceMediumWin,
+            CooldownRoundsRemaining = ledger.CooldownRoundsRemaining,
+            NetSinceLastClose = ledger.NetSinceLastClose,
+            RoundsSinceLucky5Hit = ledger.RoundsSinceLucky5Hit
+        };
+    }
 }

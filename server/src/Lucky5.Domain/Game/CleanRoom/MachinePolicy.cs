@@ -234,6 +234,148 @@ public static class MachinePolicy
         return tiered.SmallScale;
     }
 
+    // ---------- Unified Policy Entry Point ----------
+
+    /// <summary>
+    /// Unified policy resolution that returns telemetry alongside the effective scale.
+    /// This replaces the piecemeal ResolvePayoutScale calls over time.
+    /// </summary>
+    public static MachinePolicyResolution ResolvePolicy(MachinePolicyState state, ulong entropySeed, EngineConfig? config = null)
+    {
+        var cfg = config ?? Cfg;
+        var distributionMode = ResolveDistributionMode(state, entropySeed, cfg);
+        var payoutScale = ResolvePayoutScale(state, entropySeed, cfg);
+        
+        // Compute individual adjustment components for telemetry
+        var baseScale = ComputeBaseScale(state, cfg);
+        var correctionGainAdjustment = ComputeCorrectionGainAdjustment(state, cfg);
+        var warmupBias = ComputeWarmupBias(state, cfg);
+        var pityBoost = ComputePityBoost(state, cfg);
+        var jackpotLeakAdjustment = ComputeJackpotLeakAdjustment(state, cfg);
+        var doubleUpLeakAdjustment = ComputeDoubleUpLeakAdjustment(state, cfg);
+        
+        var effectiveScale = payoutScale.SmallScale; // Base effective scale
+        var envelopeMode = ResolveEnvelopeMode(state, distributionMode, cfg);
+        
+        var isWarmupActive = state.RoundCount < cfg.WarmupRounds;
+        var isPityActive = pityBoost > 0m;
+        var isCrisisActive = state.ConsecutiveLosses >= cfg.CrisisThreshold;
+        
+        var telemetry = new MachinePolicyTelemetry(
+            IsWarmupActive: isWarmupActive,
+            IsPityActive: isPityActive,
+            IsCrisisActive: isCrisisActive,
+            BaseScale: baseScale,
+            WarmupBias: warmupBias,
+            PityBoost: pityBoost,
+            JackpotLeakAdjustment: jackpotLeakAdjustment,
+            DoubleUpLeakAdjustment: doubleUpLeakAdjustment,
+            EffectiveScale: effectiveScale,
+            EnvelopeMode: envelopeMode,
+            RoundCount: state.RoundCount,
+            ConsecutiveLosses: state.ConsecutiveLosses,
+            RoundsSinceMediumWin: state.RoundsSinceMediumWin,
+            ObservedRtp: state.ObservedRtp,
+            TargetRtp: state.TargetRtp);
+        
+        return new MachinePolicyResolution(
+            EffectiveScale: effectiveScale,
+            DistributionMode: distributionMode,
+            EnvelopeMode: envelopeMode,
+            Telemetry: telemetry);
+    }
+
+    private static decimal ComputeBaseScale(MachinePolicyState state, EngineConfig cfg)
+    {
+        var observedBaseRtp = Math.Max(state.BaseRtp, cfg.MinimumObservedBaseRtp);
+        var targetRtp = state.TargetRtp == 0m ? cfg.TargetRtp : state.TargetRtp;
+        var targetBaseRtp = Math.Max(0.10m, targetRtp - cfg.TargetDoubleUpRtp - state.JackpotRtp);
+        return targetBaseRtp / observedBaseRtp;
+    }
+
+    private static decimal ComputeCorrectionGainAdjustment(MachinePolicyState state, EngineConfig cfg)
+    {
+        var drift = state.ComputeSmoothedDrift(cfg);
+        var rampFactor = cfg.ConvergenceHorizon <= 0
+            ? 1m
+            : Math.Min(1m, state.RoundCount / (decimal)cfg.ConvergenceHorizon);
+        
+        if (Math.Abs(drift) <= cfg.DeadZone)
+            return 0m;
+        
+        return Math.Clamp(-drift * cfg.CorrectionGain * rampFactor, -cfg.MaxCorrection, cfg.MaxCorrection);
+    }
+
+    private static decimal ComputeWarmupBias(MachinePolicyState state, EngineConfig cfg)
+    {
+        if (state.RoundCount <= 0 || state.RoundCount > cfg.WarmupRounds)
+            return 0m;
+        
+        var decay = cfg.WarmupRounds <= 1
+            ? 0m
+            : 1m - ((state.RoundCount - 1m) / (cfg.WarmupRounds - 1m));
+        return Math.Max(0m, decay) * 0.08m;
+    }
+
+    private static decimal ComputePityBoost(MachinePolicyState state, EngineConfig cfg)
+    {
+        decimal boost = 0m;
+        
+        if (state.ConsecutiveLosses >= cfg.StreakHardThreshold)
+            boost += 0.06m;
+        else if (state.ConsecutiveLosses >= cfg.StreakSoftThreshold)
+        {
+            var progress = (decimal)(state.ConsecutiveLosses - cfg.StreakSoftThreshold) / (cfg.StreakHardThreshold - cfg.StreakSoftThreshold);
+            boost += 0.02m + progress * 0.04m;
+        }
+        
+        if (state.RoundsSinceMediumWin >= cfg.MediumWinDroughtThreshold)
+            boost += 0.02m;
+        
+        return boost;
+    }
+
+    private static decimal ComputeJackpotLeakAdjustment(MachinePolicyState state, EngineConfig cfg)
+    {
+        // Apply jackpot RTP cap as a negative adjustment
+        if (state.JackpotRtp > cfg.JackpotRtpSoftCap)
+        {
+            var excess = state.JackpotRtp - cfg.JackpotRtpSoftCap;
+            return -excess * cfg.JackpotLeakDamp;
+        }
+        return 0m;
+    }
+
+    private static decimal ComputeDoubleUpLeakAdjustment(MachinePolicyState state, EngineConfig cfg)
+    {
+        // Apply double-up RTP cap as a negative adjustment
+        if (state.DoubleUpRtp > cfg.DoubleUpRtpHardCap)
+        {
+            var excess = state.DoubleUpRtp - cfg.DoubleUpRtpHardCap;
+            return -excess * 0.5m; // Simple damping factor
+        }
+        return 0m;
+    }
+
+    private static PolicyEnvelopeMode ResolveEnvelopeMode(MachinePolicyState state, PolicyDistributionMode distributionMode, EngineConfig cfg)
+    {
+        if (state.RoundCount < cfg.WarmupRounds)
+            return PolicyEnvelopeMode.Recovery;
+        
+        if (state.CooldownRoundsRemaining > 0)
+            return PolicyEnvelopeMode.Cooldown;
+        
+        if (state.NetSinceLastClose >= cfg.SoftCapHard)
+            return PolicyEnvelopeMode.Pressure;
+        
+        return distributionMode switch
+        {
+            PolicyDistributionMode.Cold => PolicyEnvelopeMode.Pressure,
+            PolicyDistributionMode.Hot => PolicyEnvelopeMode.Recovery,
+            _ => PolicyEnvelopeMode.Neutral
+        };
+    }
+
     // ---------- Double-Up Offer Curve ----------
 
     public static decimal ComputeDoubleUpOfferRate(MachinePolicyState state, EngineConfig? config = null)

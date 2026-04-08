@@ -15,6 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '9.0.x'
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
@@ -25,6 +30,15 @@ jobs:
           username: ${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_26D3D00CDD3941DFB96435071A1F8C55 }}
           password: ${{ secrets.AZUREAPPSERVICE_CONTAINERPASSWORD_D0DC2346663945028B3B364FD3EC7C5B }}
 
+      - name: Build and test
+        run: |
+          dotnet build server/Lucky5.sln -v minimal
+          dotnet run --project server/tests/Lucky5.Tests/Lucky5.Tests.csproj
+
+      - name: Run RTP simulation gate (10K rounds)
+        run: |
+          dotnet run --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -- --rounds 10000 --min-rtp 0.78 --max-rtp 0.82
+
       - name: Build and push container image to registry
         uses: docker/build-push-action@v3
         with:
@@ -33,7 +47,7 @@ jobs:
           tags: lucky520260401001454.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_26D3D00CDD3941DFB96435071A1F8C55 }}/lucky5:${{ github.sha }}
           file: ./Dockerfile
 
-  deploy:
+  deploy-staging:
     runs-on: ubuntu-latest
     permissions:
       id-token: write #This is required for requesting the JWT
@@ -50,11 +64,65 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B57D6E4570DC49A7B778A42C36EFA6BB }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_3516A63C82874F18AB48F2180EBAC38A }}
 
-      - name: Deploy to Azure Web App
-        id: deploy-to-webapp
+      - name: Deploy to staging slot
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'lucky5-ik90-prod-20260401'
-          slot-name: 'Production'
+          slot-name: 'staging'
           images: 'lucky520260401001454.azurecr.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_26D3D00CDD3941DFB96435071A1F8C55 }}/lucky5:${{ github.sha }}'
-          
+
+      - name: Wait for staging deployment
+        run: sleep 60
+
+      - name: Health check staging
+        run: |
+          curl -f https://lucky5-ik90-prod-20260401-staging.azurewebsites.net/health/ready || exit 1
+
+  certification:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Run certification simulation (500K rounds)
+        run: |
+          dotnet run --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -- --certification --min-rtp 0.78 --max-rtp 0.82
+
+  production-swap:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
+
+    needs: certification
+    
+    steps:
+      
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_509BA27B85154A28AAC461B2F8B3B2B9 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B57D6E4570DC49A7B778A42C36EFA6BB }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_3516A63C82874F18AB48F2180EBAC38A }}
+
+      - name: Swap staging to production
+        uses: azure/cli@v1
+        with:
+          inlineScript: |
+            az webapp deployment slot swap --resource-group lucky5-ik90-prod-20260401-rg --name lucky5-ik90-prod-20260401 --slot staging --target-slot production
+
+      - name: Health check production
+        run: |
+          curl -f https://lucky5-ik90-prod-20260401.azurewebsites.net/health/ready || exit 1
+
+      - name: Cleanup staging slot
+        uses: azure/cli@v1
+        with:
+          inlineScript: |
+            az webapp deployment slot delete --resource-group lucky5-ik90-prod-20260401-rg --name lucky5-ik90-prod-20260401 --slot staging

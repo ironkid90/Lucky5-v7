@@ -8,4 +8,5 @@ public sealed record MachineSessionDto(
     decimal CashOutThreshold,
     bool CanCashOut,
     bool IsMachineClosed,
-    decimal WalletBalance);
+    decimal WalletBalance,
+    MachineTransparencyDto? Transparency = null);

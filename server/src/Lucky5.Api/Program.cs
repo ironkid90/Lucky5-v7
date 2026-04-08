@@ -19,6 +19,7 @@ if (!string.IsNullOrWhiteSpace(port))
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSignalR();
+builder.Services.AddHealthChecks();
 builder.Services.AddLucky5Infrastructure(builder.Configuration);
 builder.Services.AddLucky5Realtime();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -63,7 +64,14 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapControllers();
 app.MapHub<CarrePokerGameHub>("/CarrePokerGameHub");
-app.MapGet("/health/live", () => Results.Ok(new { status = "ok" }));
-app.MapGet("/health/ready", () => Results.Ok(new { status = "ready" }));
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Name == "persistence"
+});
+
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => true
+});
 
 app.Run();

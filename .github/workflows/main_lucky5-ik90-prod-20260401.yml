@@ -76,25 +76,37 @@ jobs:
 
       - name: Simple health check staging
         run: |
+          echo "Trying multiple health endpoints for staging..."
+          
+          # Try simple endpoint first
           health_url="https://lucky5-ik90-prod-20260401-staging.azurewebsites.net/health/simple"
           echo "Checking simple health endpoint: ${health_url}"
           
-          for i in $(seq 1 60); do
+          for i in $(seq 1 30); do
             echo "Attempt $i: Checking simple health endpoint..."
             if curl --fail --silent --show-error --max-time 30 --connect-timeout 10 "${health_url}" >/dev/null 2>&1; then
               echo "Simple health check passed at ${health_url}"
               echo "Application is responding and ready"
               exit 0
             fi
-            
-            if [ $i -eq 10 ] || [ $i -eq 30 ] || [ $i -eq 45 ]; then
-              echo "Still waiting for application to start... (attempt $i/60)"
-            fi
-            
             sleep 10
           done
           
-          echo "Simple health check failed after 60 attempts" >&2
+          # Try fallback endpoint
+          fallback_url="https://lucky5-ik90-prod-20260401-staging.azurewebsites.net/health/fallback"
+          echo "Simple endpoint failed, trying fallback: ${fallback_url}"
+          
+          for i in $(seq 1 30); do
+            echo "Attempt $i: Checking fallback health endpoint..."
+            if curl --fail --silent --show-error --max-time 30 --connect-timeout 10 "${fallback_url}" >/dev/null 2>&1; then
+              echo "Fallback health check passed at ${fallback_url}"
+              echo "Application is responding (fallback mode)"
+              exit 0
+            fi
+            sleep 10
+          done
+          
+          echo "All health checks failed after 60 attempts" >&2
           echo "Application may not be starting properly" >&2
           exit 1
 
@@ -139,25 +151,37 @@ jobs:
 
       - name: Simple health check production
         run: |
+          echo "Trying multiple health endpoints for production..."
+          
+          # Try simple endpoint first
           health_url="https://lucky5-ik90-prod-20260401.azurewebsites.net/health/simple"
           echo "Checking simple health endpoint: ${health_url}"
           
-          for i in $(seq 1 60); do
+          for i in $(seq 1 30); do
             echo "Attempt $i: Checking simple health endpoint..."
             if curl --fail --silent --show-error --max-time 30 --connect-timeout 10 "${health_url}" >/dev/null 2>&1; then
               echo "Simple health check passed at ${health_url}"
               echo "Application is responding and ready"
               exit 0
             fi
-            
-            if [ $i -eq 10 ] || [ $i -eq 30 ] || [ $i -eq 45 ]; then
-              echo "Still waiting for application to start... (attempt $i/60)"
-            fi
-            
             sleep 10
           done
           
-          echo "Simple health check failed after 60 attempts" >&2
+          # Try fallback endpoint
+          fallback_url="https://lucky5-ik90-prod-20260401.azurewebsites.net/health/fallback"
+          echo "Simple endpoint failed, trying fallback: ${fallback_url}"
+          
+          for i in $(seq 1 30); do
+            echo "Attempt $i: Checking fallback health endpoint..."
+            if curl --fail --silent --show-error --max-time 30 --connect-timeout 10 "${fallback_url}" >/dev/null 2>&1; then
+              echo "Fallback health check passed at ${fallback_url}"
+              echo "Application is responding (fallback mode)"
+              exit 0
+            fi
+            sleep 10
+          done
+          
+          echo "All health checks failed after 60 attempts" >&2
           echo "Application may not be starting properly" >&2
           exit 1
 

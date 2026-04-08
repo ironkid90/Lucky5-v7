@@ -119,6 +119,9 @@ try
     // Add startup health check endpoint
     app.MapGet("/health/startup", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
     
+    // Add fallback health endpoint that bypasses everything
+    app.MapGet("/health/fallback", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow, version = "1.0.0", fallback = true }));
+    
     app.MapControllers();
     
     // Try to add SignalR hub

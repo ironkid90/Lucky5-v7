@@ -196,11 +196,17 @@ async function apiCall(method, path, body) {
     } catch (_) {
         throw new Error(`Non-JSON response from ${path}: ${raw.slice(0, 160)}`);
     }
-    if (!res.ok || json?.status === 'error') {
-        throw new Error(json?.message || json?.errors?.[0] || 'Request failed');
+    const statusText = json?.status ?? json?.Status;
+    const errors = json?.errors ?? json?.Errors;
+    const message = json?.message ?? json?.Message;
+    const payload = json?.data ?? json?.Data ?? json ?? null;
+
+    if (!res.ok || String(statusText || '').toLowerCase() === 'error') {
+        throw new Error(message || errors?.[0] || 'Request failed');
     }
-    debugLog('api:response', { method, url, status: res.status, data: json?.data });
-    return json?.data;
+
+    debugLog('api:response', { method, url, status: res.status, data: payload });
+    return payload;
 }
 
 function updateViewportUnit() {
@@ -1207,6 +1213,9 @@ async function doDeal() {
                 machineId,
                 betAmount: currentBet
             });
+            if (!result || !Array.isArray(result.cards)) {
+                throw new Error(`Deal response missing cards (keys: ${Object.keys(result || {}).join(',')})`);
+            }
             roundId = result.roundId;
             cards = result.cards;
             syncMachineCreditsFromResponse(result);
@@ -1255,6 +1264,9 @@ async function doDeal() {
                 roundId,
                 holdIndexes: Array.from(holdIndexes)
             });
+            if (!result || !Array.isArray(result.cards)) {
+                throw new Error(`Draw response missing cards (keys: ${Object.keys(result || {}).join(',')})`);
+            }
             cards = result.cards;
             winAmount = result.winAmount;
             syncMachineCreditsFromResponse(result);

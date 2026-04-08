@@ -23,7 +23,7 @@ catch (Exception ex)
 var app = builder.Build();
 Console.WriteLine("=== TEST: APP BUILT ===");
 
-app.MapGet("/", () => "Hello World");
+app.MapGet("/", () => $"Lucky5 API v2.0 - Deployed at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
 Console.WriteLine("=== TEST: ENDPOINT MAPPED ===");
 
 app.MapGet("/health", () => new { status = "healthy" });

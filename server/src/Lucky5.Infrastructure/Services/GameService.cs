@@ -6,9 +6,8 @@ using Lucky5.Application.Requests;
 using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
 using Lucky5.Application.Interfaces;
-using Lucky5.Infrastructure.Persistence;
 
-public sealed class GameService(IDataStore store, IEntropyGenerator entropyGenerator, IMachineStateCache stateCache, IPersistentStateCoordinator? persistentStateCoordinator = null) : IGameService
+public sealed class GameService(IDataStore store, IEntropyGenerator entropyGenerator, IMachineStateCache stateCache) : IGameService
 {
     private const decimal CashInUnit = 200_000m;
     private const decimal MaxSessionCashIn = 1_000_000m;

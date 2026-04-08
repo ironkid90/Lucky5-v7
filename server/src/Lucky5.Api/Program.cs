@@ -66,6 +66,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 
+app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseCors();

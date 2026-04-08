@@ -25,44 +25,43 @@ public static class ServiceCollectionExtensions
         services.AddOptions<PersistentStateCheckpointOptions>()
             .Bind(configuration.GetSection("Persistence"));
         
-        // Register Redis distributed cache
-        services.AddStackExchangeRedisCache(options =>
-        {
-            var connectionString = configuration.GetConnectionString("Redis")
-                ?? configuration["LUCKY5_REDIS_CONNECTION"]
-                ?? configuration["Redis:ConnectionString"]
-                ?? configuration["REDIS:CONNECTION"];
+        // Register Redis distributed cache (fallback to in-memory cache when Redis is not configured).
+        var redisConnectionString = configuration.GetConnectionString("Redis")
+            ?? configuration["LUCKY5_REDIS_CONNECTION"]
+            ?? configuration["Redis:ConnectionString"]
+            ?? configuration["REDIS:CONNECTION"];
 
-            if (!string.IsNullOrWhiteSpace(connectionString))
+        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+        {
+            services.AddStackExchangeRedisCache(options =>
             {
-                var configOptions = ConfigurationOptions.Parse(connectionString);
+                var configOptions = ConfigurationOptions.Parse(redisConnectionString);
 
                 if (configOptions.EndPoints.Any(endpoint => endpoint is DnsEndPoint dns && dns.Host.EndsWith(".redis.azure.net", StringComparison.OrdinalIgnoreCase)))
                 {
                     configOptions.Ssl = true;
-                    configOptions.ConnectTimeout = 15000;
-                    configOptions.SyncTimeout = 10000;
-                    configOptions.AsyncTimeout = 10000;
+                    configOptions.ConnectTimeout = 20000;
+                    configOptions.SyncTimeout = 20000;
+                    configOptions.AsyncTimeout = 20000;
                     configOptions.AbortOnConnectFail = false;
-                    configOptions.ConnectRetry = 3;
-                    configOptions.ReconnectRetryPolicy = new ExponentialRetry(1000);
+                    configOptions.ConnectRetry = 5;
+                    configOptions.ReconnectRetryPolicy = new ExponentialRetry(2000);
                 }
                 else
                 {
                     // General Redis configuration
                     configOptions.ConnectTimeout = 10000;
-                    configOptions.SyncTimeout = 5000;
-                    configOptions.AsyncTimeout = 5000;
+                    configOptions.SyncTimeout = 10000;
+                    configOptions.AsyncTimeout = 10000;
                 }
 
                 options.ConfigurationOptions = configOptions;
-            }
-            else
-            {
-                // Fallback to in-memory if Redis not configured
-                options.InstanceName = "Lucky5";
-            }
-        });
+            });
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
+        }
         
         services.AddSingleton<PersistenceStore, RedisSnapshotStore>();
         services.AddSingleton<PersistenceCoordinator, InMemoryPersistentStateCoordinator>();

@@ -5,6 +5,9 @@ using Lucky5.Application.Contracts;
 using Lucky5.Application.Interfaces;
 using Lucky5.Infrastructure.Data.Repositories;
 using Lucky5.Infrastructure.Persistence;
+using PersistenceCoordinator = Lucky5.Infrastructure.Persistence.IPersistentStateCoordinator;
+using PersistenceStore = Lucky5.Infrastructure.Persistence.IPersistentStateStore;
+using RedisSnapshotStore = Lucky5.Infrastructure.Persistence.RedisPersistentStateStore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -61,8 +64,8 @@ public static class ServiceCollectionExtensions
             }
         });
         
-        services.AddSingleton<IPersistentStateStore, RedisPersistentStateStore>();
-        services.AddSingleton<IPersistentStateCoordinator, InMemoryPersistentStateCoordinator>();
+        services.AddSingleton<PersistenceStore, RedisSnapshotStore>();
+        services.AddSingleton<PersistenceCoordinator, InMemoryPersistentStateCoordinator>();
         services.AddSingleton<PersistentStateCheckpointService>();
         services.AddHostedService(sp => sp.GetRequiredService<PersistentStateCheckpointService>());
         services.AddHostedService<PersistentStateRecoveryService>();

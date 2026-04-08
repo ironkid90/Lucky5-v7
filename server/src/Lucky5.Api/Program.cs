@@ -74,16 +74,16 @@ app.UseCors();
 app.MapControllers();
 app.MapHub<CarrePokerGameHub>("/CarrePokerGameHub");
 
-app.MapHealthChecks("/health/live", new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckOptions
+app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = check => check.Name == "live"
 });
 app.MapHealthChecks("/health/ready");
-app.MapHealthChecks("/health/simple", new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckOptions
+app.MapHealthChecks("/health/simple", new HealthCheckOptions
 {
     Predicate = _ => false
 });
-app.MapHealthChecks("/health/fallback", new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckOptions
+app.MapHealthChecks("/health/fallback", new HealthCheckOptions
 {
     Predicate = _ => false
 });

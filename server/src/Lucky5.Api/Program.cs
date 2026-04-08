@@ -37,7 +37,7 @@ builder.Services.AddEndpointsApiExplorer();
 
 // Add health checks with basic check only
 builder.Services.AddHealthChecks()
-    .AddCheck("basic", () => HealthCheckResult.Healthy("Application is running"));
+    .AddCheck("application", () => HealthCheckResult.Healthy("Application is running"));
 
 // Try to add infrastructure services with error handling
 try
@@ -169,7 +169,7 @@ try
     Console.WriteLine("Adding health check endpoints...");
     app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
     {
-        Predicate = check => check.Name == "basic" // Only include basic health check
+        Predicate = check => check.Name == "application" // Only include application health check
     });
     Console.WriteLine("Health check /health/live added");
 

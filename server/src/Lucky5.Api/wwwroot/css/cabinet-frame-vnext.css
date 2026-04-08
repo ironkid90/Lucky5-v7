@@ -1,132 +1,26 @@
-:root {
-    --cabinet-width: 720px;
-    --cabinet-height: 1280px;
-    --cabinet-scale: 1;
-    --zone-header-top: 8px;
-    --zone-paytable-left: 8px;
-    --zone-paytable-width: 350px;
-    --zone-paytable-height: 250px;
-    --zone-counters-left: 505px;
-    --zone-counters-width: 190px;
-    --zone-cards-top: 238px;
-    --zone-cards-left: 8px;
-    --zone-cards-width: 705px;
-    --zone-cards-height: 270px;
-    --zone-machine-top: 505px;
-    --zone-machine-left: 8px;
-    --zone-machine-width: 705px;
-    --zone-controls-top: 640px;
-    --zone-controls-height: 640px;
-}
+/*
+ * cabinet-frame-vnext.css
+ * LOADS AFTER: cabinet-layout-vnext.css
+ * PURPOSE: Cosmetic layer only — CRT scanline overlay, button press feedback,
+ *          image-rendering hints, and menu z-index.
+ * DO NOT add zone coordinates or #game-container sizing here.
+ * Zone layout is owned by cabinet-layout-vnext.css.
+ */
 
-html,
+/* Body: flex-center so the cabinet face is centred on all viewports */
 body {
-    min-height: 100%;
-    background: #000;
-}
-
-body {
-    margin: 0;
-    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-#game-container {
-    width: var(--cabinet-width);
-    height: var(--cabinet-height);
-    position: relative;
-    overflow: hidden;
-    transform: scale(var(--cabinet-scale));
-    transform-origin: center center;
+/* Apply crisp pixel rendering on the game screen (portrait face) */
+#game-screen {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
 }
 
-#game-screen.active,
-#lobby-screen.active,
-#wallet-screen.active,
-#admin-screen.active,
-#auth-screen {
-    width: var(--cabinet-width);
-    height: var(--cabinet-height);
-}
-
-#game-screen {
-    position: relative;
-    inset: 0;
-    background: #000;
-}
-
-#paytable {
-    position: absolute;
-    left: var(--zone-paytable-left);
-    top: var(--zone-header-top);
-    width: var(--zone-paytable-width);
-    height: var(--zone-paytable-height);
-}
-
-#credit-stake-bar {
-    position: absolute;
-    left: var(--zone-counters-left);
-    top: var(--zone-header-top);
-    width: var(--zone-counters-width);
-    min-height: 160px;
-}
-
-#card-area {
-    position: absolute;
-    left: var(--zone-cards-left);
-    top: var(--zone-cards-top);
-    width: var(--zone-cards-width);
-    height: var(--zone-cards-height);
-}
-
-#machine-info-block,
-#du-info-panel,
-#info-bar,
-#bonus-bar,
-#win-amount-display,
-#lucky5-banner,
-#lucky5-flash {
-    position: absolute;
-}
-
-#machine-info-block {
-    left: var(--zone-machine-left);
-    top: var(--zone-machine-top);
-    width: var(--zone-machine-width);
-}
-
-#controls {
-    position: absolute;
-    left: 0;
-    top: var(--zone-controls-top);
-    width: var(--cabinet-width);
-    height: var(--zone-controls-height);
-}
-
-#hold-row,
-#action-row,
-#bottom-row {
-    position: absolute;
-    left: 0;
-    width: 100%;
-}
-
-#hold-row {
-    top: 86px;
-}
-
-#action-row {
-    top: 252px;
-}
-
-#bottom-row {
-    top: 460px;
-}
-
+/* Button press cosmetics (layered on top of cabinet-layout-vnext rules) */
 #controls .cab-btn,
 #controls .cab-hold {
     will-change: transform, filter, opacity;

@@ -16,7 +16,29 @@
 //  10. SHELL / LOBBY        — showLobby, showWallet, showAdmin, initGame
 //  11. DOM BOOTSTRAP        — DOMContentLoaded initialization
 
-const API = ''; // base URL prefix — empty = same-origin
+const API = resolveApiBase();
+
+function resolveApiBase() {
+    const meta = document.querySelector('meta[name="lucky5-api-base"]')?.content?.trim();
+    const globalBase = typeof window !== 'undefined' ? window.LUCKY5_API_BASE_URL : '';
+    const stored = (() => {
+        try { return localStorage.getItem('lucky5_api_base') || ''; } catch (_) { return ''; }
+    })();
+    return (globalBase || meta || stored || '').replace(/\/$/, '');
+}
+
+const DEBUG_ENABLED = (() => {
+    try {
+        return window.location.search.includes('debug=1') || localStorage.getItem('lucky5_debug') === '1';
+    } catch (_) {
+        return false;
+    }
+})();
+
+function debugLog(event, payload) {
+    if (!DEBUG_ENABLED) return;
+    console.debug(`[Lucky5] ${event}`, payload ?? '');
+}
 
 function normalizeRole(role) {
     return String(role || 'player').trim().toLowerCase();
@@ -164,13 +186,83 @@ async function apiCall(method, path, body) {
     };
     if (token) opts.headers['Authorization'] = `Bearer ${token}`;
     if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(`${API}${path}`, opts);
-    const json = await res.json();
-    if (!res.ok || json.status === 'error') {
-        throw new Error(json.message || json.errors?.[0] || 'Request failed');
+    const url = `${API}${path}`;
+    debugLog('api:request', { method, url, body });
+    const res = await fetch(url, opts);
+    const raw = await res.text();
+    let json = null;
+    try {
+        json = raw ? JSON.parse(raw) : null;
+    } catch (_) {
+        throw new Error(`Non-JSON response from ${path}: ${raw.slice(0, 160)}`);
     }
-    return json.data;
+    if (!res.ok || json?.status === 'error') {
+        throw new Error(json?.message || json?.errors?.[0] || 'Request failed');
+    }
+    debugLog('api:response', { method, url, status: res.status, data: json?.data });
+    return json?.data;
 }
+
+function updateViewportUnit() {
+    const vh = window.innerHeight * 0.01;
+    document.body.style.setProperty('--app-vh', `${vh}px`);
+}
+
+function hasCabinetStage() {
+    return Boolean(window.CabinetStage);
+}
+
+function renderDealStage(cardData) {
+    if (hasCabinetStage()) {
+        CabinetStage.dealCards(cardData);
+        return;
+    }
+    renderCards(cardData, true);
+}
+
+function renderDrawStage(cardData, held) {
+    if (hasCabinetStage()) {
+        CabinetStage.drawCards(cardData, held);
+        return;
+    }
+    renderCards(cardData, false);
+}
+
+function bindSingleButton(id, handler) {
+    const nodes = document.querySelectorAll(`#${id}`);
+    if (nodes.length !== 1) {
+        console.error(`[Lucky5] expected 1 node for #${id}, found ${nodes.length}`);
+    }
+    const node = nodes[0];
+    if (!node) return;
+    node.addEventListener('click', handler);
+}
+
+window.render_game_to_text = function renderGameToText() {
+    return JSON.stringify({
+        mode: gameState,
+        machineId,
+        roundId,
+        balance,
+        currentBet,
+        winAmount,
+        machineJoined,
+        machineSessionClosed,
+        cards: Array.isArray(cards) ? cards.map(c => c?.code || null) : [],
+        holds: Array.from(holdIndexes),
+        doubleUp: {
+            started: duSessionStarted,
+            dealer: duDealerCard?.code || null,
+            switchesRemaining: duSwitchesRemaining,
+            noLose: duIsNoLoseActive
+        },
+        viewport: { innerWidth: window.innerWidth, innerHeight: window.innerHeight }
+    });
+};
+
+window.advanceTime = function advanceTime(ms) {
+    return new Promise(resolve => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+};
 
 function setActiveScreen(screenName) {
     ['lobby','wallet','admin','game'].forEach(name => {
@@ -1121,8 +1213,7 @@ async function doDeal() {
             if (result.jackpots) updateJackpotDisplay(result.jackpots);
             updateWinAmountDisplay(0);
             holdIndexes.clear();
-            renderCards(cards, true);
-            if (window.CabinetStage) CabinetStage.dealCards(cards);
+            renderDealStage(cards);
             $$('.cab-hold').forEach(btn => btn.classList.remove('active'));
             gameState = 'hold';
 
@@ -1169,24 +1260,7 @@ async function doDeal() {
             syncMachineCreditsFromResponse(result);
             if (result.jackpots) updateJackpotDisplay(result.jackpots);
 
-            renderCards(cards, false);
-            if (window.CabinetStage) CabinetStage.drawCards(cards, holdIndexes);
-            setTimeout(() => {
-                let dropDelay = 0;
-                $$('.card-slot').forEach((slot, i) => {
-                    if (!holdIndexes.has(i)) {
-                        slot.classList.remove('deal-in-done');
-                        slot.classList.add('deal-in');
-                        setTimeout(() => {
-                            const face = slot.querySelector('.card-face img');
-                            if (face) face.src = cardImagePath(cards[i]);
-                            slot.classList.remove('deal-in');
-                            slot.classList.add('deal-in-done');
-                        }, T.dealBaseMs + dropDelay);
-                        dropDelay += T.dealStaggerMs;
-                    }
-                });
-            }, T.drawRevealStartMs);
+            renderDrawStage(cards, holdIndexes);
 
             setTimeout(() => {
                 const handName = result.handRank || 'Nothing';
@@ -2414,6 +2488,10 @@ async function initGame(options = {}) {
 
 // ── 11. DOM BOOTSTRAP ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    updateViewportUnit();
+    window.addEventListener('resize', updateViewportUnit);
+    window.addEventListener('orientationchange', updateViewportUnit);
+    debugLog('boot', { apiBase: API, userAgent: navigator.userAgent });
     const authBtn = $('#auth-submit');
     authBtn.disabled = true;
     authBtn.textContent = 'LOADING...';
@@ -2480,14 +2558,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    $('#btn-bet').addEventListener('click', doBet);
-    $('#btn-deal').addEventListener('click', doDeal);
-    $('#btn-cancel').addEventListener('click', cancelHold);
-    $('#btn-take-score').addEventListener('click', () => {
+    bindSingleButton('btn-bet', doBet);
+    bindSingleButton('btn-deal', doDeal);
+    bindSingleButton('btn-cancel', cancelHold);
+    bindSingleButton('btn-take-score', () => {
         if (gameState === 'doubleup') duTakeScore();
         else mainTakeScore();
     });
-    $('#btn-take-half').addEventListener('click', () => {
+    bindSingleButton('btn-take-half', () => {
         if (gameState === 'doubleup') duTakeHalf();
         else mainTakeHalf();
     });

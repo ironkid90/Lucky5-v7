@@ -82,15 +82,13 @@ window.CabinetOrchestrator = (function () {
     function _installGeometry() {
         const layout = window.GAME_CONFIG?.cabinet?.layout || CabinetState.DEFAULT_LAYOUT;
         CabinetState.updateLayout(layout);
-        const root = document.documentElement;
-        root.style.setProperty('--cabinet-width', `${layout.width}px`);
-        root.style.setProperty('--cabinet-height', `${layout.height}px`);
 
+        // Layout is fluid via cabinet-layout-vnext.css min() sizing — no CSS transform scaling.
+        // Track viewport scale in state for debug / render_game_to_text output only.
         function resize() {
             const width = layout.width;
             const height = layout.height;
             const scale = Math.min(window.innerWidth / width, window.innerHeight / height);
-            root.style.setProperty('--cabinet-scale', String(scale));
             CabinetState.updatePresentation({ viewportScale: scale });
         }
 
@@ -189,7 +187,10 @@ window.CabinetOrchestrator = (function () {
                 const result = typeof legacy === 'function'
                     ? legacy.call(this)
                     : undefined;
-                _applyButtonStatesFromSelectors();
+                // syncFromRuntime here so selectors see the live gameState value,
+                // not a store snapshot that may lag behind the caller's state mutation.
+                const freshSnapshot = CabinetState.syncFromRuntime();
+                _applyButtonStatesFromSelectors(freshSnapshot);
                 return result;
             };
         });

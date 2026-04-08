@@ -355,8 +355,12 @@ window.CabinetStage = (function () {
             _duSlot(3).querySelector('.du-card-frame').classList.add('dealer-card');
         }
 
-        // Start shuffle in slot 4
-        _startShuffle(4);
+        // Slot 4: show card back; challenger is revealed only when server responds.
+        // Do NOT start random shuffle — server-authoritative result is the only reveal.
+        const challSlotInit = _duSlot(4);
+        if (challSlotInit) {
+            challSlotInit.querySelector('img').src = _config.cardBack;
+        }
     }
 
     /* ── updateDoubleUpTrail ─────────────────────────────────────────────── */
@@ -404,10 +408,11 @@ window.CabinetStage = (function () {
                     challSlot.querySelector('.du-card-frame').classList.add('lucky5-glow');
                 }
             } else {
-                // Keep shuffling
-                if (!challSlot.classList.contains('du-shuffling')) {
-                    shuffleChallenger();
-                }
+                // Pending: show card back until server provides challengerCard.
+                _stopShuffle();
+                challSlot.classList.remove('du-shuffling');
+                const pendingImg = challSlot.querySelector('img');
+                if (pendingImg) pendingImg.src = _config.cardBack;
             }
         }
     }
@@ -463,7 +468,8 @@ window.CabinetStage = (function () {
     }
 
     function shuffleChallenger() {
-        _startShuffle(4);
+        // No-op: random shuffle removed in Phase 4.
+        // Challenger slot shows card back until server-authoritative result arrives.
     }
 
     function _stopShuffle() {

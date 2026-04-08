@@ -5,6 +5,9 @@ using Lucky5.Application.Contracts;
 using Lucky5.Application.Interfaces;
 using Lucky5.Infrastructure.Data.Repositories;
 using Lucky5.Infrastructure.Persistence;
+using PersistenceCoordinator = Lucky5.Infrastructure.Persistence.IPersistentStateCoordinator;
+using PersistenceStore = Lucky5.Infrastructure.Persistence.IPersistentStateStore;
+using RedisSnapshotStore = Lucky5.Infrastructure.Persistence.RedisPersistentStateStore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -32,26 +35,27 @@ public static class ServiceCollectionExtensions
 
             if (!string.IsNullOrWhiteSpace(connectionString))
             {
-                options.Configuration = connectionString;
-                
                 var configOptions = ConfigurationOptions.Parse(connectionString);
+
                 if (configOptions.EndPoints.Any(endpoint => endpoint is DnsEndPoint dns && dns.Host.EndsWith(".redis.azure.net", StringComparison.OrdinalIgnoreCase)))
                 {
-                    options.ConfigurationOptions.Ssl = true;
-                    options.ConfigurationOptions.ConnectTimeout = 15000;
-                    options.ConfigurationOptions.SyncTimeout = 10000;
-                    options.ConfigurationOptions.AsyncTimeout = 10000;
-                    options.ConfigurationOptions.AbortOnConnectFail = false;
-                    options.ConfigurationOptions.ConnectRetry = 3;
-                    options.ConfigurationOptions.ReconnectRetryPolicy = new ExponentialRetry(1000);
+                    configOptions.Ssl = true;
+                    configOptions.ConnectTimeout = 15000;
+                    configOptions.SyncTimeout = 10000;
+                    configOptions.AsyncTimeout = 10000;
+                    configOptions.AbortOnConnectFail = false;
+                    configOptions.ConnectRetry = 3;
+                    configOptions.ReconnectRetryPolicy = new ExponentialRetry(1000);
                 }
                 else
                 {
                     // General Redis configuration
-                    options.ConfigurationOptions.ConnectTimeout = 10000;
-                    options.ConfigurationOptions.SyncTimeout = 5000;
-                    options.ConfigurationOptions.AsyncTimeout = 5000;
+                    configOptions.ConnectTimeout = 10000;
+                    configOptions.SyncTimeout = 5000;
+                    configOptions.AsyncTimeout = 5000;
                 }
+
+                options.ConfigurationOptions = configOptions;
             }
             else
             {
@@ -60,9 +64,11 @@ public static class ServiceCollectionExtensions
             }
         });
         
-        services.AddSingleton<IPersistentStateStore, RedisPersistentStateStore>();
-        services.AddSingleton<IPersistentStateCoordinator, InMemoryPersistentStateCoordinator>();
-        services.AddHostedService<PersistentStateCheckpointService>();
+        services.AddSingleton<PersistenceStore, RedisSnapshotStore>();
+        services.AddSingleton<PersistenceCoordinator, InMemoryPersistentStateCoordinator>();
+        services.AddSingleton<PersistentStateCheckpointService>();
+        services.AddHostedService(sp => sp.GetRequiredService<PersistentStateCheckpointService>());
+        services.AddHostedService<PersistentStateRecoveryService>();
         
         // Add health checks
         services.AddHealthChecks()

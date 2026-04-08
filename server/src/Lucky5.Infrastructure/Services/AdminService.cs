@@ -6,8 +6,11 @@ using Lucky5.Application.Dtos;
 using Lucky5.Application.Requests;
 using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
+using Lucky5.Infrastructure.Persistence;
+using PersistenceCoordinator = Lucky5.Infrastructure.Persistence.IPersistentStateCoordinator;
+using PersistenceStore = Lucky5.Infrastructure.Persistence.IPersistentStateStore;
 
-public sealed class AdminService(InMemoryDataStore store, IPersistentStateStore persistentStateStore) : IAdminService
+public sealed class AdminService(InMemoryDataStore store, PersistenceStore persistentStateStore, PersistenceCoordinator persistentStateCoordinator) : IAdminService
 {
     public Task<IReadOnlyList<AdminUserDto>> ListUsersAsync(CancellationToken cancellationToken)
     {
@@ -207,7 +210,8 @@ public sealed class AdminService(InMemoryDataStore store, IPersistentStateStore 
     {
         try
         {
-            persistentStateStore.PersistAsync(store, cancellationToken).GetAwaiter().GetResult();
+            var snapshot = persistentStateCoordinator.CaptureAsync(cancellationToken).GetAwaiter().GetResult();
+            persistentStateStore.SaveAsync(snapshot with { SchemaVersion = PersistentStateSnapshot.CurrentSchemaVersion }, cancellationToken).GetAwaiter().GetResult();
         }
         catch
         {

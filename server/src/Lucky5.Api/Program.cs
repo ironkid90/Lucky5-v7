@@ -1,4 +1,3 @@
-using Lucky5.Api.Middleware;
 using Lucky5.Infrastructure.Services;
 using Lucky5.Realtime;
 using Lucky5.Realtime.Services;

@@ -6,9 +6,8 @@ using Lucky5.Application.Requests;
 using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
 using Lucky5.Application.Interfaces;
-using Lucky5.Infrastructure.Persistence;
 
-public sealed class GameService(IDataStore store, IEntropyGenerator entropyGenerator, IMachineStateCache stateCache, IPersistentStateCoordinator? persistentStateCoordinator = null) : IGameService
+public sealed class GameService(IDataStore store, IEntropyGenerator entropyGenerator, IMachineStateCache stateCache) : IGameService
 {
     private const decimal CashInUnit = 200_000m;
     private const decimal MaxSessionCashIn = 1_000_000m;
@@ -103,6 +102,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
         await store.UpdateProfileAsync(profile);
 
+        stateCache.InvalidateActiveRound(userId, machineId);
         stateCache.InvalidateMachineSession(userId, machineId);
         return await ToMachineSessionDtoAsync(userId, session, profile.WalletBalance);
     }
@@ -117,8 +117,22 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             return await ToMachineSessionDtoAsync(userId, session, profile.WalletBalance);
         }
 
-        if (await HasRecoverableRoundAsync(userId, machineId))
-            throw new InvalidOperationException("Finish the current round before cashing out");
+        var latestRound = await store.GetLatestRoundAsync(userId, machineId);
+        if (latestRound is not null)
+        {
+            if (!latestRound.IsCompleted)
+            {
+                throw new InvalidOperationException("Finish the current round before cashing out");
+            }
+
+            if (!latestRound.IsPayoutSettled && latestRound.WinAmount > 0m)
+            {
+                var settleCredits = latestRound.DoubleUpSession?.CurrentAmount ?? (int)latestRound.WinAmount;
+                await FinalizeDoubleUpAsync(latestRound, session, settleCredits);
+                session = await RequireMachineSessionAsync(userId, machineId, createIfMissing: false);
+            }
+        }
+
         if (!CanCashOut(session))
             throw new InvalidOperationException("Cash out is only available when the machine is closed or credits reach the 2x session threshold");
 
@@ -142,6 +156,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             CreatedUtc = DateTime.UtcNow
         });
 
+        stateCache.InvalidateActiveRound(userId, machineId);
         stateCache.InvalidateMachineSession(userId, machineId);
         return await ToMachineSessionDtoAsync(userId, session, profile.WalletBalance);
     }

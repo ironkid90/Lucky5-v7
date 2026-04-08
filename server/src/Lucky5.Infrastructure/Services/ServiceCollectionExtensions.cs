@@ -5,6 +5,9 @@ using Lucky5.Application.Contracts;
 using Lucky5.Application.Interfaces;
 using Lucky5.Infrastructure.Data.Repositories;
 using Lucky5.Infrastructure.Persistence;
+using PersistenceCoordinator = Lucky5.Infrastructure.Persistence.IPersistentStateCoordinator;
+using PersistenceStore = Lucky5.Infrastructure.Persistence.IPersistentStateStore;
+using RedisSnapshotStore = Lucky5.Infrastructure.Persistence.RedisPersistentStateStore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -22,47 +25,49 @@ public static class ServiceCollectionExtensions
         services.AddOptions<PersistentStateCheckpointOptions>()
             .Bind(configuration.GetSection("Persistence"));
         
-        // Register Redis distributed cache
-        services.AddStackExchangeRedisCache(options =>
-        {
-            var connectionString = configuration.GetConnectionString("Redis")
-                ?? configuration["LUCKY5_REDIS_CONNECTION"]
-                ?? configuration["Redis:ConnectionString"]
-                ?? configuration["REDIS:CONNECTION"];
+        // Register Redis distributed cache (fallback to in-memory cache when Redis is not configured).
+        var redisConnectionString = configuration.GetConnectionString("Redis")
+            ?? configuration["LUCKY5_REDIS_CONNECTION"]
+            ?? configuration["Redis:ConnectionString"]
+            ?? configuration["REDIS:CONNECTION"];
 
-            if (!string.IsNullOrWhiteSpace(connectionString))
+        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+        {
+            services.AddStackExchangeRedisCache(options =>
             {
-                options.Configuration = connectionString;
-                
-                var configOptions = ConfigurationOptions.Parse(connectionString);
+                var configOptions = ConfigurationOptions.Parse(redisConnectionString);
+
                 if (configOptions.EndPoints.Any(endpoint => endpoint is DnsEndPoint dns && dns.Host.EndsWith(".redis.azure.net", StringComparison.OrdinalIgnoreCase)))
                 {
-                    options.ConfigurationOptions.Ssl = true;
-                    options.ConfigurationOptions.ConnectTimeout = 15000;
-                    options.ConfigurationOptions.SyncTimeout = 10000;
-                    options.ConfigurationOptions.AsyncTimeout = 10000;
-                    options.ConfigurationOptions.AbortOnConnectFail = false;
-                    options.ConfigurationOptions.ConnectRetry = 3;
-                    options.ConfigurationOptions.ReconnectRetryPolicy = new ExponentialRetry(1000);
+                    configOptions.Ssl = true;
+                    configOptions.ConnectTimeout = 20000;
+                    configOptions.SyncTimeout = 20000;
+                    configOptions.AsyncTimeout = 20000;
+                    configOptions.AbortOnConnectFail = false;
+                    configOptions.ConnectRetry = 5;
+                    configOptions.ReconnectRetryPolicy = new ExponentialRetry(2000);
                 }
                 else
                 {
                     // General Redis configuration
-                    options.ConfigurationOptions.ConnectTimeout = 10000;
-                    options.ConfigurationOptions.SyncTimeout = 5000;
-                    options.ConfigurationOptions.AsyncTimeout = 5000;
+                    configOptions.ConnectTimeout = 10000;
+                    configOptions.SyncTimeout = 10000;
+                    configOptions.AsyncTimeout = 10000;
                 }
-            }
-            else
-            {
-                // Fallback to in-memory if Redis not configured
-                options.InstanceName = "Lucky5";
-            }
-        });
+
+                options.ConfigurationOptions = configOptions;
+            });
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
+        }
         
-        services.AddSingleton<IPersistentStateStore, RedisPersistentStateStore>();
-        services.AddSingleton<IPersistentStateCoordinator, InMemoryPersistentStateCoordinator>();
-        services.AddHostedService<PersistentStateCheckpointService>();
+        services.AddSingleton<PersistenceStore, RedisSnapshotStore>();
+        services.AddSingleton<PersistenceCoordinator, InMemoryPersistentStateCoordinator>();
+        services.AddSingleton<PersistentStateCheckpointService>();
+        services.AddHostedService(sp => sp.GetRequiredService<PersistentStateCheckpointService>());
+        services.AddHostedService<PersistentStateRecoveryService>();
         
         // Add health checks
         services.AddHealthChecks()

@@ -411,6 +411,39 @@ public static class FrontendRegressionTests
             failures,
             "cabinet-state-vnext.js _uniqueSortedInts must use !isNaN guard (parseInt returns NaN, not non-finite)",
             stateJs.Contains("!isNaN(n) && Number.isFinite(n)", StringComparison.Ordinal));
+
+        // Fix: setButtonStates patch must syncFromRuntime so selectors see live gameState,
+        // preventing game-loop termination after a hand completes.
+        Assert(
+            failures,
+            "cabinet-orchestrator-vnext.js setButtonStates patch must call CabinetState.syncFromRuntime() to get live gameState",
+            orchestratorJs.Contains("const freshSnapshot = CabinetState.syncFromRuntime();", StringComparison.Ordinal)
+                && orchestratorJs.Contains("_applyButtonStatesFromSelectors(freshSnapshot);", StringComparison.Ordinal));
+
+        // Fix: cabinet-frame-vnext.css must not contain --zone-* pixel coordinate variables
+        // that conflict with cabinet-layout-vnext.css percentage-based zone model.
+        string frameVnextCss;
+        try
+        {
+            frameVnextCss = await File.ReadAllTextAsync(ResolveWwwrootFilePath("css", "cabinet-frame-vnext.css"));
+        }
+        catch (Exception ex)
+        {
+            failures.Add($"Could not read cabinet-frame-vnext.css: {ex.Message}");
+            return;
+        }
+
+        Assert(
+            failures,
+            "cabinet-frame-vnext.css must not declare --zone-* pixel coordinate variables (conflicts with cabinet-layout-vnext.css)",
+            !frameVnextCss.Contains("--zone-", StringComparison.Ordinal)
+                && !frameVnextCss.Contains("--cabinet-width", StringComparison.Ordinal)
+                && !frameVnextCss.Contains("--cabinet-height", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-frame-vnext.css must not set transform:scale on #game-container (layout is fluid via cabinet-layout-vnext.css)",
+            !frameVnextCss.Contains("transform: scale(var(--cabinet-scale))", StringComparison.Ordinal));
     }
 
     private static string ResolveGameJsPath()

@@ -133,7 +133,7 @@ try
     
     app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
     {
-        Predicate = check => check.Name != "persistence" // Exclude persistence from live check
+        Predicate = check => check.Name == "basic" // Only include basic health check
     });
 
     app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions

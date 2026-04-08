@@ -54,6 +54,11 @@ try
     builder.Services.AddEndpointsApiExplorer();
     Console.WriteLine("=== BASIC SERVICES ADDED ===");
 
+    // Add infrastructure services (this registers IPersistentStateStore)
+    Console.WriteLine("=== ADDING INFRASTRUCTURE SERVICES ===");
+    builder.Services.AddLucky5Infrastructure(builder.Configuration);
+    Console.WriteLine("=== INFRASTRUCTURE SERVICES ADDED ===");
+
     // Add health checks with basic check only
     builder.Services.AddHealthChecks()
         .AddCheck("application", () => HealthCheckResult.Healthy("Application is running"));

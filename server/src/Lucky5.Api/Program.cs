@@ -1,120 +1,26 @@
-using Lucky5.Api.Middleware;
-using Lucky5.Infrastructure.Services;
-using Lucky5.Realtime;
-using Lucky5.Realtime.Services;
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
+// IMMEDIATE DIAGNOSTIC: This should execute before anything else
+Console.WriteLine("=== LUCKY5 APPLICATION STARTING ===");
+Console.WriteLine($"Runtime: {Environment.Version}");
+Console.WriteLine($"Platform: {Environment.OSVersion}");
+Console.WriteLine($"Working Directory: {Environment.CurrentDirectory}");
 
-var builder = WebApplication.CreateBuilder(args);
-
-// Ensure appsettings.json can be loaded properly
-builder.Configuration.AddEnvironmentVariables();
-
-// Configure Azure App Service specific settings
-var port = Environment.GetEnvironmentVariable("PORT")
-    ?? Environment.GetEnvironmentVariable("WEBSITES_PORT")
-    ?? "8080";
-
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(int.Parse(port));
-});
-
-// Add logging for debugging
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-// Configure for Azure environment
-if (!builder.Environment.IsDevelopment())
-{
-    builder.Configuration.AddJsonFile("appsettings.Production.json", optional: true, reloadOnChange: true);
-}
-
-// Add basic services first
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-
-// Add health checks with basic check only
-builder.Services.AddHealthChecks()
-    .AddCheck("application", () => HealthCheckResult.Healthy("Application is running"));
-
-// Try to add infrastructure services with error handling
 try
 {
-    Console.WriteLine("Attempting to register infrastructure services...");
-    builder.Services.AddLucky5Infrastructure(builder.Configuration);
-    Console.WriteLine("Infrastructure services registered successfully");
-    
-    Console.WriteLine("Attempting to register realtime services...");
-    builder.Services.AddLucky5Realtime();
-    Console.WriteLine("Realtime services registered successfully");
-    
-    Console.WriteLine("Attempting to register SignalR...");
-    builder.Services.AddSignalR();
-    Console.WriteLine("SignalR registered successfully");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"ERROR: Failed to register services: {ex.Message}");
-    Console.WriteLine($"Stack trace: {ex.StackTrace}");
-    Console.WriteLine("Continuing with basic functionality...");
-}
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
-});
+    using Lucky5.Api.Middleware;
+    using Lucky5.Infrastructure.Services;
+    using Lucky5.Realtime;
+    using Lucky5.Realtime.Services;
+    using Microsoft.AspNetCore.HttpOverrides;
+    using Microsoft.AspNetCore.Mvc;
+    using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-var isDevelopment = builder.Environment.IsDevelopment();
+    Console.WriteLine("=== CREATING BUILDER ===");
+    var builder = WebApplication.CreateBuilder(args);
+    Console.WriteLine("=== BUILDER CREATED SUCCESSFULLY ===");
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("Lucky5Cors", policy =>
-    {
-        if (isDevelopment)
-        {
-            policy.SetIsOriginAllowed(_ => true)
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials();
-        }
-        else
-        {
-            var allowedOrigins = (builder.Configuration["CORS:ALLOWED_ORIGINS"] ?? "http://localhost:3000,http://localhost:5173,https://localhost")
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            policy.WithOrigins(allowedOrigins)
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials();
-        }
-    });
-});
-
-Console.WriteLine("Building application...");
-var app = builder.Build();
-Console.WriteLine("Application built successfully");
-
-// Configure middleware with error handling
-try
-{
-    Console.WriteLine("Configuring forwarded headers...");
-    app.UseForwardedHeaders();
-    Console.WriteLine("Forwarded headers configured");
-    
-    // Try to use middleware that might fail
     try
     {
-        Console.WriteLine("Adding ApiExceptionMiddleware...");
-        app.UseMiddleware<ApiExceptionMiddleware>();
-        Console.WriteLine("ApiExceptionMiddleware added successfully");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"ERROR: ApiExceptionMiddleware failed: {ex.Message}");
-        Console.WriteLine($"Stack trace: {ex.StackTrace}");
-    }
+        Console.WriteLine("=== CONFIGURING BUILDER ===");
     
     try
     {

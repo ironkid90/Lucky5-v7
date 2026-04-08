@@ -211,7 +211,7 @@ public sealed class AdminService(InMemoryDataStore store, PersistenceStore persi
         try
         {
             var snapshot = persistentStateCoordinator.CaptureAsync(cancellationToken).GetAwaiter().GetResult();
-            persistentStateStore.SaveAsync(snapshot with { SchemaVersion = PersistentStateSnapshot.CurrentSchemaVersion }, cancellationToken).GetAwaiter().GetResult();
+            persistentStateStore.SaveAsync(snapshot, cancellationToken).GetAwaiter().GetResult();
         }
         catch
         {

@@ -9,19 +9,8 @@ Console.WriteLine("=== TEST: BUILDER CREATED ===");
 builder.Services.AddControllers();
 Console.WriteLine("=== TEST: CONTROLLERS ADDED ===");
 
-// Add infrastructure services step by step
-Console.WriteLine("=== TEST: ADDING INFRASTRUCTURE ===");
-try
-{
-    // Add the missing using directive for infrastructure services
-    builder.Services.AddLucky5Infrastructure(builder.Configuration);
-    Console.WriteLine("=== TEST: INFRASTRUCTURE ADDED SUCCESSFULLY ===");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"=== TEST: INFRASTRUCTURE FAILED: {ex.Message} ===");
-    Console.WriteLine("=== TEST: SKIPPING INFRASTRUCTURE - CONTINUING WITHOUT IT ===");
-}
+// Skip infrastructure services for now - causing 503 errors
+Console.WriteLine("=== TEST: SKIPPING INFRASTRUCTURE - CAUSING 503 ERRORS ===");
 
 var app = builder.Build();
 Console.WriteLine("=== TEST: APP BUILT ===");

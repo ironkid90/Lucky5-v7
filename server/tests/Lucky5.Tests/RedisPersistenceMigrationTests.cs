@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using System.Text.Json;
+using Xunit;
 
 namespace Lucky5.Tests;
 

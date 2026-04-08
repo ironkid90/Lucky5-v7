@@ -1,97 +1,154 @@
-using Lucky5.Api.Middleware;
+using System.Net;
+using System.Security.Claims;
+using System.Text.Json;
+using Lucky5.Application.Contracts;
+using Lucky5.Application.Dtos;
 using Lucky5.Infrastructure.Services;
 using Lucky5.Realtime;
 using Lucky5.Realtime.Services;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-// IMMEDIATE DIAGNOSTIC: This should execute before anything else
-Console.WriteLine("=== LUCKY5 APPLICATION STARTING ===");
-Console.WriteLine($"Runtime: {Environment.Version}");
-Console.WriteLine($"Platform: {Environment.OSVersion}");
-Console.WriteLine($"Working Directory: {Environment.CurrentDirectory}");
+var builder = WebApplication.CreateBuilder(args);
 
-try
+builder.Configuration.AddEnvironmentVariables();
+
+var portValue = Environment.GetEnvironmentVariable("PORT")
+    ?? Environment.GetEnvironmentVariable("WEBSITES_PORT")
+    ?? "8080";
+
+if (int.TryParse(portValue, out var port))
 {
-    Console.WriteLine("=== CREATING BUILDER ===");
-    var builder = WebApplication.CreateBuilder(args);
-    Console.WriteLine("=== BUILDER CREATED SUCCESSFULLY ===");
+    builder.WebHost.ConfigureKestrel(options => options.ListenAnyIP(port));
+}
 
-    Console.WriteLine("=== CONFIGURING BUILDER ===");
-    
-    // Ensure appsettings.json can be loaded properly
-    builder.Configuration.AddEnvironmentVariables();
-    Console.WriteLine("=== ENVIRONMENT VARIABLES ADDED ===");
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.Production.json", optional: true, reloadOnChange: true);
+}
 
-    // Configure Azure App Service specific settings
-    var port = Environment.GetEnvironmentVariable("PORT") ?? Environment.GetEnvironmentVariable("WEBSITES_PORT") ?? "8080";
-    Console.WriteLine($"=== PORT CONFIGURED: {port} ===");
-
-    builder.WebHost.ConfigureKestrel(options =>
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSignalR();
+builder.Services.AddLucky5Realtime();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
     {
-        options.ListenAnyIP(int.Parse(port));
+        var allowedOrigins = builder.Configuration["CORS:ALLOWED_ORIGINS"]
+            ?? builder.Configuration["CORS__ALLOWED_ORIGINS"];
+
+        if (!string.IsNullOrWhiteSpace(allowedOrigins))
+        {
+            var origins = allowedOrigins
+                .Split(",", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+            if (origins.Length > 0)
+            {
+                policy.WithOrigins(origins)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+                return;
+            }
+        }
+
+        policy.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
-    Console.WriteLine("=== KESTREL CONFIGURED ===");
+});
+builder.Services.AddLucky5Infrastructure(builder.Configuration);
 
-    // Add logging for debugging
-    builder.Logging.ClearProviders();
-    builder.Logging.AddConsole();
-    Console.WriteLine("=== LOGGING CONFIGURED ===");
+builder.Services.AddHealthChecks()
+    .AddCheck("live", () => HealthCheckResult.Healthy("Application is running"));
 
-    // Configure for Azure environment
-    if (!builder.Environment.IsDevelopment())
+var app = builder.Build();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
+app.Use(async (context, next) =>
+{
+    try
     {
-        builder.Configuration.AddJsonFile("appsettings.Production.json", optional: true, reloadOnChange: true);
-        Console.WriteLine("=== PRODUCTION CONFIGURATION LOADED ===");
+        await next();
+    }
+    catch (Exception ex)
+    {
+        var (status, message) = ex switch
+        {
+            UnauthorizedAccessException => (HttpStatusCode.Unauthorized, ex.Message),
+            KeyNotFoundException => (HttpStatusCode.NotFound, ex.Message),
+            InvalidOperationException => (HttpStatusCode.BadRequest, ex.Message),
+            _ => (HttpStatusCode.InternalServerError, "Unexpected server error")
+        };
+
+        context.Response.StatusCode = (int)status;
+        context.Response.ContentType = "application/json";
+
+        var payload = ApiResponse<object>.Fail(
+            message,
+            errors: status == HttpStatusCode.InternalServerError ? [] : [ex.Message],
+            traceId: context.TraceIdentifier);
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+    }
+});
+
+app.Use(async (context, next) =>
+{
+    var authHeader = context.Request.Headers.Authorization.ToString();
+    var accessToken = string.Empty;
+    if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+    {
+        accessToken = authHeader[7..].Trim();
+    }
+    else if (context.Request.Query.TryGetValue("access_token", out var queryToken))
+    {
+        accessToken = queryToken.ToString();
     }
 
-    // Add basic services first
-    builder.Services.AddControllers();
-    builder.Services.AddEndpointsApiExplorer();
-    Console.WriteLine("=== BASIC SERVICES ADDED ===");
-
-    // Add infrastructure services (this registers IPersistentStateStore)
-    Console.WriteLine("=== ADDING INFRASTRUCTURE SERVICES ===");
-    builder.Services.AddLucky5Infrastructure(builder.Configuration);
-    Console.WriteLine("=== INFRASTRUCTURE SERVICES ADDED ===");
-
-    // Add health checks with basic check only
-    builder.Services.AddHealthChecks()
-        .AddCheck("application", () => HealthCheckResult.Healthy("Application is running"));
-    Console.WriteLine("=== HEALTH CHECKS ADDED ===");
-
-    Console.WriteLine("=== BUILDING APPLICATION ===");
-    var app = builder.Build();
-    Console.WriteLine("=== APPLICATION BUILT SUCCESSFULLY ===");
-
-    Console.WriteLine("=== CONFIGURING MIDDLEWARE ===");
-    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    if (!string.IsNullOrWhiteSpace(accessToken))
     {
-        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-    });
-    app.UseRouting();
-    app.UseCors();
-    app.UseAuthentication();
-    app.UseAuthorization();
-    app.MapControllers();
-    Console.WriteLine("=== MIDDLEWARE CONFIGURED ===");
+        var tokenService = context.RequestServices.GetRequiredService<ITokenService>();
+        if (tokenService.TryValidate(accessToken, out var userId, out var role))
+        {
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(ClaimTypes.Role, role)
+            };
+            context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Lucky5Bearer"));
+            context.Items["access_token"] = accessToken;
+        }
+    }
 
-    // Add health check endpoints
-    app.MapHealthChecks("/health/fallback", new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckOptions
-    {
-        Predicate = _ => false // No health checks - always returns 200
-    });
-    Console.WriteLine("=== HEALTH ENDPOINTS CONFIGURED ===");
+    await next();
+});
 
-    Console.WriteLine("=== STARTING APPLICATION ===");
-    app.Run();
-}
-catch (Exception ex)
+app.UseDefaultFiles();
+app.UseStaticFiles();
+app.UseRouting();
+app.UseCors();
+app.MapControllers();
+app.MapHub<CarrePokerGameHub>("/CarrePokerGameHub");
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
-    Console.WriteLine("=== FATAL ERROR ===");
-    Console.WriteLine($"Message: {ex.Message}");
-    Console.WriteLine($"Stack Trace: {ex.StackTrace}");
-    Console.WriteLine("=== APPLICATION FAILED TO START ===");
-    throw;
-}
+    Predicate = check => check.Name == "live"
+});
+app.MapHealthChecks("/health/ready");
+app.MapHealthChecks("/health/simple", new HealthCheckOptions
+{
+    Predicate = _ => false
+});
+app.MapHealthChecks("/health/fallback", new HealthCheckOptions
+{
+    Predicate = _ => false
+});
+
+app.Run();

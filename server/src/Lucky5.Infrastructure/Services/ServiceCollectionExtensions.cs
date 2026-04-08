@@ -6,6 +6,7 @@ using Lucky5.Application.Interfaces;
 using Lucky5.Infrastructure.Data.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 public static class ServiceCollectionExtensions
@@ -38,6 +39,13 @@ public static class ServiceCollectionExtensions
         });
         services.AddHostedService<StateRecoveryHostedService>();
         services.AddHostedService<StateCheckpointHostedService>();
+        services.AddOptions<MachineCacheTtlOptions>()
+            .Bind(configuration.GetSection("MachineCache"));
+        services.AddSingleton<IMachineStateCache>(sp =>
+        {
+            var opts = sp.GetRequiredService<IOptions<MachineCacheTtlOptions>>().Value;
+            return new InMemoryMachineStateCache(opts);
+        });
         services.AddSingleton<ITokenService, SimpleTokenService>();
         services.AddSingleton<IEntropyGenerator, DefaultEntropyGenerator>();
         services.AddScoped<IAuthService, AuthService>();

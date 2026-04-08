@@ -7,7 +7,7 @@ using Lucky5.Domain.Entities;
 using Lucky5.Domain.Game.CleanRoom;
 using Lucky5.Application.Interfaces;
 
-public sealed class GameService(IDataStore store, IEntropyGenerator entropyGenerator) : IGameService
+public sealed class GameService(IDataStore store, IEntropyGenerator entropyGenerator, IMachineStateCache stateCache) : IGameService
 {
     private const decimal CashInUnit = 200_000m;
     private const decimal MaxSessionCashIn = 1_000_000m;
@@ -57,10 +57,16 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
     public async Task<MachineSessionDto> GetMachineSessionAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
+        var cachedSession = await stateCache.GetMachineSessionAsync(userId, machineId);
+        if (cachedSession is not null)
+            return cachedSession;
+
         var profile = await RequireProfileAsync(userId);
         await RequireMachineAsync(machineId);
         var session = await RequireMachineSessionAsync(userId, machineId, createIfMissing: true);
-        return await ToMachineSessionDtoAsync(userId, session, profile.WalletBalance);
+        var dto = await ToMachineSessionDtoAsync(userId, session, profile.WalletBalance);
+        stateCache.SetMachineSession(userId, machineId, dto);
+        return dto;
     }
 
     public async Task<MachineSessionDto> CashInAsync(Guid userId, int machineId, decimal amount, CancellationToken cancellationToken)
@@ -96,6 +102,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
         await store.UpdateProfileAsync(profile);
 
+        stateCache.InvalidateMachineSession(userId, machineId);
         return await ToMachineSessionDtoAsync(userId, session, profile.WalletBalance);
     }
 
@@ -134,6 +141,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             CreatedUtc = DateTime.UtcNow
         });
 
+        stateCache.InvalidateMachineSession(userId, machineId);
         return await ToMachineSessionDtoAsync(userId, session, profile.WalletBalance);
     }
 
@@ -238,7 +246,9 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
         var jackpots = SnapshotJackpots(ledger);
         var advisedHolds = FiveCardDrawEngine.ComputeAdvisedHolds(hand);
-        
+
+        stateCache.InvalidateActiveRound(userId, request.MachineId);
+        stateCache.InvalidateMachineSession(userId, request.MachineId);
         return new DealResultDto(round.RoundId, cards.Select(ToDto).ToArray(), request.BetAmount, session.MachineCredits, jackpots, advisedHolds);
     }
 
@@ -397,6 +407,8 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
         var jackpots = SnapshotJackpots(ledger);
 
+        stateCache.InvalidateActiveRound(userId, round.MachineId);
+        stateCache.InvalidateMachineSession(userId, round.MachineId);
         return new DrawResultDto(round.RoundId, finalCards.Select(ToDto).ToArray(), handRankName, payout, session.MachineCredits, jackpotWon, jackpots, doubleUpAvailable);
     }
 
@@ -461,6 +473,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         await store.SaveRoundAsync(round);
         
         var noise = GenerateNoise(round.RoundEntropySeed, 0);
+        InvalidateCaches(userId, round.MachineId);
         return new DoubleUpResultDto(roundId, "Started", session.CurrentAmount, sessionBank.MachineCredits,
             DealerCard: ToCleanRoomDto(session.DealerCard),
             SwitchesRemaining: session.Options.MaxSwitchesPerRound - session.SwitchCountInRound,
@@ -500,6 +513,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         if (session.IsTerminal && session.TerminalOutcome == Lucky5DoubleUpOutcome.MachineClosed)
         {
             await FinalizeDoubleUpAsync(round, sessionBank, session.CashoutCredits);
+            InvalidateCaches(userId, round.MachineId);
             return new DoubleUpResultDto(roundId, "MachineClosed", session.CashoutCredits, sessionBank.MachineCredits,
                 DealerCard: ToCleanRoomDto(session.DealerCard),
                 SwitchesRemaining: 0,
@@ -510,6 +524,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
                 IsLucky5Active: session.IsNoLoseActive);
         }
         
+        InvalidateCaches(userId, round.MachineId);
         return new DoubleUpResultDto(roundId, isLucky ? "Lucky5" : "Switched", session.CurrentAmount, sessionBank.MachineCredits,
             DealerCard: ToCleanRoomDto(session.DealerCard),
             SwitchesRemaining: session.Options.MaxSwitchesPerRound - session.SwitchCountInRound,
@@ -539,11 +554,12 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         var sessionBank = await RequireMachineSessionAsync(userId, round.MachineId, createIfMissing: false);
         var noise = GenerateNoise(round.RoundEntropySeed, resolution.Session.CurrentRoundIndex);
 
+DoubleUpResultDto guessResult;
 switch (resolution.Outcome)
 {
     case Lucky5DoubleUpOutcome.Win:
         await store.SaveRoundAsync(round);
-        return new DoubleUpResultDto(
+        guessResult = new DoubleUpResultDto(
             roundId,
             "Win",
             resolution.NextAmount,
@@ -555,10 +571,11 @@ switch (resolution.Outcome)
             Noise: noise,
             CardTrail: BuildCardTrail(resolution.Session),
             IsLucky5Active: resolution.Session.IsNoLoseActive);
+        break;
 
     case Lucky5DoubleUpOutcome.SafeFail:
         await FinalizeDoubleUpAsync(round, sessionBank, resolution.CashoutCredits);
-        return new DoubleUpResultDto(
+        guessResult = new DoubleUpResultDto(
             roundId,
             "SafeFail",
             resolution.CashoutCredits,
@@ -570,10 +587,11 @@ switch (resolution.Outcome)
             Noise: noise,
             CardTrail: BuildCardTrail(resolution.Session),
             IsLucky5Active: false);
+        break;
 
     case Lucky5DoubleUpOutcome.MachineClosed:
         await FinalizeDoubleUpAsync(round, sessionBank, resolution.CashoutCredits);
-        return new DoubleUpResultDto(
+        guessResult = new DoubleUpResultDto(
             roundId,
             "MachineClosed",
             resolution.CashoutCredits,
@@ -584,12 +602,13 @@ switch (resolution.Outcome)
             Noise: noise,
             CardTrail: BuildCardTrail(resolution.Session),
             IsLucky5Active: false);
+        break;
 
     default:
         await FinalizeDoubleUpAsync(round, sessionBank, 0);
         round.WinAmount = 0;
         await store.SaveRoundAsync(round);
-        return new DoubleUpResultDto(
+        guessResult = new DoubleUpResultDto(
             roundId,
             "Lose",
             0,
@@ -600,7 +619,10 @@ switch (resolution.Outcome)
             Noise: noise,
             CardTrail: BuildCardTrail(resolution.Session),
             IsLucky5Active: false);
+        break;
 }
+InvalidateCaches(userId, round.MachineId);
+return guessResult;
     }
 
     public async Task<DoubleUpResultDto> CashoutDoubleUpAsync(Guid userId, Guid roundId, CancellationToken cancellationToken)
@@ -652,6 +674,7 @@ switch (resolution.Outcome)
             await store.SaveRoundAsync(round);
         }
         var status = session.IsMachineClosed ? "MachineClosed" : "Cashout";
+        InvalidateCaches(userId, round.MachineId);
         return new DoubleUpResultDto(roundId, status, cashoutAmount, session.MachineCredits);
     }
 
@@ -715,6 +738,7 @@ switch (resolution.Outcome)
         var switchesRemaining = round.DoubleUpSession is null
             ? 0
             : round.DoubleUpSession.Options.MaxSwitchesPerRound - round.DoubleUpSession.SwitchCountInRound;
+        InvalidateCaches(userId, round.MachineId);
         return new DoubleUpResultDto(roundId, "TookHalf", remaining, session.MachineCredits,
             DealerCard: round.DoubleUpSession != null ? ToCleanRoomDto(round.DoubleUpSession.DealerCard) : null,
             SwitchesRemaining: switchesRemaining,
@@ -735,6 +759,10 @@ switch (resolution.Outcome)
 
     public async Task<ActiveRoundStateDto?> GetActiveRoundAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
+        var cached = await stateCache.GetActiveRoundAsync(userId, machineId);
+        if (cached is not null)
+            return cached;
+
         var round = await store.GetLatestRoundAsync(userId, machineId);
 
         if (round is null || !IsRoundRecoverable(round))
@@ -794,6 +822,7 @@ switch (resolution.Outcome)
             TakeHalfUsed: round.TakeHalfUsed,
             DoubleUpSession: duDto);
 
+        stateCache.SetActiveRound(userId, machineId, dto);
         return dto;
     }
 
@@ -951,6 +980,12 @@ switch (resolution.Outcome)
         var rank = CleanRoomCard.GetLegacyRank(c.Rank);
         var suit = c.Suit.ToString();
         return new PokerCardDto(rank, suit, $"{rank}{suit}");
+    }
+
+    private void InvalidateCaches(Guid userId, int machineId)
+    {
+        stateCache.InvalidateActiveRound(userId, machineId);
+        stateCache.InvalidateMachineSession(userId, machineId);
     }
 
     private static string MapHandCategory(HandEvaluation eval) => eval.Category switch

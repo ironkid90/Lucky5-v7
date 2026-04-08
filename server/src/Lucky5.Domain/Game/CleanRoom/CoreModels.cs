@@ -267,70 +267,79 @@ public sealed record PresentationNoisePlan(
 
 /// <summary>
 /// Externalized engine configuration for RTP rebalancing.
-/// All tuning parameters in one place — see docs/REBALANCING_PLAN_85_RTP.md.
-/// Rebalanced 2026-03-14 to achieve 85% RTP with preserved tension, fun, and adrenaline.
+/// All tuning parameters in one place — see plans/Upgrade 3/LUCKY5_80_RTP_TECHNICAL_IMPLEMENTATION_UPDATE.md.
+/// Rebalanced 2026-04-08 to achieve 80% RTP with tighter payout orbit and slower correction.
 /// </summary>
 public sealed record EngineConfig(
     // === Payout Scale ===
-    decimal TargetRtp = 0.85m,
-    decimal TargetDoubleUpRtp = 0.090m,
+    decimal TargetRtp = 0.80m,
+    decimal TargetDoubleUpRtp = 0.0950m,
     decimal MinimumObservedBaseRtp = 0.3800m,
-    decimal DefaultPayoutScale = 2.00m,
-    decimal MinPayoutScale = 1.25m,
-    decimal MaxPayoutScale = 2.35m,
+    decimal DefaultPayoutScale = 1.75m,
+    decimal MinPayoutScale = 1.18m,
+    decimal MaxPayoutScale = 2.05m,
     int WarmupRounds = 60,
-    int ConvergenceHorizon = 250,
-    decimal CorrectionGain = 1.15m,
-    decimal MaxCorrection = 0.30m,
-    decimal DeadZone = 0.0100m,
-    int RtpSmoothingWindow = 240,
+    int ConvergenceHorizon = 320,
+    decimal CorrectionGain = 1.00m,
+    decimal MaxCorrection = 0.28m,
+    decimal DeadZone = 0.0125m,
+    int RtpSmoothingWindow = 280,
     int RtpMinSamplesForControl = 30,
     decimal MaxDriftClamp = 0.150m,
-    decimal JitterAmplitude = 0.025m,
+    decimal JitterAmplitude = 0.020m,
     decimal SmallTierFactor = 1.00m,
     decimal MediumTierFactor = 1.04m,
     decimal BigTierFactor = 1.08m,
-    decimal WarmupOpeningSmallScale = 1.80m,
-    decimal WarmupOpeningMediumScale = 1.85m,
-    decimal WarmupOpeningBigScale = 1.90m,
+    decimal WarmupOpeningSmallScale = 1.65m,
+    decimal WarmupOpeningMediumScale = 1.70m,
+    decimal WarmupOpeningBigScale = 1.75m,
+
+    // === Envelope & Orbit Clamp ===
+    decimal EnvelopeScaleClamp = 0.18m,
+    decimal RollingMeanScaleAlpha = 0.05m,
+    decimal HouseEdgeBufferCap = 0.06m,
+    decimal JackpotRtpSoftCap = 0.030m,
+    decimal JackpotLeakDamp = 0.40m,
+    decimal DoubleUpRtpHardCap = 0.110m,
+    decimal PityBoostCap = 0.14m,
 
     // === Double-Up Offer Curve ===
-    decimal DoubleUpOfferFloor = 0.15m,               // ↑ from 0.08m - double-up always available
-    decimal DoubleUpOfferOverTargetBand = 0.20m,      // ↑ from 0.15m - more generous when slightly hot
-    decimal DoubleUpOfferTargetBand = 0.30m,          // ↑ from 0.28m - better engagement at equilibrium
-    decimal DoubleUpOfferRecoveryBand = 0.50m,        // ↑ from 0.45m - stronger cold recovery
-    decimal DoubleUpOfferMax = 0.65m,                 // ↑ from 0.60m - max recovery boost
+    decimal DoubleUpOfferFloor = 0.15m,
+    decimal DoubleUpOfferOverTargetBand = 0.20m,
+    decimal DoubleUpOfferTargetBand = 0.30m,
+    decimal DoubleUpOfferRecoveryBand = 0.50m,
+    decimal DoubleUpOfferMax = 0.65m,
     decimal DoubleUpHighDriftThreshold = 0.050m,
     decimal DoubleUpTargetUpperThreshold = 0.020m,
     decimal DoubleUpTargetLowerThreshold = -0.010m,
     decimal DoubleUpRecoveryThreshold = -0.040m,
 
     // === Deck Alteration Bounds ===
-    int MaxColdRemovals = 1,                          // ↓ from 2 - less aggressive deck nerfing
+    int MaxColdRemovals = 1,
     int MaxHotAdditions = 2,
     bool NeverRemoveFiveOfSpades = true,
-    int MinDeckSize = 51,                             // ↑ from 50 - maintain more standard deck feel
+    int MinDeckSize = 51,
 
     // === Streaks & Pity ===
-    int StreakSoftThreshold = 4,                      // ↓ from 5 - activate pity sooner
-    int StreakHardThreshold = 8,                      // ↓ from 10 - stronger intervention earlier
-    int CrisisThreshold = 12,                         // ↓ from 15 - emergency boost kicks in faster
-    decimal CrisisScaleBoost = 0.07m,                 // ↑ from 0.05m - stronger crisis recovery
-    int MediumWinDroughtThreshold = 15,               // ↓ from 20 - address dry spells sooner
-    int CooldownLength = 2,                           // ↓ from 3 - shorter neutral period after big wins
+    int StreakSoftThreshold = 4,
+    int StreakHardThreshold = 8,
+    int CrisisThreshold = 12,
+    decimal CrisisScaleBoost = 0.07m,
+    int MediumWinDroughtThreshold = 15,
+    int CooldownLength = 2,
 
     // === Soft Caps ===
-    decimal SoftCapWarning = 28_000_000m,             // ↑ from 24M - more headroom before warnings
-    decimal SoftCapHard = 35_000_000m,                // ↑ from 32M - allow bigger runs
+    decimal SoftCapWarning = 28_000_000m,
+    decimal SoftCapHard = 35_000_000m,
     decimal CloseThreshold = 40_000_000m,
 
     // === Jackpots (Replace Mode) ===
     decimal JackpotFourOfAKindCap = 1_000_000m,
     decimal JackpotFullHouseCap = 650_000m,
     decimal JackpotStraightFlushCap = 7_500_000m,
-    int JackpotFourOfAKindContribution = 100,         // Reduced for 80% total RTP
-    int JackpotFullHouseContribution = 80,
-    int JackpotStraightFlushContribution = 180,
+    int JackpotFourOfAKindContribution = 85,
+    int JackpotFullHouseContribution = 68,
+    int JackpotStraightFlushContribution = 152,
     decimal JackpotFourOfAKindStart = 140_000m,
     decimal JackpotFullHouseStart = 90_000m,
     decimal JackpotStraightFlushStart = 850_000m
@@ -339,6 +348,7 @@ public sealed record EngineConfig(
     public static EngineConfig Default { get; } = new();
 
     // Computed properties for convenience
+    public decimal TargetJackpotRtp => 0.0275m;
     public decimal TargetScaledBaseRtp => TargetRtp - TargetJackpotRtp - TargetDoubleUpRtp;
-    public decimal TargetJackpotRtp => 0.035m;  // 3.5% from jackpots
+    public decimal BoundedHouseEdgeBuffer => Math.Min(1m - TargetRtp, HouseEdgeBufferCap);
 }

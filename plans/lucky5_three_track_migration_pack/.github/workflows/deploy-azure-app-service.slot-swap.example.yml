@@ -1,0 +1,76 @@
+name: deploy-azure-app-service
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  BUILD_CONFIGURATION: Release
+  AZURE_WEBAPP_NAME: lucky5-ik90-prod-20260401
+  AZURE_RESOURCE_GROUP: lucky5-rg
+  AZURE_SLOT_NAME: staging
+  PROJECT_PATH: server/src/Lucky5.Api/Lucky5.Api.csproj
+  TEST_PROJECT_PATH: server/tests/Lucky5.Tests/Lucky5.Tests.csproj
+
+jobs:
+  build-test-simulate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore server/Lucky5.sln
+
+      - name: Build
+        run: dotnet build server/Lucky5.sln -c $BUILD_CONFIGURATION --no-restore -v minimal
+
+      - name: Regression tests
+        run: dotnet run --project $TEST_PROJECT_PATH -c $BUILD_CONFIGURATION
+
+      - name: Simulation gate
+        run: >
+          dotnet run --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -c $BUILD_CONFIGURATION --
+          --rounds 10000
+          --min-rtp 0.78
+          --max-rtp 0.82
+
+      - name: Publish
+        run: dotnet publish $PROJECT_PATH -c $BUILD_CONFIGURATION -o ./publish
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to staging slot
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: ${{ env.AZURE_SLOT_NAME }}
+          package: ./publish
+
+      - name: Warm slot and check readiness
+        run: |
+          curl --fail --retry 12 --retry-delay 5 "https://${{ env.AZURE_WEBAPP_NAME }}-${{ env.AZURE_SLOT_NAME }}.azurewebsites.net/health/ready"
+
+      - name: Swap staging into production
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az webapp deployment slot swap \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --name "$AZURE_WEBAPP_NAME" \
+              --slot "$AZURE_SLOT_NAME" \
+              --target-slot production

@@ -1,5 +1,6 @@
 using Lucky5.Application.Interfaces;
 using Lucky5.Domain.Entities;
+using Lucky5.Domain.Game.CleanRoom;
 
 namespace Lucky5.Infrastructure.Persistence;
 
@@ -71,8 +72,9 @@ public sealed class InMemoryPersistentStateCoordinator : IPersistentStateCoordin
             if (normalizedSession.MachineCredits <= 0m)
             {
                 normalizedSession.TotalCashIn = 0m;
-                normalizedSession.IsMachineClosed = false;
             }
+
+            normalizedSession.IsMachineClosed = normalizedSession.MachineCredits >= EngineConfig.Default.CloseThreshold;
 
             await dataStore.UpdateMachineSessionAsync(normalizedSession);
         }

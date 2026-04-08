@@ -179,6 +179,24 @@ function $$(sel) { return document.querySelectorAll(sel); }
 // ── 3. API LAYER ─────────────────────────────────────────────────────────
 // All backend calls go through apiCall().  Endpoint strings come from
 // GAME_CONFIG.api so swapping the backend only requires editing game-config.js.
+function normalizeApiPayload(value) {
+    if (Array.isArray(value)) {
+        return value.map(normalizeApiPayload);
+    }
+
+    if (!value || typeof value !== 'object') {
+        return value;
+    }
+
+    const normalized = {};
+    for (const [key, val] of Object.entries(value)) {
+        const normalizedKey = key.length > 0
+            ? key.charAt(0).toLowerCase() + key.slice(1)
+            : key;
+        normalized[normalizedKey] = normalizeApiPayload(val);
+    }
+    return normalized;
+}
 async function apiCall(method, path, body) {
     const opts = {
         method,
@@ -199,7 +217,7 @@ async function apiCall(method, path, body) {
     const statusText = json?.status ?? json?.Status;
     const errors = json?.errors ?? json?.Errors;
     const message = json?.message ?? json?.Message;
-    const payload = json?.data ?? json?.Data ?? json ?? null;
+    const payload = normalizeApiPayload(json?.data ?? json?.Data ?? json ?? null);
 
     if (!res.ok || String(statusText || '').toLowerCase() === 'error') {
         throw new Error(message || errors?.[0] || 'Request failed');

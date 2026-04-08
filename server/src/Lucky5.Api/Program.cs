@@ -1,3 +1,8 @@
+using System.Net;
+using System.Security.Claims;
+using System.Text.Json;
+using Lucky5.Application.Contracts;
+using Lucky5.Application.Dtos;
 using Lucky5.Infrastructure.Services;
 using Lucky5.Realtime;
 using Lucky5.Realtime.Services;
@@ -66,8 +71,65 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 
-app.UseMiddleware<ApiExceptionMiddleware>();
-app.UseMiddleware<BearerTokenMiddleware>();
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        var (status, message) = ex switch
+        {
+            UnauthorizedAccessException => (HttpStatusCode.Unauthorized, ex.Message),
+            KeyNotFoundException => (HttpStatusCode.NotFound, ex.Message),
+            InvalidOperationException => (HttpStatusCode.BadRequest, ex.Message),
+            _ => (HttpStatusCode.InternalServerError, "Unexpected server error")
+        };
+
+        context.Response.StatusCode = (int)status;
+        context.Response.ContentType = "application/json";
+
+        var payload = ApiResponse<object>.Fail(
+            message,
+            errors: status == HttpStatusCode.InternalServerError ? [] : [ex.Message],
+            traceId: context.TraceIdentifier);
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+    }
+});
+
+app.Use(async (context, next) =>
+{
+    var authHeader = context.Request.Headers.Authorization.ToString();
+    var accessToken = string.Empty;
+    if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+    {
+        accessToken = authHeader[7..].Trim();
+    }
+    else if (context.Request.Query.TryGetValue("access_token", out var queryToken))
+    {
+        accessToken = queryToken.ToString();
+    }
+
+    if (!string.IsNullOrWhiteSpace(accessToken))
+    {
+        var tokenService = context.RequestServices.GetRequiredService<ITokenService>();
+        if (tokenService.TryValidate(accessToken, out var userId, out var role))
+        {
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(ClaimTypes.Role, role)
+            };
+            context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Lucky5Bearer"));
+            context.Items["access_token"] = accessToken;
+        }
+    }
+
+    await next();
+});
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();

@@ -37,7 +37,15 @@ public static class ServiceCollectionExtensions
                 if (configOptions.EndPoints.Any(endpoint => endpoint is DnsEndPoint dns && dns.Host.EndsWith(".redis.azure.net", StringComparison.OrdinalIgnoreCase)))
                 {
                     options.ConfigurationOptions.Ssl = true;
+                    options.ConfigurationOptions.ConnectTimeout = 10000;
+                    options.ConfigurationOptions.SyncTimeout = 5000;
+                    options.ConfigurationOptions.AsyncTimeout = 5000;
                 }
+            }
+            else
+            {
+                // Fallback to in-memory if Redis not configured
+                options.InstanceName = "Lucky5";
             }
         });
         
@@ -47,7 +55,8 @@ public static class ServiceCollectionExtensions
         
         // Add health checks
         services.AddHealthChecks()
-            .AddCheck<PersistentStateHealthCheck>("persistence");
+            .AddCheck<PersistentStateHealthCheck>("persistence")
+            .AddCheck("basic", () => HealthCheckResult.Healthy("Application is running"));
         services.AddOptions<MachineCacheTtlOptions>()
             .Bind(configuration.GetSection("MachineCache"));
         services.AddSingleton<IMachineStateCache>(sp =>

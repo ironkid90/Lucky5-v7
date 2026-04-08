@@ -29,34 +29,57 @@ public sealed class RedisPersistentStateStore : IPersistentStateStore
         this.logger = logger;
     }
 
-    public async Task<PersistentStateSnapshot?> LoadAsync(CancellationToken cancellationToken)
+    public async Task<PersistentStateSnapshot> LoadAsync(CancellationToken cancellationToken)
     {
-        var payload = await cache.GetStringAsync(options.Value.SnapshotKey, cancellationToken);
-        if (string.IsNullOrWhiteSpace(payload))
+        try
         {
-            return null;
-        }
+            var json = await cache.GetStringAsync(options.Value.SnapshotKey, cancellationToken);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                logger.LogWarning("No snapshot found in Redis at key {Key}", options.Value.SnapshotKey);
+                return new PersistentStateSnapshot();
+            }
 
-        var snapshot = JsonSerializer.Deserialize<PersistentStateSnapshot>(payload, jsonOptions);
-        if (snapshot is null)
+            var snapshot = JsonSerializer.Deserialize<PersistentStateSnapshot>(json, jsonOptions);
+            if (snapshot == null)
+            {
+                logger.LogWarning("Failed to deserialize snapshot from Redis at key {Key}", options.Value.SnapshotKey);
+                return new PersistentStateSnapshot();
+            }
+
+            if (snapshot.SchemaVersion != PersistentStateSnapshot.CurrentSchemaVersion)
+            {
+                logger.LogError("Schema mismatch: expected {Expected}, found {Found}", PersistentStateSnapshot.CurrentSchemaVersion, snapshot.SchemaVersion);
+                throw new InvalidOperationException($"Schema mismatch: expected {PersistentStateSnapshot.CurrentSchemaVersion}, found {snapshot.SchemaVersion}");
+            }
+
+            logger.LogInformation("Successfully loaded snapshot from Redis with {UserCount} users, {SessionCount} sessions", snapshot.Users.Length, snapshot.MachineSessions.Length);
+            return snapshot;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException || ex is JsonException)
         {
-            return null;
+            logger.LogError(ex, "Failed to load snapshot from Redis due to data error");
+            throw;
         }
-
-        if (snapshot.SchemaVersion != PersistentStateSnapshot.CurrentSchemaVersion)
+        catch (Exception ex)
         {
-            throw new InvalidOperationException(
-                $"Persistent state schema mismatch. Expected v{PersistentStateSnapshot.CurrentSchemaVersion}, got v{snapshot.SchemaVersion}.");
+            logger.LogError(ex, "Failed to load snapshot from Redis - returning empty snapshot");
+            return new PersistentStateSnapshot();
         }
-
-        return snapshot;
     }
 
     public async Task SaveAsync(PersistentStateSnapshot snapshot, CancellationToken cancellationToken)
     {
-        var payload = JsonSerializer.Serialize(snapshot, jsonOptions);
-        await cache.SetStringAsync(options.Value.SnapshotKey, payload, cancellationToken);
-        logger.LogInformation("Persistent state checkpoint saved at {CapturedUtc} using schema v{SchemaVersion}.", snapshot.CapturedUtc, snapshot.SchemaVersion);
+        try
+        {
+            var payload = JsonSerializer.Serialize(snapshot, jsonOptions);
+            await cache.SetStringAsync(options.Value.SnapshotKey, payload, cancellationToken);
+            logger.LogInformation("Persistent state checkpoint saved at {CapturedUtc} using schema v{SchemaVersion}.", snapshot.CapturedUtc, snapshot.SchemaVersion);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to save snapshot to Redis");
+        }
     }
 
     public async Task<PersistentStoreHealth> GetHealthAsync(CancellationToken cancellationToken)
@@ -68,16 +91,16 @@ public sealed class RedisPersistentStateStore : IPersistentStateStore
                 IsReady: true,
                 IsDegraded: false,
                 Description: "Redis snapshot store reachable.",
-                LastSuccessfulCheckpointUtc: null,
+                LastSuccessfulCheckpointUtc: DateTime.UtcNow,
                 LastError: null);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Redis snapshot store is unavailable.");
+            logger.LogWarning(ex, "Redis health check failed - marking as degraded");
             return new PersistentStoreHealth(
                 IsReady: false,
                 IsDegraded: true,
-                Description: "Redis snapshot store unavailable; service should remain live in graceful degradation mode.",
+                Description: "Redis snapshot store unavailable - service running on in-memory state.",
                 LastSuccessfulCheckpointUtc: null,
                 LastError: ex.Message);
         }

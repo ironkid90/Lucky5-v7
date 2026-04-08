@@ -66,7 +66,7 @@ app.MapControllers();
 app.MapHub<CarrePokerGameHub>("/CarrePokerGameHub");
 app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
-    Predicate = check => check.Name == "persistence"
+    Predicate = check => check.Name != "persistence" // Exclude persistence from live check
 });
 
 app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions

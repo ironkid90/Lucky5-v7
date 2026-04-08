@@ -81,7 +81,7 @@ try
     Console.WriteLine("=== MIDDLEWARE CONFIGURED ===");
 
     // Add health check endpoints
-    app.MapHealthChecks("/health/fallback", new HealthCheckOptions
+    app.MapHealthChecks("/health/fallback", new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckOptions
     {
         Predicate = _ => false // No health checks - always returns 200
     });

@@ -130,14 +130,14 @@ public sealed class RedisPersistenceMigrationTests
         cts.CancelAfter(TimeSpan.FromMilliseconds(100)); // Short delay for test
 
         await Assert.ThrowsAsync<OperationCanceledException>(
-            () => service.ExecuteAsync(cts.Token));
+            () => service.StartAsync(cts.Token));
 
         // Assert
-        mockCoordinator.Verify(x => x.CaptureAsync(It.IsAny<CancellationToken>()), AtLeastOnce());
+        mockCoordinator.Verify(x => x.CaptureAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce());
         mockCache.Verify(x => x.SetStringAsync(
             options.Value.SnapshotKey,
             It.IsAny<string>(),
-            It.IsAny<CancellationToken>()), AtLeastOnce());
+            It.IsAny<CancellationToken>()), Times.AtLeastOnce());
     }
 
     [Fact]
@@ -195,11 +195,11 @@ public sealed class RedisPersistenceMigrationTests
         {
             Users = new[]
             {
-                new User { UserId = Guid.NewGuid(), Username = "testuser", CreatedUtc = DateTime.UtcNow }
+                new User { Id = Guid.NewGuid(), Username = "testuser", CreatedAt = DateTime.UtcNow }
             },
             Profiles = new[]
             {
-                new MemberProfile { UserId = Guid.NewGuid(), WalletBalance = 1000000m, CreatedUtc = DateTime.UtcNow }
+                new MemberProfile { UserId = Guid.NewGuid(), WalletBalance = 1000000m, CreatedAt = DateTime.UtcNow }
             },
             MachineSessions = new[]
             {

@@ -1,4 +1,3 @@
-using Lucky5.Api.Middleware;
 using Lucky5.Infrastructure.Services;
 using Lucky5.Realtime;
 using Lucky5.Realtime.Services;
@@ -67,7 +66,6 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 
-app.UseMiddleware<CanonicalPathMiddleware>();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseCors();

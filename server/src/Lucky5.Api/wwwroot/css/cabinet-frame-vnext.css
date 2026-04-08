@@ -1,0 +1,165 @@
+:root {
+    --cabinet-width: 720px;
+    --cabinet-height: 1280px;
+    --cabinet-scale: 1;
+    --zone-header-top: 8px;
+    --zone-paytable-left: 8px;
+    --zone-paytable-width: 350px;
+    --zone-paytable-height: 250px;
+    --zone-counters-left: 505px;
+    --zone-counters-width: 190px;
+    --zone-cards-top: 238px;
+    --zone-cards-left: 8px;
+    --zone-cards-width: 705px;
+    --zone-cards-height: 270px;
+    --zone-machine-top: 505px;
+    --zone-machine-left: 8px;
+    --zone-machine-width: 705px;
+    --zone-controls-top: 640px;
+    --zone-controls-height: 640px;
+}
+
+html,
+body {
+    min-height: 100%;
+    background: #000;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#game-container {
+    width: var(--cabinet-width);
+    height: var(--cabinet-height);
+    position: relative;
+    overflow: hidden;
+    transform: scale(var(--cabinet-scale));
+    transform-origin: center center;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+#game-screen.active,
+#lobby-screen.active,
+#wallet-screen.active,
+#admin-screen.active,
+#auth-screen {
+    width: var(--cabinet-width);
+    height: var(--cabinet-height);
+}
+
+#game-screen {
+    position: relative;
+    inset: 0;
+    background: #000;
+}
+
+#paytable {
+    position: absolute;
+    left: var(--zone-paytable-left);
+    top: var(--zone-header-top);
+    width: var(--zone-paytable-width);
+    height: var(--zone-paytable-height);
+}
+
+#credit-stake-bar {
+    position: absolute;
+    left: var(--zone-counters-left);
+    top: var(--zone-header-top);
+    width: var(--zone-counters-width);
+    min-height: 160px;
+}
+
+#card-area {
+    position: absolute;
+    left: var(--zone-cards-left);
+    top: var(--zone-cards-top);
+    width: var(--zone-cards-width);
+    height: var(--zone-cards-height);
+}
+
+#machine-info-block,
+#du-info-panel,
+#info-bar,
+#bonus-bar,
+#win-amount-display,
+#lucky5-banner,
+#lucky5-flash {
+    position: absolute;
+}
+
+#machine-info-block {
+    left: var(--zone-machine-left);
+    top: var(--zone-machine-top);
+    width: var(--zone-machine-width);
+}
+
+#controls {
+    position: absolute;
+    left: 0;
+    top: var(--zone-controls-top);
+    width: var(--cabinet-width);
+    height: var(--zone-controls-height);
+}
+
+#hold-row,
+#action-row,
+#bottom-row {
+    position: absolute;
+    left: 0;
+    width: 100%;
+}
+
+#hold-row {
+    top: 86px;
+}
+
+#action-row {
+    top: 252px;
+}
+
+#bottom-row {
+    top: 460px;
+}
+
+#controls .cab-btn,
+#controls .cab-hold {
+    will-change: transform, filter, opacity;
+    transition: transform 80ms linear, filter 80ms linear, opacity 80ms linear;
+}
+
+#controls .cab-btn:active,
+#controls .cab-hold:active,
+#controls .cab-btn.is-pressed,
+#controls .cab-hold.is-pressed {
+    transform: translateY(4px) scale(0.985);
+    filter: brightness(0.92);
+}
+
+#controls .cab-btn:disabled,
+#controls .cab-hold:disabled {
+    opacity: 0.82;
+    filter: saturate(0.65) brightness(0.88);
+}
+
+.crt-overlay {
+    pointer-events: none;
+    background:
+        linear-gradient(rgba(255,255,255,0.035), rgba(255,255,255,0.01)),
+        repeating-linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.025) 0,
+            rgba(255,255,255,0.025) 1px,
+            rgba(0,0,0,0.02) 2px,
+            rgba(0,0,0,0.02) 4px
+        );
+}
+
+.menu-panel {
+    z-index: 10000;
+}

@@ -25,6 +25,22 @@ const GAME_CONFIG = Object.freeze({
         handSize:    5,       // cards in a hand (change to 3 for 3-card variants)
     }),
 
+    // ── 1b. CABINET MODEL ──────────────────────────────────────────────────
+    cabinet: Object.freeze({
+        fps: 60,
+        layout: Object.freeze({
+            width: 720,
+            height: 1280,
+            zones: Object.freeze({
+                paytable: Object.freeze({ left: 8, top: 8, width: 350, height: 250 }),
+                counters: Object.freeze({ left: 505, top: 8, width: 190, height: 185 }),
+                cards: Object.freeze({ left: 8, top: 238, width: 705, height: 270 }),
+                machine: Object.freeze({ left: 8, top: 505, width: 705, height: 120 }),
+                controls: Object.freeze({ left: 0, top: 640, width: 720, height: 640 })
+            })
+        })
+    }),
+
     // ── 2. TIMING ────────────────────────────────────────────────────────────
     // All durations are in milliseconds.
     // Adjust these to change the overall rhythm of the game without touching
@@ -160,6 +176,19 @@ const GAME_CONFIG = Object.freeze({
         cardBack:   '/assets/images/cards/bside.png',
         boardImage: '/assets/images/board.png',
         pressSound: '/assets/sounds/press.mp3',
+    }),
+
+    // ── 6b. AUDIO ──────────────────────────────────────────────────────────
+    audio: Object.freeze({
+        events: Object.freeze({
+            press:        Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.30, priority: 'normal' }),
+            invalid:      Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.18, priority: 'high' }),
+            deal:         Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.24, priority: 'normal' }),
+            draw:         Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.24, priority: 'normal' }),
+            collect:      Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.20, priority: 'low' }),
+            lucky5:       Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.40, priority: 'high' }),
+            machineClose: Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.40, priority: 'high' })
+        })
     }),
 
     // ── 7. PAYTABLE DISPLAY MAP ──────────────────────────────────────────────

@@ -7,13 +7,17 @@ public static class FrontendRegressionTests
     public static async Task RunAsync(List<string> failures)
     {
         string gameJs;
+        string gameConfigJs;
         string indexHtml;
         string gameCss;
+        string orchestratorJs;
         try
         {
             gameJs = await File.ReadAllTextAsync(ResolveGameJsPath());
+            gameConfigJs = await File.ReadAllTextAsync(ResolveWwwrootFilePath("js", "game-config.js"));
             indexHtml = await File.ReadAllTextAsync(ResolveIndexHtmlPath());
             gameCss = await File.ReadAllTextAsync(ResolveGameCssPath());
+            orchestratorJs = await File.ReadAllTextAsync(ResolveWwwrootFilePath("js", "cabinet-orchestrator-vnext.js"));
         }
         catch (Exception ex)
         {
@@ -262,6 +266,50 @@ public static class FrontendRegressionTests
                 && gameJs.Contains("navWallet.addEventListener('click', showWallet);", StringComparison.Ordinal)
                 && gameJs.Contains("navAdmin.addEventListener('click', showAdmin);", StringComparison.Ordinal)
                 && gameJs.Contains("gameBackBtn.addEventListener('click', async () =>", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "index.html should load the vnext cabinet adapter scripts",
+            indexHtml.Contains("/js/cabinet-state-vnext.js", StringComparison.Ordinal)
+                && indexHtml.Contains("/js/cabinet-audio-vnext.js", StringComparison.Ordinal)
+                && indexHtml.Contains("/js/cabinet-transition-vnext.js", StringComparison.Ordinal)
+                && indexHtml.Contains("/js/cabinet-orchestrator-vnext.js", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "index.html should load the cabinet frame stylesheet",
+            indexHtml.Contains("/css/cabinet-frame-vnext.css", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "index.html should only define one take-score button id",
+            Regex.Matches(indexHtml, "id=\"btn-take-score\"", RegexOptions.CultureInvariant).Count == 1);
+
+        Assert(
+            failures,
+            "game-config.js should define cabinet layout and audio event config for the vnext modules",
+            gameConfigJs.Contains("cabinet: Object.freeze(", StringComparison.Ordinal)
+                && gameConfigJs.Contains("audio: Object.freeze(", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-orchestrator-vnext.js should expose render_game_to_text and advanceTime debug hooks",
+            orchestratorJs.Contains("window.render_game_to_text = function renderGameToText()", StringComparison.Ordinal)
+                && orchestratorJs.Contains("window.advanceTime = function advanceTime(ms)", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-orchestrator-vnext.js should guard patching behind function existence checks",
+            orchestratorJs.Contains("if (typeof window[name] === 'function' || typeof globalThis[name] === 'function')", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-orchestrator-vnext.js should keep original functions available for debugging",
+            orchestratorJs.Contains("const originals = {};", StringComparison.Ordinal)
+                && Regex.IsMatch(
+                    orchestratorJs,
+                    @"return\s*\{\s*install,\s*originals\s*\}",
+                    RegexOptions.CultureInvariant));
     }
 
     private static string ResolveGameJsPath()

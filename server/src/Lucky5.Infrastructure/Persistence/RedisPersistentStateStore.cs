@@ -29,7 +29,7 @@ public sealed class RedisPersistentStateStore : IPersistentStateStore
         this.logger = logger;
     }
 
-    public async Task<PersistentStateSnapshot> LoadAsync(CancellationToken cancellationToken)
+    public async Task<PersistentStateSnapshot?> LoadAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -37,14 +37,14 @@ public sealed class RedisPersistentStateStore : IPersistentStateStore
             if (string.IsNullOrWhiteSpace(json))
             {
                 logger.LogWarning("No snapshot found in Redis at key {Key}", options.Value.SnapshotKey);
-                return new PersistentStateSnapshot();
+                return null;
             }
 
             var snapshot = JsonSerializer.Deserialize<PersistentStateSnapshot>(json, jsonOptions);
             if (snapshot == null)
             {
                 logger.LogWarning("Failed to deserialize snapshot from Redis at key {Key}", options.Value.SnapshotKey);
-                return new PersistentStateSnapshot();
+                return null;
             }
 
             if (snapshot.SchemaVersion != PersistentStateSnapshot.CurrentSchemaVersion)
@@ -53,7 +53,7 @@ public sealed class RedisPersistentStateStore : IPersistentStateStore
                 throw new InvalidOperationException($"Schema mismatch: expected {PersistentStateSnapshot.CurrentSchemaVersion}, found {snapshot.SchemaVersion}");
             }
 
-            logger.LogInformation("Successfully loaded snapshot from Redis with {UserCount} users, {SessionCount} sessions", snapshot.Users.Length, snapshot.MachineSessions.Length);
+            logger.LogInformation("Successfully loaded snapshot from Redis with {UserCount} users, {SessionCount} sessions", snapshot.Users.Count, snapshot.MachineSessions.Count);
             return snapshot;
         }
         catch (Exception ex) when (ex is InvalidOperationException || ex is JsonException)
@@ -63,8 +63,8 @@ public sealed class RedisPersistentStateStore : IPersistentStateStore
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to load snapshot from Redis - returning empty snapshot");
-            return new PersistentStateSnapshot();
+            logger.LogError(ex, "Failed to load snapshot from Redis - returning null");
+            return null;
         }
     }
 

@@ -17,12 +17,12 @@ public sealed class InMemoryPersistentStateCoordinator : IPersistentStateCoordin
         this.dataStore = dataStore;
     }
 
-    public async Task<PersistentStateSnapshot> CaptureAsync(CancellationToken cancellationToken)
+    public Task<PersistentStateSnapshot> CaptureAsync(CancellationToken cancellationToken)
     {
         // Capture all current state from the in-memory store
         // Note: Since IDataStore doesn't have bulk retrieval methods, we'll return empty collections
         // In a real implementation, you would need to add these methods to IDataStore
-        return new PersistentStateSnapshot
+        return Task.FromResult(new PersistentStateSnapshot
         {
             Users = Array.Empty<User>(),
             Profiles = Array.Empty<MemberProfile>(),
@@ -30,7 +30,7 @@ public sealed class InMemoryPersistentStateCoordinator : IPersistentStateCoordin
             MachineLedgers = Array.Empty<MachineLedgerState>(),
             ActiveRounds = Array.Empty<GameRound>(),
             WalletLedgerEntries = Array.Empty<WalletLedgerEntry>()
-        };
+        });
     }
 
     public async Task RestoreAsync(PersistentStateSnapshot snapshot, CancellationToken cancellationToken)

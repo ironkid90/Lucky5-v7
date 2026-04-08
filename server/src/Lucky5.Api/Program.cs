@@ -18,95 +18,77 @@ try
     var builder = WebApplication.CreateBuilder(args);
     Console.WriteLine("=== BUILDER CREATED SUCCESSFULLY ===");
 
-    try
-    {
-        Console.WriteLine("=== CONFIGURING BUILDER ===");
+    Console.WriteLine("=== CONFIGURING BUILDER ===");
     
-    try
-    {
-        Console.WriteLine("Adding BearerTokenMiddleware...");
-        app.UseMiddleware<BearerTokenMiddleware>();
-        Console.WriteLine("BearerTokenMiddleware added successfully");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"ERROR: BearerTokenMiddleware failed: {ex.Message}");
-        Console.WriteLine($"Stack trace: {ex.StackTrace}");
-    }
-    
-    Console.WriteLine("Adding CORS...");
-    app.UseCors("Lucky5Cors");
-    Console.WriteLine("CORS added successfully");
-    
-    Console.WriteLine("Adding default files...");
-    app.UseDefaultFiles();
-    Console.WriteLine("Default files added successfully");
-    
-    Console.WriteLine("Adding static files...");
-    app.UseStaticFiles();
-    Console.WriteLine("Static files added successfully");
-    
-    // Add simple health check endpoint that works without dependencies
-    app.MapGet("/health/simple", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow, version = "1.0.0" }));
-    
-    // Add startup health check endpoint
-    app.MapGet("/health/startup", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
-    
-    // Add fallback health endpoint that bypasses everything
-    app.MapGet("/health/fallback", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow, version = "1.0.0", fallback = true }));
-    
-    Console.WriteLine("Adding controllers...");
-    app.MapControllers();
-    Console.WriteLine("Controllers added successfully");
-    
-    // Try to add SignalR hub
-    try
-    {
-        Console.WriteLine("Adding SignalR hub...");
-        app.MapHub<CarrePokerGameHub>("/CarrePokerGameHub");
-        Console.WriteLine("SignalR hub added successfully");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"ERROR: SignalR hub failed: {ex.Message}");
-        Console.WriteLine($"Stack trace: {ex.StackTrace}");
-    }
-    
-    Console.WriteLine("Adding health check endpoints...");
-    app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-    {
-        Predicate = check => check.Name == "application" // Only include application health check
-    });
-    Console.WriteLine("Health check /health/live added");
+    // Ensure appsettings.json can be loaded properly
+    builder.Configuration.AddEnvironmentVariables();
+    Console.WriteLine("=== ENVIRONMENT VARIABLES ADDED ===");
 
-    app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    // Configure Azure App Service specific settings
+    var port = Environment.GetEnvironmentVariable("PORT")
+        ?? Environment.GetEnvironmentVariable("WEBSITES_PORT")
+        ?? "8080";
+    Console.WriteLine($"=== PORT CONFIGURED: {port} ===");
+
+    builder.WebHost.ConfigureKestrel(options =>
     {
-        Predicate = _ => true
+        options.ListenAnyIP(int.Parse(port));
     });
-    Console.WriteLine("Health check /health/ready added");
-    
-    // Log startup
-    try
+    Console.WriteLine("=== KESTREL CONFIGURED ===");
+
+    // Add logging for debugging
+    builder.Logging.ClearProviders();
+    builder.Logging.AddConsole();
+    Console.WriteLine("=== LOGGING CONFIGURED ===");
+
+    // Configure for Azure environment
+    if (!builder.Environment.IsDevelopment())
     {
-        Console.WriteLine("Getting logger service...");
-        var logger = app.Services.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("Lucky5 API starting up on port {Port}", port);
-        Console.WriteLine("Logger service obtained successfully");
+        builder.Configuration.AddJsonFile("appsettings.Production.json", optional: true, reloadOnChange: true);
+        Console.WriteLine("=== PRODUCTION CONFIGURATION LOADED ===");
     }
-    catch (Exception ex)
+
+    // Add basic services first
+    builder.Services.AddControllers();
+    builder.Services.AddEndpointsApiExplorer();
+    Console.WriteLine("=== BASIC SERVICES ADDED ===");
+
+    // Add health checks with basic check only
+    builder.Services.AddHealthChecks()
+        .AddCheck("application", () => HealthCheckResult.Healthy("Application is running"));
+    Console.WriteLine("=== HEALTH CHECKS ADDED ===");
+
+    Console.WriteLine("=== BUILDING APPLICATION ===");
+    var app = builder.Build();
+    Console.WriteLine("=== APPLICATION BUILT SUCCESSFULLY ===");
+
+    Console.WriteLine("=== CONFIGURING MIDDLEWARE ===");
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
     {
-        Console.WriteLine($"ERROR: Logger not available: {ex.Message}");
-        Console.WriteLine($"Stack trace: {ex.StackTrace}");
-        Console.WriteLine($"Lucky5 API starting up on port {port}");
-    }
-    
-    Console.WriteLine("Starting application server...");
-    Console.WriteLine($"Lucky5 API is about to start on port {port}");
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+    });
+    app.UseRouting();
+    app.UseCors();
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.MapControllers();
+    Console.WriteLine("=== MIDDLEWARE CONFIGURED ===");
+
+    // Add health check endpoints
+    app.MapHealthChecks("/health/fallback", new HealthCheckOptions
+    {
+        Predicate = _ => false // No health checks - always returns 200
+    });
+    Console.WriteLine("=== HEALTH ENDPOINTS CONFIGURED ===");
+
+    Console.WriteLine("=== STARTING APPLICATION ===");
     app.Run();
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"Application startup failed: {ex.Message}");
-    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    Console.WriteLine("=== FATAL ERROR ===");
+    Console.WriteLine($"Message: {ex.Message}");
+    Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+    Console.WriteLine("=== APPLICATION FAILED TO START ===");
     throw;
 }

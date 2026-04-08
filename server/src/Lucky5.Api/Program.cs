@@ -29,5 +29,8 @@ Console.WriteLine("=== TEST: ENDPOINT MAPPED ===");
 app.MapGet("/health", () => new { status = "healthy" });
 Console.WriteLine("=== TEST: HEALTH ENDPOINT MAPPED ===");
 
+app.MapGet("/health/fallback", () => new { status = "healthy", timestamp = DateTime.UtcNow });
+Console.WriteLine("=== TEST: FALLBACK HEALTH ENDPOINT MAPPED ===");
+
 Console.WriteLine("=== TEST: STARTING APP ===");
 app.Run();

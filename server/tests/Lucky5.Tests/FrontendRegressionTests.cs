@@ -310,6 +310,107 @@ public static class FrontendRegressionTests
                     orchestratorJs,
                     @"return\s*\{\s*install,\s*originals\s*\}",
                     RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "cabinet-orchestrator-vnext.js input guard must use click capture, not pointerdown, to block game.js onclick handlers",
+            orchestratorJs.Contains("document.addEventListener('click', function (event)", StringComparison.Ordinal)
+                && orchestratorJs.Contains("event.stopImmediatePropagation();", StringComparison.Ordinal)
+                && !orchestratorJs.Contains("document.addEventListener('pointerdown'", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-orchestrator-vnext.js hold button enablement must use data-index attribute, not NodeList position",
+            orchestratorJs.Contains("btn.dataset.index", StringComparison.Ordinal)
+                && !Regex.IsMatch(orchestratorJs, @"canHold\(\s*index\s*\)", RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "cabinet-orchestrator-vnext.js subscriber must pass pre-computed snapshot to avoid syncFromRuntime re-entrancy",
+            orchestratorJs.Contains("CabinetState.subscribe(function (snapshot)", StringComparison.Ordinal)
+                && orchestratorJs.Contains("_applyButtonStatesFromSelectors(snapshot);", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-orchestrator-vnext.js renderCards patch must not call legacy for animated deal (double-animation prevention)",
+            orchestratorJs.Contains("Do NOT call legacy here", StringComparison.Ordinal)
+                && orchestratorJs.Contains("Skip legacy DOM rebuild", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-orchestrator-vnext.js animateDrainToCredits must delegate to legacy, not dispatch COLLECT_WIN directly",
+            orchestratorJs.Contains("Delegate to legacy which calls CabinetPace.collectWin", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-orchestrator-vnext.js animateJackpotFill must guard active4kSlot with typeof check",
+            orchestratorJs.Contains("typeof active4kSlot !== 'undefined'", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-orchestrator-vnext.js renderDoubleUpCards must guard duCardTrail with typeof + Array.isArray check",
+            orchestratorJs.Contains("typeof duCardTrail !== 'undefined' && Array.isArray(duCardTrail)", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-orchestrator-vnext.js restoreRoundFromSnapshot must overlay DU trail fields from snapshot object",
+            orchestratorJs.Contains("snapshot.phase === 'DoubleUp' && snapshot.doubleUpSession", StringComparison.Ordinal)
+                && orchestratorJs.Contains("duCardTrail: trailSeed", StringComparison.Ordinal));
+
+        string transitionJs;
+        try
+        {
+            transitionJs = await File.ReadAllTextAsync(ResolveWwwrootFilePath("js", "cabinet-transition-vnext.js"));
+        }
+        catch (Exception ex)
+        {
+            failures.Add($"Could not read cabinet-transition-vnext.js: {ex.Message}");
+            return;
+        }
+
+        Assert(
+            failures,
+            "cabinet-transition-vnext.js must use a boolean lock variable, not a depth counter, to prevent negative planDepth",
+            transitionJs.Contains("let _locked = false;", StringComparison.Ordinal)
+                && transitionJs.Contains("_locked = next;", StringComparison.Ordinal)
+                && !transitionJs.Contains("planDepth + (locked ? 1 : -1)", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-transition-vnext.js RENDER_DEAL case must not call CabinetStage.dealCards (game.js does it directly)",
+            transitionJs.Contains("game.js calls CabinetStage.dealCards directly", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-transition-vnext.js RENDER_DRAW case must not call CabinetStage.drawCards (game.js does it directly)",
+            transitionJs.Contains("game.js calls CabinetStage.drawCards directly", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-transition-vnext.js RENDER_DOUBLEUP case must not call enterDoubleUp or updateDoubleUpTrail (game.js does it directly)",
+            transitionJs.Contains("game.js calls CabinetStage.enterDoubleUp", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-transition-vnext.js flush must hard-reset _locked without planDepth arithmetic",
+            transitionJs.Contains("_locked = false;", StringComparison.Ordinal)
+                && transitionJs.Contains("planDepth: 0", StringComparison.Ordinal));
+
+        string stateJs;
+        try
+        {
+            stateJs = await File.ReadAllTextAsync(ResolveWwwrootFilePath("js", "cabinet-state-vnext.js"));
+        }
+        catch (Exception ex)
+        {
+            failures.Add($"Could not read cabinet-state-vnext.js: {ex.Message}");
+            return;
+        }
+
+        Assert(
+            failures,
+            "cabinet-state-vnext.js _uniqueSortedInts must use !isNaN guard (parseInt returns NaN, not non-finite)",
+            stateJs.Contains("!isNaN(n) && Number.isFinite(n)", StringComparison.Ordinal));
     }
 
     private static string ResolveGameJsPath()

@@ -61,7 +61,13 @@ window.CabinetState = (function () {
     }
 
     function _uniqueSortedInts(values) {
-        return Array.from(new Set((values || []).map((v) => parseInt(v, 10)).filter(Number.isFinite))).sort((a, b) => a - b);
+        return Array.from(
+            new Set(
+                (values || [])
+                    .map((v) => parseInt(v, 10))
+                    .filter((n) => !isNaN(n) && Number.isFinite(n))
+            )
+        ).sort((a, b) => a - b);
     }
 
     function _cloneState() {
@@ -188,7 +194,9 @@ window.CabinetState = (function () {
             machineClosed,
             canBet: !locked && !machineClosed && (machine.gameState === 'idle' || machine.gameState === 'doubleup'),
             canDeal: !locked && !machineClosed && (machine.gameState === 'idle' || machine.gameState === 'hold'),
-            canHold: (index) => !locked && (machine.gameState === 'hold' || (index === 0 && machine.gameState === 'idle')),
+            // Only allow holds during 'hold' phase. The jackpot-rank-adjust via hold[0] during
+            // idle is handled entirely by game.js's own setButtonStates; vnext does not override it.
+            canHold: (index) => !locked && machine.gameState === 'hold',
             canGuess: !locked && (machine.gameState === 'doubleup' || (machine.gameState === 'win' && machine.roundDoubleUpAvailable && machine.winAmount > 0)),
             canSwitch: !locked && machine.gameState === 'doubleup' && machine.duSwitchesRemaining > 0,
             canTakeScore: !locked && (machine.gameState === 'win' || machine.gameState === 'doubleup'),

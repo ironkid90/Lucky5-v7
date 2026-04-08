@@ -13,13 +13,17 @@ window.CabinetTransition = (function () {
         return Math.max(0, Math.round(Number(frames || 0) * msPerFrame()));
     }
 
+    // Use a simple boolean lock rather than a depth counter.
+    // A depth counter goes negative when flush() is called mid-queue or when
+    // _setLocked(false) is called more times than _setLocked(true).
+    let _locked = false;
+
     function _setLocked(locked) {
         if (!window.CabinetState) return;
-        const snapshot = CabinetState.get();
-        CabinetState.updatePresentation({
-            locked: Boolean(locked),
-            planDepth: Math.max(0, snapshot.presentation.planDepth + (locked ? 1 : -1))
-        });
+        const next = Boolean(locked);
+        if (_locked === next) return; // no change — skip the updatePresentation noise
+        _locked = next;
+        CabinetState.updatePresentation({ locked: _locked, planDepth: _locked ? 1 : 0 });
     }
 
     function _next() {
@@ -30,7 +34,9 @@ window.CabinetTransition = (function () {
         }
 
         active = true;
-        _setLocked(true);
+        // Keep locked=true for the entire duration of the queue without toggling per-step.
+        if (!_locked) _setLocked(true);
+
         const step = queue.shift();
         const durationMs = framesToMs(step.frames || 0);
         CabinetState.updatePresentation({
@@ -71,7 +77,11 @@ window.CabinetTransition = (function () {
         }
         queue.length = 0;
         active = false;
-        _setLocked(false);
+        // Hard-reset without going through _setLocked to avoid planDepth arithmetic
+        _locked = false;
+        if (window.CabinetState) {
+            CabinetState.updatePresentation({ locked: false, planDepth: 0 });
+        }
     }
 
     function advanceTime(ms) {
@@ -93,6 +103,8 @@ window.CabinetTransition = (function () {
 
         switch (action.type) {
             case 'RENDER_DEAL':
+                // game.js calls CabinetStage.dealCards directly after renderCards(cards, true).
+                // This step provides lock window + audio; initCardSlots is safe to call (idempotent reset).
                 enqueue([
                     {
                         name: 'deal-cards',
@@ -103,14 +115,13 @@ window.CabinetTransition = (function () {
                             if (window.CabinetStage?.initCardSlots) {
                                 CabinetStage.initCardSlots();
                             }
-                            if (window.CabinetStage?.dealCards) {
-                                CabinetStage.dealCards(action.cards || []);
-                            }
                         }
                     }
                 ]);
                 break;
             case 'RENDER_DRAW':
+                // game.js calls CabinetStage.drawCards directly; this step provides only
+                // the lock window and the audio cue to avoid double-animation.
                 enqueue([
                     {
                         name: 'draw-cards',
@@ -118,26 +129,20 @@ window.CabinetTransition = (function () {
                         frames: Math.max(1, Number(action.frames || 18)),
                         run: function () {
                             if (window.CabinetAudio) CabinetAudio.queue('draw');
-                            if (window.CabinetStage?.drawCards) {
-                                CabinetStage.drawCards(action.cards || [], action.heldIndexes || []);
-                            }
                         }
                     }
                 ]);
                 break;
             case 'RENDER_DOUBLEUP':
+                // game.js calls CabinetStage.enterDoubleUp + updateDoubleUpTrail directly.
+                // Only shuffleChallenger is NOT called directly by game.js for the pending phase.
                 enqueue([
                     {
                         name: 'doubleup-stage',
                         actionType: action.type,
                         frames: Math.max(1, Number(action.frames || 10)),
                         run: function () {
-                            if (window.CabinetStage?.enterDoubleUp) {
-                                CabinetStage.enterDoubleUp(action.dealerCard || null);
-                            }
-                            if (window.CabinetStage?.updateDoubleUpTrail) {
-                                CabinetStage.updateDoubleUpTrail(action.trailCards || [], action.dealerCard || null, action.challengerCard || null, action.status || 'pending');
-                            }
+                            if (window.CabinetAudio) CabinetAudio.queue('doubleup');
                             if (action.status === 'pending' && window.CabinetStage?.shuffleChallenger) {
                                 CabinetStage.shuffleChallenger();
                             }

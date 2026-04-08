@@ -43,8 +43,11 @@ window.CabinetOrchestrator = (function () {
         };
     }
 
-    function _applyButtonStatesFromSelectors() {
-        const { rules } = _syncAndSelect();
+    function _applyButtonStatesFromSelectors(snapshot) {
+        // Accept a pre-computed snapshot to avoid re-entrancy from syncFromRuntime
+        // triggering another updateMachine -> _emit -> subscriber -> here cycle.
+        const state = snapshot || CabinetState.get();
+        const rules = CabinetState.selectors(state);
         const holdBtns = document.querySelectorAll('.cab-hold');
         const betBtn = document.getElementById('btn-bet');
         const dealBtn = document.getElementById('btn-deal');
@@ -56,13 +59,15 @@ window.CabinetOrchestrator = (function () {
 
         if (betBtn) betBtn.disabled = !rules.canBet;
         if (dealBtn) dealBtn.disabled = !rules.canDeal;
-        if (cancelBtn) cancelBtn.disabled = !(CabinetState.get().machine.gameState === 'hold') || CabinetState.get().presentation.locked;
+        if (cancelBtn) cancelBtn.disabled = !(state.machine.gameState === 'hold') || state.presentation.locked;
         if (bigBtn) bigBtn.disabled = !rules.canGuess;
         if (smallBtn) smallBtn.disabled = !rules.canGuess;
         if (takeScoreBtn) takeScoreBtn.disabled = !rules.canTakeScore;
         if (takeHalfBtn) takeHalfBtn.disabled = !rules.canTakeHalf;
-        holdBtns.forEach((btn, index) => {
-            btn.disabled = !rules.canHold(index);
+        // Use data-index attribute so DOM order doesn't have to match slot index
+        holdBtns.forEach((btn) => {
+            const idx = parseInt(btn.dataset.index, 10);
+            btn.disabled = !rules.canHold(Number.isFinite(idx) ? idx : 0);
         });
     }
 
@@ -110,12 +115,14 @@ window.CabinetOrchestrator = (function () {
     }
 
     function _installInputGuards() {
-        document.addEventListener('pointerdown', function (event) {
+        // Use click capture (not pointerdown) so game.js onclick handlers are blocked.
+        // pointerdown+stopPropagation does not cancel a subsequent click event.
+        document.addEventListener('click', function (event) {
             const btn = event.target.closest('.cab-btn, .menu-panel-btn, .menu-panel-close');
             if (!btn) return;
             if (CabinetState.get().presentation.locked && !btn.closest('#menu-panel')) {
                 event.preventDefault();
-                event.stopPropagation();
+                event.stopImmediatePropagation();
                 if (window.CabinetAudio) CabinetAudio.queue('invalid', { priority: 'high' });
             }
         }, true);
@@ -189,12 +196,15 @@ window.CabinetOrchestrator = (function () {
 
         _patch('renderCards', function (legacy) {
             return function patchedRenderCards(cardData, animate) {
+                const heldSnapshot = typeof holdIndexes !== 'undefined' ? Array.from(holdIndexes || []) : [];
                 CabinetState.updateMachine({
                     cards: Array.isArray(cardData) ? cardData : [],
-                    holdIndexes: typeof holdIndexes !== 'undefined' ? Array.from(holdIndexes || []) : []
+                    holdIndexes: heldSnapshot
                 });
 
                 if (animate) {
+                    // CabinetStage.dealCards is called directly by game.js after this function;
+                    // dispatch RENDER_DEAL for the transition lock/audio only — skip legacy DOM rebuild.
                     CabinetTransition.dispatch({
                         type: 'RENDER_DEAL',
                         cards: cardData,
@@ -202,36 +212,41 @@ window.CabinetOrchestrator = (function () {
                         staggerFrames: Math.max(1, Math.round((Number(window.GAME_CONFIG?.timing?.dealStaggerMs || 80) / 1000) * 60)),
                         settleFrames: Math.max(1, Math.round((Number(window.GAME_CONFIG?.timing?.dealAnimDurationMs || 220) / 1000) * 60))
                     });
+                    // Do NOT call legacy here — game.js's own DOM loop + CabinetStage.dealCards handles rendering.
                     return;
                 }
 
-                _renderImmediateCards(cardData, typeof holdIndexes !== 'undefined' ? Array.from(holdIndexes || []) : []);
-                if (typeof legacy === 'function') {
-                    // keep legacy DOM side-effects for click handlers / fallback classes
-                    try { legacy.call(this, cardData, false); } catch (_) {}
-                }
+                // Non-animated draw path: dispatch RENDER_DRAW transition for lock/audio,
+                // then let CabinetStage.drawCards (called by game.js) handle the flip animation.
+                CabinetTransition.dispatch({
+                    type: 'RENDER_DRAW',
+                    cards: cardData,
+                    heldIndexes: heldSnapshot,
+                    frames: Math.max(1, Math.round((Number(window.GAME_CONFIG?.timing?.dealBaseMs || 120) / 1000) * 60) + 6)
+                });
+                // Skip legacy DOM rebuild — CabinetStage.drawCards handles it.
             };
         });
 
         _patch('renderDoubleUpCards', function (legacy) {
             return function patchedRenderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
+                const trail = (typeof duCardTrail !== 'undefined' && Array.isArray(duCardTrail)) ? duCardTrail : [];
                 CabinetState.updateMachine({
                     duDealerCard: dealerCard || null,
-                    duCardTrail: typeof duCardTrail !== 'undefined' ? duCardTrail : []
+                    duCardTrail: trail
                 });
 
+                // CabinetStage.enterDoubleUp / updateDoubleUpTrail are called directly by game.js;
+                // dispatch only for transition lock and audio cue — do NOT call legacy DOM builder.
                 CabinetTransition.dispatch({
                     type: 'RENDER_DOUBLEUP',
                     dealerCard: dealerCard || null,
                     challengerCard: challengerCard || null,
-                    trailCards: Array.isArray(duCardTrail) ? duCardTrail.map((entry) => entry.card || entry) : [],
+                    trailCards: trail.map((entry) => (entry && entry.card) ? entry.card : entry),
                     status: challengerCard ? 'resolved' : 'pending',
                     frames: showShuffle ? 10 : 6
                 });
-
-                if (typeof legacy === 'function') {
-                    try { legacy.call(this, dealerCard, showShuffle, challengerCard); } catch (_) {}
-                }
+                // Skip legacy — CabinetStage handles the DU viewport.
             };
         });
 
@@ -247,15 +262,29 @@ window.CabinetOrchestrator = (function () {
 
         _patch('animateJackpotFill', function (legacy) {
             return function patchedAnimateJackpotFill(amount, startBalance, handName) {
+                // Guard active4kSlot — it is a game.js global that may not be set yet
+                const slot4k = (typeof active4kSlot !== 'undefined') ? active4kSlot : 0;
                 const counterSelector = handName === 'FullHouse'
                     ? '#jp-counter-fh .jp-cval'
                     : handName === 'StraightFlush'
                         ? '#jp-counter-center .jp-cval'
-                        : (typeof active4kSlot !== 'undefined' && active4kSlot === 1)
+                        : slot4k === 1
                             ? '#jp-counter-b .jp-cval'
                             : '#jp-counter-a .jp-cval';
                 const element = document.querySelector(counterSelector);
 
+                // Delegate entirely to legacy (which calls CabinetPace.fillJackpot internally
+                // via the patched animateJackpotFill path in cabinet-pace-vnext.js).
+                // Only sync state after completion to avoid double-count.
+                if (typeof legacy === 'function') {
+                    return legacy.call(this, amount, startBalance, handName).then(() => {
+                        CabinetState.syncFromRuntime();
+                    }).catch(() => {
+                        CabinetState.syncFromRuntime();
+                    });
+                }
+
+                // Fallback: dispatch directly if legacy is unavailable
                 return new Promise((resolve) => {
                     CabinetTransition.dispatch({
                         type: 'FILL_JACKPOT',
@@ -265,15 +294,23 @@ window.CabinetOrchestrator = (function () {
                         frames: Math.max(60, Math.round((Number(window.GAME_CONFIG?.timing?.jackpotFillMinMs || 10000) / 1000) * 60)),
                         onComplete: resolve
                     });
-                    if (typeof legacy === 'function') {
-                        try { legacy.call(this, amount, startBalance, handName).catch(() => resolve()); } catch (_) {}
-                    }
                 });
             };
         });
 
         _patch('animateDrainToCredits', function (legacy) {
             return function patchedAnimateDrainToCredits(amount, startBalance) {
+                // Delegate to legacy which calls CabinetPace.collectWin internally.
+                // Do NOT also dispatch COLLECT_WIN — that would double-count the credit drain animation.
+                if (typeof legacy === 'function') {
+                    return legacy.call(this, amount, startBalance).then(() => {
+                        CabinetState.syncFromRuntime();
+                    }).catch(() => {
+                        CabinetState.syncFromRuntime();
+                    });
+                }
+
+                // Fallback: dispatch directly if legacy is unavailable
                 return new Promise((resolve) => {
                     CabinetTransition.dispatch({
                         type: 'COLLECT_WIN',
@@ -286,9 +323,6 @@ window.CabinetOrchestrator = (function () {
                             resolve();
                         }
                     });
-                    if (typeof legacy === 'function') {
-                        try { legacy.call(this, amount, startBalance).catch(() => resolve()); } catch (_) {}
-                    }
                 });
             };
         });
@@ -308,7 +342,21 @@ window.CabinetOrchestrator = (function () {
         _patch('restoreRoundFromSnapshot', function (legacy) {
             return function patchedRestoreRoundFromSnapshot(snapshot) {
                 const result = legacy.call(this, snapshot);
-                CabinetState.syncFromRuntime();
+                // Sync runtime globals updated by legacy, then overlay DU trail from snapshot
+                // because duCardTrail is rebuilt by legacy from snapshot.doubleUpSession
+                // which may not yet be reflected in the global at the point syncFromRuntime runs.
+                const syncResult = CabinetState.syncFromRuntime();
+                if (snapshot && snapshot.phase === 'DoubleUp' && snapshot.doubleUpSession) {
+                    const duSnap = snapshot.doubleUpSession;
+                    const trailSeed = duSnap.dealerCard
+                        ? [{ card: duSnap.dealerCard, label: 'DEALER' }]
+                        : [];
+                    CabinetState.updateMachine({
+                        duCardTrail: trailSeed,
+                        duSwitchesRemaining: Number(duSnap.switchesRemaining || 0),
+                        duIsNoLoseActive: Boolean(duSnap.isNoLoseActive)
+                    });
+                }
                 return result;
             };
         });
@@ -345,10 +393,11 @@ window.CabinetOrchestrator = (function () {
             };
         });
 
-        CabinetState.subscribe(function () {
-            _applyButtonStatesFromSelectors();
+        CabinetState.subscribe(function (snapshot) {
+            // Pass the already-computed snapshot to avoid re-entrancy:
+            // syncFromRuntime -> updateMachine -> _emit -> here -> syncFromRuntime again
+            _applyButtonStatesFromSelectors(snapshot);
 
-            const snapshot = CabinetState.get();
             const bonus = document.getElementById('bonus-text');
             if (bonus && snapshot.machine.message && snapshot.machine.gameState === 'doubleup') {
                 bonus.dataset.dispatchState = snapshot.machine.gameState;

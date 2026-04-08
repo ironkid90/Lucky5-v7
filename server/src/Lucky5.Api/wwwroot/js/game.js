@@ -215,7 +215,7 @@ function updateViewportUnit() {
 }
 
 function hasCabinetStage() {
-    return Boolean(window.CabinetStage);
+    return Boolean(window.CabinetStage) && Boolean(window.GAME_CONFIG?.features?.enableCabinetStage);
 }
 
 function renderDealStage(cardData) {

@@ -66,7 +66,15 @@ public sealed class InMemoryPersistentStateCoordinator : IPersistentStateCoordin
         foreach (var session in snapshot.MachineSessions)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await dataStore.UpdateMachineSessionAsync(session);
+
+            var normalizedSession = session;
+            if (normalizedSession.MachineCredits <= 0m)
+            {
+                normalizedSession.TotalCashIn = 0m;
+                normalizedSession.IsMachineClosed = false;
+            }
+
+            await dataStore.UpdateMachineSessionAsync(normalizedSession);
         }
 
         foreach (var ledger in snapshot.MachineLedgers)

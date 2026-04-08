@@ -32,7 +32,6 @@ public static class ServiceCollectionExtensions
             if (!string.IsNullOrWhiteSpace(connectionString))
             {
                 options.Configuration = connectionString;
-                options.AbortOnConnectFail = false;
                 
                 var configOptions = ConfigurationOptions.Parse(connectionString);
                 if (configOptions.EndPoints.Any(endpoint => endpoint is DnsEndPoint dns && dns.Host.EndsWith(".redis.azure.net", StringComparison.OrdinalIgnoreCase)))

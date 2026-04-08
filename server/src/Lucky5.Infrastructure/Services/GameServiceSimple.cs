@@ -16,7 +16,7 @@ public sealed class GameServiceSimple : IGameService
         IPersistentStateStore persistentStateStore)
     {
         _ = persistentStateStore;
-        inner = new GameService(new InMemoryDataStoreAdapter(store), entropyGenerator);
+        inner = new GameService(new InMemoryDataStoreAdapter(store), entropyGenerator, new InMemoryMachineStateCache(new MachineCacheTtlOptions()));
     }
 
     public Task<IReadOnlyList<string>> GetGamesAsync(CancellationToken cancellationToken) => inner.GetGamesAsync(cancellationToken);

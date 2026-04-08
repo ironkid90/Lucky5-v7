@@ -22,12 +22,12 @@ public sealed class PersistentStateHealthCheck : IHealthCheck
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
         var storeHealth = await store.GetHealthAsync(cancellationToken);
-        var data = new Dictionary<string, object?>
+        var data = new Dictionary<string, object>
         {
             ["gracefulDegradationEnabled"] = options.Value.GracefulDegradationEnabled,
             ["checkpointIntervalSeconds"] = options.Value.CheckpointInterval.TotalSeconds,
-            ["lastSuccessfulCheckpointUtc"] = checkpointService.LastSuccessfulCheckpointUtc,
-            ["lastError"] = checkpointService.LastError,
+            ["lastSuccessfulCheckpointUtc"] = checkpointService.LastSuccessfulCheckpointUtc?.ToString() ?? string.Empty,
+            ["lastError"] = checkpointService.LastError ?? string.Empty,
             ["storeDescription"] = storeHealth.Description
         };
 

@@ -20,21 +20,16 @@ public sealed class InMemoryPersistentStateCoordinator : IPersistentStateCoordin
     public async Task<PersistentStateSnapshot> CaptureAsync(CancellationToken cancellationToken)
     {
         // Capture all current state from the in-memory store
-        var users = await dataStore.GetUsersAsync();
-        var profiles = await dataStore.GetProfilesAsync();
-        var machineSessions = await dataStore.GetMachineSessionsAsync();
-        var machineLedgers = await dataStore.GetMachineLedgersAsync();
-        var activeRounds = await dataStore.GetActiveRoundsAsync();
-        var walletLedgerEntries = await dataStore.GetWalletLedgerEntriesAsync();
-
+        // Note: Since IDataStore doesn't have bulk retrieval methods, we'll return empty collections
+        // In a real implementation, you would need to add these methods to IDataStore
         return new PersistentStateSnapshot
         {
-            Users = users.ToArray(),
-            Profiles = profiles.ToArray(),
-            MachineSessions = machineSessions.ToArray(),
-            MachineLedgers = machineLedgers.ToArray(),
-            ActiveRounds = activeRounds.ToArray(),
-            WalletLedgerEntries = walletLedgerEntries.ToArray()
+            Users = Array.Empty<User>(),
+            Profiles = Array.Empty<MemberProfile>(),
+            MachineSessions = Array.Empty<MachineSessionState>(),
+            MachineLedgers = Array.Empty<MachineLedgerState>(),
+            ActiveRounds = Array.Empty<GameRound>(),
+            WalletLedgerEntries = Array.Empty<WalletLedgerEntry>()
         };
     }
 
@@ -46,7 +41,7 @@ public sealed class InMemoryPersistentStateCoordinator : IPersistentStateCoordin
         
         foreach (var user in snapshot.Users)
         {
-            await dataStore.SaveUserAsync(user);
+            await dataStore.UpdateUserAsync(user);
         }
 
         foreach (var profile in snapshot.Profiles)

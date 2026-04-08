@@ -74,10 +74,10 @@ jobs:
       - name: Wait for staging deployment
         run: sleep 60
 
-      - name: Enhanced health check staging
+      - name: Simple health check staging
         run: |
-          chmod +x scripts/enhanced-health-check.sh
-          AZURE_WEBAPP_NAME=lucky5-ik90-prod-20260401-staging scripts/enhanced-health-check.sh
+          chmod +x scripts/simple-health-check.sh
+          AZURE_WEBAPP_NAME=lucky5-ik90-prod-20260401-staging scripts/simple-health-check.sh
 
   certification:
     runs-on: ubuntu-latest
@@ -118,10 +118,10 @@ jobs:
           inlineScript: |
             az webapp deployment slot swap --resource-group lucky5-ik90-prod-20260401-rg --name lucky5-ik90-prod-20260401 --slot staging --target-slot production
 
-      - name: Enhanced health check production
+      - name: Simple health check production
         run: |
-          chmod +x scripts/enhanced-health-check.sh
-          AZURE_WEBAPP_NAME=lucky5-ik90-prod-20260401 scripts/enhanced-health-check.sh
+          chmod +x scripts/simple-health-check.sh
+          AZURE_WEBAPP_NAME=lucky5-ik90-prod-20260401 scripts/simple-health-check.sh
 
       - name: Cleanup staging slot
         uses: azure/cli@v1

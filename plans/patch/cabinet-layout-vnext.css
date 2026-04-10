@@ -1,0 +1,436 @@
+:root {
+  --cabinet-font: 'Press Start 2P', 'Arcade', monospace;
+  --cabinet-black: #030303;
+  --cabinet-wood-a: #6a2400;
+  --cabinet-wood-b: #3d1200;
+  --cabinet-wood-c: #230900;
+  --cabinet-red-a: #ff5b40;
+  --cabinet-red-b: #d81d1d;
+  --cabinet-green-a: #3ff55d;
+  --cabinet-green-b: #09b81c;
+  --cabinet-amber-a: #ffd93c;
+  --cabinet-amber-b: #cf8b00;
+  --cabinet-orange-a: #ffbf42;
+  --cabinet-orange-b: #e78a00;
+  --cabinet-cream-a: #f4ead6;
+  --cabinet-cream-b: #d8c7a4;
+  --cabinet-gold: #ffcc00;
+  --cabinet-gap: 1.15%;
+  --cabinet-button-radius: 16px;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  color: #fff;
+}
+
+.cabinet-prototype-frame,
+#game-shell,
+#game-screen {
+  box-sizing: border-box;
+}
+
+.cabinet-prototype-frame {
+  width: min(100vw, calc(100vh * 0.5625));
+  height: min(100vh, calc(100vw * 1.777777778));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+#game-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  background: #000;
+  font-family: var(--cabinet-font);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#game-screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(0, 255, 255, 0.08), transparent 28%),
+    radial-gradient(circle at 50% 60%, rgba(255, 255, 255, 0.04), transparent 48%);
+}
+
+[data-zone='paytable'],
+#paytable,
+[data-zone='credit-stake'],
+#credit-stake-bar,
+[data-zone='label-band'],
+#lucky5-banner,
+[data-zone='card-stage'],
+#card-area,
+[data-zone='win-amount'],
+#win-amount-display,
+[data-zone='machine-info'],
+#machine-info-block,
+[data-zone='hold-row'],
+#hold-row,
+[data-zone='action-row'],
+#action-row,
+[data-zone='bottom-row'],
+#bottom-row,
+[data-zone='info-bar'],
+#info-bar,
+[data-zone='du-info'],
+#du-info-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+#paytable {
+  top: 0;
+  left: 0;
+  width: 65.25%;
+  height: 15%;
+  padding: 1.2% 1.4% 0 1.0%;
+  z-index: 3;
+}
+
+#credit-stake-bar {
+  top: 0;
+  left: 65.25%;
+  width: 34.75%;
+  height: 15%;
+  padding: 1.3% 1.0% 0 0;
+  z-index: 3;
+}
+
+#lucky5-banner {
+  top: 15%;
+  height: 4%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 140ms ease;
+  z-index: 4;
+}
+
+#lucky5-banner.active {
+  opacity: 1;
+}
+
+#card-area {
+  top: 19%;
+  height: 19%;
+  padding: 1.2% 0.9% 0.4%;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1.5%;
+  align-items: start;
+  justify-items: center;
+  z-index: 4;
+}
+
+#card-area.show-idle-brand::before {
+  content: 'LUCKY5\A POKER';
+  position: absolute;
+  inset: 6% 0 0;
+  white-space: pre;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: var(--cabinet-font);
+  font-size: clamp(34px, 5.8vw, 68px);
+  line-height: 0.92;
+  letter-spacing: 0.04em;
+  color: #16d6ff;
+  text-shadow:
+    0 0 2px rgba(22, 214, 255, 0.75),
+    2px 2px 0 #003a52,
+    -2px 2px 0 #003a52,
+    2px -2px 0 #003a52,
+    -2px -2px 0 #003a52;
+  opacity: 0.95;
+  pointer-events: none;
+  z-index: 1;
+}
+
+#card-area.show-idle-brand .cab-card {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.cab-card {
+  position: relative;
+  width: 100%;
+  max-width: 18.2vw;
+  aspect-ratio: 0.72;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  transition: transform 120ms ease, opacity 120ms ease, filter 120ms ease;
+  z-index: 2;
+}
+
+.cab-card img.card-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  border-radius: 7%;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.3), 0 10px 14px rgba(0,0,0,0.35);
+}
+
+.cab-card .cab-card-slot-label {
+  position: absolute;
+  left: 50%;
+  bottom: -13%;
+  transform: translateX(-50%);
+  min-width: 70%;
+  text-align: center;
+  font-size: clamp(6px, 0.85vw, 10px);
+  letter-spacing: 0.05em;
+  color: #fff6b0;
+}
+
+.cab-card.held img.card-img {
+  box-shadow: 0 0 0 2px #ffe300, 0 0 0 5px rgba(255,227,0,0.14), 0 10px 16px rgba(0,0,0,0.45);
+}
+
+.cab-card.du-dealer img.card-img {
+  box-shadow: 0 0 0 2px #ffcf2b, 0 0 12px rgba(255, 207, 43, 0.45), 0 10px 16px rgba(0,0,0,0.45);
+}
+
+.cab-card.du-lucky5 img.card-img {
+  animation: duLucky5Pulse 360ms ease-in-out 2;
+}
+
+@keyframes duLucky5Pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.035); filter: brightness(1.18) drop-shadow(0 0 14px rgba(255, 228, 0, 0.8)); }
+}
+
+#win-amount-display {
+  top: 38%;
+  height: 4%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9ch;
+  z-index: 4;
+}
+
+#machine-info-block {
+  top: 42%;
+  height: 11%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.35% 1.2% 0.4%;
+  z-index: 4;
+}
+
+#jackpot-counters,
+.machine-identity,
+#machine-serial,
+#bonus-hand-text {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#jackpot-full-house {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.7ch;
+}
+
+#hold-row,
+#action-row,
+#bottom-row {
+  display: grid;
+  align-items: center;
+  justify-items: stretch;
+  padding-left: 1.1%;
+  padding-right: 1.1%;
+  background:
+    linear-gradient(180deg, rgba(111, 39, 0, 0.98) 0%, rgba(86, 28, 0, 0.98) 38%, rgba(60, 18, 0, 0.99) 100%),
+    linear-gradient(90deg, rgba(255,255,255,0.08), transparent 18%, transparent 82%, rgba(0,0,0,0.14));
+  box-shadow:
+    inset 0 16px 24px rgba(255, 188, 112, 0.08),
+    inset 0 -12px 18px rgba(0, 0, 0, 0.35);
+  z-index: 5;
+}
+
+#hold-row {
+  top: 53%;
+  height: 14%;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: calc(var(--cabinet-gap) * 1.1);
+  padding-top: 0.8%;
+}
+
+#action-row {
+  top: 67%;
+  height: 17%;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: calc(var(--cabinet-gap) * 1.05);
+  padding-top: 0.35%;
+}
+
+#bottom-row {
+  top: 84%;
+  height: 13%;
+  grid-template-columns: 1.22fr 0.92fr 1.22fr;
+  gap: calc(var(--cabinet-gap) * 1.8);
+  padding-top: 0.4%;
+}
+
+.cab-btn-wrap {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cab-btn {
+  width: 100%;
+  height: 82%;
+  border: 0;
+  border-radius: var(--cabinet-button-radius);
+  box-shadow:
+    inset 0 2px 4px rgba(255,255,255,0.24),
+    inset 0 -4px 6px rgba(0,0,0,0.28),
+    0 7px 0 rgba(31, 10, 0, 0.56),
+    0 10px 16px rgba(0,0,0,0.35);
+  font-family: var(--cabinet-font);
+  font-size: clamp(10px, 1.5vw, 18px);
+  letter-spacing: 0.04em;
+  line-height: 1.08;
+  text-align: center;
+  cursor: pointer;
+  color: #111;
+  transform: translateY(0);
+  transition: transform 70ms ease, filter 70ms ease, box-shadow 70ms ease;
+  padding: 0.35em 0.28em;
+}
+
+.cab-btn:disabled {
+  filter: saturate(0.85) brightness(0.78);
+  cursor: not-allowed;
+}
+
+.cab-btn.is-pressed,
+.cab-btn:active {
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 1px 3px rgba(255,255,255,0.16),
+    inset 0 -3px 5px rgba(0,0,0,0.32),
+    0 3px 0 rgba(31, 10, 0, 0.62),
+    0 7px 10px rgba(0,0,0,0.28);
+}
+
+.cab-hold,
+.cab-big,
+.cab-small {
+  background: linear-gradient(180deg, #ffe13c 0%, #f5bf17 42%, #d68b05 100%);
+}
+
+.cab-cancel {
+  background: linear-gradient(180deg, var(--cabinet-cream-a) 0%, #e3d5bb 45%, var(--cabinet-cream-b) 100%);
+}
+
+.cab-deal,
+.cab-takehalf {
+  background: linear-gradient(180deg, var(--cabinet-red-a) 0%, #fb452d 35%, var(--cabinet-red-b) 100%);
+  color: #fff;
+}
+
+.cab-bet {
+  background: linear-gradient(180deg, var(--cabinet-green-a) 0%, #1ee03f 34%, var(--cabinet-green-b) 100%);
+}
+
+.cab-takescore {
+  background: linear-gradient(180deg, #ffc54f 0%, var(--cabinet-orange-a) 38%, var(--cabinet-orange-b) 100%);
+}
+
+.cab-menu {
+  width: min(100%, 84px);
+  aspect-ratio: 1 / 1;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 25%, #575757 0%, #232323 38%, #0a0a0a 100%);
+  color: #eee;
+  font-size: clamp(18px, 3vw, 34px);
+  box-shadow:
+    inset 0 2px 4px rgba(255,255,255,0.25),
+    inset 0 -5px 10px rgba(0,0,0,0.56),
+    0 6px 0 rgba(0,0,0,0.62),
+    0 10px 16px rgba(0,0,0,0.45);
+}
+
+.cab-menu-caption {
+  position: absolute;
+  bottom: 2%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(7px, 0.9vw, 11px);
+  color: #fff;
+  letter-spacing: 0.06em;
+}
+
+#info-bar {
+  bottom: 0.85%;
+  height: 2.2%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 6;
+}
+
+#du-info-panel {
+  bottom: 2.9%;
+  height: 4.2%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2ch;
+  z-index: 6;
+}
+
+#du-info-panel.active {
+  display: flex;
+}
+
+#lucky5-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at 50% 35%, rgba(255,255,255,0.72), rgba(255,221,92,0.36) 28%, rgba(255,213,0,0.12) 44%, transparent 60%);
+  z-index: 8;
+}
+
+#lucky5-flash.flash-active {
+  animation: lucky5Flash 300ms ease;
+}
+
+@keyframes lucky5Flash {
+  from { opacity: 0; }
+  30% { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@media (max-width: 540px) {
+  .cab-btn { font-size: clamp(9px, 1.8vw, 13px); }
+  .cab-menu { width: min(100%, 18vw); }
+}

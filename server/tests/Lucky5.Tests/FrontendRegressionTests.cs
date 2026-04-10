@@ -327,6 +327,14 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
+            "index.html should load game-config before game.js and the stage/pace vnext scripts after game.js",
+            Regex.IsMatch(
+                indexHtml,
+                @"<script\s+src=""/js/game-config\.js\?v=\d+""></script>\s*<script\s+src=""/js/game\.js\?v=\d+""></script>\s*<script\s+src=""/js/cabinet-stage-vnext\.js\?v=\d+""></script>\s*<script\s+src=""/js/cabinet-pace-vnext\.js\?v=\d+""></script>",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
             "index.html should load the cabinet frame stylesheet",
             indexHtml.Contains("/css/cabinet-frame-vnext.css", StringComparison.Ordinal));
 
@@ -337,8 +345,11 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
-            "game-config.js should define cabinet layout and audio event config for the vnext modules",
+            "game-config.js should define cabinet layout, adapter feature flags, and audio event config for the vnext modules",
             gameConfigJs.Contains("cabinet: Object.freeze(", StringComparison.Ordinal)
+                && gameConfigJs.Contains("features: Object.freeze(", StringComparison.Ordinal)
+                && gameConfigJs.Contains("adapterVNext: false", StringComparison.Ordinal)
+                && gameConfigJs.Contains("enableCabinetStage: false", StringComparison.Ordinal)
                 && gameConfigJs.Contains("audio: Object.freeze(", StringComparison.Ordinal));
 
         Assert(

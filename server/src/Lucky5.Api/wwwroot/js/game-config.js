@@ -41,6 +41,12 @@ const GAME_CONFIG = Object.freeze({
         })
     }),
 
+    // ── 1c. FEATURE FLAGS ──────────────────────────────────────────────────
+    features: Object.freeze({
+        adapterVNext: false,       // planned clone-parity adapter gate
+        enableCabinetStage: false, // current runtime gate consumed by game.js
+    }),
+
     // ── 2. TIMING ────────────────────────────────────────────────────────────
     // All durations are in milliseconds.
     // Adjust these to change the overall rhythm of the game without touching

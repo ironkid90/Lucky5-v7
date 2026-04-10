@@ -149,6 +149,56 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
+            "safe saved-machine fallback should clear the stale machine selection and route the player back through the shared lobby shell path.",
+            Regex.IsMatch(
+                gameJs,
+                @"if\s*\(allowLobbyFallback\)\s*\{[\s\S]{0,200}?resetGameRuntimeState\(\{\s*clearSelection:\s*true\s*\}\);[\s\S]{0,120}?await\s+showLobby\(\);[\s\S]{0,40}?return;",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "game menu back-to-lobby should be rendered inside the menu panel instead of as a separate cabinet chrome path.",
+            indexHtml.Contains("id=\"game-back-lobby\" class=\"menu-panel-btn menu-panel-btn-lobby\"", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "backToLobbyFromGame should route through the shared lobby shell helper after resetting machine runtime state.",
+            Regex.IsMatch(
+                gameJs,
+                @"async\s+function\s+backToLobbyFromGame\(\)\s*\{[\s\S]{0,500}?resetGameRuntimeState\(\{\s*clearSelection:\s*true\s*\}\);[\s\S]{0,120}?await\s+showLobby\(\);",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "openGame, showLobby, showWallet, and showAdmin should all use the shared shell activation helper instead of bespoke screen toggles.",
+            gameJs.Contains("activateShellScreen('game', null);", StringComparison.Ordinal)
+            && gameJs.Contains("activateShellScreen('lobby', 'lobby');", StringComparison.Ordinal)
+            && gameJs.Contains("activateShellScreen('wallet', 'wallet');", StringComparison.Ordinal)
+            && gameJs.Contains("activateShellScreen('admin', 'admin');", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "game.js should expose a shared runtime-state reset helper so logout, lobby return, and stale-session fallback all reuse the same shell cleanup path.",
+            Regex.IsMatch(gameJs, @"function\s+resetGameRuntimeState\(\{\s*clearSelection\s*=\s*false\s*\}\s*=\s*\{\}\)", RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "lobby, wallet, admin, and menu buttons should all be wired in DOMContentLoaded so every visible shell action is functional.",
+            gameJs.Contains("lobbyWalletBtn.addEventListener('click', showWallet);", StringComparison.Ordinal)
+            && gameJs.Contains("walletBackBtn.addEventListener('click', showLobby);", StringComparison.Ordinal)
+            && gameJs.Contains("adminBackBtn.addEventListener('click', showLobby);", StringComparison.Ordinal)
+            && gameJs.Contains("navLobby.addEventListener('click', showLobby);", StringComparison.Ordinal)
+            && gameJs.Contains("navWallet.addEventListener('click', showWallet);", StringComparison.Ordinal)
+            && gameJs.Contains("navAdmin.addEventListener('click', showAdmin);", StringComparison.Ordinal)
+            && gameJs.Contains("$('#btn-close-menu').addEventListener('click'", StringComparison.Ordinal)
+            && gameJs.Contains("$('#btn-logout-menu').addEventListener('click'", StringComparison.Ordinal)
+            && gameJs.Contains("gameBackBtn.addEventListener('click', backToLobbyFromGame);", StringComparison.Ordinal)
+            && gameJs.Contains("cashInBtn.addEventListener('click', async () =>", StringComparison.Ordinal)
+            && gameJs.Contains("cashOutBtn.addEventListener('click', async () =>", StringComparison.Ordinal)
+            && gameJs.Contains("$('#btn-reset-machine').addEventListener('click', async () =>", StringComparison.Ordinal));
+
+        Assert(
+            failures,
             "game.js should define a dedicated helper for the active-round hydration endpoint",
             Regex.IsMatch(
                 gameJs,
@@ -189,7 +239,7 @@ public static class FrontendRegressionTests
             "allowLobbyFallback should clear remembered machine selection and return safely to the lobby when no active round exists",
             Regex.IsMatch(
                 gameJs,
-                @"if\s*\(allowLobbyFallback\)\s*\{[\s\S]{0,180}?clearCurrentMachineSelection\(\);[\s\S]{0,120}?await\s+showLobby\(\);[\s\S]{0,80}?return;",
+                @"if\s*\(allowLobbyFallback\)\s*\{[\s\S]{0,180}?resetGameRuntimeState\(\{\s*clearSelection:\s*true\s*\}\);[\s\S]{0,120}?await\s+showLobby\(\);[\s\S]{0,80}?return;",
                 RegexOptions.CultureInvariant));
 
         Assert(
@@ -265,7 +315,7 @@ public static class FrontendRegressionTests
                 && gameJs.Contains("navLobby.addEventListener('click', showLobby);", StringComparison.Ordinal)
                 && gameJs.Contains("navWallet.addEventListener('click', showWallet);", StringComparison.Ordinal)
                 && gameJs.Contains("navAdmin.addEventListener('click', showAdmin);", StringComparison.Ordinal)
-                && gameJs.Contains("gameBackBtn.addEventListener('click', async () =>", StringComparison.Ordinal));
+                && gameJs.Contains("gameBackBtn.addEventListener('click', backToLobbyFromGame);", StringComparison.Ordinal));
 
         Assert(
             failures,

@@ -195,11 +195,11 @@ public sealed class RedisPersistenceMigrationTests
         {
             Users = new[]
             {
-                new User { Id = Guid.NewGuid(), Username = "testuser", CreatedAt = DateTime.UtcNow }
+                new User { Id = Guid.NewGuid(), Username = "testuser", CreatedUtc = DateTime.UtcNow }
             },
             Profiles = new[]
             {
-                new MemberProfile { UserId = Guid.NewGuid(), WalletBalance = 1000000m, CreatedAt = DateTime.UtcNow }
+                new MemberProfile { UserId = Guid.NewGuid(), WalletBalance = 1000000m, LastSeenUtc = DateTime.UtcNow }
             },
             MachineSessions = new[]
             {

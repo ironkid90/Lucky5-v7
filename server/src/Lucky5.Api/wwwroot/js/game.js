@@ -350,6 +350,32 @@ function clearCurrentMachineSelection() {
     sessionStorage.removeItem('lucky5_machineId');
 }
 
+function resetGameRuntimeState({ clearSelection = false } = {}) {
+    stopShuffle();
+    hideDuInfo();
+    clearLucky5Effects();
+    duCardTrail = [];
+    duLastRenderedTrailLength = 0;
+    duSessionStarted = false;
+    duIsNoLoseActive = false;
+    duDealerCard = null;
+    roundDoubleUpAvailable = false;
+    takeHalfUsedThisRound = false;
+    takeScoreAnimating = false;
+    currentHandRank = null;
+    holdIndexes.clear();
+    cards = [];
+    gameState = 'idle';
+    jackpotRankArmed = false;
+    winAmount = 0;
+    roundId = null;
+    machineJoined = false;
+
+    if (clearSelection) {
+        clearCurrentMachineSelection();
+    }
+}
+
 function syncMachineSessionState(session) {
     machineSessionClosed = Boolean(session?.isMachineClosed);
     machineCanCashOut = Boolean(session?.canCashOut);
@@ -581,6 +607,14 @@ function updateJackpotDisplay(jp) {
 }
 
 function updateActive4kHighlight() {
+    document.querySelectorAll('[data-jackpot-slot^="4k-"]').forEach(node => {
+        node.classList.remove('jp-active');
+    });
+    const activeCounter = document.querySelector(active4kSlot === 0
+        ? '[data-jackpot-slot="4k-a"]'
+        : '[data-jackpot-slot="4k-b"]');
+    if (activeCounter) activeCounter.classList.add('jp-active');
+
     const starA = document.getElementById('jp-star-a');
     const starB = document.getElementById('jp-star-b');
     if (starA) starA.style.display = active4kSlot === 0 ? 'inline' : 'none';
@@ -2060,22 +2094,11 @@ async function doLogout() {
         try { await hubConnection.stop(); } catch (_) {}
         hubConnection = null;
     }
-    machineJoined = false;
     setMenuPanelOpen(false);
-    stopShuffle();
-    hideDuInfo();
-    clearLucky5Effects();
-    duCardTrail = [];
-    duLastRenderedTrailLength = 0;
-    duSessionStarted = false;
-    duDealerCard = null;
     clearToken();
-    clearCurrentMachineSelection();
-    gameState = 'idle';
+    resetGameRuntimeState({ clearSelection: true });
     balance = 0;
     walletBalance = 0;
-    winAmount = 0;
-    roundId = null;
     setActiveScreen(null);
     $('#auth-screen').style.display = '';
     $('#auth-error').textContent = '';
@@ -2424,22 +2447,10 @@ async function backToLobbyFromGame() {
     }
     const previousMachineId = machineId;
     setMenuPanelOpen(false);
-    clearCurrentMachineSelection();
     if (machineJoined && previousMachineId > 0) {
         await leaveMachine(previousMachineId);
     }
-    stopShuffle();
-    hideDuInfo();
-    clearLucky5Effects();
-    duCardTrail = [];
-    duLastRenderedTrailLength = 0;
-    duSessionStarted = false;
-    duDealerCard = null;
-    gameState = 'idle';
-    jackpotRankArmed = false;
-    winAmount = 0;
-    roundId = null;
-    machineJoined = false;
+    resetGameRuntimeState({ clearSelection: true });
     await showLobby();
 }
 
@@ -2499,7 +2510,7 @@ async function initGame(options = {}) {
             restoreRoundFromSnapshot(activeRound);
         } else {
             if (allowLobbyFallback) {
-                clearCurrentMachineSelection();
+                resetGameRuntimeState({ clearSelection: true });
                 await showLobby();
                 return;
             }
@@ -2691,14 +2702,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const gameBackBtn = document.getElementById('game-back-lobby');
     if (gameBackBtn) {
-        gameBackBtn.addEventListener('click', async () => {
-            if (!machineId || machineId <= 0) {
-                setMenuPanelOpen(false);
-                await showLobby();
-                return;
-            }
-            await backToLobbyFromGame();
-        });
+        gameBackBtn.addEventListener('click', backToLobbyFromGame);
     }
 
     const lobbyLogoutBtn = document.getElementById('lobby-logout-btn');

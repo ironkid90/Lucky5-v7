@@ -31,6 +31,11 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         ["TwoPair"] = 2
     };
 
+    public GameService(IDataStore store, IEntropyGenerator entropyGenerator)
+        : this(store, entropyGenerator, new InMemoryMachineStateCache(new MachineCacheTtlOptions()))
+    {
+    }
+
     public Task<IReadOnlyList<string>> GetGamesAsync(CancellationToken cancellationToken)
         => Task.FromResult<IReadOnlyList<string>>(["Lucky5", "VideoPoker"]);
 
@@ -58,8 +63,13 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
     public async Task<MachineSessionDto> GetMachineSessionAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
         var cachedSession = await stateCache.GetMachineSessionAsync(userId, machineId);
-        if (cachedSession is not null)
+        if (cachedSession is not null && !IsStaleZeroCreditSession(cachedSession))
             return cachedSession;
+
+        if (cachedSession is not null)
+        {
+            InvalidateCaches(userId, machineId);
+        }
 
         var profile = await RequireProfileAsync(userId);
         await RequireMachineAsync(machineId);
@@ -861,6 +871,7 @@ return guessResult;
         var session = await store.GetMachineSessionAsync(userId, machineId);
         if (session is null)
         {
+            InvalidateCaches(userId, machineId);
             return new { success = true, message = "Machine session reset", walletBalance = profile.WalletBalance };
         }
 
@@ -885,6 +896,7 @@ return guessResult;
         }
 
         await store.DeleteMachineSessionAsync(session.SessionId);
+        InvalidateCaches(userId, machineId);
 
         return new { success = true, message = "Machine session reset", walletBalance = profile.WalletBalance };
     }
@@ -1013,13 +1025,60 @@ return guessResult;
     private async Task<MachineSessionState> RequireMachineSessionAsync(Guid userId, int machineId, bool createIfMissing)
     {
         var session = await store.GetMachineSessionAsync(userId, machineId);
-        if (session != null) return session;
+        if (session != null)
+        {
+            if (NormalizeMachineSession(session))
+            {
+                await store.UpdateMachineSessionAsync(session);
+                InvalidateCaches(userId, machineId);
+            }
+
+            return session;
+        }
         
         if (!createIfMissing) throw new KeyNotFoundException("Machine session not found");
         
         session = new MachineSessionState { UserId = userId, MachineId = machineId };
         await store.CreateMachineSessionAsync(session);
         return session;
+    }
+
+    private static bool NormalizeMachineSession(MachineSessionState session)
+    {
+        var changed = false;
+
+        if (session.MachineCredits <= 0m)
+        {
+            if (session.MachineCredits != 0m)
+            {
+                session.MachineCredits = 0m;
+                changed = true;
+            }
+
+            if (session.TotalCashIn != 0m)
+            {
+                session.TotalCashIn = 0m;
+                changed = true;
+            }
+
+            if (session.IsMachineClosed)
+            {
+                session.IsMachineClosed = false;
+                changed = true;
+            }
+        }
+        else if (!session.IsMachineClosed && session.MachineCredits >= MachineCloseCredits)
+        {
+            session.IsMachineClosed = true;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            session.LastUpdatedUtc = DateTime.UtcNow;
+        }
+
+        return changed;
     }
 
 
@@ -1113,6 +1172,10 @@ return guessResult;
 
         return session.TotalCashIn > 0m && session.MachineCredits >= session.TotalCashIn * 2m;
     }
+
+    private static bool IsStaleZeroCreditSession(MachineSessionDto session)
+        => session.MachineCredits <= 0m
+            && (session.IsMachineClosed || session.TotalCashIn > 0m || session.CanCashOut || session.CashOutThreshold > 0m);
 
     private static MachineSessionDto ToMachineSessionDto(MachineSessionState session, decimal walletBalance, bool canCashOut, MachineTransparencyDto? transparency = null)
         => new(session.SessionId, session.MachineId, session.MachineCredits, session.TotalCashIn, session.TotalCashIn * 2m, canCashOut, session.IsMachineClosed, walletBalance, transparency);

@@ -136,9 +136,9 @@ public static class CleanRoomEngineTests
         Assert(failures, "Machine close after a Lucky 5 switch should cash out the real post-win amount", postSwitchMachineClose.CashoutCredits == 80);
 
         var defaultConfig = EngineConfig.Default;
-        Assert(failures, "Approved RTP target should default to 85%", defaultConfig.TargetRtp == 0.85m);
+        Assert(failures, "Approved RTP target should default to the current tuned baseline", defaultConfig.TargetRtp == 0.80m);
         Assert(failures, "Approved close threshold should default to 40,000,000", defaultConfig.CloseThreshold == 40_000_000m);
-        Assert(failures, "Approved payout-scale defaults should match the current 85% tuning architecture", defaultConfig.DefaultPayoutScale == 2.00m && defaultConfig.MinPayoutScale == 1.25m && defaultConfig.MaxPayoutScale == 2.35m);
+        Assert(failures, "Approved payout-scale defaults should match the current tuned architecture", defaultConfig.DefaultPayoutScale == 1.75m && defaultConfig.MinPayoutScale == 1.18m && defaultConfig.MaxPayoutScale == 2.05m);
 
         var defaultCloseSession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
             seedRoot: seed,
@@ -187,7 +187,17 @@ public static class CleanRoomEngineTests
                 RoundCount = defaultConfig.ConvergenceHorizon
             },
             seed);
-        Assert(failures, "Equilibrium payout scales should stay ordered and inside the configured payout-scale band", equilibriumScale.SmallScale is >= defaultConfig.MinPayoutScale and <= defaultConfig.MaxPayoutScale && equilibriumScale.MediumScale is >= defaultConfig.MinPayoutScale and <= defaultConfig.MaxPayoutScale && equilibriumScale.BigScale is >= defaultConfig.MinPayoutScale and <= defaultConfig.MaxPayoutScale && equilibriumScale.SmallScale <= equilibriumScale.MediumScale && equilibriumScale.MediumScale <= equilibriumScale.BigScale);
+        Assert(
+            failures,
+            "Equilibrium payout scales should stay ordered and inside the configured payout-scale band",
+            equilibriumScale.SmallScale >= defaultConfig.MinPayoutScale
+                && equilibriumScale.SmallScale <= defaultConfig.MaxPayoutScale
+                && equilibriumScale.MediumScale >= defaultConfig.MinPayoutScale
+                && equilibriumScale.MediumScale <= defaultConfig.MaxPayoutScale
+                && equilibriumScale.BigScale >= defaultConfig.MinPayoutScale
+                && equilibriumScale.BigScale <= defaultConfig.MaxPayoutScale
+                && equilibriumScale.SmallScale <= equilibriumScale.MediumScale
+                && equilibriumScale.MediumScale <= equilibriumScale.BigScale);
 
         var earlyOutlierState = new MachinePolicyState
         {

@@ -1,6 +1,6 @@
 ---
 name: frontend-developer
-description: "Frontend Developer for general projects"
+description: frontend-developer focused on general with general
 ---
 # Frontend Developer Agent - general Edition
 

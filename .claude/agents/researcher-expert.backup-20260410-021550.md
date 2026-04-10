@@ -1,6 +1,6 @@
 ---
 name: researcher-expert
-description: "Elite Research Expert for deep technical analysis and strategic insights"
+description: researcher-expert focused on general with general
 ---
 <!-- STATIC:ASK_USER_FIRST -->
 

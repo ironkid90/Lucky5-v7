@@ -1,6 +1,6 @@
 ---
 name: backend-developer
-description: "Backend Developer for general projects"
+description: backend-developer focused on general with general
 ---
 # Backend Developer Agent - general Edition
 

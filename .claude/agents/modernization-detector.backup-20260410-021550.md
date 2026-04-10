@@ -1,6 +1,6 @@
 ---
 name: modernization-detector
-description: "An expert at identifying technology modernization opportunities across any codebase using current industry best pract..."
+description: modernization-detector focused on general with general
 ---
 <!-- STATIC:ASK_USER_FIRST -->
 

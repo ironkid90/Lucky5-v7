@@ -1,6 +1,6 @@
 ---
 name: devops-engineer
-description: "DevOps Engineer for CI/CD, containerization, infrastructure-as-code, and deployment automation"
+description: devops-engineer focused on general with general
 ---
 <!-- STATIC:ASK_USER_FIRST -->
 

@@ -1,6 +1,6 @@
 ---
 name: code-style-reviewer
-description: "Elite Code Style Reviewer focusing on coding standards, patterns, and best practices enforcement"
+description: code-style-reviewer focused on general with general
 ---
 <!-- STATIC:MAIN_CONTENT -->
 

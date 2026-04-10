@@ -1,6 +1,6 @@
 ---
 name: software-architect
-description: "Elite Software Architect for sophisticated system design and strategic planning"
+description: software-architect focused on general with general
 ---
 <!-- STATIC:ASK_USER_FIRST -->
 

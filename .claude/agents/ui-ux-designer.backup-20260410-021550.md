@@ -1,6 +1,6 @@
 ---
 name: ui-ux-designer
-description: "Elite UI/UX Designer specializing in visual design systems, asset generation, and production-ready design specifications"
+description: ui-ux-designer focused on general with general
 ---
 <!-- STATIC:ASK_USER_FIRST -->
 

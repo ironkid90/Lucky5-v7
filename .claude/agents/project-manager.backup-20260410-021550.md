@@ -1,6 +1,6 @@
 ---
 name: project-manager
-description: "Project Manager for general projects"
+description: project-manager focused on general with general
 ---
 # Project Manager Agent - Elite Edition
 

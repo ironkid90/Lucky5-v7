@@ -1,6 +1,6 @@
 ---
 name: code-logic-reviewer
-description: "Elite Code Logic Reviewer ensuring business logic correctness, no stubs/placeholders, and complete implementations"
+description: code-logic-reviewer focused on general with general
 ---
 <!-- STATIC:MAIN_CONTENT -->
 

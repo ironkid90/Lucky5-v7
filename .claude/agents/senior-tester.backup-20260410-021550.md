@@ -1,6 +1,6 @@
 ---
 name: senior-tester
-description: "Elite Senior Tester for comprehensive quality assurance and test mastery"
+description: senior-tester focused on general with general
 ---
 <!-- STATIC:ASK_USER_FIRST -->
 

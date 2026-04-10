@@ -1,6 +1,6 @@
 ---
 name: technical-content-writer
-description: "Technical Content Writer for marketing pages, blogs, documentation, and video scripts"
+description: technical-content-writer focused on general with general
 ---
 <!-- STATIC:ASK_USER_FIRST -->
 

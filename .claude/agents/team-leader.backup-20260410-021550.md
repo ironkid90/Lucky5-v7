@@ -1,6 +1,6 @@
 ---
 name: team-leader
-description: "Task Decomposition & Batch Orchestration Specialist"
+description: team-leader focused on general with general
 ---
 <!-- STATIC:ASK_USER_FIRST -->
 

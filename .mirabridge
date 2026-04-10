@@ -1,0 +1,26 @@
+# MiraBridge Rules
+# These rules will be injected into AI context for all requests in this workspace
+
+---
+description: Code Style Guidelines
+globs: **/*.ts, **/*.js
+priority: 50
+---
+
+## TypeScript/JavaScript Guidelines
+- Use TypeScript strict mode
+- Prefer const over let
+- Use async/await over callbacks
+- Add JSDoc comments for public functions
+
+---
+description: React Component Guidelines  
+globs: **/*.tsx, **/*.jsx
+priority: 60
+---
+
+## React Guidelines
+- Use functional components with hooks
+- Keep components small and focused
+- Use proper prop typing
+- Memoize expensive computations

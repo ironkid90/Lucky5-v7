@@ -1,3 +1,8 @@
 {
-	"mcpServers": {}
+  "mcpServers": {
+    "git-mcp": {
+      "type": "streamable-http",
+      "url": "https://gitmcp.io/ironkid90/lucky5-v7"
+    }
+  }
 }

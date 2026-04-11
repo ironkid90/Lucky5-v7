@@ -370,10 +370,11 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
-            "game-config.js should define cabinet layout, adapter feature flags, and audio event config for the vnext modules",
+            "game-config.js should define cabinet layout, adapter/display snapshot feature flags, and audio event config for the vnext modules",
             gameConfigJs.Contains("cabinet: Object.freeze(", StringComparison.Ordinal)
                 && gameConfigJs.Contains("features: Object.freeze(", StringComparison.Ordinal)
                 && gameConfigJs.Contains("adapterVNext: false", StringComparison.Ordinal)
+                && gameConfigJs.Contains("enableDisplaySnapshot: false", StringComparison.Ordinal)
                 && gameConfigJs.Contains("enableCabinetStage: true", StringComparison.Ordinal)
                 && gameConfigJs.Contains("audio: Object.freeze(", StringComparison.Ordinal));
 

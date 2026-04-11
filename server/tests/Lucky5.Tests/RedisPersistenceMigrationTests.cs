@@ -15,6 +15,8 @@ namespace Lucky5.Tests;
 /// </summary>
 public sealed class RedisPersistenceMigrationTests
 {
+    private const string DisplaySnapshotKeyPrefix = "lucky5:cabinet-display:v1:machine:";
+
     private readonly Mock<IDistributedCache> mockCache;
     private readonly Mock<ILogger<RedisPersistentStateStore>> mockLogger;
     private readonly Mock<ILogger<PersistentStateCheckpointService>> mockCheckpointLogger;
@@ -168,6 +170,41 @@ public sealed class RedisPersistenceMigrationTests
         Assert.Equal(TimeSpan.FromSeconds(10), options.CheckpointInterval);
         Assert.True(options.GracefulDegradationEnabled);
         Assert.Equal("lucky5:persistent-state:v2", options.SnapshotKey);
+    }
+
+    [Fact]
+    public async Task RedisPersistentStateStore_SaveDisplaySnapshotAsync_ShouldRoundTripDedicatedMachinePayload()
+    {
+        // Arrange
+        var store = new RedisPersistentStateStore(mockCache.Object, options, mockLogger.Object);
+        const int machineId = 7;
+        const string payload = "{\"machineSerial\":123,\"machineSerie\":45,\"machineKent\":6}";
+
+        mockCache.Setup(x => x.GetStringAsync($"{DisplaySnapshotKeyPrefix}{machineId}", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(payload);
+
+        // Act
+        await store.SaveDisplaySnapshotAsync(machineId, payload, CancellationToken.None);
+        var loaded = await store.LoadDisplaySnapshotAsync(machineId, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(payload, loaded);
+    }
+
+    [Fact]
+    public async Task RedisPersistentStateStore_LoadDisplaySnapshotAsync_WhenRedisThrows_ShouldGracefullyReturnNull()
+    {
+        // Arrange
+        var store = new RedisPersistentStateStore(mockCache.Object, options, mockLogger.Object);
+
+        mockCache.Setup(x => x.GetStringAsync($"{DisplaySnapshotKeyPrefix}11", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("display snapshot unavailable"));
+
+        // Act
+        var loaded = await store.LoadDisplaySnapshotAsync(11, CancellationToken.None);
+
+        // Assert
+        Assert.Null(loaded);
     }
 
     [Fact]

@@ -1,0 +1,22 @@
+{
+  "taskId": "019d7a78-7966-7177-acad-30df6dbab3d2",
+  "todos": [
+    {
+      "id": "0e3a0fca4671837943f3d3cdb772bc04",
+      "content": "Refine the instruction block with stronger operational patterns",
+      "status": "completed"
+    },
+    {
+      "id": "f296851dccce8069d0fc5e6b1fe6993f",
+      "content": "Provide an advanced version with rationale and optional variants",
+      "status": "completed"
+    },
+    {
+      "id": "71d44d06a700cf9f02226d67ebc00c0c",
+      "content": "Provide a final polished version with issue-by-issue critique and implementation notes",
+      "status": "in_progress"
+    }
+  ],
+  "lastUpdated": 1775876510547,
+  "status": "active"
+}

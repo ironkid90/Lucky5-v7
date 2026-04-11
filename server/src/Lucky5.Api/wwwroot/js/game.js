@@ -304,10 +304,13 @@ window.advanceTime = function advanceTime(ms) {
 };
 
 function setActiveScreen(screenName) {
+    debugLog('setActiveScreen', { screenName });
     ['lobby','wallet','admin','game'].forEach(name => {
         const el = document.getElementById(`${name}-screen`);
         if (!el) return;
-        el.classList.toggle('active', name === screenName);
+        const isActive = name === screenName;
+        el.classList.toggle('active', isActive);
+        debugLog('screen:toggle', { name, isActive, display: window.getComputedStyle(el).display, zIndex: window.getComputedStyle(el).zIndex });
     });
 }
 

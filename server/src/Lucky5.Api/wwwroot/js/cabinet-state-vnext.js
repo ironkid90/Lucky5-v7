@@ -152,12 +152,27 @@ window.CabinetState = (function () {
     }
 
     function syncFromRuntime(overrides) {
+        const screenEl = document.getElementById('game-screen');
+        const walletEl = document.getElementById('wallet-screen');
+        const adminEl = document.getElementById('admin-screen');
+        const lobbyEl = document.getElementById('lobby-screen');
+
+        const screenName = screenEl?.classList.contains('active') ? 'game'
+            : walletEl?.classList.contains('active') ? 'wallet'
+            : adminEl?.classList.contains('active') ? 'admin'
+            : lobbyEl?.classList.contains('active') ? 'lobby'
+            : 'auth';
+
+        if (typeof debugLog === 'function') {
+            debugLog('syncFromRuntime:screen', { 
+                screenName, 
+                gameActive: screenEl?.classList.contains('active'),
+                gameDisplay: screenEl ? window.getComputedStyle(screenEl).display : 'null'
+            });
+        }
+
         const runtime = {
-            screen: document.getElementById('game-screen')?.classList.contains('active') ? 'game'
-                : document.getElementById('wallet-screen')?.classList.contains('active') ? 'wallet'
-                : document.getElementById('admin-screen')?.classList.contains('active') ? 'admin'
-                : document.getElementById('lobby-screen')?.classList.contains('active') ? 'lobby'
-                : 'auth',
+            screen: screenName,
             machineId: typeof machineId !== 'undefined' ? _safeNumber(machineId, 0) : 0,
             roundId: typeof roundId !== 'undefined' ? roundId : null,
             gameState: typeof gameState !== 'undefined' ? gameState : 'idle',

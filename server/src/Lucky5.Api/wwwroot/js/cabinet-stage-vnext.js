@@ -626,9 +626,19 @@ window.CabinetStage = (function () {
         updateDoubleUpTrail,
         shuffleChallenger,
         exitDoubleUp,
-        showLucky5Active
+        showLucky5Active,
+        isDoubleUpMode: function() { return _isDoubleUpMode; }
     };
 }());
+
+// Global getter for game.js - reads from CabinetStage module
+function isDoubleUpMode() {
+    if (window.CabinetStage && typeof window.CabinetStage.isDoubleUpMode === 'function') {
+        return window.CabinetStage.isDoubleUpMode();
+    }
+    // Fallback: check for du-mode class on document
+    return document.querySelector('.du-mode') !== null;
+}
 
 // Expose isDoubleUpMode as a global function for game.js
 function isDoubleUpMode() {

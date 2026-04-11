@@ -82,6 +82,41 @@ public sealed class RedisPersistentStateStore : IPersistentStateStore
         }
     }
 
+    public async Task<string?> LoadDisplaySnapshotAsync(int machineId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var key = BuildDisplaySnapshotKey(machineId);
+            var payload = await cache.GetStringAsync(key, cancellationToken);
+            if (string.IsNullOrWhiteSpace(payload))
+            {
+                logger.LogDebug("No cabinet display snapshot found in Redis at key {Key}", key);
+                return null;
+            }
+
+            return payload;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to load cabinet display snapshot for machine {MachineId}; continuing without display snapshot", machineId);
+            return null;
+        }
+    }
+
+    public async Task SaveDisplaySnapshotAsync(int machineId, string payload, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var key = BuildDisplaySnapshotKey(machineId);
+            await cache.SetStringAsync(key, payload, cancellationToken);
+            logger.LogDebug("Cabinet display snapshot saved for machine {MachineId} at key {Key}", machineId, key);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to save cabinet display snapshot for machine {MachineId}; checkpoint flow remains non-fatal", machineId);
+        }
+    }
+
     public async Task<PersistentStoreHealth> GetHealthAsync(CancellationToken cancellationToken)
     {
         try
@@ -104,5 +139,10 @@ public sealed class RedisPersistentStateStore : IPersistentStateStore
                 LastSuccessfulCheckpointUtc: null,
                 LastError: ex.Message);
         }
+    }
+
+    private string BuildDisplaySnapshotKey(int machineId)
+    {
+        return $"{options.Value.DisplaySnapshotKeyPrefix}{machineId}";
     }
 }

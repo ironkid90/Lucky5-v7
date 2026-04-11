@@ -1,0 +1,135 @@
+{
+  "mcpServers": {
+    "puppeteer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ]
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "augment-context-engine": {
+      "command": "auggie",
+      "args": [
+        "--mcp",
+        "--mcp-auto-workspace"
+      ],
+      "disabled": true,
+      "alwaysAllow": []
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {
+        "DEFAULT_MINIMUM_TOKENS": ""
+      }
+    },
+    "sequentialthinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C/Users/"
+      ],
+      "disabled": true,
+      "alwaysAllow": []
+    },
+    "time": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-time"
+      ]
+    },
+    "context-orchestrator": {
+      "type": "stdio",
+      "command": "C:\\Users\\Gabi\\.agent-runtime\\scripts\\context-orchestrator-mcp.cmd",
+      "env": {
+        "CONTEXT_MCP_EMBEDDING_PROVIDER": "gemini",
+        "CONTEXT_MCP_EMBEDDING_MODEL": "gemini-embedding-001",
+        "CONTEXT_MCP_EMBEDDING_DIMENSIONALITY": "3072",
+        "CONTEXT_MCP_EMBEDDING_API_KEY": "AIzaSyCGghUfbBLpAKzHy3hkIe0dVbgm98ha0JU",
+        "CONTEXT_MCP_PLANNER_PROVIDER": "gemini",
+        "CONTEXT_MCP_PLANNER_MODEL": "gemini-2.5-flash",
+        "CONTEXT_MCP_PLANNER_API_KEY": "AIzaSyCGghUfbBLpAKzHy3hkIe0dVbgm98ha0JU"
+      },
+      "alwaysAllow": [
+        "prepare_task_context",
+        "plan_or_review",
+        "submit_memory_summary",
+        "search_memory",
+        "search_docs",
+        "search_skills",
+        "search_mcp_servers",
+        "probe_mcp_servers",
+        "get_context_artifact",
+        "list_recent_artifacts",
+        "get_orchestrator_status",
+        "reindex_context_sources",
+        "invalidate_context_cache"
+      ]
+    },
+    "qdrant_semantic_search": {
+      "type": "stdio",
+      "command": "C:\\Users\\Gabi\\.agent-runtime\\scripts\\qdrant-semantic-search-mcp.cmd",
+      "env": {
+        "QDRANT_EMBEDDING_PROVIDER": "gemini",
+        "QDRANT_EMBEDDING_MODEL": "gemini-embedding-001",
+        "QDRANT_EMBEDDING_DIMENSIONALITY": "3072",
+        "QDRANT_EMBEDDING_API_KEY": "AIzaSyCGghUfbBLpAKzHy3hkIe0dVbgm98ha0JU"
+      },
+      "alwaysAllow": [
+        "qdrant_list_collections",
+        "qdrant_collection_info",
+        "qdrant_scroll",
+        "qdrant_semantic_search"
+      ]
+    },
+    "docker": {
+      "mcpServers": {
+        "docker": {
+          "command": "uvx",
+          "args": [
+            "mcp-server-docker"
+          ]
+        }
+      }
+    },
+    "fetch": {
+      "mcpServers": {
+        "fetch": {
+          "command": "uvx",
+          "args": [
+            "mcp-server-fetch"
+          ]
+        }
+      }
+    },
+    "playwright": {
+      "mcpServers": {
+        "playwright": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "@playwright/mcp@latest"
+          ]
+        }
+      }
+    }
+  }
+}

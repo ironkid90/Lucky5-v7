@@ -15,7 +15,7 @@ namespace Lucky5.Tests;
 /// </summary>
 public sealed class RedisPersistenceMigrationTests
 {
-    private const string DisplaySnapshotKeyPrefix = "lucky5:cabinet-display:v1:machine:";
+    private const string DisplaySnapshotKeyPrefix = PersistentStateCheckpointOptions.DefaultDisplaySnapshotKeyPrefix;
 
     private readonly Mock<IDistributedCache> mockCache;
     private readonly Mock<ILogger<RedisPersistentStateStore>> mockLogger;
@@ -33,7 +33,8 @@ public sealed class RedisPersistenceMigrationTests
         {
             CheckpointInterval = TimeSpan.FromSeconds(10),
             GracefulDegradationEnabled = true,
-            SnapshotKey = "lucky5:persistent-state:v2"
+            SnapshotKey = "lucky5:persistent-state:v2",
+            DisplaySnapshotKeyPrefix = DisplaySnapshotKeyPrefix
         });
     }
 
@@ -170,6 +171,7 @@ public sealed class RedisPersistenceMigrationTests
         Assert.Equal(TimeSpan.FromSeconds(10), options.CheckpointInterval);
         Assert.True(options.GracefulDegradationEnabled);
         Assert.Equal("lucky5:persistent-state:v2", options.SnapshotKey);
+        Assert.Equal(DisplaySnapshotKeyPrefix, options.DisplaySnapshotKeyPrefix);
     }
 
     [Fact]

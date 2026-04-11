@@ -1,0 +1,25 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "microsoftdocs",
+    "morphllm",
+    "morphmcp",
+    "markitdown",
+    "wonderwhy",
+    "qdrant",
+    "QDRANT",
+    "Vbgm"
+  ],
+  "ignoreWords": [],
+  "flagWords": [],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/vendor/**",
+    "**/bin/**",
+    "**/obj/**",
+    "**/.git/**",
+    "**/dist/**",
+    "**/build/**"
+  ]
+}

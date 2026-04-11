@@ -1,0 +1,107 @@
+/*
+ * cabinet-shell-vnext.css
+ * OWNER: Lead Agent
+ * PURPOSE: Shell additions only — game.css already covers all shell screens.
+ *          This file adds only the genuinely missing pieces and targeted overrides.
+ * LOADS AFTER: cabinet-labels-vnext.css
+ * DO NOT EDIT: game.css, any .js files, index.html
+ */
+
+/* ─── ADMIN INPUT ────────────────────────────────────────────────────────── */
+/* game.css does not define admin-input-lite */
+
+.admin-input-lite {
+    font-family: 'Press Start 2P', 'Arcade', monospace;
+    font-size: 7px;
+    background: #111;
+    border: 1px solid #3d2815;
+    color: #ffcc00;
+    padding: 8px 10px;
+    letter-spacing: 1px;
+    border-radius: 2px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.admin-input-lite:focus {
+    border-color: #ffcc00;
+}
+
+/* ─── LUCKY5 CARD GLOW (applied by CabinetStage.showLucky5Active) ────────── */
+/* game.css has .du-card-slot lucky5-glow but not .card-slot.lucky5-active */
+
+.card-slot.lucky5-active .card-face {
+    box-shadow: 0 0 18px rgba(255, 215, 0, 0.85), 0 0 36px rgba(255, 215, 0, 0.35);
+    animation: lucky5-card-slot-glow 0.6s ease-out forwards;
+}
+
+@keyframes lucky5-card-slot-glow {
+    0%   { box-shadow: 0 0 24px rgba(255,215,0,0.9), 0 0 48px rgba(255,215,0,0.5); }
+    100% { box-shadow: 2px 2px 6px rgba(0,0,0,0.8); }
+}
+
+/* ─── LOBBY MACHINE CARD (used by CabinetShell.renderLobbyMachineCards) ──── */
+/* Additive — not a replacement for .game-card, just an alternative class     */
+
+.lobby-machine-card {
+    background: linear-gradient(180deg, rgba(50,32,14,0.95) 0%, rgba(20,12,4,0.98) 100%);
+    border: 2px solid #5a3a1a;
+    border-radius: 4px;
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Press Start 2P', 'Arcade', monospace;
+    transition: border-color 0.15s;
+    position: relative;
+}
+
+.lobby-machine-card:hover,
+.lobby-machine-card:active {
+    border-color: #ffcc00;
+    background: linear-gradient(180deg, rgba(60,38,14,0.98) 0%, rgba(26,14,5,0.99) 100%);
+}
+
+.lobby-machine-card.unavailable {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.lobby-machine-name {
+    font-size: 9px;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+}
+
+.lobby-machine-bet {
+    font-size: 7px;
+    color: #44ff44;
+}
+
+/* ─── LOBBY NAV ACTIVE INDICATOR (override game.css gold with amber) ──────── */
+
+.lobby-nav-item.active {
+    color: #ffcc00;
+    border-top: 2px solid #ffcc00;
+}
+
+/* ─── MENU OVERLAY TITLE (override game.css yellow with gold) ─────────────── */
+
+.menu-panel-title {
+    font-size: 11px;
+    color: #ffcc00;
+    letter-spacing: 3px;
+}
+
+/* ─── WALLET DEPOSIT/WITHDRAW PLACEHOLDER TEXT ────────────────────────────── */
+
+.wallet-coming-soon {
+    font-family: 'Press Start 2P', 'Arcade', monospace;
+    font-size: 6px;
+    color: #444;
+    text-align: center;
+    letter-spacing: 1px;
+    padding: 4px 0;
+}

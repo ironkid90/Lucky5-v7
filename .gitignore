@@ -103,3 +103,5 @@ New folder/
 .windsurf/mcp.json
 
 .fake
+/.agents/skills
+/.agents

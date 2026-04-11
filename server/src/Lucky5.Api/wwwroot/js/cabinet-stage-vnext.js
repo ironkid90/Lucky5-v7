@@ -629,3 +629,8 @@ window.CabinetStage = (function () {
         showLucky5Active
     };
 }());
+
+// Expose isDoubleUpMode as a global function for game.js
+function isDoubleUpMode() {
+    return typeof _isDoubleUpMode !== 'undefined' ? _isDoubleUpMode : false;
+}

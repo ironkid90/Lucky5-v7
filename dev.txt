@@ -1,0 +1,187 @@
+[2026-04-11T03:39:54.669Z] Information: Normalizing '/CarrePokerGameHub' to 'https://lucky5-ik90-prod-20260401.azurewebsites.net/CarrePokerGameHub'. signalr.min.js:1:4495
+[2026-04-11T03:39:55.127Z] Information: WebSocket connected to wss://lucky5-ik90-prod-20260401.azurewebsites.net/CarrePokerGameHub?id=pL-ain-D5-P1_9uYdb7lmg&access_token=MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDEuMTc3NTkwNzY1Mi5BZG1pbi5mb3dEbVhzcGdGQ0hGZTV6eHVDMlBFVWhwdXRnTXpEOFd3aVYvSWI4ZGZnPQ%3D%3D. signalr.min.js:1:4495
+Uncaught (in promise) ReferenceError: isDoubleUpMode is not defined
+    updateIdleOverlayVisibility https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:783
+    mainTakeScore https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:1900
+    <anonymous> https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:2638
+game.js:783:9
+SES_UNCAUGHT_EXCEPTION: ReferenceError: isDoubleUpMode is not defined
+    idleOverlayTimer https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:775
+lockdown-install.js:1:145467
+SignalR error: 
+Object { code: "HEARTBEAT_TIMEOUT", message: "Heartbeat timeout" }
+game.js:2074:17
+SES_UNHANDLED_REJECTION: ReferenceError: isDoubleUpMode is not defined
+    updateIdleOverlayVisibility https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:783
+    mainTakeScore https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:1900
+    <anonymous> https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:2638
+lockdown-install.js:1:145776
+[2026-04-11T03:41:08.584Z] Information: Connection disconnected. signalr.min.js:1:4495
+[2026-04-11T03:41:08.584Z] Information: Normalizing '/CarrePokerGameHub' to 'https://lucky5-ik90-prod-20260401.azurewebsites.net/CarrePokerGameHub'. signalr.min.js:1:4495
+[2026-04-11T03:41:08.942Z] Information: WebSocket connected to wss://lucky5-ik90-prod-20260401.azurewebsites.net/CarrePokerGameHub?id=ASpctQEQ811JfkOfOgfNSA&access_token=MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDEuMTc3NTkwNzY1Mi5BZG1pbi5mb3dEbVhzcGdGQ0hGZTV6eHVDMlBFVWhwdXRnTXpEOFd3aVYvSWI4ZGZnPQ%3D%3D. signalr.min.js:1:4495
+Uncaught (in promise) ReferenceError: isDoubleUpMode is not defined
+    updateIdleOverlayVisibility https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:783
+    mainTakeScore https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:1900
+    <anonymous> https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:2638
+game.js:783:9
+SES_UNCAUGHT_EXCEPTION: ReferenceError: isDoubleUpMode is not defined
+    idleOverlayTimer https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:775
+lockdown-install.js:1:145467
+SES_UNCAUGHT_EXCEPTION: ReferenceError: isDoubleUpMode is not defined
+    idleOverlayTimer https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:775
+lockdown-install.js:1:145467
+[2026-04-11T03:41:17.745Z] Information: Connection disconnected. signalr.min.js:1:4495
+[2026-04-11T03:41:17.746Z] Information: Normalizing '/CarrePokerGameHub' to 'https://lucky5-ik90-prod-20260401.azurewebsites.net/CarrePokerGameHub'. signalr.min.js:1:4495
+[2026-04-11T03:41:18.345Z] Information: WebSocket connected to wss://lucky5-ik90-prod-20260401.azurewebsites.net/CarrePokerGameHub?id=cIfHm3DlUs_BYo_C55p4Bg&access_token=MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDEuMTc3NTkwNzY1Mi5BZG1pbi5mb3dEbVhzcGdGQ0hGZTV6eHVDMlBFVWhwdXRnTXpEOFd3aVYvSWI4ZGZnPQ%3D%3D. signalr.min.js:1:4495
+SES_UNCAUGHT_EXCEPTION: ReferenceError: isDoubleUpMode is not defined
+    idleOverlayTimer https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:775
+lockdown-install.js:1:145467
+    <anonymous> moz-extension://fb3d618a-2cc4-4d81-90f1-da751de8520e/scripts/lockdown-install.js:1
+SES_UNCAUGHT_EXCEPTION: ReferenceError: isDoubleUpMode is not defined
+    idleOverlayTimer https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:775
+lockdown-install.js:1:145467
+Source map error: Error: URL constructor:  is not a valid URL.
+Stack in the worker:resolveSourceMapURL@resource://devtools/client/shared/source-map-loader/utils/fetchSourceMap.js:56:22
+getOriginalURLs@resource://devtools/client/shared/source-map-loader/source-map.js:75:24
+workerHandler/</<@resource://devtools/client/shared/worker-utils.js:115:52
+workerHandler/<@resource://devtools/client/shared/worker-utils.js:113:13
+
+Resource URL: wasm:moz-extension://3926bd13-b94b-4ee4-b894-2012b458189b/injectedScript.bundle.js%20line%202%20%3E%20WebAssembly.Module
+Source Map URL: null
+SES_UNHANDLED_REJECTION: ReferenceError: isDoubleUpMode is not defined
+    updateIdleOverlayVisibility https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:783
+    mainTakeScore https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:1900
+    <anonymous> https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:2638
+lockdown-install.js:1:145776
+Source map error: Error: request failed with status 404
+Stack in the worker:networkRequest@resource://devtools/client/shared/source-map-loader/utils/network-request.js:43:9
+
+Resource URL: https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js
+Source Map URL: signalr.min.js.map
+SignalR error: 
+Object { code: "HEARTBEAT_TIMEOUT", message: "Heartbeat timeout" }
+game.js:2074:17
+
+​
+06:39:23.479 Fingerprinting Protection is altering screen.availWidth and screen.availHeight. These values may not match your actual screen dimensions. This protection helps prevent websites building a fingerprint that can be used to track users. Learn more: https://support.mozilla.org/kb/firefox-protection-against-fingerprinting <anonymous code>:5856:7
+06:39:23.489 SES Removing unpermitted intrinsics lockdown-install.js:1:203117
+06:39:23.489   Removing intrinsics.%MapPrototype%.getOrInsert lockdown-install.js:1:202962
+06:39:23.489   Removing intrinsics.%MapPrototype%.getOrInsertComputed lockdown-install.js:1:202962
+06:39:23.490   Removing intrinsics.%WeakMapPrototype%.getOrInsert lockdown-install.js:1:202962
+06:39:23.490   Removing intrinsics.%WeakMapPrototype%.getOrInsertComputed lockdown-install.js:1:202962
+06:39:23.490   Removing intrinsics.%DatePrototype%.toTemporalInstant lockdown-install.js:1:202962
+06:39:25.244 downloadable font: bad table directory searchRange (font-family: "Arcade" style:normal weight:400 stretch:100 src index:0) source: https://lucky5-ik90-prod-20260401.azurewebsites.net/assets/fonts/ARCADE.ttf
+06:39:25.244 downloadable font: bad table directory rangeShift (font-family: "Arcade" style:normal weight:400 stretch:100 src index:0) source: https://lucky5-ik90-prod-20260401.azurewebsites.net/assets/fonts/ARCADE.ttf
+06:39:25.244 downloadable font: cmap: bad id_range_offset (font-family: "Arcade" style:normal weight:400 stretch:100 src index:0) source: https://lucky5-ik90-prod-20260401.azurewebsites.net/assets/fonts/ARCADE.ttf
+06:39:25.244 downloadable font: hdmx: the table should not be present when bit 2 and 4 of the head->flags are not set (font-family: "Arcade" style:normal weight:400 stretch:100 src index:0) source: https://lucky5-ik90-prod-20260401.azurewebsites.net/assets/fonts/ARCADE.ttf
+06:39:25.244 downloadable font: Table discarded (font-family: "Arcade" style:normal weight:400 stretch:100 src index:0) source: https://lucky5-ik90-prod-20260401.azurewebsites.net/assets/fonts/ARCADE.ttf
+06:39:26.784 Error: Promised response from onMessage listener went out of scope vendors.chunk.js:1:532239
+06:39:54.669 [2026-04-11T03:39:54.669Z] Information: Normalizing '/CarrePokerGameHub' to 'https://lucky5-ik90-prod-20260401.azurewebsites.net/CarrePokerGameHub'. signalr.min.js:1:4495
+06:39:55.126 [2026-04-11T03:39:55.127Z] Information: WebSocket connected to wss://lucky5-ik90-prod-20260401.azurewebsites.net/CarrePokerGameHub?id=pL-ain-D5-P1_9uYdb7lmg&access_token=MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDEuMTc3NTkwNzY1Mi5BZG1pbi5mb3dEbVhzcGdGQ0hGZTV6eHVDMlBFVWhwdXRnTXpEOFd3aVYvSWI4ZGZnPQ%3D%3D. signalr.min.js:1:4495
+06:40:07.303 Uncaught (in promise) ReferenceError: isDoubleUpMode is not defined
+    updateIdleOverlayVisibility https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:783
+    mainTakeScore https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:1900
+    <anonymous> https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:2638
+game.js:783:9
+06:40:42.617 SES_UNCAUGHT_EXCEPTION: ReferenceError: isDoubleUpMode is not defined
+    idleOverlayTimer https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:775
+lockdown-install.js:1:145467
+06:40:48.763 SignalR error: 
+Object { code: "HEARTBEAT_TIMEOUT", message: "Heartbeat timeout" }
+game.js:2074:17
+06:40:53.021 SES_UNHANDLED_REJECTION: ReferenceError: isDoubleUpMode is not defined
+    updateIdleOverlayVisibility https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:783
+    mainTakeScore https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:1900
+    <anonymous> https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:2638
+lockdown-install.js:1:145776
+06:41:08.583 [2026-04-11T03:41:08.584Z] Information: Connection disconnected. signalr.min.js:1:4495
+06:41:08.583 [2026-04-11T03:41:08.584Z] Information: Normalizing '/CarrePokerGameHub' to 'https://lucky5-ik90-prod-20260401.azurewebsites.net/CarrePokerGameHub'. signalr.min.js:1:4495
+06:41:08.942 [2026-04-11T03:41:08.942Z] Information: WebSocket connected to wss://lucky5-ik90-prod-20260401.azurewebsites.net/CarrePokerGameHub?id=ASpctQEQ811JfkOfOgfNSA&access_token=MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDEuMTc3NTkwNzY1Mi5BZG1pbi5mb3dEbVhzcGdGQ0hGZTV6eHVDMlBFVWhwdXRnTXpEOFd3aVYvSWI4ZGZnPQ%3D%3D. signalr.min.js:1:4495
+06:41:10.103 Uncaught (in promise) ReferenceError: isDoubleUpMode is not defined
+    updateIdleOverlayVisibility https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:783
+    mainTakeScore https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:1900
+    <anonymous> https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:2638
+game.js:783:9
+06:41:13.177 SES_UNCAUGHT_EXCEPTION: ReferenceError: isDoubleUpMode is not defined
+    idleOverlayTimer https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:775
+lockdown-install.js:1:145467
+06:41:16.542 SES_UNCAUGHT_EXCEPTION: ReferenceError: isDoubleUpMode is not defined
+    idleOverlayTimer https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:775
+lockdown-install.js:1:145467
+06:41:17.745 [2026-04-11T03:41:17.745Z] Information: Connection disconnected. signalr.min.js:1:4495
+06:41:17.745 [2026-04-11T03:41:17.746Z] Information: Normalizing '/CarrePokerGameHub' to 'https://lucky5-ik90-prod-20260401.azurewebsites.net/CarrePokerGameHub'. signalr.min.js:1:4495
+06:41:18.345 [2026-04-11T03:41:18.345Z] Information: WebSocket connected to wss://lucky5-ik90-prod-20260401.azurewebsites.net/CarrePokerGameHub?id=cIfHm3DlUs_BYo_C55p4Bg&access_token=MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDEuMTc3NTkwNzY1Mi5BZG1pbi5mb3dEbVhzcGdGQ0hGZTV6eHVDMlBFVWhwdXRnTXpEOFd3aVYvSWI4ZGZnPQ%3D%3D. signalr.min.js:1:4495
+06:41:24.742 SES_UNCAUGHT_EXCEPTION: ReferenceError: isDoubleUpMode is not defined
+    idleOverlayTimer https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:775
+lockdown-install.js:1:145467
+    <anonymous> moz-extension://fb3d618a-2cc4-4d81-90f1-da751de8520e/scripts/lockdown-install.js:1
+06:41:48.802 GET
+https://lucky5-ik90-prod-20260401.azurewebsites.net/assets/images/hold_on.png
+[HTTP/1.1 200 OK 0ms]
+
+06:41:49.006 GET
+https://lucky5-ik90-prod-20260401.azurewebsites.net/assets/images/hold_off.png
+[HTTP/1.1 200 OK 0ms]
+
+06:41:49.289 SES_UNCAUGHT_EXCEPTION: ReferenceError: isDoubleUpMode is not defined
+    idleOverlayTimer https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:775
+lockdown-install.js:1:145467
+06:41:56.641 Source map error: Error: URL constructor:  is not a valid URL.
+Stack in the worker:resolveSourceMapURL@resource://devtools/client/shared/source-map-loader/utils/fetchSourceMap.js:56:22
+getOriginalURLs@resource://devtools/client/shared/source-map-loader/source-map.js:75:24
+workerHandler/</<@resource://devtools/client/shared/worker-utils.js:115:52
+workerHandler/<@resource://devtools/client/shared/worker-utils.js:113:13
+
+Resource URL: wasm:moz-extension://3926bd13-b94b-4ee4-b894-2012b458189b/injectedScript.bundle.js%20line%202%20%3E%20WebAssembly.Module
+Source Map URL: null
+06:41:57.513 SES_UNHANDLED_REJECTION: ReferenceError: isDoubleUpMode is not defined
+    updateIdleOverlayVisibility https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:783
+    mainTakeScore https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:1900
+    <anonymous> https://lucky5-ik90-prod-20260401.azurewebsites.net/js/game.js?v=20:2638
+lockdown-install.js:1:145776
+06:41:57.523 Source map error: Error: request failed with status 404
+Stack in the worker:networkRequest@resource://devtools/client/shared/source-map-loader/utils/network-request.js:43:9
+
+Resource URL: https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js
+Source Map URL: signalr.min.js.map
+06:42:08.772 SignalR error: 
+Object { code: "HEARTBEAT_TIMEOUT", message: "Heartbeat timeout" }
+game.js:2074:17
+06:42:25.072 Source map error: request failed with status 404
+Resource URL: https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js
+Source Map URL: signalr.min.js.map
+06:44:56.337 Dangling combinator.  Ruleset ignored due to bad selector. lucky5-ik90-prod-20260401.azurewebsites.net:1:4
+06:44:56.338 Ruleset ignored due to bad selector. lucky5-ik90-prod-20260401.azurewebsites.net:5:5844
+06:44:56.338 Expected color but found ‘dark’.  Error in parsing value for ‘scrollbar-color’.  Declaration dropped. lucky5-ik90-prod-20260401.azurewebsites.net:5:7496
+06:44:56.338 Expected color but found ‘dark’.  Error in parsing value for ‘scrollbar-color’.  Declaration dropped. lucky5-ik90-prod-20260401.azurewebsites.net:5:7601
+06:44:56.338 Unknown property ‘-moz-osx-font-smoothing’.  Declaration dropped. lucky5-ik90-prod-20260401.azurewebsites.net:5:27465
+06:44:56.338 Error in parsing value for ‘-webkit-text-size-adjust’.  Declaration dropped. lucky5-ik90-prod-20260401.azurewebsites.net:5:37094
+06:44:56.339 Unknown property ‘-moz-column-gap’.  Declaration dropped. lucky5-ik90-prod-20260401.azurewebsites.net:5:48108
+06:44:56.339 Unknown property ‘-moz-column-gap’.  Declaration dropped. lucky5-ik90-prod-20260401.azurewebsites.net:5:48155
+06:44:56.339 Unknown property ‘-moz-column-gap’.  Declaration dropped. lucky5-ik90-prod-20260401.azurewebsites.net:5:48201
+06:44:56.339 Unknown property ‘-moz-column-gap’.  Declaration dropped. lucky5-ik90-prod-20260401.azurewebsites.net:5:48245
+06:44:56.339 Unknown property ‘-moz-column-gap’.  Declaration dropped. lucky5-ik90-prod-20260401.azurewebsites.net:5:48289
+06:44:56.339 Unknown pseudo-class or pseudo-element ‘cta-button-1’.  Ruleset ignored due to bad selector. lucky5-ik90-prod-20260401.azurewebsites.net:5:65127
+06:44:56.339 Unknown pseudo-class or pseudo-element ‘cta-button-2’.  Ruleset ignored due to bad selector. lucky5-ik90-prod-20260401.azurewebsites.net:5:65165
+06:44:56.339 Unknown pseudo-class or pseudo-element ‘cta-link-1’.  Ruleset ignored due to bad selector. lucky5-ik90-prod-20260401.azurewebsites.net:5:65235
+06:44:56.339 Unknown pseudo-class or pseudo-element ‘cta-link-2’.  Ruleset ignored due to bad selector. lucky5-ik90-prod-20260401.azurewebsites.net:5:65271
+06:44:56.339 Unknown pseudo-class or pseudo-element ‘body-1’.  Ruleset ignored due to bad selector. lucky5-ik90-prod-20260401.azurewebsites.net:5:65339
+06:44:56.339 Unknown pseudo-class or pseudo-element ‘body-2’.  Ruleset ignored due to bad selector. lucky5-ik90-prod-20260401.azurewebsites.net:5:65372
+06:44:56.339 Unknown pseudo-class or pseudo-element ‘caption’.  Ruleset ignored due to bad selector. lucky5-ik90-prod-20260401.azurewebsites.net:5:65422
+06:44:56.339 Expected color but found ‘dark’.  Error in parsing value for ‘scrollbar-color’.  Declaration dropped. lucky5-ik90-prod-20260401.azurewebsites.net:5:65528
+06:44:56.339 Expected color but found ‘dark’.  Error in parsing value for ‘scrollbar-color’.  Declaration dropped. lucky5-ik90-prod-20260401.azurewebsites.net:5:65720
+06:44:56.393 GET
+https://lucky5-ik90-prod-20260401.azurewebsites.net/assets/images/board.png
+[HTTP/2 200  0ms]
+
+06:44:56.484 Unknown descriptor ‘font-feature-settings:"'ss08'on";’ in @font-face rule.  Skipped to next declaration. lucky5-ik90-prod-20260401.azurewebsites.net:1:185
+06:44:56.484 Unknown descriptor ‘font-feature-settings:"'ss08'on";’ in @font-face rule.  Skipped to next declaration. lucky5-ik90-prod-20260401.azurewebsites.net:1:413
+06:44:56.484 Unknown descriptor ‘font-feature-settings:"'ss08'on";’ in @font-face rule.  Skipped to next declaration. lucky5-ik90-prod-20260401.azurewebsites.net:1:641
+06:44:56.484 Unknown descriptor ‘font-feature-settings:"'ss08'on";’ in @font-face rule.  Skipped to next declaration. lucky5-ik90-prod-20260401.azurewebsites.net:1:875
+06:44:56.484 Unknown descriptor ‘font-feature-settings:"'ss08'on";’ in @font-face rule.  Skipped to next declaration. lucky5-ik90-prod-20260401.azurewebsites.net:1:1101
+06:44:56.484 Unknown descriptor ‘font-feature-settings:"'ss08'on";’ in @font-face rule.  Skipped to next declaration. lucky5-ik90-prod-20260401.azurewebsites.net:1:1333
+
+1
+
+​
+

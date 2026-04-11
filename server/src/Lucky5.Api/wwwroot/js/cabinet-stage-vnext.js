@@ -4,45 +4,17 @@
  * PURPOSE: Card stage choreography, hold-lamp state, button press assets, double-up viewport.
  * LOADS AFTER: game.js
  * DO NOT EDIT: game.css, game.js, index.html, any .cs backend files
- *
- * Expose API on window.CabinetStage — game.js calls these at key state transitions.
- * Read game.js globals (cards, holdIndexes, gameState, duCardTrail, duDealerCard,
- * ALL_CARD_CODES, preloadedImages) but never write to them.
- *
- * Asset paths (images are in /assets/images/ root):
- *   Card PNGs:   /assets/images/cards/{rank}{suit}.png  e.g. AH.png, 5S.png, 10C.png
- *   Card back:   /assets/images/cards/bside.png
- *   Hold off:    /assets/images/hold_off.png
- *   Hold on:     /assets/images/hold_on.png
- *   Big:         /assets/images/big.png / big_on.png
- *   Small:       /assets/images/small.png / small_on.png
- *   Cancel hold: /assets/images/cancel_hold.png / cancel_hold_on.png
- *   Deal draw:   /assets/images/deal_draw.png / deal_draw_on.png
- *   Bet:         /assets/images/bet.png / bet_on.png
- *   Take half:   /assets/images/take_half.png / take_half_on.png
- *   Take score:  /assets/images/take_score.png / take_score_on.png
- *
- * DOM contract (all IDs frozen in index.html after Phase 0.4):
- *   #card-area                 — card stage container
- *   .card-slot[data-slot=0..4] — individual card columns
- *   .card-face img             — card image inside each slot
- *   .hold-badge                — HOLD text label on card
- *   #hold-row .cab-hold[data-index=0..4] — hold buttons
- *   #btn-big, #btn-small, #btn-cancel, #btn-deal, #btn-bet
- *   #btn-take-half, #btn-take-score
- *   #lucky5-flash, #lucky5-banner
- *   #game-message, #bonus-text
- *   #win-amount-value, #win-slot-tag
  */
 
 'use strict';
 
 window.CabinetStage = (function () {
+    const DEFAULT_MAX_TRAIL_PER_PAGE = 4;
 
     function _resolveConfig(overrides) {
-        const _cfg = (typeof GAME_CONFIG !== 'undefined') ? GAME_CONFIG : null;
-        const timing = _cfg && _cfg.timing ? _cfg.timing : {};
-        const assets = _cfg && _cfg.assets ? _cfg.assets : {};
+        const cfg = (typeof GAME_CONFIG !== 'undefined') ? GAME_CONFIG : null;
+        const timing = cfg && cfg.timing ? cfg.timing : {};
+        const assets = cfg && cfg.assets ? cfg.assets : {};
 
         const next = {
             cardBack: assets.cardBack || '/assets/images/cards/bside.png',
@@ -58,6 +30,7 @@ window.CabinetStage = (function () {
         if (overrides && typeof overrides === 'object') {
             Object.assign(next, overrides);
         }
+
         return next;
     }
 
@@ -65,11 +38,49 @@ window.CabinetStage = (function () {
     let _shuffleInterval = null;
     let _isDoubleUpMode = false;
     let _lucky5Timer = null;
+    let _duTrailCards = [];
+    let _duDealerCard = null;
 
-    /* ── helpers ─────────────────────────────────────────────────────────── */
+    function _asCard(input) {
+        if (!input) return null;
+
+        if (typeof input === 'string') {
+            const code = String(input).toUpperCase();
+            return {
+                code,
+                rank: code.slice(0, -1),
+                suit: code.slice(-1)
+            };
+        }
+
+        if (input.code) {
+            const code = String(input.code).toUpperCase();
+            return {
+                code,
+                rank: input.rank || code.slice(0, -1),
+                suit: input.suit || code.slice(-1)
+            };
+        }
+
+        if (input.rank && input.suit) {
+            return {
+                code: `${input.rank}${input.suit}`.toUpperCase(),
+                rank: input.rank,
+                suit: input.suit
+            };
+        }
+
+        return null;
+    }
 
     function _cardSrc(code) {
         return `/assets/images/cards/${code}.png`;
+    }
+
+    function _allCardCodes() {
+        return Array.isArray(window.ALL_CARD_CODES) && window.ALL_CARD_CODES.length > 0
+            ? window.ALL_CARD_CODES
+            : [];
     }
 
     function _slot(index) {
@@ -82,6 +93,224 @@ window.CabinetStage = (function () {
 
     function _holdBtn(index) {
         return document.querySelector(`#hold-row .cab-hold[data-index="${index}"]`);
+    }
+
+    function _duSlot(index) {
+        return document.querySelector(`.du-card-slot[data-du-slot="${index}"]`);
+    }
+
+    function _duFrame(slotEl) {
+        return slotEl ? slotEl.querySelector('.du-card-frame') : null;
+    }
+
+    function _duImg(slotEl) {
+        return slotEl ? slotEl.querySelector('img') : null;
+    }
+
+    function _duLabel(slotEl) {
+        return slotEl ? slotEl.querySelector('.du-card-label') : null;
+    }
+
+    function _stopShuffle() {
+        if (_shuffleInterval) {
+            clearInterval(_shuffleInterval);
+            _shuffleInterval = null;
+        }
+
+        document.querySelectorAll('.du-card-slot.du-shuffling').forEach(slotEl => {
+            slotEl.classList.remove('du-shuffling');
+        });
+    }
+
+    function _ensureMainSlots() {
+        const area = document.getElementById('card-area');
+        if (!area) return false;
+
+        if (_isDoubleUpMode || area.querySelectorAll('.card-slot').length !== 5) {
+            initCardSlots();
+        }
+
+        return true;
+    }
+
+    function _resetMainSlot(slotEl) {
+        if (!slotEl) return;
+
+        slotEl.classList.remove('held', 'lucky5-active');
+        slotEl.style.transition = 'none';
+        slotEl.style.transform = 'translateY(0)';
+        slotEl.style.opacity = '1';
+
+        const face = slotEl.querySelector('.card-face');
+        if (face) {
+            face.style.transition = 'none';
+            face.style.opacity = '1';
+        }
+    }
+
+    function _ensureDoubleUpSlots() {
+        const area = document.getElementById('card-area');
+        if (!area) return false;
+
+        area.classList.add('du-mode');
+        if (!_isDoubleUpMode || area.querySelectorAll('.du-card-slot').length !== 5) {
+            area.innerHTML = '';
+
+            for (let i = 0; i < 5; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'du-card-slot';
+                slot.dataset.duSlot = i;
+
+                const label = document.createElement('div');
+                label.className = 'du-card-label';
+
+                const frame = document.createElement('div');
+                frame.className = 'du-card-frame';
+
+                const img = document.createElement('img');
+                img.src = _config.cardBack;
+                img.alt = 'Card back';
+
+                frame.appendChild(img);
+                slot.appendChild(label);
+                slot.appendChild(frame);
+                area.appendChild(slot);
+            }
+        }
+
+        _isDoubleUpMode = true;
+        return true;
+    }
+
+    function _clearDoubleUpSlots() {
+        for (let i = 0; i < 5; i++) {
+            const slotEl = _duSlot(i);
+            const frame = _duFrame(slotEl);
+            const label = _duLabel(slotEl);
+            const img = _duImg(slotEl);
+
+            if (!slotEl || !frame || !label || !img) continue;
+
+            slotEl.classList.remove('du-trail-card', 'du-shuffling');
+            frame.classList.remove('dealer-card', 'lucky5-glow');
+            label.textContent = '';
+            img.src = _config.cardBack;
+            img.alt = 'Card back';
+        }
+    }
+
+    function _getVisibleDoubleUpWindow(trailCards, dealerCard) {
+        const normalizedTrail = Array.isArray(trailCards)
+            ? trailCards.map(_asCard).filter(Boolean)
+            : [];
+        const normalizedDealer = _asCard(dealerCard);
+
+        const maxTrailPerPage = Math.max(1, Number(window.GAME_CONFIG?.doubleUp?.maxTrailPerPage) || DEFAULT_MAX_TRAIL_PER_PAGE);
+        const carryStep = Math.max(1, maxTrailPerPage - 1);
+
+        let startIndex = 0;
+        if (normalizedTrail.length > maxTrailPerPage) {
+            const overshoot = normalizedTrail.length - maxTrailPerPage;
+            const pages = Math.ceil(overshoot / carryStep);
+            startIndex = pages * carryStep;
+        }
+
+        const visibleTrail = normalizedTrail.slice(startIndex);
+        const sequence = visibleTrail.slice();
+        let dealerIndex = -1;
+
+        if (normalizedDealer) {
+            dealerIndex = Math.min(visibleTrail.length, 4);
+            sequence.push(normalizedDealer);
+        }
+
+        return {
+            sequence: sequence.slice(0, 5),
+            dealerIndex,
+            revealIndex: Math.min(sequence.length, 4)
+        };
+    }
+
+    function _statusLabel(status) {
+        switch (String(status || '').toLowerCase()) {
+            case 'win':
+                return 'WIN';
+            case 'lose':
+                return 'LOSE';
+            case 'push':
+                return 'SAFE';
+            default:
+                return '';
+        }
+    }
+
+    function _renderDoubleUpSequence(sequence, dealerIndex, revealIndex, status) {
+        if (!_ensureDoubleUpSlots()) return;
+
+        _clearDoubleUpSlots();
+
+        for (let i = 0; i < 5; i++) {
+            const slotEl = _duSlot(i);
+            const frame = _duFrame(slotEl);
+            const label = _duLabel(slotEl);
+            const img = _duImg(slotEl);
+            const card = sequence[i] || null;
+
+            if (!slotEl || !frame || !label || !img) continue;
+
+            if (card) {
+                img.src = _cardSrc(card.code);
+                img.alt = card.code;
+            }
+
+            if (card && i < dealerIndex) {
+                slotEl.classList.add('du-trail-card');
+                label.textContent = 'PLAYED';
+            }
+
+            if (card && i === dealerIndex) {
+                frame.classList.add('dealer-card');
+                label.textContent = 'DEALER';
+            }
+
+            if (!card && revealIndex === i) {
+                label.textContent = 'BIG / SMALL ?';
+            }
+
+            if (card && revealIndex == null && i === dealerIndex + 1 && status) {
+                label.textContent = status;
+            }
+
+            if (card && card.code === '5S') {
+                frame.classList.add('lucky5-glow');
+            }
+        }
+    }
+
+    function _beginSequentialShuffle(trailCards, dealerCard) {
+        _stopShuffle();
+
+        const view = _getVisibleDoubleUpWindow(trailCards, dealerCard);
+        _renderDoubleUpSequence(view.sequence, view.dealerIndex, view.revealIndex, '');
+
+        const slotEl = _duSlot(view.revealIndex);
+        const img = _duImg(slotEl);
+        const codes = _allCardCodes();
+
+        if (!slotEl || !img || codes.length === 0) {
+            return;
+        }
+
+        slotEl.classList.add('du-shuffling');
+
+        const frameMs = Math.max(60, Number(_config.shuffleFrameMs) || 80);
+        let cursor = 0;
+        _shuffleInterval = setInterval(() => {
+            const code = codes[cursor % codes.length];
+            cursor++;
+            img.src = _cardSrc(code);
+            img.alt = `${code} shuffle`;
+        }, frameMs);
     }
 
     function configure(overrides) {
@@ -102,15 +331,14 @@ window.CabinetStage = (function () {
         };
     }
 
-    /* ── initCardSlots ───────────────────────────────────────────────────── */
-    /**
-     * Build five fixed .card-slot elements inside #card-area.
-     * Called once on page load after assets are ready.
-     */
     function initCardSlots() {
         const area = document.getElementById('card-area');
         if (!area) return;
+
+        _stopShuffle();
+        area.classList.remove('du-mode');
         area.innerHTML = '';
+
         for (let i = 0; i < 5; i++) {
             const slot = document.createElement('div');
             slot.className = 'card-slot';
@@ -121,7 +349,7 @@ window.CabinetStage = (function () {
 
             const img = document.createElement('img');
             img.src = _config.cardBack;
-            img.alt = '';
+            img.alt = 'Card back';
 
             face.appendChild(img);
 
@@ -133,97 +361,114 @@ window.CabinetStage = (function () {
             slot.appendChild(badge);
             area.appendChild(slot);
         }
+
+        _duTrailCards = [];
+        _duDealerCard = null;
         _isDoubleUpMode = false;
     }
 
-    /* ── dealCards ───────────────────────────────────────────────────────── */
-    /**
-     * Animate 5 cards into slots left-to-right with stagger.
-     * @param {Array<{rank:string, suit:string, code:string}>} cardArray
-     * @param {function} [onComplete]
-     */
     function dealCards(cardArray, onComplete) {
+        if (!_ensureMainSlots()) return;
+
+        _stopShuffle();
         clearAllHolds();
+
+        const cards = Array.isArray(cardArray) ? cardArray.map(_asCard) : [];
         const stagger = Math.max(40, Number(_config.dealStaggerMs) || 100);
         const duration = Math.max(80, Number(_config.dealDurationMs) || 120);
-        cardArray.forEach((card, i) => {
-            setTimeout(() => {
-                const slotEl = _slot(i);
-                if (!slotEl) return;
-                const img = _cardImg(slotEl);
-                if (!img) return;
-                // reset position
-                slotEl.classList.remove('deal-in-done', 'deal-in');
-                slotEl.style.opacity = '0';
-                slotEl.style.transform = 'translateY(-60px)';
-                // set image
-                img.src = card && card.code ? _cardSrc(card.code) : _config.cardBack;
-                // animate in
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        slotEl.style.transition = `opacity ${duration}ms ease-out, transform ${duration}ms ease-out`;
-                        slotEl.style.opacity = '1';
-                        slotEl.style.transform = 'translateY(0)';
-                    });
-                });
-                if (i === cardArray.length - 1 && onComplete) {
-                    setTimeout(onComplete, duration + 40);
-                }
-            }, i * stagger);
+
+        cards.forEach((card, i) => {
+            const slotEl = _slot(i);
+            const img = _cardImg(slotEl);
+            if (!slotEl || !img) return;
+
+            _resetMainSlot(slotEl);
+            img.src = card && card.code ? _cardSrc(card.code) : _config.cardBack;
+            img.alt = card && card.code ? card.code : 'Card back';
+            slotEl.style.transform = 'translateY(-60px)';
+        });
+
+        requestAnimationFrame(() => {
+            cards.forEach((card, i) => {
+                setTimeout(() => {
+                    const slotEl = _slot(i);
+                    if (!slotEl) return;
+
+                    slotEl.style.transition = `transform ${duration}ms ease-out`;
+                    slotEl.style.transform = 'translateY(0)';
+
+                    if (i === cards.length - 1 && onComplete) {
+                        setTimeout(onComplete, duration + 40);
+                    }
+                }, i * stagger);
+            });
         });
     }
 
-    /* ── drawCards ───────────────────────────────────────────────────────── */
-    /**
-     * Replace non-held cards with new cards using a brief flip.
-     * @param {Array<{rank:string, suit:string, code:string}>} newCardArray
-     * @param {Set|Array<number>} heldIndexes
-     * @param {function} [onComplete]
-     */
     function drawCards(newCardArray, heldIndexes, onComplete) {
-        const held = new Set(heldIndexes);
+        if (!_ensureMainSlots()) return;
+
+        _stopShuffle();
+
+        const held = new Set(Array.isArray(heldIndexes) ? heldIndexes : Array.from(heldIndexes || []));
+        const cards = Array.isArray(newCardArray) ? newCardArray.map(_asCard) : [];
         let pending = 0;
 
         const outMs = Math.max(40, Number(_config.drawOutMs) || 60);
         const inMs = Math.max(60, Number(_config.drawInMs) || 80);
         const staggerMs = Math.max(20, Number(_config.drawStaggerMs) || 40);
 
-        newCardArray.forEach((card, i) => {
-            if (held.has(i)) return; // held — no change
-            pending++;
+        cards.forEach((card, i) => {
             const slotEl = _slot(i);
-            if (!slotEl) return;
-            const face = slotEl.querySelector('.card-face');
             const img = _cardImg(slotEl);
-            if (!img) return;
+            const face = slotEl ? slotEl.querySelector('.card-face') : null;
 
-            // flip out
+            if (!slotEl || !img) return;
+
+            if (held.has(i)) {
+                slotEl.classList.add('held');
+                if (card && card.code) {
+                    img.src = _cardSrc(card.code);
+                    img.alt = card.code;
+                }
+                if (face) {
+                    face.style.transition = 'none';
+                    face.style.opacity = '1';
+                }
+                return;
+            }
+
+            pending++;
+            slotEl.classList.remove('held');
+
             setTimeout(() => {
                 if (face) {
                     face.style.transition = `opacity ${outMs}ms ease-in`;
                     face.style.opacity = '0';
                 }
+
                 setTimeout(() => {
                     img.src = card && card.code ? _cardSrc(card.code) : _config.cardBack;
+                    img.alt = card && card.code ? card.code : 'Card back';
+
                     if (face) {
                         face.style.transition = `opacity ${inMs}ms ease-out`;
                         face.style.opacity = '1';
                     }
+
                     pending--;
-                    if (pending === 0 && onComplete) onComplete();
+                    if (pending === 0 && onComplete) {
+                        onComplete();
+                    }
                 }, outMs);
             }, i * staggerMs);
         });
 
-        if (pending === 0 && onComplete) onComplete();
+        if (pending === 0 && onComplete) {
+            onComplete();
+        }
     }
 
-    /* ── setHold ─────────────────────────────────────────────────────────── */
-    /**
-     * Toggle hold state on a card slot and its hold button.
-     * @param {number} slotIndex
-     * @param {boolean} isHeld
-     */
     function setHold(slotIndex, isHeld) {
         const slotEl = _slot(slotIndex);
         if (slotEl) slotEl.classList.toggle('held', isHeld);
@@ -239,194 +484,118 @@ window.CabinetStage = (function () {
         }
     }
 
-    /* ── clearAllHolds ───────────────────────────────────────────────────── */
     function clearAllHolds() {
-        for (let i = 0; i < 5; i++) setHold(i, false);
+        for (let i = 0; i < 5; i++) {
+            setHold(i, false);
+        }
     }
 
-    /* ── initButtonAssets ────────────────────────────────────────────────── */
-    /**
-     * Wire pressed/released asset swaps for all cabinet buttons.
-     * Purely cosmetic — does not add game logic.
-     */
     function initButtonAssets() {
         const BTN_ASSETS = {
-            'btn-big':        ['big.png', 'big_on.png'],
-            'btn-small':      ['small.png', 'small_on.png'],
-            'btn-cancel':     ['cancel_hold.png', 'cancel_hold_on.png'],
-            'btn-deal':       ['deal_draw.png', 'deal_draw_on.png'],
-            'btn-bet':        ['bet.png', 'bet_on.png'],
-            'btn-take-half':  ['take_half.png', 'take_half_on.png'],
-            'btn-take-score': ['take_score.png', 'take_score_on.png'],
+            'btn-big': ['big.png', 'big_on.png'],
+            'btn-small': ['small.png', 'small_on.png'],
+            'btn-cancel': ['cancel_hold.png', 'cancel_hold_on.png'],
+            'btn-deal': ['deal_draw.png', 'deal_draw_on.png'],
+            'btn-bet': ['bet.png', 'bet_on.png'],
+            'btn-take-half': ['take_half.png', 'take_half_on.png'],
+            'btn-take-score': ['take_score.png', 'take_score_on.png']
         };
 
         Object.entries(BTN_ASSETS).forEach(([id, [off, on]]) => {
             const btn = document.getElementById(id);
             if (!btn || btn.dataset.assetsBound === '1') return;
+
             const offUrl = `url('/assets/images/${off}')`;
-            const onUrl  = `url('/assets/images/${on}')`;
+            const onUrl = `url('/assets/images/${on}')`;
             btn.style.backgroundImage = offUrl;
-            const press   = () => { btn.style.backgroundImage = onUrl; };
+
+            const press = () => { btn.style.backgroundImage = onUrl; };
             const release = () => { btn.style.backgroundImage = offUrl; };
-            btn.addEventListener('mousedown',   press);
-            btn.addEventListener('touchstart',  press,   { passive: true });
-            btn.addEventListener('mouseup',     release);
-            btn.addEventListener('touchend',    release, { passive: true });
+
+            btn.addEventListener('mousedown', press);
+            btn.addEventListener('touchstart', press, { passive: true });
+            btn.addEventListener('mouseup', release);
+            btn.addEventListener('touchend', release, { passive: true });
             btn.addEventListener('touchcancel', release, { passive: true });
-            btn.addEventListener('mouseleave',  release);
+            btn.addEventListener('mouseleave', release);
             btn.dataset.assetsBound = '1';
         });
 
-        // Hold buttons
         document.querySelectorAll('#hold-row .cab-hold').forEach(btn => {
             if (btn.dataset.assetsBound === '1') return;
-            const isActive = () => btn.classList.contains('active');
+
             const syncVisual = () => {
-                const held = isActive();
+                const held = btn.classList.contains('active');
                 btn.style.backgroundImage = held
                     ? "url('/assets/images/hold_on.png')"
                     : "url('/assets/images/hold_off.png')";
                 btn.setAttribute('aria-label', held ? 'HOLD ON' : 'HOLD OFF');
                 btn.title = held ? 'HOLD' : '';
             };
-            btn.addEventListener('mousedown',  () => {
+
+            btn.addEventListener('mousedown', () => {
                 btn.style.backgroundImage = "url('/assets/images/hold_on.png')";
             });
-            btn.addEventListener('mouseup',    () => {
-                syncVisual();
-            });
-            btn.addEventListener('mouseleave', () => {
-                syncVisual();
-            });
+            btn.addEventListener('mouseup', syncVisual);
+            btn.addEventListener('mouseleave', syncVisual);
             btn.addEventListener('touchstart', () => {
                 btn.style.backgroundImage = "url('/assets/images/hold_on.png')";
             }, { passive: true });
-            btn.addEventListener('touchend', () => {
-                syncVisual();
-            }, { passive: true });
-            btn.addEventListener('touchcancel', () => {
-                syncVisual();
-            }, { passive: true });
+            btn.addEventListener('touchend', syncVisual, { passive: true });
+            btn.addEventListener('touchcancel', syncVisual, { passive: true });
+
             syncVisual();
             btn.dataset.assetsBound = '1';
         });
     }
 
-    /* ── enterDoubleUp ───────────────────────────────────────────────────── */
-    /**
-     * Repurpose #card-area for double-up trail viewport.
-     * Layout: slots 0-2 = trail | slot 3 = dealer | slot 4 = challenger
-     * @param {{ rank:string, suit:string, code:string }} dealerCard
-     */
     function enterDoubleUp(dealerCard) {
-        const area = document.getElementById('card-area');
-        if (!area) return;
-        _stopShuffle();
-        area.classList.add('du-mode');
-        _isDoubleUpMode = true;
-
-        // Rebuild as du-card-slot elements
-        area.innerHTML = '';
-        for (let i = 0; i < 5; i++) {
-            const slot = document.createElement('div');
-            slot.className = 'du-card-slot';
-            slot.dataset.duSlot = i;
-
-            const label = document.createElement('div');
-            label.className = 'du-card-label';
-
-            const frame = document.createElement('div');
-            frame.className = 'du-card-frame';
-
-            const img = document.createElement('img');
-            img.src = _config.cardBack;
-            img.alt = '';
-
-            frame.appendChild(img);
-            slot.appendChild(label);
-            slot.appendChild(frame);
-            area.appendChild(slot);
-        }
-
-        // Show dealer in slot 3
-        const dealerSlot = _duSlot(3);
-        if (dealerSlot && dealerCard) {
-            _duSlot(3).querySelector('img').src = _cardSrc(dealerCard.code);
-            _duSlot(3).querySelector('.du-card-frame').classList.add('dealer-card');
-        }
-
-        // Slot 4: show card back; challenger is revealed only when server responds.
-        // Do NOT start random shuffle — server-authoritative result is the only reveal.
-        const challSlotInit = _duSlot(4);
-        if (challSlotInit) {
-            challSlotInit.querySelector('img').src = _config.cardBack;
-        }
+        _duTrailCards = [];
+        _duDealerCard = _asCard(dealerCard);
+        _beginSequentialShuffle(_duTrailCards, _duDealerCard);
     }
 
-    /* ── updateDoubleUpTrail ─────────────────────────────────────────────── */
-    /**
-     * @param {Array<{code:string}>} trailCards   — up to 3 previous cards (slots 0-2)
-     * @param {{ code:string }}      dealerCard    — always in slot 3
-     * @param {{ code:string }|null} challengerCard — null = keep shuffling; set = reveal
-     * @param {string}               status        — 'win'|'lose'|'push'|'pending'|...
-     */
     function updateDoubleUpTrail(trailCards, dealerCard, challengerCard, status) {
-        // Trail cards in slots 0-2
-        (trailCards || []).slice(0, 3).forEach((card, i) => {
-            const slotEl = _duSlot(i);
-            if (!slotEl || !card) return;
-            slotEl.querySelector('img').src = _cardSrc(card.code);
-            slotEl.classList.add('du-trail-card');
-        });
+        _duTrailCards = Array.isArray(trailCards)
+            ? trailCards.map(_asCard).filter(Boolean)
+            : [];
+        _duDealerCard = _asCard(dealerCard);
 
-        // Dealer in slot 3
-        const dealerSlot = _duSlot(3);
-        if (dealerSlot && dealerCard) {
-            dealerSlot.querySelector('img').src = _cardSrc(dealerCard.code);
-            dealerSlot.querySelector('.du-card-frame').classList.add('dealer-card');
+        if (!challengerCard) {
+            _beginSequentialShuffle(_duTrailCards, _duDealerCard);
+            return;
         }
 
-        // Challenger in slot 4
-        const challSlot = _duSlot(4);
-        if (challSlot) {
-            if (challengerCard) {
-                _stopShuffle();
-                challSlot.classList.remove('du-shuffling');
-                const challImg = challSlot.querySelector('img');
-                challImg.src = _cardSrc(challengerCard.code);
+        _stopShuffle();
 
-                // Set BIG / SMALL label
-                const label = challSlot.querySelector('.du-card-label');
-                if (label) {
-                    if (status === 'win')  label.textContent = 'BIG';
-                    else if (status === 'lose') label.textContent = 'SMALL';
-                    else label.textContent = '';
-                }
+        const challenger = _asCard(challengerCard);
+        const view = _getVisibleDoubleUpWindow(_duTrailCards, _duDealerCard);
+        const sequence = view.sequence.slice(0, view.revealIndex);
+        sequence[view.revealIndex] = challenger;
 
-                // Lucky5 glow on 5S
-                if (challengerCard.code === '5S') {
-                    challSlot.querySelector('.du-card-frame').classList.add('lucky5-glow');
-                }
-            } else {
-                // Pending: show card back until server provides challengerCard.
-                _stopShuffle();
-                challSlot.classList.remove('du-shuffling');
-                const pendingImg = challSlot.querySelector('img');
-                if (pendingImg) pendingImg.src = _config.cardBack;
-            }
+        _renderDoubleUpSequence(sequence, view.dealerIndex, null, _statusLabel(status));
+
+        if (challenger && challenger.code === '5S') {
+            showLucky5Active();
         }
     }
 
-    /* ── exitDoubleUp ────────────────────────────────────────────────────── */
+    function shuffleChallenger() {
+        _beginSequentialShuffle(_duTrailCards, _duDealerCard);
+    }
+
     function exitDoubleUp() {
         _stopShuffle();
         _isDoubleUpMode = false;
+        _duTrailCards = [];
+        _duDealerCard = null;
+
         const area = document.getElementById('card-area');
         if (area) area.classList.remove('du-mode');
+
         initCardSlots();
     }
 
-    /* ── showLucky5Active ────────────────────────────────────────────────── */
     function showLucky5Active() {
         const banner = document.getElementById('lucky5-banner');
         if (banner) {
@@ -437,49 +606,12 @@ window.CabinetStage = (function () {
                 _lucky5Timer = null;
             }, Math.max(200, Number(_config.lucky5ActiveMs) || 700));
         }
-        // Glow on all card slots
-        document.querySelectorAll('.card-slot').forEach(s => {
-            s.classList.add('lucky5-active');
-            setTimeout(() => s.classList.remove('lucky5-active'), Math.max(200, Number(_config.lucky5ActiveMs) || 700));
+
+        document.querySelectorAll('.card-slot, .du-card-slot').forEach(slotEl => {
+            slotEl.classList.add('lucky5-active');
+            setTimeout(() => slotEl.classList.remove('lucky5-active'), Math.max(200, Number(_config.lucky5ActiveMs) || 700));
         });
     }
-
-    /* ── internal: double-up slot helpers ───────────────────────────────── */
-
-    function _duSlot(index) {
-        return document.querySelector(`.du-card-slot[data-du-slot="${index}"]`);
-    }
-
-    function _startShuffle(slotIndex) {
-        _stopShuffle();
-        const slotEl = _duSlot(slotIndex);
-        if (!slotEl) return;
-        slotEl.classList.add('du-shuffling');
-        const img = slotEl.querySelector('img');
-        if (!img) return;
-        const allCodes = window.ALL_CARD_CODES || [];
-        const frameMs = Math.max(60, Number(_config.shuffleFrameMs) || 80);
-        _shuffleInterval = setInterval(() => {
-            if (allCodes.length > 0) {
-                const code = allCodes[Math.floor(Math.random() * allCodes.length)];
-                img.src = `/assets/images/cards/${code}.png`;
-            }
-        }, frameMs);
-    }
-
-    function shuffleChallenger() {
-        // No-op: random shuffle removed in Phase 4.
-        // Challenger slot shows card back until server-authoritative result arrives.
-    }
-
-    function _stopShuffle() {
-        if (_shuffleInterval) {
-            clearInterval(_shuffleInterval);
-            _shuffleInterval = null;
-        }
-    }
-
-    /* ── public API ──────────────────────────────────────────────────────── */
 
     return {
         configure,
@@ -494,7 +626,6 @@ window.CabinetStage = (function () {
         updateDoubleUpTrail,
         shuffleChallenger,
         exitDoubleUp,
-        showLucky5Active,
+        showLucky5Active
     };
-
 }());

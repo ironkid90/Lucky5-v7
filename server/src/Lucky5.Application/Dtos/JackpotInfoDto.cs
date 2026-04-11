@@ -6,4 +6,7 @@ public sealed record JackpotInfoDto(
     decimal FourOfAKindA,
     decimal FourOfAKindB,
     int ActiveFourOfAKindSlot,
-    decimal StraightFlush);
+    decimal StraightFlush,
+    string MachineSerial,
+    string MachineSerie,
+    string MachineKent);

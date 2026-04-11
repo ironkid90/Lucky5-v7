@@ -16,6 +16,7 @@ public static class GameServiceRegressionTests
     public static async Task RunAsync(List<string> failures)
     {
         await FourOfAKindSlotIsCapturedAtomicallyAtDealAsync(failures);
+        await JackpotSnapshotsExposeAuthoritativeMachineIdentityAsync(failures);
         await ZeroCreditClosedSessionIsNormalizedOnReadAsync(failures);
         await MachineCloseCashOutAllowsContinuingNewSessionAsync(failures);
         await MachineSessionCashOutEligibilityFollowsRulesAsync(failures);
@@ -30,6 +31,40 @@ public static class GameServiceRegressionTests
         await PlayerResetBlocksRecoverableRoundAsync(failures);
         await AdminResetBlocksRecoverableRoundsAsync(failures);
         await AdminResetAllowsClosedSessionsWithoutActiveRoundsAsync(failures);
+    }
+
+    private static async Task JackpotSnapshotsExposeAuthoritativeMachineIdentityAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = CreateService(store);
+        var machine = store.Machines.Values.First(candidate => candidate.IsOpen);
+
+        store.MachineLedgers.TryRemove(machine.Id, out _);
+
+        var jackpots = await service.ChangeJackpotRankAsync(machine.Id, 13, CancellationToken.None);
+        store.MachineLedgers.TryGetValue(machine.Id, out var ledger);
+
+        Assert(
+            failures,
+            "In-memory machine seed data should define authoritative serial, serie, and kent display values.",
+            !string.IsNullOrWhiteSpace(machine.MachineSerial)
+            && !string.IsNullOrWhiteSpace(machine.MachineSerie)
+            && !string.IsNullOrWhiteSpace(machine.MachineKent));
+
+        Assert(
+            failures,
+            "ChangeJackpotRankAsync should expose authoritative machine identity from the jackpot snapshot DTO instead of deriving it from jackpot totals.",
+            string.Equals(jackpots.MachineSerial, machine.MachineSerial, StringComparison.Ordinal)
+            && string.Equals(jackpots.MachineSerie, machine.MachineSerie, StringComparison.Ordinal)
+            && string.Equals(jackpots.MachineKent, machine.MachineKent, StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Machine ledger initialization should copy authoritative machine identity from the machine source when a ledger is created on demand.",
+            ledger is not null
+            && string.Equals(ledger.MachineSerial, machine.MachineSerial, StringComparison.Ordinal)
+            && string.Equals(ledger.MachineSerie, machine.MachineSerie, StringComparison.Ordinal)
+            && string.Equals(ledger.MachineKent, machine.MachineKent, StringComparison.Ordinal));
     }
 
     private static async Task ZeroCreditClosedSessionIsNormalizedOnReadAsync(List<string> failures)

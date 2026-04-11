@@ -110,7 +110,14 @@ public class EfCoreDataStore : IDataStore
         var ledger = await _context.MachineLedgers.FindAsync(machineId);
         if (ledger == null)
         {
-            ledger = new MachineLedgerState { MachineId = machineId };
+            var machine = await _context.Machines.FindAsync(machineId);
+            ledger = new MachineLedgerState
+            {
+                MachineId = machineId,
+                MachineSerial = machine?.MachineSerial ?? string.Empty,
+                MachineSerie = machine?.MachineSerie ?? string.Empty,
+                MachineKent = machine?.MachineKent ?? string.Empty
+            };
             _context.MachineLedgers.Add(ledger);
             await _context.SaveChangesAsync();
         }

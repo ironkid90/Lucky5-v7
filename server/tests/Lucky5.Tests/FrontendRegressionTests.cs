@@ -109,6 +109,31 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
+            "game.js should bind machine serial, serie, and kent from authoritative jackpot identity fields instead of synthesizing a display serial from jackpot totals.",
+            Regex.IsMatch(
+                gameJs,
+                @"machineSerial\s*=\s*jackpots\.machineSerial\b[\s\S]{0,120}?machineSerie\s*=\s*jackpots\.machineSerie\b[\s\S]{0,120}?machineKent\s*=\s*jackpots\.machineKent\b",
+                RegexOptions.CultureInvariant)
+            && !gameJs.Contains("machineSerial = (jackpots.fourOfAKindA || 0) + (jackpots.fourOfAKindB || 0);", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "game.js should write authoritative machine identity values into mi-serial, mi-serie, and mi-kent.",
+            Regex.IsMatch(
+                gameJs,
+                @"document\.getElementById\('mi-serial'\)[\s\S]{0,120}?textContent\s*=\s*String\(machineSerial\s*\|\|\s*0\)",
+                RegexOptions.CultureInvariant)
+            && Regex.IsMatch(
+                gameJs,
+                @"document\.getElementById\('mi-serie'\)[\s\S]{0,120}?textContent\s*=\s*String\(machineSerie\s*\|\|\s*0\)",
+                RegexOptions.CultureInvariant)
+            && Regex.IsMatch(
+                gameJs,
+                @"document\.getElementById\('mi-kent'\)[\s\S]{0,120}?textContent\s*=\s*String\(machineKent\s*\|\|\s*0\)",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
             "game.css should define a visible active 4K jackpot counter state for live counter nodes",
             gameCss.Contains(".jp-counter.jp-active", StringComparison.Ordinal));
 
@@ -349,7 +374,7 @@ public static class FrontendRegressionTests
             gameConfigJs.Contains("cabinet: Object.freeze(", StringComparison.Ordinal)
                 && gameConfigJs.Contains("features: Object.freeze(", StringComparison.Ordinal)
                 && gameConfigJs.Contains("adapterVNext: false", StringComparison.Ordinal)
-                && gameConfigJs.Contains("enableCabinetStage: false", StringComparison.Ordinal)
+                && gameConfigJs.Contains("enableCabinetStage: true", StringComparison.Ordinal)
                 && gameConfigJs.Contains("audio: Object.freeze(", StringComparison.Ordinal));
 
         Assert(

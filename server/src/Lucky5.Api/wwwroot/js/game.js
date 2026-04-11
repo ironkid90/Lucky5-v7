@@ -252,6 +252,21 @@ function renderDrawStage(cardData, held) {
     renderCards(cardData, false);
 }
 
+function getCabinetDoubleUpTrailCards() {
+    const trail = Array.isArray(duCardTrail)
+        ? duCardTrail.map(entry => entry?.card).filter(card => Boolean(card?.code))
+        : [];
+
+    if (!duDealerCard || trail.length === 0) {
+        return trail;
+    }
+
+    const lastCard = trail[trail.length - 1];
+    return lastCard?.code === duDealerCard?.code
+        ? trail.slice(0, -1)
+        : trail;
+}
+
 function bindSingleButton(id, handler) {
     const nodes = document.querySelectorAll(`#${id}`);
     if (nodes.length !== 1) {
@@ -578,11 +593,23 @@ function updateJackpotDisplay(jp) {
     if (jpCenter) jpCenter.textContent = formatNum(jackpots.straightFlush || 0);
     if (jpB) jpB.textContent = formatNum(jackpots.fourOfAKindB || 0);
 
-    // Machine serial (sum of jackpots as stand-in)
+    machineSerial = jackpots.machineSerial || 0;
+    machineSerie = jackpots.machineSerie || 0;
+    machineKent = jackpots.machineKent || 0;
+
     const serialEl = document.getElementById('mi-serial');
     if (serialEl) {
-        machineSerial = (jackpots.fourOfAKindA || 0) + (jackpots.fourOfAKindB || 0);
-        serialEl.textContent = formatNum(machineSerial);
+        serialEl.textContent = String(machineSerial || 0);
+    }
+
+    const serieEl = document.getElementById('mi-serie');
+    if (serieEl) {
+        serieEl.textContent = String(machineSerie || 0);
+    }
+
+    const kentEl = document.getElementById('mi-kent');
+    if (kentEl) {
+        kentEl.textContent = String(machineKent || 0);
     }
 
     // Update Full House rank display (jackpot-selected highlight on paytable)
@@ -955,9 +982,8 @@ async function doSwitchDealer() {
         }
 
         renderDoubleUpCards(duDealerCard, true, null);
-        if (window.CabinetStage) {
-            const trailCards = duCardTrail.slice(0, -1).map(e => e.card);
-            CabinetStage.updateDoubleUpTrail(trailCards, duDealerCard, null, 'pending');
+        if (hasCabinetStage()) {
+            CabinetStage.updateDoubleUpTrail(getCabinetDoubleUpTrailCards(), duDealerCard, null, 'pending');
         }
         if (isLucky5) {
             showMessage(`5\u2660 LUCKY 5 ACTIVE! WIN: ${formatNum(result.currentAmount)}`, 'win');
@@ -1001,7 +1027,7 @@ function triggerLucky5Flash() {
         flash.classList.add('active');
     }
 
-    if (window.CabinetStage) CabinetStage.showLucky5Active();
+    if (hasCabinetStage()) CabinetStage.showLucky5Active();
 
     const screen = document.getElementById('game-screen');
     if (screen) {
@@ -1201,7 +1227,7 @@ function restoreRoundFromSnapshot(snapshot) {
         showDuInfo();
         updateIdleOverlayVisibility();
         renderDoubleUpCards(duDealerCard, true, null);
-        if (window.CabinetStage) CabinetStage.enterDoubleUp(duDealerCard);
+        if (hasCabinetStage()) CabinetStage.enterDoubleUp(duDealerCard);
         updateWinIndicator(winAmount);
         updateWinAmountDisplay(winAmount, getFourOfAKindSlotTag(currentHandRank));
         if (duIsNoLoseActive) {
@@ -1400,7 +1426,7 @@ function cancelHold() {
     holdIndexes.clear();
     $$('.card-slot').forEach(s => s.classList.remove('held'));
     $$('.cab-hold').forEach(btn => btn.classList.remove('active'));
-    if (window.CabinetStage) CabinetStage.clearAllHolds();
+    if (hasCabinetStage()) CabinetStage.clearAllHolds();
     
     // Update idle overlay visibility when holds are cleared
     updateIdleOverlayVisibility();
@@ -1415,6 +1441,10 @@ function hideDuInfo() {
 }
 
 function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
+    if (hasCabinetStage()) {
+        return;
+    }
+
     const area = $('#card-area');
     area.innerHTML = '';
     area.classList.add('du-mode');
@@ -1573,7 +1603,7 @@ async function startDoubleUpFlow() {
         updateWinIndicator(result.currentAmount);
         if (currentHandRank) highlightPaytableDU(currentHandRank, result.currentAmount);
         renderDoubleUpCards(duDealerCard, true, null);
-        if (window.CabinetStage) CabinetStage.enterDoubleUp(duDealerCard);
+        if (hasCabinetStage()) CabinetStage.enterDoubleUp(duDealerCard);
         setButtonStates();
     } catch (e) {
         if ((e.message || '').toLowerCase().includes('not available')) {
@@ -1606,9 +1636,8 @@ async function doDoubleUp(guess) {
 
         setTimeout(() => {
             renderDoubleUpCards(duDealerCard, false, result.challengerCard);
-            if (window.CabinetStage) {
-                const trailCards = duCardTrail.slice(0, -1).map(e => e.card);
-                CabinetStage.updateDoubleUpTrail(trailCards, duDealerCard, result.challengerCard,
+            if (hasCabinetStage()) {
+                CabinetStage.updateDoubleUpTrail(getCabinetDoubleUpTrailCards(), duDealerCard, result.challengerCard,
                     result.status === 'Win' ? 'win' : result.status === 'SafeFail' ? 'push' : 'lose');
             }
 
@@ -1627,9 +1656,8 @@ async function doDoubleUp(guess) {
                         duCardTrail.push({card: result.challengerCard, label: guess.toUpperCase()});
                         duDealerCard = result.dealerCard;
                         renderDoubleUpCards(duDealerCard, true, null);
-                        if (window.CabinetStage) {
-                            const trailCards = duCardTrail.slice(0, -1).map(e => e.card);
-                            CabinetStage.updateDoubleUpTrail(trailCards, duDealerCard, null, 'pending');
+                        if (hasCabinetStage()) {
+                            CabinetStage.updateDoubleUpTrail(getCabinetDoubleUpTrailCards(), duDealerCard, null, 'pending');
                         }
                         duSwitchesRemaining = result.switchesRemaining;
                         duIsNoLoseActive = result.isNoLoseActive;
@@ -1703,7 +1731,7 @@ async function doDoubleUp(guess) {
 function exitDoubleUp() {
     stopShuffle();
     hideDuInfo();
-    if (window.CabinetStage) CabinetStage.exitDoubleUp();
+    if (hasCabinetStage()) CabinetStage.exitDoubleUp();
     duSessionStarted = false;
     duIsNoLoseActive = false;
     duDealerCard = null;

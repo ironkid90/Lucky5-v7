@@ -5,6 +5,9 @@ using Lucky5.Domain.Game.CleanRoom;
 public sealed class MachineLedgerState
 {
     public int MachineId { get; init; }
+    public string MachineSerial { get; set; } = string.Empty;
+    public string MachineSerie { get; set; } = string.Empty;
+    public string MachineKent { get; set; } = string.Empty;
     public decimal TargetRtp { get; set; } = EngineConfig.Default.TargetRtp;
     public decimal CapitalIn { get; set; }
     public decimal CapitalOut { get; set; }

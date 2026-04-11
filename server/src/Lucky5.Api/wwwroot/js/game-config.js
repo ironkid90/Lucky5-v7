@@ -44,7 +44,7 @@ const GAME_CONFIG = Object.freeze({
     // ── 1c. FEATURE FLAGS ──────────────────────────────────────────────────
     features: Object.freeze({
         adapterVNext: false,       // planned clone-parity adapter gate
-        enableCabinetStage: false, // current runtime gate consumed by game.js
+        enableCabinetStage: true,  // cabinet stage is the active render path for this parity slice
     }),
 
     // ── 2. TIMING ────────────────────────────────────────────────────────────

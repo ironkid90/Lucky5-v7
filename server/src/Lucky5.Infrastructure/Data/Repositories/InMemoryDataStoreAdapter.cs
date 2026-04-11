@@ -105,7 +105,14 @@ public class InMemoryDataStoreAdapter : IDataStore
     {
         if (!_store.MachineLedgers.TryGetValue(machineId, out var ledger))
         {
-            ledger = new MachineLedgerState { MachineId = machineId };
+            _store.Machines.TryGetValue(machineId, out var machine);
+            ledger = new MachineLedgerState
+            {
+                MachineId = machineId,
+                MachineSerial = machine?.MachineSerial ?? string.Empty,
+                MachineSerie = machine?.MachineSerie ?? string.Empty,
+                MachineKent = machine?.MachineKent ?? string.Empty
+            };
             _store.MachineLedgers[machineId] = ledger;
         }
         return Task.FromResult(ledger);

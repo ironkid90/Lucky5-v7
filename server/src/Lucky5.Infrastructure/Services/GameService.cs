@@ -854,7 +854,10 @@ return guessResult;
                 fourOfAKindA = ledger.JackpotFourOfAKindA,
                 fourOfAKindB = ledger.JackpotFourOfAKindB,
                 activeFourOfAKindSlot = ledger.ActiveFourOfAKindSlot,
-                straightFlush = ledger.JackpotStraightFlush
+                straightFlush = ledger.JackpotStraightFlush,
+                machineSerial = ledger.MachineSerial,
+                machineSerie = ledger.MachineSerie,
+                machineKent = ledger.MachineKent
             },
             timestampUtc = DateTime.UtcNow
         };
@@ -962,7 +965,16 @@ return guessResult;
     }
 
     private static JackpotInfoDto SnapshotJackpots(MachineLedgerState ledger) =>
-        new(ledger.JackpotFullHouse, ledger.JackpotFullHouseRank, ledger.JackpotFourOfAKindA, ledger.JackpotFourOfAKindB, ledger.ActiveFourOfAKindSlot, ledger.JackpotStraightFlush);
+        new(
+            ledger.JackpotFullHouse,
+            ledger.JackpotFullHouseRank,
+            ledger.JackpotFourOfAKindA,
+            ledger.JackpotFourOfAKindB,
+            ledger.ActiveFourOfAKindSlot,
+            ledger.JackpotStraightFlush,
+            ledger.MachineSerial,
+            ledger.MachineSerie,
+            ledger.MachineKent);
 
     private static void ApplyJackpotContributions(MachineLedgerState ledger, EngineConfig cfg)
     {

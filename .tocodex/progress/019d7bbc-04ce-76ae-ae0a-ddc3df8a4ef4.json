@@ -1,0 +1,22 @@
+{
+  "taskId": "019d7bbc-04ce-76ae-ae0a-ddc3df8a4ef4",
+  "todos": [
+    {
+      "id": "d9346134d1b27e960b3f0b41044a70dd",
+      "content": "Review current settings.json for malformed/unknown keys after initial indexing fix",
+      "status": "completed"
+    },
+    {
+      "id": "f01f2657912c9e8a5e224ce9d2736775",
+      "content": "Apply a targeted second-pass cleanup for clearly broken setting names",
+      "status": "completed"
+    },
+    {
+      "id": "db722b43cda704550362da6c307ea339",
+      "content": "Summarize fixes, remaining risks, and rationale",
+      "status": "completed"
+    }
+  ],
+  "lastUpdated": 1775897857710,
+  "status": "active"
+}

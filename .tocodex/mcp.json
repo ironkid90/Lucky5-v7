@@ -100,16 +100,6 @@
         "qdrant_semantic_search"
       ]
     },
-    "docker": {
-      "mcpServers": {
-        "docker": {
-          "command": "uvx",
-          "args": [
-            "mcp-server-docker"
-          ]
-        }
-      }
-    },
     "fetch": {
       "mcpServers": {
         "fetch": {

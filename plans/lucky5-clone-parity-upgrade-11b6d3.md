@@ -436,3 +436,7 @@ Do **not** change:
 - Deterministic pre-shuffled outcome logic
 - Backend game engine (`server/src/Lucky5.Domain/Game/CleanRoom/`)
 - Retro cabinet visual philosophy
+
+
+/create-prompt 
+

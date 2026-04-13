@@ -41,11 +41,57 @@ window.CabinetStage = (function () {
     let _duTrailCards = [];
     let _duDealerCard = null;
 
+    function _normalizeSuit(value) {
+        if (!value) return '';
+        const text = String(value).trim().toUpperCase();
+        if (!text) return '';
+        const first = text.charAt(0);
+        if ('CDHS'.includes(first)) return first;
+        return '';
+    }
+
+    function _normalizeRank(value) {
+        if (value == null) return '';
+        const text = String(value).trim().toUpperCase();
+        if (!text) return '';
+        if (text === 'T' || text === '10') return '10';
+        if (/^[2-9]$/.test(text)) return text;
+        if ('JQKA'.includes(text)) return text;
+        return '';
+    }
+
+    function _normalizeCode(inputCode, rank, suit) {
+        const parsedSuit = _normalizeSuit(suit);
+        const parsedRank = _normalizeRank(rank);
+
+        if (parsedRank && parsedSuit) {
+            return `${parsedRank}${parsedSuit}`;
+        }
+
+        if (!inputCode) {
+            return '';
+        }
+
+        const text = String(inputCode).trim().toUpperCase();
+        if (!text) {
+            return '';
+        }
+
+        const codeSuit = _normalizeSuit(text.slice(-1));
+        const codeRank = _normalizeRank(text.slice(0, -1));
+        if (codeRank && codeSuit) {
+            return `${codeRank}${codeSuit}`;
+        }
+
+        return '';
+    }
+
     function _asCard(input) {
         if (!input) return null;
 
         if (typeof input === 'string') {
-            const code = String(input).toUpperCase();
+            const code = _normalizeCode(input, '', '');
+            if (!code) return null;
             return {
                 code,
                 rank: code.slice(0, -1),
@@ -53,20 +99,13 @@ window.CabinetStage = (function () {
             };
         }
 
-        if (input.code) {
-            const code = String(input.code).toUpperCase();
+        if (input.code || (input.rank && input.suit)) {
+            const code = _normalizeCode(input.code, input.rank, input.suit);
+            if (!code) return null;
             return {
                 code,
-                rank: input.rank || code.slice(0, -1),
-                suit: input.suit || code.slice(-1)
-            };
-        }
-
-        if (input.rank && input.suit) {
-            return {
-                code: `${input.rank}${input.suit}`.toUpperCase(),
-                rank: input.rank,
-                suit: input.suit
+                rank: _normalizeRank(input.rank) || code.slice(0, -1),
+                suit: _normalizeSuit(input.suit) || code.slice(-1)
             };
         }
 
@@ -638,9 +677,4 @@ function isDoubleUpMode() {
     }
     // Fallback: check for du-mode class on document
     return document.querySelector('.du-mode') !== null;
-}
-
-// Expose isDoubleUpMode as a global function for game.js
-function isDoubleUpMode() {
-    return typeof _isDoubleUpMode !== 'undefined' ? _isDoubleUpMode : false;
 }

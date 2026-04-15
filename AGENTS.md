@@ -55,9 +55,18 @@ Durable agent contract for this repository. Keep this file compact, reusable, an
 - Tests run with `dotnet run --project server/tests/Lucky5.Tests/Lucky5.Tests.csproj`, not `dotnet test`. 
 - Authoritative game logic belongs in `server/src/Lucky5.Domain/Game/CleanRoom/` and must stay deterministic. 
 - The backend is authoritative for balance, machine state, session state, and realtime behavior. 
-- The current persistence model is in-memory; do not assume a real database exists. 
+- The current persistence model is in-memory; `dataconnect/schema/schema.gql` defines the target PostgreSQL schema via Firebase Data Connect but is not yet active. Do not assume a real database exists at runtime. 
 - Preserve the retro cabinet feel; do not modernize the product into a generic casino UI. 
-- Prefer the web cabinet as the primary playable target before Flutter or mobile-specific work unless the task says otherwise. 
+- Prefer the web cabinet as the primary playable target before Flutter or mobile-specific work unless the task says otherwise.
+
+## Lucky5 v7 Current State (April 2026)
+- Economy: dual-wallet (Credit consumed before WalletBalance on CashIn). See AuthService + GameService.
+- New controllers: RewardController, AgentController, NotificationController, ConfigController.
+- Firebase: FirebaseAdmin SDK installed; FirebaseNotificationService gracefully no-ops until appsettings.json Firebase section is populated. Web SDK wired via cabinet-firebase.js + firebase-messaging-sw.js.
+- Flutter client: firebase_core, firebase_messaging, flutter_local_notifications, wakelock_plus added to pubspec.yaml. FirebaseService in client/lib/core/.
+- Data Connect: dataconnect/schema/schema.gql is the authoritative Lucky5 DB schema (not yet deployed to a project).
+- Firebase project: create at console.firebase.google.com (ID: lucky5-v7), then populate appsettings.json and place google-services.json in client/android/app/.
+- Repo last pushed: commits f4accb2 + b5c3789 on main (ironkid90/Lucky5-v7). 
  
 ## Repo Routing 
 - Root AGENTS.md provides the default contract for the whole repo. 

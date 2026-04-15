@@ -1,52 +1,153 @@
-# Example schema for simple movie review app
+# ─────────────────────────────────────────────────────────────────────────────
+# Lucky5 v7 — Firebase Data Connect Schema
+# Mirrors the in-memory domain in Lucky5.Domain/Entities.
+# All monetary amounts are stored as Int (fils/credits, no decimals in DB).
+# Timestamps default to server request time where appropriate.
+# ─────────────────────────────────────────────────────────────────────────────
 
-# User table is keyed by Firebase Auth UID.
+# ── Agent ────────────────────────────────────────────────────────────────────
+# A distributor who can fund player credit pools and manage users.
+type Agent @table {
+  name: String! @col(dataType: "varchar(100)")
+  code: String! @col(dataType: "varchar(20)") @unique
+  phoneNumber: String! @col(dataType: "varchar(30)")
+  isActive: Boolean! @default(expr: "true")
+  creditPool: Int! @default(expr: "0")      # Available credits in fils
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# ── User ─────────────────────────────────────────────────────────────────────
+# Keyed by Firebase Auth UID. Maps to Lucky5.Domain.Entities.MemberProfile.
 type User @table {
-  # `@default(expr: "auth.uid")` sets it to Firebase Auth UID during insert and upsert.
-  id: String! @default(expr: "auth.uid")
-  username: String! @col(dataType: "varchar(50)")
-  # The `user: User!` field in the Review table generates the following one-to-many query field.
-  #  reviews_on_user: [Review!]!
-  # The `Review` join table the following many-to-many query field.
-  #  movies_via_Review: [Movie!]!
+  id: String! @default(expr: "auth.uid")   # Firebase UID — primary key
+  username: String! @col(dataType: "varchar(50)") @unique
+  displayName: String @col(dataType: "varchar(100)")
+  fullName: String @col(dataType: "varchar(150)")
+  email: String @col(dataType: "varchar(254)")
+  phoneNumber: String @col(dataType: "varchar(30)")
+  photoUrl: String
+  generatedId: String @col(dataType: "varchar(20)") @unique  # Displayed player ID (e.g. L5-00042)
+  dateOfBirth: Date
+  role: String! @col(dataType: "varchar(20)") @default(expr: "'player'") # 'player' | 'admin'
+  agent: Agent                             # Nullable — set when recruited by an agent
+  isVerified: Boolean! @default(expr: "false")
+  lastSeenAt: Timestamp! @default(expr: "request.time")
+  createdAt: Timestamp! @default(expr: "request.time")
 }
 
-# Movie is keyed by a randomly generated UUID.
-type Movie @table {
-  # If you do not pass a 'key' to `@table`, Data Connect automatically adds the following 'id' column.
-  # Feel free to uncomment and customize it.
-  #  id: UUID! @default(expr: "uuidV4()")
-  title: String!
-  imageUrl: String!
-  genre: String
+# ── Wallet ────────────────────────────────────────────────────────────────────
+# One-to-one with User. Tracks the dual-credit economy.
+type Wallet @table {
+  user: User! @unique
+  walletBalance: Int! @default(expr: "0")  # Real-money balance (fils)
+  creditBalance: Int! @default(expr: "0")  # Bonus/agent credit consumed first
+  minimumOut: Int! @default(expr: "0")     # Minimum withdrawal threshold
+  totalWins: Int! @default(expr: "0")      # Lifetime win accumulator
+  bonusRechargeCount: Int! @default(expr: "0") # Lifetime daily bonus claims
+  lastBonusClaimedAt: Timestamp            # Null = never claimed
+  lastUpdatedAt: Timestamp! @default(expr: "request.time")
 }
 
-# MovieMetadata is a metadata attached to a Movie.
-# Movie <-> MovieMetadata is a one-to-one relationship
-type MovieMetadata @table {
-  # @unique ensures each Movie can only one MovieMetadata.
-  movie: Movie! @unique
-  # The movie field adds the following foreign key field. Feel free to uncomment and customize it.
-  #  movieId: UUID!
-  rating: Float
-  releaseYear: Int
-  description: String
-}
-
-# Reviews is a join table between User and Movie.
-# It has a composite primary keys `userUid` and `movieId`.
-# A user can leave reviews for many movies. A movie can have reviews from many users.
-# User  <-> Review is a one-to-many relationship
-# Movie <-> Review is a one-to-many relationship
-# Movie <-> User is a many-to-many relationship
-type Review @table(name: "Reviews", key: ["movie", "user"]) {
+# ── WalletLedger ──────────────────────────────────────────────────────────────
+# Immutable audit trail for every credit movement on the wallet.
+# Maps to Lucky5.Domain.Entities.WalletLedgerEntry.
+type WalletLedger @table(name: "WalletLedgers") {
   user: User!
-  # The user field adds the following foreign key field. Feel free to uncomment and customize it.
-  #  userUid: String!
-  movie: Movie!
-  # The movie field adds the following foreign key field. Feel free to uncomment and customize it.
-  #  movieId: UUID!
-  rating: Int
-  reviewText: String
-  reviewDate: Date! @default(expr: "request.time")
+  amount: Int!                              # Positive = credit, negative = debit (fils)
+  balanceAfter: Int!
+  transactionType: String! @col(dataType: "varchar(40)")
+  # Types: Deposit | Withdrawal | BonusClaim | AgentCredit | CashOut | AdminAdjust
+  referenceId: String @col(dataType: "varchar(100)")  # Machine/session/round ID
+  notes: String @col(dataType: "varchar(255)")
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# ── DailyReward ───────────────────────────────────────────────────────────────
+# One record per claim. Gated to once per calendar day server-side.
+type DailyReward @table(name: "DailyRewards") {
+  user: User!
+  rewardDate: Date! @default(expr: "request.time")
+  bonusAmount: Int!                         # Amount awarded (fils)
+  claimedAt: Timestamp! @default(expr: "request.time")
+}
+
+# ── Machine ───────────────────────────────────────────────────────────────────
+# Physical cabinet definition. Maps to Lucky5.Domain.Entities.Machine.
+type Machine @table {
+  name: String! @col(dataType: "varchar(100)")
+  serial: String @col(dataType: "varchar(50)") @unique
+  serie: String @col(dataType: "varchar(50)")   # Cabinet series label
+  kent: String @col(dataType: "varchar(50)")    # Cabinet kent identifier
+  isOpen: Boolean! @default(expr: "true")
+  minBet: Int! @default(expr: "1000")           # Minimum bet in fils
+  maxBet: Int! @default(expr: "10000")          # Maximum bet in fils
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# ── MachineLedger ─────────────────────────────────────────────────────────────
+# RTP and jackpot state per machine. Maps to MachineLedgerState.
+# Append-only snapshots (one row = one snapshot for auditability).
+type MachineLedger @table(name: "MachineLedgers") {
+  machine: Machine!
+  capitalIn: Int! @default(expr: "0")           # Total credited in (fils)
+  capitalOut: Int! @default(expr: "0")          # Total paid out (fils)
+  roundCount: Int! @default(expr: "0")
+  consecutiveLosses: Int! @default(expr: "0")
+  roundsSinceLucky5Hit: Int! @default(expr: "0")
+  lastDistributionMode: String! @col(dataType: "varchar(10)") @default(expr: "'Neutral'")
+  # Jackpots (current value in fils)
+  jackpotFullHouse: Int!
+  jackpotFourOfAKindA: Int!
+  jackpotFourOfAKindB: Int!
+  jackpotStraightFlush: Int!
+  lastWinChannel: String @col(dataType: "varchar(15)") # None|BaseGame|DoubleUp|Lucky5|Jackpot
+  snapshotAt: Timestamp! @default(expr: "request.time")
+}
+
+# ── MachineSession ────────────────────────────────────────────────────────────
+# One row per player-machine session. Maps to MachineSessionState.
+type MachineSession @table(name: "MachineSessions") {
+  user: User!
+  machine: Machine!
+  machineCredits: Int! @default(expr: "0")      # Current credit balance on machine
+  totalCashIn: Int! @default(expr: "0")         # Cumulative cash-in this session (fils)
+  isClosed: Boolean! @default(expr: "false")
+  counterplayScore: Int! @default(expr: "0")    # Tracks abnormal hold patterns
+  startedAt: Timestamp! @default(expr: "request.time")
+  lastUpdatedAt: Timestamp! @default(expr: "request.time")
+  endedAt: Timestamp
+}
+
+# ── Round (GamePlay) ──────────────────────────────────────────────────────────
+# One record per dealt hand. Maps to RoundState / active-round snapshots.
+# Preserves initial deal, final hand after draw, and all double-up activity.
+type Round @table(name: "Rounds") {
+  session: MachineSession!
+  betAmount: Int!                               # Bet placed (fils)
+  initialHand: String! @col(dataType: "varchar(20)") # e.g. "AS KH 2D 7C 3S"
+  heldCards: String @col(dataType: "varchar(10)")    # Bit mask or "1 0 1 0 1"
+  finalHand: String @col(dataType: "varchar(20)")    # Cards after draw
+  handCategory: String! @col(dataType: "varchar(30)") # e.g. "FullHouse", "Pair"
+  outcome: String! @col(dataType: "varchar(15)")     # Win | Lose | Jackpot | Lucky5
+  baseWinAmount: Int! @default(expr: "0")       # Payout before double-up (fils)
+  totalWinAmount: Int! @default(expr: "0")      # Including double-up
+  lucky5Armed: Boolean! @default(expr: "false")  # Whether Lucky5 no-lose state activated
+  doubleUpAttempts: Int! @default(expr: "0")
+  doubleUpOutcome: String @col(dataType: "varchar(10)") # Win | Lose | null
+  doubleUpWinAmount: Int @default(expr: "0")
+  policyMode: String @col(dataType: "varchar(15)") # Cold|Neutral|Hot — RTP policy snapshot
+  payoutScale: Float                            # Effective payout scale applied
+  phase: String! @col(dataType: "varchar(15)") @default(expr: "'Idle'")
+  # Idle | Dealt | Drawn | DoubleUp | Settled
+  playedAt: Timestamp! @default(expr: "request.time")
+}
+
+# ── DeviceToken ───────────────────────────────────────────────────────────────
+# FCM push tokens per user device. Maps to DeviceToken entity.
+type DeviceToken @table(name: "DeviceTokens") {
+  user: User!
+  token: String! @col(dataType: "varchar(255)") @unique
+  platform: String! @col(dataType: "varchar(15)") @default(expr: "'android'")
+  # android | ios | web
+  registeredAt: Timestamp! @default(expr: "request.time")
 }

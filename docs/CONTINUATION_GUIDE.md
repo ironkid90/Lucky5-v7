@@ -135,14 +135,79 @@ Recent reliability work tightened the live vanilla cabinet flow without changing
 - the in-game `BACK TO LOBBY` action now lives inside the existing menu panel
 - machine-close copy is centralized so idle, take-score, and cash-out CTA text stay in sync
 
+## New in v7 (April 2026)
+
+### Dual-credit economy
+
+`MemberProfile` now carries two balances:
+
+- **`Credit`** — bonus credit (awarded by agents, daily reward spin). Consumed first on cash-in.
+- **`WalletBalance`** — real-money wallet. Consumed only when `Credit` is exhausted.
+- **`MinimumOut`** — minimum withdrawal threshold per profile.
+- **`TotalWins`** — lifetime win accumulator tracked server-side.
+
+All cash-in calls are credit-first, then wallet. See `AuthService.CashInAsync` and `GameService.CashIn`.
+
+### Daily bonus / reward system
+
+- `GET /api/Reward/status` — returns `{ isEligible, bonusRechargeCount, nextEligibleUtc }`
+- `POST /api/Reward/claim` — awards a spin-derived bonus (50,000–100,000 credits), gates to once per day
+- Lobby shows a gold banner when the player is eligible; auto-hides after claim
+- `BonusRechargeCount` on `MemberProfile` tracks lifetime claims
+- Implementation: `RewardController`, `IRewardService`, `RewardService`
+
+### Agent system
+
+Agents are distributors who fund player credit pools.
+
+- `Agent` entity: Id, Name, Code, PhoneNumber, CreditPool
+- `MemberProfile.AgentId` links a player to their agent
+- Admin API (`/api/Agent`): list agents, create, load credit, assign user
+- `IAgentService` / `AgentService` — in-memory store (upgrade to DB for production)
+
+### Enriched user profile
+
+`MemberProfileDto` now exposes: `fullName`, `email`, `phoneNumber`, `generatedId`, `agentId`, `credit`, `walletBalance`, `minOut`, `totalWins`, `bonusRechargeCount`.
+
+### Firebase push notifications
+
+- **Backend**: `FirebaseAdmin` NuGet package, `INotificationService` / `FirebaseNotificationService`
+- Gracefully no-ops when `Firebase:CredentialPath` / `Firebase:CredentialJson` not configured
+- `POST /api/Notification/register-device` — stores FCM device token per user
+- `GET /api/config/firebase` — serves public web SDK config to frontend
+- **Web cabinet**: `cabinet-firebase.js` initialises SDK after login, registers service worker (`firebase-messaging-sw.js`), shows in-app banners for foreground messages
+- **Flutter client**: `FirebaseService` in `client/lib/core/` — FCM setup, background handler, `wakelock_plus` keep-alive
+
+**To activate**: populate `appsettings.json → Firebase` section with values from Firebase Console (service account key path, web API key, messaging sender ID, app ID, VAPID key). Place `google-services.json` in `client/android/app/` for Flutter Android.
+
+### Image caching layer
+
+`wwwroot/js/cabinet-image-cache.js` — browser Cache API wrapper. `fetchCached(url)` returns from cache on repeat loads; `preload(urls[])` warms the cache; `clear()` purges on logout.
+
+### Audio SFX
+
+`cabinet-audio-vnext.js` expanded to 15 named events: `press`, `invalid`, `deal`, `draw`, `collect`, `lucky5`, `machineClose`, `win`, `bonusClaim`, `doubleUpWin`, `doubleUpLose`, `cashIn`, `cashOut`, `hold`, `jackpot`. Drop MP3 files into `wwwroot/assets/sounds/` — missing files fail silently.
+
+### New controllers
+
+| Controller | Route | Purpose |
+| --- | --- | --- |
+| `RewardController` | `/api/Reward` | Daily bonus status + claim |
+| `AgentController` | `/api/Agent` | Agent CRUD + credit loading (admin) |
+| `NotificationController` | `/api/Notification` | FCM device token registration |
+| `ConfigController` | `/api/config` | Public Firebase web config endpoint |
+
 ## Known limitation / next important step
 
-Machine ledgers and machine sessions still live in memory. That means they can survive for long-running single-instance deployments, but **not** across process restarts or redeploys.
+Machine ledgers and machine sessions still live in memory. They survive long-running single-instance deployments but **not** process restarts or redeploys.
 
-Also note that `DealAsync()` now requires enough machine credits for **both** deal and draw up front. That is deliberate: it avoids dead-end rounds where a player can start a hand but cannot afford the mandatory draw cost.
+Agent state (`AgentService`) is also in-memory. For production: migrate both to PostgreSQL/Redis.
 
-For true month-scale durability, the next big engineering step is persistent storage for:
+`DealAsync()` requires enough machine credits for both deal and draw up front — deliberate to avoid dead-end rounds.
+
+For true month-scale durability, the next engineering step is persistent storage for:
 
 - `MachineLedgerState`
 - `MachineSessionState`
-- optionally audit/history rows
+- `Agent` entities and credit history
+- optionally audit / history rows

@@ -2272,6 +2272,7 @@ async function showLobby() {
     activateShellScreen('lobby', 'lobby');
     updateLobbyBalance();
     updateLobbyUsername();
+    if (window.CabinetBonus) CabinetBonus.checkAndShowBanner();
     // Load machines from backend before rendering
     await loadAvailableMachines();
     renderGameGrid();
@@ -2489,6 +2490,15 @@ async function enterLobbyAfterLogin(profileData) {
     walletBalance = profileData.walletBalance;
     storeUserInfo(profileData.username, profileData.role);
     $('#auth-screen').style.display = 'none';
+    if (window.CabinetFirebase) {
+        try {
+            const cfg = await apiCall('GET', '/api/config/firebase');
+            if (cfg && cfg.configured && cfg.config) {
+                window.LUCKY5_FIREBASE_CONFIG = cfg.config;
+                CabinetFirebase.init();
+            }
+        } catch (_) { /* non-critical */ }
+    }
     await showLobby();
 }
 
@@ -2564,6 +2574,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', updateViewportUnit);
     window.addEventListener('orientationchange', updateViewportUnit);
     debugLog('boot', { apiBase: API, userAgent: navigator.userAgent });
+    if (window.CabinetBonus) CabinetBonus.init();
     const authBtn = $('#auth-submit');
     authBtn.disabled = true;
     authBtn.textContent = 'LOADING...';

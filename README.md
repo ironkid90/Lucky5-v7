@@ -2,53 +2,72 @@
 
 A clean-room recreation of a Lebanese amusement video poker machine (1990–2010 era).
 
-ASP.NET Core 9 backend with vanilla JS/CSS frontend. Features authentic Lebanese arcade aesthetics, machine-credit vs wallet-credit economy, progressive jackpots, inline double-up Hi-Lo mechanic, switch-only Lucky 5 protection, admin telemetry, and deterministic policy logic targeting roughly 85% RTP while smoothing online variance.
+ASP.NET Core 9 backend · Vanilla JS/CSS web cabinet · Flutter mobile client · Firebase push notifications
+
+Features authentic Lebanese arcade aesthetics, machine-credit vs wallet-credit economy, progressive jackpots, inline double-up Hi-Lo mechanic, switch-only Lucky 5 protection, admin telemetry, daily reward bonuses, agent-based user tracking, and deterministic policy logic targeting ~85% RTP while smoothing online variance.
 
 ## Quick Start
 
 ```bash
-cd server && dotnet run --project src/Lucky5.Api/Lucky5.Api.csproj --launch-profile http
+# .NET backend + web cabinet (port 8080)
+dotnet run --project server/src/Lucky5.Api/Lucky5.Api.csproj
+
+# Flutter mobile client
+cd client && flutter run
 ```
 
-Opens on port 5000. Frontend is served as static files from the same server.
+The backend serves the web cabinet as static files from the same process.
 
-## Recommended deployment
+## Deployment
 
-Use **Google Cloud Run** as a single-service deploy. See `docs/CLOUD_RUN_DEPLOYMENT.md` and `scripts/deploy-cloud-run.sh`.
+- **Docker / Cloud Run**: `docker build -f Dockerfile -t lucky5 .` → deploy to Cloud Run. See `docs/CLOUD_RUN_DEPLOYMENT.md`.
+- **Azure App Service**: see `docs/AZURE_DEPLOYMENT_GUIDE.md` and `azure.yaml`.
 
 ## Documentation
 
-See **[docs/README.md](docs/README.md)** for the comprehensive developer guide covering:
-
-Also see **[docs/CONTINUATION_GUIDE.md](docs/CONTINUATION_GUIDE.md)** for a fast developer handoff.
-
-
-- Architecture and three-layer engine design
-- All game rules, paytable, and mechanics
-- Credit accounting and deferred settlement model
-- Progressive jackpot system
-- Double-up Hi-Lo with 5♠ Lucky Card
-- RTP and Machine Policy
-- Full API reference
-- Configuration and deployment
+| Document | Purpose |
+| --- | --- |
+| **[docs/CONTINUATION_GUIDE.md](docs/CONTINUATION_GUIDE.md)** | Fast developer handoff — economy model, rules, architecture |
+| **[docs/README.md](docs/README.md)** | Full game rules, paytable, API reference |
+| `docs/GAME_FEEL_REFERENCE.md` | Visual / UX reference from original cabinet |
+| `docs/forensics/` | APK reverse-engineering findings |
+| `contracts/` | OpenAPI and SignalR schemas |
 
 ## Repository Structure
 
-```
+```text
 server/src/
-├── Lucky5.Api/           Web host, controllers, static frontend (wwwroot/)
-├── Lucky5.Application/   Service contracts and DTOs
-├── Lucky5.Domain/        Core engine (Game/CleanRoom/), entities
-├── Lucky5.Infrastructure/ Service implementations, in-memory store
-├── Lucky5.Realtime/      SignalR hub
-└── Lucky5.Simulation/    RTP simulation runner
+├── Lucky5.Api/            Web host, controllers, static frontend (wwwroot/)
+│   └── wwwroot/js/        cabinet-*.js modules (shell, audio, bonus, firebase, etc.)
+├── Lucky5.Application/    Service contracts, DTOs, request/response models
+├── Lucky5.Domain/         Core engine (Game/CleanRoom/), entities
+│   └── Game/CleanRoom/    MachinePolicy.cs — authoritative RTP / variance logic
+├── Lucky5.Infrastructure/ Service implementations, in-memory store, Firebase
+├── Lucky5.Realtime/       SignalR hub
+└── Lucky5.Simulation/     RTP simulation runner
+
+client/                    Flutter mobile client (Android / iOS / Web / Windows)
+└── lib/core/              ApiService, FirebaseService, keep-alive
+
+docs/                      Developer documentation
+sources/                   Decompiled reference material (read-only)
 ```
+
+## Feature Highlights (v7)
+
+- **Dual wallet**: `Credit` (bonus/agent-funded) + `WalletBalance` (cash), credit consumed first on cash-in
+- **Daily reward**: spin-based bonus award, lobby banner UI, idempotent daily gate
+- **Agent system**: agent entities, credit pool, user assignment — full admin API
+- **Firebase push**: FCM via Admin SDK (backend) + web service worker + Flutter client
+- **Image caching**: browser Cache API layer for game assets
+- **Audio SFX**: 15 named events (deal, draw, win, jackpot, bonus-claim, doubleUp, etc.)
+- **Session hardening**: active-round hydration, safe back-to-lobby, idempotent cash-out
 
 ## Reference Material
 
 | Location | Content |
-|----------|---------|
+| --- | --- |
 | `docs/GAME_FEEL_REFERENCE.md` | Visual design reference from original cabinet |
 | `docs/forensics/` | APK reverse-engineering findings |
-| `analysis/` | Clean-room engine prototype and research |
+| `Arcade Game RNG Simulation Model.md` | RNG / math reference |
 | `contracts/` | OpenAPI and SignalR schemas |

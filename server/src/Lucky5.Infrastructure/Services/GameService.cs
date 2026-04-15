@@ -89,10 +89,14 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             throw new InvalidOperationException("Cash in must be in 200,000 increments up to 1,000,000");
         if (session.TotalCashIn + amount > MaxSessionCashIn)
             throw new InvalidOperationException("Maximum session cash-in is 1,000,000");
-        if (profile.WalletBalance < amount)
+        var totalAvailable = profile.WalletBalance + profile.Credit;
+        if (totalAvailable < amount)
             throw new InvalidOperationException("Insufficient wallet balance");
 
-        profile.WalletBalance -= amount;
+        var fromCredit = Math.Min(profile.Credit, amount);
+        var fromBalance = amount - fromCredit;
+        profile.Credit -= fromCredit;
+        profile.WalletBalance -= fromBalance;
         session.MachineCredits += amount;
         session.TotalCashIn += amount;
         session.LastUpdatedUtc = DateTime.UtcNow;
@@ -145,6 +149,9 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
         if (!CanCashOut(session))
             throw new InvalidOperationException("Cash out is only available when the machine is closed or credits reach the 2x session threshold");
+
+        if (profile.MinimumOut > 0m && session.MachineCredits < profile.MinimumOut)
+            throw new InvalidOperationException($"Minimum cash-out threshold is {profile.MinimumOut:N0} credits");
 
         var amount = session.MachineCredits;
         profile.WalletBalance += amount;
@@ -945,6 +952,13 @@ return guessResult;
         await store.UpdateMachineLedgerAsync(ledger);
         await store.UpdateMachineSessionAsync(session);
         await store.SaveRoundAsync(round);
+
+        if (cashoutCredits > 0)
+        {
+            var profile = await RequireProfileAsync(round.UserId);
+            profile.TotalWins++;
+            await store.UpdateProfileAsync(profile);
+        }
 
         await store.AddWalletLedgerEntryAsync(new WalletLedgerEntry
         {

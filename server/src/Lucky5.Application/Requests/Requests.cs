@@ -1,7 +1,14 @@
 namespace Lucky5.Application.Requests;
 
 public sealed record LoginRequest(string Username, string Password);
-public sealed record SignupRequest(string Username, string Password, string PhoneNumber);
+public sealed record SignupRequest(
+    string Username,
+    string Password,
+    string PhoneNumber,
+    string? Email = null,
+    string? FullName = null,
+    DateTime? DateOfBirth = null,
+    int? AgentId = null);
 public sealed record VerifyOtpRequest(string Username, string OtpCode);
 public sealed record ResendOtpRequest(string Username);
 public sealed record TransferRequest(decimal Amount, string Reference, string Direction);

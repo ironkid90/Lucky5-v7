@@ -41,10 +41,14 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
             Username = request.Username,
             PasswordHash = request.Password,
             PhoneNumber = request.PhoneNumber,
+            Email = request.Email ?? string.Empty,
+            FullName = request.FullName ?? request.Username,
+            DateOfBirth = request.DateOfBirth,
             IsOtpVerified = false,
             PendingOtp = "123456",
             PendingOtpExpiresUtc = DateTime.UtcNow.AddMinutes(10),
-            Role = "player"
+            Role = "player",
+            AgentId = request.AgentId
         };
 
         store.Users[user.Id] = user;
@@ -54,9 +58,18 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
             UserId = user.Id,
             Username = user.Username,
             DisplayName = user.Username,
-            Email = $"{user.Username}@lucky5.local",
+            FullName = user.FullName,
+            Email = user.Email.Length > 0 ? user.Email : $"{user.Username}@lucky5.local",
             PhoneNumber = user.PhoneNumber,
+            DateOfBirth = user.DateOfBirth,
             WalletBalance = 200000m,
+            Credit = 0m,
+            TotalWins = 0,
+            AgentId = user.AgentId,
+            GeneratedID = user.GeneratedID,
+            MinimumOut = 0m,
+            BonusDate = null,
+            BonusRechargeCount = 0,
             LastSeenUtc = DateTime.UtcNow
         };
 
@@ -123,7 +136,7 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
 
     public Task<WalletLedgerEntryDto> UpdateCreditAsync(Guid userId, TransferRequest request, CancellationToken cancellationToken)
     {
-        return Task.FromResult(AdjustBalance(userId, request.Amount, "UpdateCredit", request.Reference));
+        return Task.FromResult(AdjustCredit(userId, request.Amount, "UpdateCredit", request.Reference));
     }
 
     public Task LogoutAsync(string accessToken, CancellationToken cancellationToken)
@@ -154,6 +167,28 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
         return new WalletLedgerEntryDto(row.Id, row.Amount, row.BalanceAfter, row.Type, row.Reference, row.CreatedUtc);
     }
 
+    private WalletLedgerEntryDto AdjustCredit(Guid userId, decimal amount, string type, string reference)
+    {
+        if (!store.MemberProfiles.TryGetValue(userId, out var profile))
+        {
+            throw new KeyNotFoundException("Profile not found");
+        }
+
+        profile.Credit += amount;
+        var row = new WalletLedgerEntry
+        {
+            UserId = userId,
+            Amount = amount,
+            Type = type,
+            Reference = reference,
+            BalanceAfter = profile.Credit,
+            CreatedUtc = DateTime.UtcNow
+        };
+
+        store.Ledger.Add(row);
+        return new WalletLedgerEntryDto(row.Id, row.Amount, row.BalanceAfter, row.Type, row.Reference, row.CreatedUtc);
+    }
+
     private MemberProfileDto ToDto(MemberProfile profile)
     {
         var role = "player";
@@ -161,6 +196,12 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
         {
             role = user.Role;
         }
-        return new MemberProfileDto(profile.UserId, profile.Username, profile.DisplayName, profile.Email, profile.PhoneNumber, profile.WalletBalance, profile.LastSeenUtc, role);
+        return new MemberProfileDto(
+            profile.UserId, profile.Username, profile.DisplayName, profile.FullName,
+            profile.Email, profile.PhoneNumber, profile.DateOfBirth,
+            profile.WalletBalance, profile.Credit, profile.TotalWins,
+            profile.AgentId, profile.GeneratedID, profile.MinimumOut,
+            profile.BonusDate, profile.BonusRechargeCount,
+            profile.LastSeenUtc, role);
     }
 }

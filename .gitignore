@@ -1,24 +1,105 @@
-# OS / editors
+# ── OS / Editors ──────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
-.idea/
-.vscode/
-.vs/
 *.suo
 *.user
 *.rsuser
 
-# Local workspace state
-.local/
+# ── IDE tool directories (do not commit any AI agent state) ───────────────────
+.idea/
+.vscode/
+.vs/
+.adal/
+.agents/
+.augment/
+.azure/
+.bob/
+.claude/
+.codebuddy/
+.commandcode/
+.continue/
+.cortex/
+.crush/
+.factory/
+.gemini/
+.goose/
+.iflow/
+.junie/
+.kilo/
+.kilocode/
+.kode/
+.kombai/
+.maestro/
+.mcpjam/
+.memory/
+.mux/
+.neovate/
+.openhands/
+.orchestrator/
+.pi/
+.playwright-mcp/
+.pochi/
+.ptah/
+.qoder/
+.qwen/
+.roo/
+.serena/
+.tocodex/
+.trae/
+.trunk/
+.vibe/
+.windsurf/mcp.json
+.windsurf/last-session.json
+.windsurf/settings.json
+.worktrees/
+.zencoder/
+.copilot-cli/
+
+# ── Local workspace scratch / agent state ─────────────────────────────────────
 tmp/
 attached_assets/
-${SQLITE_DB_PATH}
+.local/
+plans/
+scripts/mcp/.env.mcp
+context-orchestrator-data/
+context-orchestrator-first-export.yaml
+global-memory-bridge.md
+next-steps.md
+progress.md
+dev.txt
+Untitled-1.js
+extensions.txt
+__batch_test.txt
+__codex_test.txt
+__json_test.txt
+.coignore
+.mirabridge
+.roomodes
+.kilocodemodes
+.mcp.json
+.fake
+AGENTS.md)
 CLAUDE.md
 .replit
 replit.md
 copilot-instructions.md
+${SQLITE_DB_PATH}
+$APPDATA/
 
-# Local reverse-engineering captures and tool drops
+# ── Logs & runtime artifacts ──────────────────────────────────────────────────
+*.log
+*.db
+*.db-shm
+*.db-wal
+
+# ── Secrets / env overrides ───────────────────────────────────────────────────
+.env
+*.env.local
+*.env.*.local
+appsettings.Production.json
+appsettings.Staging.json
+
+# ── Reverse-engineering / analysis captures (local only) ─────────────────────
 *.7z
 *.apk
 *.pcap
@@ -30,15 +111,14 @@ analysis/apktool/
 analysis/jadx/
 analysis/tools/
 cloudfunction-*.ipynb
-firebase-debug.log
 mitm.md
 Inspect TLS encrypted traffic using mitmproxy and wireshark.md
 
-# .NET
+# ── .NET ──────────────────────────────────────────────────────────────────────
 **/bin/
 **/obj/
 
-# Flutter / Dart
+# ── Flutter / Dart ────────────────────────────────────────────────────────────
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -46,11 +126,11 @@ Inspect TLS encrypted traffic using mitmproxy and wireshark.md
 build/
 pubspec.lock
 
-# Node / frontend
+# ── Node / frontend ───────────────────────────────────────────────────────────
 node_modules/
 .pnpm-store/
 
-# Python
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -60,48 +140,16 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 
-# Logs / local runtime files
-*.log
-*.db
-*.db-shm
-*.db-wal
-
-# Local env overrides
-.env
-*.env.local
-*.env.*.local
-scripts/mcp/.env.mcp
-
-
-# Copilot Orchestrator temporary files
-.orchestrator/
-.worktrees/
-.orchestrator/
-.worktrees/
-=======
-.worktrees/
-.orchestrator/
-.copilot-cli/
+# ── GitHub Copilot / orchestrator temp ────────────────────────────────────────
 .github/instructions/orchestrator-*.instructions.md
-=======
-.orchestrator/
-.worktrees/
-New folder/
-.New folder/
-.kilocode\tasks\
 
-# Copilot Orchestrator temporary files
-.orchestrator/
-.worktrees/
+# ── Firebase / GCP ───────────────────────────────────────────────────────────
+.firebase/
+.gcloudignore
+google-services.json
+GoogleService-Info.plist
 
-
-# Copilot Orchestrator temporary files
-.worktrees/
-.orchestrator/
-.copilot-cli/
-.github/instructions/orchestrator-*.instructions.md
-.windsurf/mcp.json
-
-.fake
-/.agents/skills
-/.agents
+# ── AI9 reference APK/decompile (sources only, no binary) ────────────────────
+Ai9/
+ai9/*.apk
+ai9/*.aab

@@ -25,6 +25,10 @@
 		"hacklm-memory.categoryLimit.Instruction": 40,
 		"ptah.autopilot.enabled": true,
 		"ptah.autopilot.permissionLevel": "yolo",
-		"ptah.reasoningEffort": "high"
+		"ptah.reasoningEffort": "high",
+		"github-actions.use-enterprise": false,
+		"terminal.integrated.allowInUntrustedWorkspace": true,
+		"githubPullRequests.devMode": false,
+		"githubPullRequests.pullBranch": "always"
 	}
 }

@@ -1,6 +1,6 @@
 specVersion: "v1"
 serviceId: "lucky5-v7"
-location: "us-east4"
+location: "europe-west1"
 schemas:
   - source: "./schema"
     datasource:

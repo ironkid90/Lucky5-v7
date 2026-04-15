@@ -1,8 +1,8 @@
 extend type Query {
   """
-  ✨ Look up a single `Movie` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  ✨ Look up a single `Agent` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
   """
-  movie(
+  agent(
     """
     The unique ID of the object.
     """
@@ -11,17 +11,17 @@ extend type Query {
     """
     The key used to identify the object.
     """
-    key: Movie_Key
+    key: Agent_Key
 
     """
     Fetch the first row based on the filters and ordering.
     """
-    first: Movie_FirstRow
-  ): Movie @fdc_generated(from: "Movie", purpose: QUERY_SINGLE)
+    first: Agent_FirstRow
+  ): Agent @fdc_generated(from: "Agent", purpose: QUERY_SINGLE)
   """
-  ✨ Look up a single `MovieMetadata` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  ✨ Look up a single `DailyReward` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
   """
-  movieMetadata(
+  dailyReward(
     """
     The unique ID of the object.
     """
@@ -30,27 +30,108 @@ extend type Query {
     """
     The key used to identify the object.
     """
-    key: MovieMetadata_Key
+    key: DailyReward_Key
 
     """
     Fetch the first row based on the filters and ordering.
     """
-    first: MovieMetadata_FirstRow
-  ): MovieMetadata @fdc_generated(from: "MovieMetadata", purpose: QUERY_SINGLE)
+    first: DailyReward_FirstRow
+  ): DailyReward @fdc_generated(from: "DailyReward", purpose: QUERY_SINGLE)
   """
-  ✨ Look up a single `Review` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  ✨ Look up a single `DeviceToken` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
   """
-  review(
+  deviceToken(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
     """
     The key used to identify the object.
     """
-    key: Review_Key
+    key: DeviceToken_Key
 
     """
     Fetch the first row based on the filters and ordering.
     """
-    first: Review_FirstRow
-  ): Review @fdc_generated(from: "Review", purpose: QUERY_SINGLE)
+    first: DeviceToken_FirstRow
+  ): DeviceToken @fdc_generated(from: "DeviceToken", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `Machine` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  machine(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Machine_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Machine_FirstRow
+  ): Machine @fdc_generated(from: "Machine", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `MachineLedger` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  machineLedger(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: MachineLedger_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MachineLedger_FirstRow
+  ): MachineLedger @fdc_generated(from: "MachineLedger", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `MachineSession` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  machineSession(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: MachineSession_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MachineSession_FirstRow
+  ): MachineSession @fdc_generated(from: "MachineSession", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `Round` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  round(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Round_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Round_FirstRow
+  ): Round @fdc_generated(from: "Round", purpose: QUERY_SINGLE)
   """
   ✨ Look up a single `User` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
   """
@@ -76,18 +157,56 @@ extend type Query {
     first: User_FirstRow
   ): User @fdc_generated(from: "User", purpose: QUERY_SINGLE)
   """
-  ✨ List `Movie` objects in the table and return selected fields, optionally filtered by `where` conditions
+  ✨ Look up a single `Wallet` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
   """
-  movies(
+  wallet(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Wallet_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Wallet_FirstRow
+  ): Wallet @fdc_generated(from: "Wallet", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `WalletLedger` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  walletLedger(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: WalletLedger_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: WalletLedger_FirstRow
+  ): WalletLedger @fdc_generated(from: "WalletLedger", purpose: QUERY_SINGLE)
+  """
+  ✨ List `Agent` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  agents(
     """
     Filter condition to narrow down the query results.
     """
-    where: Movie_Filter
+    where: Agent_Filter
 
     """
     Order the query results by specific fields.
     """
-    orderBy: [Movie_Order!]
+    orderBy: [Agent_Order!]
 
     """
     Number of rows to skip before starting to return the results.
@@ -107,21 +226,21 @@ extend type Query {
     """
     Filter condition to apply to the groups of aggregate queries.
     """
-    having: Movie_Having
-  ): [Movie!]! @fdc_generated(from: "Movie", purpose: QUERY_MULTIPLE)
+    having: Agent_Having
+  ): [Agent!]! @fdc_generated(from: "Agent", purpose: QUERY_MULTIPLE)
   """
-  ✨ List `MovieMetadata` objects in the table and return selected fields, optionally filtered by `where` conditions
+  ✨ List `DailyReward` objects in the table and return selected fields, optionally filtered by `where` conditions
   """
-  movieMetadatas(
+  dailyRewards(
     """
     Filter condition to narrow down the query results.
     """
-    where: MovieMetadata_Filter
+    where: DailyReward_Filter
 
     """
     Order the query results by specific fields.
     """
-    orderBy: [MovieMetadata_Order!]
+    orderBy: [DailyReward_Order!]
 
     """
     Number of rows to skip before starting to return the results.
@@ -141,21 +260,21 @@ extend type Query {
     """
     Filter condition to apply to the groups of aggregate queries.
     """
-    having: MovieMetadata_Having
-  ): [MovieMetadata!]! @fdc_generated(from: "MovieMetadata", purpose: QUERY_MULTIPLE)
+    having: DailyReward_Having
+  ): [DailyReward!]! @fdc_generated(from: "DailyReward", purpose: QUERY_MULTIPLE)
   """
-  ✨ List `Review` objects in the table and return selected fields, optionally filtered by `where` conditions
+  ✨ List `DeviceToken` objects in the table and return selected fields, optionally filtered by `where` conditions
   """
-  reviews(
+  deviceTokens(
     """
     Filter condition to narrow down the query results.
     """
-    where: Review_Filter
+    where: DeviceToken_Filter
 
     """
     Order the query results by specific fields.
     """
-    orderBy: [Review_Order!]
+    orderBy: [DeviceToken_Order!]
 
     """
     Number of rows to skip before starting to return the results.
@@ -175,8 +294,144 @@ extend type Query {
     """
     Filter condition to apply to the groups of aggregate queries.
     """
-    having: Review_Having
-  ): [Review!]! @fdc_generated(from: "Review", purpose: QUERY_MULTIPLE)
+    having: DeviceToken_Having
+  ): [DeviceToken!]! @fdc_generated(from: "DeviceToken", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `Machine` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  machines(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Machine_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Machine_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Machine_Having
+  ): [Machine!]! @fdc_generated(from: "Machine", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `MachineLedger` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  machineLedgers(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MachineLedger_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MachineLedger_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MachineLedger_Having
+  ): [MachineLedger!]! @fdc_generated(from: "MachineLedger", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `MachineSession` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  machineSessions(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MachineSession_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MachineSession_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MachineSession_Having
+  ): [MachineSession!]! @fdc_generated(from: "MachineSession", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `Round` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  rounds(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Round_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Round_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Round_Having
+  ): [Round!]! @fdc_generated(from: "Round", purpose: QUERY_MULTIPLE)
   """
   ✨ List `User` objects in the table and return selected fields, optionally filtered by `where` conditions
   """
@@ -211,4 +466,72 @@ extend type Query {
     """
     having: User_Having
   ): [User!]! @fdc_generated(from: "User", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `Wallet` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  wallets(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Wallet_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Wallet_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Wallet_Having
+  ): [Wallet!]! @fdc_generated(from: "Wallet", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `WalletLedger` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  walletLedgers(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: WalletLedger_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [WalletLedger_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: WalletLedger_Having
+  ): [WalletLedger!]! @fdc_generated(from: "WalletLedger", purpose: QUERY_MULTIPLE)
 }

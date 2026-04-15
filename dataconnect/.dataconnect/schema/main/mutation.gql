@@ -1,31 +1,67 @@
 extend type Mutation {
   """
-  ✨ Insert a single `Movie` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  ✨ Insert a single `Agent` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
   """
-  movie_insert(
+  agent_insert(
     """
     Data object to insert into the table.
     """
-    data: Movie_Data!
-  ): Movie_KeyOutput! @fdc_generated(from: "Movie", purpose: INSERT_SINGLE)
+    data: Agent_Data!
+  ): Agent_KeyOutput! @fdc_generated(from: "Agent", purpose: INSERT_SINGLE)
   """
-  ✨ Insert a single `MovieMetadata` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  ✨ Insert a single `DailyReward` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
   """
-  movieMetadata_insert(
+  dailyReward_insert(
     """
     Data object to insert into the table.
     """
-    data: MovieMetadata_Data!
-  ): MovieMetadata_KeyOutput! @fdc_generated(from: "MovieMetadata", purpose: INSERT_SINGLE)
+    data: DailyReward_Data!
+  ): DailyReward_KeyOutput! @fdc_generated(from: "DailyReward", purpose: INSERT_SINGLE)
   """
-  ✨ Insert a single `Review` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  ✨ Insert a single `DeviceToken` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
   """
-  review_insert(
+  deviceToken_insert(
     """
     Data object to insert into the table.
     """
-    data: Review_Data!
-  ): Review_KeyOutput! @fdc_generated(from: "Review", purpose: INSERT_SINGLE)
+    data: DeviceToken_Data!
+  ): DeviceToken_KeyOutput! @fdc_generated(from: "DeviceToken", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `Machine` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  machine_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: Machine_Data!
+  ): Machine_KeyOutput! @fdc_generated(from: "Machine", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `MachineLedger` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  machineLedger_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: MachineLedger_Data!
+  ): MachineLedger_KeyOutput! @fdc_generated(from: "MachineLedger", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `MachineSession` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  machineSession_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: MachineSession_Data!
+  ): MachineSession_KeyOutput! @fdc_generated(from: "MachineSession", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `Round` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  round_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: Round_Data!
+  ): Round_KeyOutput! @fdc_generated(from: "Round", purpose: INSERT_SINGLE)
   """
   ✨ Insert a single `User` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
   """
@@ -36,32 +72,86 @@ extend type Mutation {
     data: User_Data!
   ): User_KeyOutput! @fdc_generated(from: "User", purpose: INSERT_SINGLE)
   """
-  ✨ Insert `Movie` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  ✨ Insert a single `Wallet` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
   """
-  movie_insertMany(
+  wallet_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: Wallet_Data!
+  ): Wallet_KeyOutput! @fdc_generated(from: "Wallet", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `WalletLedger` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  walletLedger_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: WalletLedger_Data!
+  ): WalletLedger_KeyOutput! @fdc_generated(from: "WalletLedger", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert `Agent` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  agent_insertMany(
     """
     List of data objects to insert into the table.
     """
-    data: [Movie_Data!]!
-  ): [Movie_KeyOutput!]! @fdc_generated(from: "Movie", purpose: INSERT_MULTIPLE)
+    data: [Agent_Data!]!
+  ): [Agent_KeyOutput!]! @fdc_generated(from: "Agent", purpose: INSERT_MULTIPLE)
   """
-  ✨ Insert `MovieMetadata` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  ✨ Insert `DailyReward` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
   """
-  movieMetadata_insertMany(
+  dailyReward_insertMany(
     """
     List of data objects to insert into the table.
     """
-    data: [MovieMetadata_Data!]!
-  ): [MovieMetadata_KeyOutput!]! @fdc_generated(from: "MovieMetadata", purpose: INSERT_MULTIPLE)
+    data: [DailyReward_Data!]!
+  ): [DailyReward_KeyOutput!]! @fdc_generated(from: "DailyReward", purpose: INSERT_MULTIPLE)
   """
-  ✨ Insert `Review` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  ✨ Insert `DeviceToken` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
   """
-  review_insertMany(
+  deviceToken_insertMany(
     """
     List of data objects to insert into the table.
     """
-    data: [Review_Data!]!
-  ): [Review_KeyOutput!]! @fdc_generated(from: "Review", purpose: INSERT_MULTIPLE)
+    data: [DeviceToken_Data!]!
+  ): [DeviceToken_KeyOutput!]! @fdc_generated(from: "DeviceToken", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `Machine` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  machine_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [Machine_Data!]!
+  ): [Machine_KeyOutput!]! @fdc_generated(from: "Machine", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `MachineLedger` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  machineLedger_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [MachineLedger_Data!]!
+  ): [MachineLedger_KeyOutput!]! @fdc_generated(from: "MachineLedger", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `MachineSession` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  machineSession_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [MachineSession_Data!]!
+  ): [MachineSession_KeyOutput!]! @fdc_generated(from: "MachineSession", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `Round` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  round_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [Round_Data!]!
+  ): [Round_KeyOutput!]! @fdc_generated(from: "Round", purpose: INSERT_MULTIPLE)
   """
   ✨ Insert `User` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
   """
@@ -72,32 +162,86 @@ extend type Mutation {
     data: [User_Data!]!
   ): [User_KeyOutput!]! @fdc_generated(from: "User", purpose: INSERT_MULTIPLE)
   """
-  ✨ Insert or update a single `Movie` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Movie`.
+  ✨ Insert `Wallet` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
   """
-  movie_upsert(
+  wallet_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [Wallet_Data!]!
+  ): [Wallet_KeyOutput!]! @fdc_generated(from: "Wallet", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `WalletLedger` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  walletLedger_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [WalletLedger_Data!]!
+  ): [WalletLedger_KeyOutput!]! @fdc_generated(from: "WalletLedger", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert or update a single `Agent` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Agent`.
+  """
+  agent_upsert(
     """
     Data object to insert or update if it already exists.
     """
-    data: Movie_Data!
-  ): Movie_KeyOutput! @fdc_generated(from: "Movie", purpose: UPSERT_SINGLE)
+    data: Agent_Data!
+  ): Agent_KeyOutput! @fdc_generated(from: "Agent", purpose: UPSERT_SINGLE)
   """
-  ✨ Insert or update a single `MovieMetadata` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `MovieMetadata`.
+  ✨ Insert or update a single `DailyReward` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `DailyReward`.
   """
-  movieMetadata_upsert(
+  dailyReward_upsert(
     """
     Data object to insert or update if it already exists.
     """
-    data: MovieMetadata_Data!
-  ): MovieMetadata_KeyOutput! @fdc_generated(from: "MovieMetadata", purpose: UPSERT_SINGLE)
+    data: DailyReward_Data!
+  ): DailyReward_KeyOutput! @fdc_generated(from: "DailyReward", purpose: UPSERT_SINGLE)
   """
-  ✨ Insert or update a single `Review` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Review`.
+  ✨ Insert or update a single `DeviceToken` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `DeviceToken`.
   """
-  review_upsert(
+  deviceToken_upsert(
     """
     Data object to insert or update if it already exists.
     """
-    data: Review_Data!
-  ): Review_KeyOutput! @fdc_generated(from: "Review", purpose: UPSERT_SINGLE)
+    data: DeviceToken_Data!
+  ): DeviceToken_KeyOutput! @fdc_generated(from: "DeviceToken", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `Machine` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Machine`.
+  """
+  machine_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: Machine_Data!
+  ): Machine_KeyOutput! @fdc_generated(from: "Machine", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `MachineLedger` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `MachineLedger`.
+  """
+  machineLedger_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: MachineLedger_Data!
+  ): MachineLedger_KeyOutput! @fdc_generated(from: "MachineLedger", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `MachineSession` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `MachineSession`.
+  """
+  machineSession_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: MachineSession_Data!
+  ): MachineSession_KeyOutput! @fdc_generated(from: "MachineSession", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `Round` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Round`.
+  """
+  round_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: Round_Data!
+  ): Round_KeyOutput! @fdc_generated(from: "Round", purpose: UPSERT_SINGLE)
   """
   ✨ Insert or update a single `User` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `User`.
   """
@@ -108,32 +252,86 @@ extend type Mutation {
     data: User_Data!
   ): User_KeyOutput! @fdc_generated(from: "User", purpose: UPSERT_SINGLE)
   """
-  ✨ Insert or update `Movie` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Movie`.
+  ✨ Insert or update a single `Wallet` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Wallet`.
   """
-  movie_upsertMany(
+  wallet_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: Wallet_Data!
+  ): Wallet_KeyOutput! @fdc_generated(from: "Wallet", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `WalletLedger` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `WalletLedger`.
+  """
+  walletLedger_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: WalletLedger_Data!
+  ): WalletLedger_KeyOutput! @fdc_generated(from: "WalletLedger", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update `Agent` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Agent`.
+  """
+  agent_upsertMany(
     """
     List of data objects to insert or update if it already exists.
     """
-    data: [Movie_Data!]!
-  ): [Movie_KeyOutput!]! @fdc_generated(from: "Movie", purpose: UPSERT_MULTIPLE)
+    data: [Agent_Data!]!
+  ): [Agent_KeyOutput!]! @fdc_generated(from: "Agent", purpose: UPSERT_MULTIPLE)
   """
-  ✨ Insert or update `MovieMetadata` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `MovieMetadata`.
+  ✨ Insert or update `DailyReward` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `DailyReward`.
   """
-  movieMetadata_upsertMany(
+  dailyReward_upsertMany(
     """
     List of data objects to insert or update if it already exists.
     """
-    data: [MovieMetadata_Data!]!
-  ): [MovieMetadata_KeyOutput!]! @fdc_generated(from: "MovieMetadata", purpose: UPSERT_MULTIPLE)
+    data: [DailyReward_Data!]!
+  ): [DailyReward_KeyOutput!]! @fdc_generated(from: "DailyReward", purpose: UPSERT_MULTIPLE)
   """
-  ✨ Insert or update `Review` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Review`.
+  ✨ Insert or update `DeviceToken` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `DeviceToken`.
   """
-  review_upsertMany(
+  deviceToken_upsertMany(
     """
     List of data objects to insert or update if it already exists.
     """
-    data: [Review_Data!]!
-  ): [Review_KeyOutput!]! @fdc_generated(from: "Review", purpose: UPSERT_MULTIPLE)
+    data: [DeviceToken_Data!]!
+  ): [DeviceToken_KeyOutput!]! @fdc_generated(from: "DeviceToken", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `Machine` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Machine`.
+  """
+  machine_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [Machine_Data!]!
+  ): [Machine_KeyOutput!]! @fdc_generated(from: "Machine", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `MachineLedger` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `MachineLedger`.
+  """
+  machineLedger_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [MachineLedger_Data!]!
+  ): [MachineLedger_KeyOutput!]! @fdc_generated(from: "MachineLedger", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `MachineSession` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `MachineSession`.
+  """
+  machineSession_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [MachineSession_Data!]!
+  ): [MachineSession_KeyOutput!]! @fdc_generated(from: "MachineSession", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `Round` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Round`.
+  """
+  round_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [Round_Data!]!
+  ): [Round_KeyOutput!]! @fdc_generated(from: "Round", purpose: UPSERT_MULTIPLE)
   """
   ✨ Insert or update `User` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `User`.
   """
@@ -144,9 +342,27 @@ extend type Mutation {
     data: [User_Data!]!
   ): [User_KeyOutput!]! @fdc_generated(from: "User", purpose: UPSERT_MULTIPLE)
   """
-  ✨ Update a single `Movie` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `Movie` or `null` if not found.
+  ✨ Insert or update `Wallet` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Wallet`.
   """
-  movie_update(
+  wallet_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [Wallet_Data!]!
+  ): [Wallet_KeyOutput!]! @fdc_generated(from: "Wallet", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `WalletLedger` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `WalletLedger`.
+  """
+  walletLedger_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [WalletLedger_Data!]!
+  ): [WalletLedger_KeyOutput!]! @fdc_generated(from: "WalletLedger", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Update a single `Agent` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `Agent` or `null` if not found.
+  """
+  agent_update(
     """
     The unique ID of the object.
     """
@@ -155,22 +371,22 @@ extend type Mutation {
     """
     The key used to identify the object.
     """
-    key: Movie_Key
+    key: Agent_Key
 
     """
     Fetch the first row based on the filters and ordering.
     """
-    first: Movie_FirstRow
+    first: Agent_FirstRow
 
     """
     Data object containing fields to be updated.
     """
-    data: Movie_Data!
-  ): Movie_KeyOutput @fdc_generated(from: "Movie", purpose: UPDATE_SINGLE)
+    data: Agent_Data!
+  ): Agent_KeyOutput @fdc_generated(from: "Agent", purpose: UPDATE_SINGLE)
   """
-  ✨ Update a single `MovieMetadata` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `MovieMetadata` or `null` if not found.
+  ✨ Update a single `DailyReward` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `DailyReward` or `null` if not found.
   """
-  movieMetadata_update(
+  dailyReward_update(
     """
     The unique ID of the object.
     """
@@ -179,37 +395,138 @@ extend type Mutation {
     """
     The key used to identify the object.
     """
-    key: MovieMetadata_Key
+    key: DailyReward_Key
 
     """
     Fetch the first row based on the filters and ordering.
     """
-    first: MovieMetadata_FirstRow
+    first: DailyReward_FirstRow
 
     """
     Data object containing fields to be updated.
     """
-    data: MovieMetadata_Data!
-  ): MovieMetadata_KeyOutput @fdc_generated(from: "MovieMetadata", purpose: UPDATE_SINGLE)
+    data: DailyReward_Data!
+  ): DailyReward_KeyOutput @fdc_generated(from: "DailyReward", purpose: UPDATE_SINGLE)
   """
-  ✨ Update a single `Review` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `Review` or `null` if not found.
+  ✨ Update a single `DeviceToken` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `DeviceToken` or `null` if not found.
   """
-  review_update(
+  deviceToken_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
     """
     The key used to identify the object.
     """
-    key: Review_Key
+    key: DeviceToken_Key
 
     """
     Fetch the first row based on the filters and ordering.
     """
-    first: Review_FirstRow
+    first: DeviceToken_FirstRow
 
     """
     Data object containing fields to be updated.
     """
-    data: Review_Data!
-  ): Review_KeyOutput @fdc_generated(from: "Review", purpose: UPDATE_SINGLE)
+    data: DeviceToken_Data!
+  ): DeviceToken_KeyOutput @fdc_generated(from: "DeviceToken", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `Machine` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `Machine` or `null` if not found.
+  """
+  machine_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Machine_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Machine_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: Machine_Data!
+  ): Machine_KeyOutput @fdc_generated(from: "Machine", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `MachineLedger` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `MachineLedger` or `null` if not found.
+  """
+  machineLedger_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: MachineLedger_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MachineLedger_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: MachineLedger_Data!
+  ): MachineLedger_KeyOutput @fdc_generated(from: "MachineLedger", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `MachineSession` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `MachineSession` or `null` if not found.
+  """
+  machineSession_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: MachineSession_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MachineSession_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: MachineSession_Data!
+  ): MachineSession_KeyOutput @fdc_generated(from: "MachineSession", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `Round` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `Round` or `null` if not found.
+  """
+  round_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Round_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Round_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: Round_Data!
+  ): Round_KeyOutput @fdc_generated(from: "Round", purpose: UPDATE_SINGLE)
   """
   ✨ Update a single `User` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `User` or `null` if not found.
   """
@@ -240,13 +557,61 @@ extend type Mutation {
     data: User_Data!
   ): User_KeyOutput @fdc_generated(from: "User", purpose: UPDATE_SINGLE)
   """
-  ✨ Update `Movie` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  ✨ Update a single `Wallet` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `Wallet` or `null` if not found.
   """
-  movie_updateMany(
+  wallet_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Wallet_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Wallet_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: Wallet_Data!
+  ): Wallet_KeyOutput @fdc_generated(from: "Wallet", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `WalletLedger` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `WalletLedger` or `null` if not found.
+  """
+  walletLedger_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: WalletLedger_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: WalletLedger_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: WalletLedger_Data!
+  ): WalletLedger_KeyOutput @fdc_generated(from: "WalletLedger", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update `Agent` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  agent_updateMany(
     """
     Filter condition to specify which rows to update.
     """
-    where: Movie_Filter
+    where: Agent_Filter
 
     """
     Set to true to update all rows.
@@ -256,16 +621,16 @@ extend type Mutation {
     """
     Data object containing fields to update.
     """
-    data: Movie_Data!
-  ): Int! @fdc_generated(from: "Movie", purpose: UPDATE_MULTIPLE)
+    data: Agent_Data!
+  ): Int! @fdc_generated(from: "Agent", purpose: UPDATE_MULTIPLE)
   """
-  ✨ Update `MovieMetadata` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  ✨ Update `DailyReward` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
   """
-  movieMetadata_updateMany(
+  dailyReward_updateMany(
     """
     Filter condition to specify which rows to update.
     """
-    where: MovieMetadata_Filter
+    where: DailyReward_Filter
 
     """
     Set to true to update all rows.
@@ -275,16 +640,16 @@ extend type Mutation {
     """
     Data object containing fields to update.
     """
-    data: MovieMetadata_Data!
-  ): Int! @fdc_generated(from: "MovieMetadata", purpose: UPDATE_MULTIPLE)
+    data: DailyReward_Data!
+  ): Int! @fdc_generated(from: "DailyReward", purpose: UPDATE_MULTIPLE)
   """
-  ✨ Update `Review` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  ✨ Update `DeviceToken` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
   """
-  review_updateMany(
+  deviceToken_updateMany(
     """
     Filter condition to specify which rows to update.
     """
-    where: Review_Filter
+    where: DeviceToken_Filter
 
     """
     Set to true to update all rows.
@@ -294,8 +659,84 @@ extend type Mutation {
     """
     Data object containing fields to update.
     """
-    data: Review_Data!
-  ): Int! @fdc_generated(from: "Review", purpose: UPDATE_MULTIPLE)
+    data: DeviceToken_Data!
+  ): Int! @fdc_generated(from: "DeviceToken", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `Machine` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  machine_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: Machine_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: Machine_Data!
+  ): Int! @fdc_generated(from: "Machine", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `MachineLedger` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  machineLedger_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: MachineLedger_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: MachineLedger_Data!
+  ): Int! @fdc_generated(from: "MachineLedger", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `MachineSession` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  machineSession_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: MachineSession_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: MachineSession_Data!
+  ): Int! @fdc_generated(from: "MachineSession", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `Round` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  round_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: Round_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: Round_Data!
+  ): Int! @fdc_generated(from: "Round", purpose: UPDATE_MULTIPLE)
   """
   ✨ Update `User` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
   """
@@ -316,9 +757,47 @@ extend type Mutation {
     data: User_Data!
   ): Int! @fdc_generated(from: "User", purpose: UPDATE_MULTIPLE)
   """
-  ✨ Delete a single `Movie` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  ✨ Update `Wallet` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
   """
-  movie_delete(
+  wallet_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: Wallet_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: Wallet_Data!
+  ): Int! @fdc_generated(from: "Wallet", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `WalletLedger` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  walletLedger_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: WalletLedger_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: WalletLedger_Data!
+  ): Int! @fdc_generated(from: "WalletLedger", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Delete a single `Agent` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  agent_delete(
     """
     The unique ID of the object.
     """
@@ -327,17 +806,17 @@ extend type Mutation {
     """
     The key used to identify the object.
     """
-    key: Movie_Key
+    key: Agent_Key
 
     """
     Fetch the first row based on the filters and ordering.
     """
-    first: Movie_FirstRow
-  ): Movie_KeyOutput @fdc_generated(from: "Movie", purpose: DELETE_SINGLE)
+    first: Agent_FirstRow
+  ): Agent_KeyOutput @fdc_generated(from: "Agent", purpose: DELETE_SINGLE)
   """
-  ✨ Delete a single `MovieMetadata` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  ✨ Delete a single `DailyReward` based on `id`, `key` or `first` and return its key (or `null` if not found).
   """
-  movieMetadata_delete(
+  dailyReward_delete(
     """
     The unique ID of the object.
     """
@@ -346,27 +825,108 @@ extend type Mutation {
     """
     The key used to identify the object.
     """
-    key: MovieMetadata_Key
+    key: DailyReward_Key
 
     """
     Fetch the first row based on the filters and ordering.
     """
-    first: MovieMetadata_FirstRow
-  ): MovieMetadata_KeyOutput @fdc_generated(from: "MovieMetadata", purpose: DELETE_SINGLE)
+    first: DailyReward_FirstRow
+  ): DailyReward_KeyOutput @fdc_generated(from: "DailyReward", purpose: DELETE_SINGLE)
   """
-  ✨ Delete a single `Review` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  ✨ Delete a single `DeviceToken` based on `id`, `key` or `first` and return its key (or `null` if not found).
   """
-  review_delete(
+  deviceToken_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
     """
     The key used to identify the object.
     """
-    key: Review_Key
+    key: DeviceToken_Key
 
     """
     Fetch the first row based on the filters and ordering.
     """
-    first: Review_FirstRow
-  ): Review_KeyOutput @fdc_generated(from: "Review", purpose: DELETE_SINGLE)
+    first: DeviceToken_FirstRow
+  ): DeviceToken_KeyOutput @fdc_generated(from: "DeviceToken", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `Machine` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  machine_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Machine_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Machine_FirstRow
+  ): Machine_KeyOutput @fdc_generated(from: "Machine", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `MachineLedger` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  machineLedger_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: MachineLedger_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MachineLedger_FirstRow
+  ): MachineLedger_KeyOutput @fdc_generated(from: "MachineLedger", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `MachineSession` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  machineSession_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: MachineSession_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MachineSession_FirstRow
+  ): MachineSession_KeyOutput @fdc_generated(from: "MachineSession", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `Round` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  round_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Round_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Round_FirstRow
+  ): Round_KeyOutput @fdc_generated(from: "Round", purpose: DELETE_SINGLE)
   """
   ✨ Delete a single `User` based on `id`, `key` or `first` and return its key (or `null` if not found).
   """
@@ -392,47 +952,141 @@ extend type Mutation {
     first: User_FirstRow
   ): User_KeyOutput @fdc_generated(from: "User", purpose: DELETE_SINGLE)
   """
-  ✨ Delete `Movie` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  ✨ Delete a single `Wallet` based on `id`, `key` or `first` and return its key (or `null` if not found).
   """
-  movie_deleteMany(
+  wallet_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Wallet_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Wallet_FirstRow
+  ): Wallet_KeyOutput @fdc_generated(from: "Wallet", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `WalletLedger` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  walletLedger_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: WalletLedger_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: WalletLedger_FirstRow
+  ): WalletLedger_KeyOutput @fdc_generated(from: "WalletLedger", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete `Agent` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  agent_deleteMany(
     """
     Filter condition to specify which rows to delete.
     """
-    where: Movie_Filter
+    where: Agent_Filter
 
     """
     Set to true to delete all rows.
     """
     all: Boolean = false
-  ): Int! @fdc_generated(from: "Movie", purpose: DELETE_MULTIPLE)
+  ): Int! @fdc_generated(from: "Agent", purpose: DELETE_MULTIPLE)
   """
-  ✨ Delete `MovieMetadata` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  ✨ Delete `DailyReward` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
   """
-  movieMetadata_deleteMany(
+  dailyReward_deleteMany(
     """
     Filter condition to specify which rows to delete.
     """
-    where: MovieMetadata_Filter
+    where: DailyReward_Filter
 
     """
     Set to true to delete all rows.
     """
     all: Boolean = false
-  ): Int! @fdc_generated(from: "MovieMetadata", purpose: DELETE_MULTIPLE)
+  ): Int! @fdc_generated(from: "DailyReward", purpose: DELETE_MULTIPLE)
   """
-  ✨ Delete `Review` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  ✨ Delete `DeviceToken` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
   """
-  review_deleteMany(
+  deviceToken_deleteMany(
     """
     Filter condition to specify which rows to delete.
     """
-    where: Review_Filter
+    where: DeviceToken_Filter
 
     """
     Set to true to delete all rows.
     """
     all: Boolean = false
-  ): Int! @fdc_generated(from: "Review", purpose: DELETE_MULTIPLE)
+  ): Int! @fdc_generated(from: "DeviceToken", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `Machine` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  machine_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: Machine_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "Machine", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `MachineLedger` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  machineLedger_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: MachineLedger_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `MachineSession` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  machineSession_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: MachineSession_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "MachineSession", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `Round` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  round_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: Round_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "Round", purpose: DELETE_MULTIPLE)
   """
   ✨ Delete `User` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
   """
@@ -447,4 +1101,32 @@ extend type Mutation {
     """
     all: Boolean = false
   ): Int! @fdc_generated(from: "User", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `Wallet` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  wallet_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: Wallet_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "Wallet", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `WalletLedger` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  walletLedger_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: WalletLedger_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "WalletLedger", purpose: DELETE_MULTIPLE)
 }

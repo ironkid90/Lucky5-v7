@@ -1,26 +1,92 @@
-extend type Movie {
+extend type Agent {
   """
   ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
   """
-  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "Movie", purpose: IMPLICIT_KEY_FIELD)
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "Agent", purpose: IMPLICIT_KEY_FIELD)
 }
-extend type MovieMetadata {
+extend type DailyReward {
   """
   ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
   """
-  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "MovieMetadata", purpose: IMPLICIT_KEY_FIELD)
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "DailyReward", purpose: IMPLICIT_KEY_FIELD)
   """
-  ✨ Implicit foreign key field based on `MovieMetadata`.`movie`. It must match the value of `Movie`.`id`. See `@ref` for how to customize it.
+  ✨ Implicit foreign key field based on `DailyReward`.`user`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
   """
-  movieId: UUID! @fdc_generated(from: "MovieMetadata.movie", purpose: IMPLICIT_REF_FIELD)
+  userId: String! @fdc_generated(from: "DailyReward.user", purpose: IMPLICIT_REF_FIELD)
 }
-extend type Review {
+extend type DeviceToken {
   """
-  ✨ Implicit foreign key field based on `Review`.`movie`. It must match the value of `Movie`.`id`. See `@ref` for how to customize it.
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
   """
-  movieId: UUID! @fdc_generated(from: "Review.movie", purpose: IMPLICIT_REF_FIELD)
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "DeviceToken", purpose: IMPLICIT_KEY_FIELD)
   """
-  ✨ Implicit foreign key field based on `Review`.`user`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
+  ✨ Implicit foreign key field based on `DeviceToken`.`user`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
   """
-  userId: String! @fdc_generated(from: "Review.user", purpose: IMPLICIT_REF_FIELD)
+  userId: String! @fdc_generated(from: "DeviceToken.user", purpose: IMPLICIT_REF_FIELD)
+}
+extend type Machine {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "Machine", purpose: IMPLICIT_KEY_FIELD)
+}
+extend type MachineLedger {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "MachineLedger", purpose: IMPLICIT_KEY_FIELD)
+  """
+  ✨ Implicit foreign key field based on `MachineLedger`.`machine`. It must match the value of `Machine`.`id`. See `@ref` for how to customize it.
+  """
+  machineId: UUID! @fdc_generated(from: "MachineLedger.machine", purpose: IMPLICIT_REF_FIELD)
+}
+extend type MachineSession {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "MachineSession", purpose: IMPLICIT_KEY_FIELD)
+  """
+  ✨ Implicit foreign key field based on `MachineSession`.`machine`. It must match the value of `Machine`.`id`. See `@ref` for how to customize it.
+  """
+  machineId: UUID! @fdc_generated(from: "MachineSession.machine", purpose: IMPLICIT_REF_FIELD)
+  """
+  ✨ Implicit foreign key field based on `MachineSession`.`user`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
+  """
+  userId: String! @fdc_generated(from: "MachineSession.user", purpose: IMPLICIT_REF_FIELD)
+}
+extend type Round {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "Round", purpose: IMPLICIT_KEY_FIELD)
+  """
+  ✨ Implicit foreign key field based on `Round`.`session`. It must match the value of `MachineSession`.`id`. See `@ref` for how to customize it.
+  """
+  sessionId: UUID! @fdc_generated(from: "Round.session", purpose: IMPLICIT_REF_FIELD)
+}
+extend type User {
+  """
+  ✨ Implicit foreign key field based on `User`.`agent`. It must match the value of `Agent`.`id`. See `@ref` for how to customize it.
+  """
+  agentId: UUID @fdc_generated(from: "User.agent", purpose: IMPLICIT_REF_FIELD)
+}
+extend type Wallet {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "Wallet", purpose: IMPLICIT_KEY_FIELD)
+  """
+  ✨ Implicit foreign key field based on `Wallet`.`user`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
+  """
+  userId: String! @fdc_generated(from: "Wallet.user", purpose: IMPLICIT_REF_FIELD)
+}
+extend type WalletLedger {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "WalletLedger", purpose: IMPLICIT_KEY_FIELD)
+  """
+  ✨ Implicit foreign key field based on `WalletLedger`.`user`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
+  """
+  userId: String! @fdc_generated(from: "WalletLedger.user", purpose: IMPLICIT_REF_FIELD)
 }

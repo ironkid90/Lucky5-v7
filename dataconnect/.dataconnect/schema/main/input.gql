@@ -1,21 +1,45 @@
 """
-✨ `Movie_KeyOutput` returns the primary key fields of table type `Movie`.
+✨ `Agent_KeyOutput` returns the primary key fields of table type `Agent`.
 
-It has the same format as `Movie_Key`, but is only used as mutation return value.
+It has the same format as `Agent_Key`, but is only used as mutation return value.
 """
-scalar Movie_KeyOutput
+scalar Agent_KeyOutput
 """
-✨ `MovieMetadata_KeyOutput` returns the primary key fields of table type `MovieMetadata`.
+✨ `DailyReward_KeyOutput` returns the primary key fields of table type `DailyReward`.
 
-It has the same format as `MovieMetadata_Key`, but is only used as mutation return value.
+It has the same format as `DailyReward_Key`, but is only used as mutation return value.
 """
-scalar MovieMetadata_KeyOutput
+scalar DailyReward_KeyOutput
 """
-✨ `Review_KeyOutput` returns the primary key fields of table type `Review`.
+✨ `DeviceToken_KeyOutput` returns the primary key fields of table type `DeviceToken`.
 
-It has the same format as `Review_Key`, but is only used as mutation return value.
+It has the same format as `DeviceToken_Key`, but is only used as mutation return value.
 """
-scalar Review_KeyOutput
+scalar DeviceToken_KeyOutput
+"""
+✨ `Machine_KeyOutput` returns the primary key fields of table type `Machine`.
+
+It has the same format as `Machine_Key`, but is only used as mutation return value.
+"""
+scalar Machine_KeyOutput
+"""
+✨ `MachineLedger_KeyOutput` returns the primary key fields of table type `MachineLedger`.
+
+It has the same format as `MachineLedger_Key`, but is only used as mutation return value.
+"""
+scalar MachineLedger_KeyOutput
+"""
+✨ `MachineSession_KeyOutput` returns the primary key fields of table type `MachineSession`.
+
+It has the same format as `MachineSession_Key`, but is only used as mutation return value.
+"""
+scalar MachineSession_KeyOutput
+"""
+✨ `Round_KeyOutput` returns the primary key fields of table type `Round`.
+
+It has the same format as `Round_Key`, but is only used as mutation return value.
+"""
+scalar Round_KeyOutput
 """
 ✨ `User_KeyOutput` returns the primary key fields of table type `User`.
 
@@ -23,108 +47,160 @@ It has the same format as `User_Key`, but is only used as mutation return value.
 """
 scalar User_KeyOutput
 """
-✨ Generated data input type for table 'Movie'. It includes all necessary fields for creating or upserting rows into table.
+✨ `Wallet_KeyOutput` returns the primary key fields of table type `Wallet`.
+
+It has the same format as `Wallet_Key`, but is only used as mutation return value.
 """
-input Movie_Data {
+scalar Wallet_KeyOutput
+"""
+✨ `WalletLedger_KeyOutput` returns the primary key fields of table type `WalletLedger`.
+
+It has the same format as `WalletLedger_Key`, but is only used as mutation return value.
+"""
+scalar WalletLedger_KeyOutput
+"""
+✨ Generated data input type for table 'Agent'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Agent_Data {
   """
-  ✨ Generated from Field `Movie`.`id` of type `UUID!`
+  ✨ Generated from Field `Agent`.`id` of type `UUID!`
   """
   id: UUID
   """
-  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Movie`.`id` of type `UUID!`)
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Agent`.`id` of type `UUID!`)
   """
   id_expr: UUID_Expr @fdc_forbiddenInVariables
   """
-  ✨ Generated from Field `Movie`.`genre` of type `String`
+  ✨ Generated from Field `Agent`.`code` of type `String!`
   """
-  genre: String
+  code: String
   """
-  ✨ `_expr` server value variant of `genre` (✨ Generated from Field `Movie`.`genre` of type `String`)
+  ✨ `_expr` server value variant of `code` (✨ Generated from Field `Agent`.`code` of type `String!`)
   """
-  genre_expr: String_Expr @fdc_forbiddenInVariables
+  code_expr: String_Expr @fdc_forbiddenInVariables
   """
-  ✨ Generated from Field `Movie`.`imageUrl` of type `String!`
+  ✨ Generated from Field `Agent`.`createdAt` of type `Timestamp!`
   """
-  imageUrl: String
+  createdAt: Timestamp
   """
-  ✨ `_expr` server value variant of `imageUrl` (✨ Generated from Field `Movie`.`imageUrl` of type `String!`)
+  ✨ `_expr` server value variant of `createdAt` (✨ Generated from Field `Agent`.`createdAt` of type `Timestamp!`)
   """
-  imageUrl_expr: String_Expr @fdc_forbiddenInVariables
+  createdAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
   """
-  ✨ Generated from Field `Movie`.`title` of type `String!`
+  ✨ `_time` server value variant of `createdAt` (✨ Generated from Field `Agent`.`createdAt` of type `Timestamp!`)
   """
-  title: String
+  createdAt_time: Timestamp_Relative @fdc_forbiddenInVariables
   """
-  ✨ `_expr` server value variant of `title` (✨ Generated from Field `Movie`.`title` of type `String!`)
+  ✨ `_update` server value variant of `createdAt` (✨ Generated from Field `Agent`.`createdAt` of type `Timestamp!`)
   """
-  title_expr: String_Expr @fdc_forbiddenInVariables
+  createdAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Agent`.`creditPool` of type `Int!`
+  """
+  creditPool: Int
+  """
+  ✨ `_expr` server value variant of `creditPool` (✨ Generated from Field `Agent`.`creditPool` of type `Int!`)
+  """
+  creditPool_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `creditPool` (✨ Generated from Field `Agent`.`creditPool` of type `Int!`)
+  """
+  creditPool_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Agent`.`isActive` of type `Boolean!`
+  """
+  isActive: Boolean
+  """
+  ✨ `_expr` server value variant of `isActive` (✨ Generated from Field `Agent`.`isActive` of type `Boolean!`)
+  """
+  isActive_expr: Boolean_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Agent`.`name` of type `String!`
+  """
+  name: String
+  """
+  ✨ `_expr` server value variant of `name` (✨ Generated from Field `Agent`.`name` of type `String!`)
+  """
+  name_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Agent`.`phoneNumber` of type `String!`
+  """
+  phoneNumber: String
+  """
+  ✨ `_expr` server value variant of `phoneNumber` (✨ Generated from Field `Agent`.`phoneNumber` of type `String!`)
+  """
+  phoneNumber_expr: String_Expr @fdc_forbiddenInVariables
 }
 """
-✨ Generated filter input type for table 'Movie'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+✨ Generated filter input type for table 'Agent'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
 """
-input Movie_Filter {
+input Agent_Filter {
   """
   Apply multiple filter conditions using `AND` logic.
   """
-  _and: [Movie_Filter!]
+  _and: [Agent_Filter!]
   """
   Negate the result of the provided filter condition.
   """
-  _not: Movie_Filter
+  _not: Agent_Filter
   """
   Apply multiple filter conditions using `OR` logic.
   """
-  _or: [Movie_Filter!]
+  _or: [Agent_Filter!]
   """
-  ✨ Generated from Field `Movie`.`id` of type `UUID!`
+  ✨ Generated from Field `Agent`.`id` of type `UUID!`
   """
   id: UUID_Filter
   """
-  ✨ Generated from Field `Movie`.`genre` of type `String`
+  ✨ Generated from Field `Agent`.`code` of type `String!`
   """
-  genre: String_Filter
+  code: String_Filter
   """
-  ✨ Generated from Field `Movie`.`imageUrl` of type `String!`
+  ✨ Generated from Field `Agent`.`createdAt` of type `Timestamp!`
   """
-  imageUrl: String_Filter
+  createdAt: Timestamp_Filter
   """
-  ✨ Generated from Field `Movie`.`title` of type `String!`
+  ✨ Generated from Field `Agent`.`creditPool` of type `Int!`
   """
-  title: String_Filter
+  creditPool: Int_Filter
   """
-  ✨ Generated from Field `Movie`.`reviews_on_movie` of type `[Review!]!`
+  ✨ Generated from Field `Agent`.`isActive` of type `Boolean!`
   """
-  reviews_on_movie: Review_ListFilter
+  isActive: Boolean_Filter
   """
-  ✨ Generated from Field `Movie`.`movieMetadata_on_movie` of type `MovieMetadata`
+  ✨ Generated from Field `Agent`.`name` of type `String!`
   """
-  movieMetadata_on_movie: MovieMetadata_Filter
+  name: String_Filter
   """
-  ✨ Generated from Field `Movie`.`users_via_Review` of type `[User!]!`
+  ✨ Generated from Field `Agent`.`phoneNumber` of type `String!`
   """
-  users_via_Review: User_ListFilter
+  phoneNumber: String_Filter
+  """
+  ✨ Generated from Field `Agent`.`users_on_agent` of type `[User!]!`
+  """
+  users_on_agent: User_ListFilter
 }
 """
-✨ Generated first-row input type for table 'Movie'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+✨ Generated first-row input type for table 'Agent'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
 """
-input Movie_FirstRow {
+input Agent_FirstRow {
   """
   Order the result by the specified fields.
   """
-  orderBy: [Movie_Order!]
+  orderBy: [Agent_Order!]
   """
   Filters rows based on the specified conditions.
   """
-  where: Movie_Filter
+  where: Agent_Filter
 }
 """
-✨ Generated having input type for table 'Movie'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+✨ Generated having input type for table 'Agent'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
 """
-input Movie_Having {
+input Agent_Having {
   """
   Apply multiple Having conditions using `AND` logic.
   """
-  _and: [Movie_Having!]
+  _and: [Agent_Having!]
   """
   Whether to apply DISTINCT to the aggregate function.
   """
@@ -132,49 +208,85 @@ input Movie_Having {
   """
   Negate the result of the provided Having condition.
   """
-  _not: Movie_Having
+  _not: Agent_Having
   """
   Apply multiple Having conditions using `OR` logic.
   """
-  _or: [Movie_Having!]
+  _or: [Agent_Having!]
   """
-  ✨ Generated from Field `Movie`.`_count` of type `Int!`
+  ✨ Generated from Field `Agent`.`_count` of type `Int!`
   """
   _count: Int_Filter
   """
-  ✨ Generated from Field `Movie`.`genre_count` of type `Int!`
+  ✨ Generated from Field `Agent`.`code_count` of type `Int!`
   """
-  genre_count: Int_Filter
+  code_count: Int_Filter
   """
-  ✨ Generated from Field `Movie`.`id_count` of type `Int!`
+  ✨ Generated from Field `Agent`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: Int_Filter
+  """
+  ✨ Generated from Field `Agent`.`creditPool_count` of type `Int!`
+  """
+  creditPool_count: Int_Filter
+  """
+  ✨ Generated from Field `Agent`.`id_count` of type `Int!`
   """
   id_count: Int_Filter
   """
-  ✨ Generated from Field `Movie`.`imageUrl_count` of type `Int!`
+  ✨ Generated from Field `Agent`.`isActive_count` of type `Int!`
   """
-  imageUrl_count: Int_Filter
+  isActive_count: Int_Filter
   """
-  ✨ Generated from Field `Movie`.`title_count` of type `Int!`
+  ✨ Generated from Field `Agent`.`name_count` of type `Int!`
   """
-  title_count: Int_Filter
+  name_count: Int_Filter
+  """
+  ✨ Generated from Field `Agent`.`phoneNumber_count` of type `Int!`
+  """
+  phoneNumber_count: Int_Filter
+  """
+  ✨ Generated from Field `Agent`.`creditPool_sum` of type `Int`
+  """
+  creditPool_sum: Int_Filter
+  """
+  ✨ Generated from Field `Agent`.`creditPool_avg` of type `Float`
+  """
+  creditPool_avg: Float_Filter
+  """
+  ✨ Generated from Field `Agent`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Agent`.`creditPool_min` of type `Int`
+  """
+  creditPool_min: Int_Filter
+  """
+  ✨ Generated from Field `Agent`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `Agent`.`creditPool_max` of type `Int`
+  """
+  creditPool_max: Int_Filter
 }
 """
-✨ Generated key input type for table 'Movie'. It represents the primary key fields used to uniquely identify a row in the table.
+✨ Generated key input type for table 'Agent'. It represents the primary key fields used to uniquely identify a row in the table.
 """
-input Movie_Key {
+input Agent_Key {
   """
-  ✨ Generated from Field `Movie`.`id` of type `UUID!`
+  ✨ Generated from Field `Agent`.`id` of type `UUID!`
   """
   id: UUID
   """
-  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Movie`.`id` of type `UUID!`)
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Agent`.`id` of type `UUID!`)
   """
   id_expr: UUID_Expr @fdc_forbiddenInVariables
 }
 """
-✨ Generated list filter input type for table 'Movie'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+✨ Generated list filter input type for table 'Agent'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
 """
-input Movie_ListFilter {
+input Agent_ListFilter {
   """
   The desired number of objects that match the condition (defaults to at least one).
   """
@@ -182,479 +294,228 @@ input Movie_ListFilter {
   """
   Condition of the related objects to filter for.
   """
-  exist: Movie_Filter
+  exist: Agent_Filter
 }
 """
-✨ Generated order input type for table 'Movie'. This input defines the sorting order of rows in query results based on one or more fields.
+✨ Generated order input type for table 'Agent'. This input defines the sorting order of rows in query results based on one or more fields.
 """
-input Movie_Order {
+input Agent_Order {
   """
-  ✨ Generated from Field `Movie`.`id` of type `UUID!`
+  ✨ Generated from Field `Agent`.`id` of type `UUID!`
   """
   id: OrderDirection
   """
-  ✨ Generated from Field `Movie`.`genre` of type `String`
+  ✨ Generated from Field `Agent`.`code` of type `String!`
   """
-  genre: OrderDirection
+  code: OrderDirection
   """
-  ✨ Generated from Field `Movie`.`imageUrl` of type `String!`
+  ✨ Generated from Field `Agent`.`createdAt` of type `Timestamp!`
   """
-  imageUrl: OrderDirection
+  createdAt: OrderDirection
   """
-  ✨ Generated from Field `Movie`.`title` of type `String!`
+  ✨ Generated from Field `Agent`.`creditPool` of type `Int!`
   """
-  title: OrderDirection
+  creditPool: OrderDirection
   """
-  ✨ Generated from Field `Movie`.`_count` of type `Int!`
+  ✨ Generated from Field `Agent`.`isActive` of type `Boolean!`
+  """
+  isActive: OrderDirection
+  """
+  ✨ Generated from Field `Agent`.`name` of type `String!`
+  """
+  name: OrderDirection
+  """
+  ✨ Generated from Field `Agent`.`phoneNumber` of type `String!`
+  """
+  phoneNumber: OrderDirection
+  """
+  ✨ Generated from Field `Agent`.`_count` of type `Int!`
   """
   _count: OrderDirection
   """
-  ✨ Generated from Field `Movie`.`genre_count` of type `Int!`
+  ✨ Generated from Field `Agent`.`code_count` of type `Int!`
   """
-  genre_count: OrderDirection
+  code_count: OrderDirection
   """
-  ✨ Generated from Field `Movie`.`id_count` of type `Int!`
+  ✨ Generated from Field `Agent`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: OrderDirection
+  """
+  ✨ Generated from Field `Agent`.`creditPool_count` of type `Int!`
+  """
+  creditPool_count: OrderDirection
+  """
+  ✨ Generated from Field `Agent`.`id_count` of type `Int!`
   """
   id_count: OrderDirection
   """
-  ✨ Generated from Field `Movie`.`imageUrl_count` of type `Int!`
+  ✨ Generated from Field `Agent`.`isActive_count` of type `Int!`
   """
-  imageUrl_count: OrderDirection
+  isActive_count: OrderDirection
   """
-  ✨ Generated from Field `Movie`.`title_count` of type `Int!`
+  ✨ Generated from Field `Agent`.`name_count` of type `Int!`
   """
-  title_count: OrderDirection
+  name_count: OrderDirection
+  """
+  ✨ Generated from Field `Agent`.`phoneNumber_count` of type `Int!`
+  """
+  phoneNumber_count: OrderDirection
+  """
+  ✨ Generated from Field `Agent`.`creditPool_sum` of type `Int`
+  """
+  creditPool_sum: OrderDirection
+  """
+  ✨ Generated from Field `Agent`.`creditPool_avg` of type `Float`
+  """
+  creditPool_avg: OrderDirection
+  """
+  ✨ Generated from Field `Agent`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: OrderDirection
+  """
+  ✨ Generated from Field `Agent`.`creditPool_min` of type `Int`
+  """
+  creditPool_min: OrderDirection
+  """
+  ✨ Generated from Field `Agent`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: OrderDirection
+  """
+  ✨ Generated from Field `Agent`.`creditPool_max` of type `Int`
+  """
+  creditPool_max: OrderDirection
 }
 """
-✨ Generated data input type for table 'MovieMetadata'. It includes all necessary fields for creating or upserting rows into table.
+✨ Generated data input type for table 'DailyReward'. It includes all necessary fields for creating or upserting rows into table.
 """
-input MovieMetadata_Data {
+input DailyReward_Data {
   """
-  ✨ Generated from Field `MovieMetadata`.`id` of type `UUID!`
+  ✨ Generated from Field `DailyReward`.`id` of type `UUID!`
   """
   id: UUID
   """
-  ✨ `_expr` server value variant of `id` (✨ Generated from Field `MovieMetadata`.`id` of type `UUID!`)
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `DailyReward`.`id` of type `UUID!`)
   """
   id_expr: UUID_Expr @fdc_forbiddenInVariables
   """
-  ✨ Generated from Field `MovieMetadata`.`movieId` of type `UUID!`
-  """
-  movieId: UUID
-  """
-  ✨ `_expr` server value variant of `movieId` (✨ Generated from Field `MovieMetadata`.`movieId` of type `UUID!`)
-  """
-  movieId_expr: UUID_Expr @fdc_forbiddenInVariables
-  """
-  ✨ Generated from Field `MovieMetadata`.`movie` of type `Movie!`
-  """
-  movie: Movie_Key @fdc_forbiddenInVariables
-  """
-  ✨ Generated from Field `MovieMetadata`.`description` of type `String`
-  """
-  description: String
-  """
-  ✨ `_expr` server value variant of `description` (✨ Generated from Field `MovieMetadata`.`description` of type `String`)
-  """
-  description_expr: String_Expr @fdc_forbiddenInVariables
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating` of type `Float`
-  """
-  rating: Float
-  """
-  ✨ `_expr` server value variant of `rating` (✨ Generated from Field `MovieMetadata`.`rating` of type `Float`)
-  """
-  rating_expr: Float_Expr @fdc_forbiddenInVariables
-  """
-  ✨ `_update` server value variant of `rating` (✨ Generated from Field `MovieMetadata`.`rating` of type `Float`)
-  """
-  rating_update: [Float_Update!] @fdc_forbiddenInVariables
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear` of type `Int`
-  """
-  releaseYear: Int
-  """
-  ✨ `_expr` server value variant of `releaseYear` (✨ Generated from Field `MovieMetadata`.`releaseYear` of type `Int`)
-  """
-  releaseYear_expr: Int_Expr @fdc_forbiddenInVariables
-  """
-  ✨ `_update` server value variant of `releaseYear` (✨ Generated from Field `MovieMetadata`.`releaseYear` of type `Int`)
-  """
-  releaseYear_update: [Int_Update!] @fdc_forbiddenInVariables
-}
-"""
-✨ Generated filter input type for table 'MovieMetadata'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
-"""
-input MovieMetadata_Filter {
-  """
-  Apply multiple filter conditions using `AND` logic.
-  """
-  _and: [MovieMetadata_Filter!]
-  """
-  Negate the result of the provided filter condition.
-  """
-  _not: MovieMetadata_Filter
-  """
-  Apply multiple filter conditions using `OR` logic.
-  """
-  _or: [MovieMetadata_Filter!]
-  """
-  ✨ Generated from Field `MovieMetadata`.`id` of type `UUID!`
-  """
-  id: UUID_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`movieId` of type `UUID!`
-  """
-  movieId: UUID_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`movie` of type `Movie!`
-  """
-  movie: Movie_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`description` of type `String`
-  """
-  description: String_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating` of type `Float`
-  """
-  rating: Float_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear` of type `Int`
-  """
-  releaseYear: Int_Filter
-}
-"""
-✨ Generated first-row input type for table 'MovieMetadata'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
-"""
-input MovieMetadata_FirstRow {
-  """
-  Order the result by the specified fields.
-  """
-  orderBy: [MovieMetadata_Order!]
-  """
-  Filters rows based on the specified conditions.
-  """
-  where: MovieMetadata_Filter
-}
-"""
-✨ Generated having input type for table 'MovieMetadata'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
-"""
-input MovieMetadata_Having {
-  """
-  Apply multiple Having conditions using `AND` logic.
-  """
-  _and: [MovieMetadata_Having!]
-  """
-  Whether to apply DISTINCT to the aggregate function.
-  """
-  _distinct: Boolean
-  """
-  Negate the result of the provided Having condition.
-  """
-  _not: MovieMetadata_Having
-  """
-  Apply multiple Having conditions using `OR` logic.
-  """
-  _or: [MovieMetadata_Having!]
-  """
-  ✨ Generated from Field `MovieMetadata`.`_count` of type `Int!`
-  """
-  _count: Int_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`description_count` of type `Int!`
-  """
-  description_count: Int_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`id_count` of type `Int!`
-  """
-  id_count: Int_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`movieId_count` of type `Int!`
-  """
-  movieId_count: Int_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating_count` of type `Int!`
-  """
-  rating_count: Int_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear_count` of type `Int!`
-  """
-  releaseYear_count: Int_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating_sum` of type `Float`
-  """
-  rating_sum: Float_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear_sum` of type `Int`
-  """
-  releaseYear_sum: Int_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating_avg` of type `Float`
-  """
-  rating_avg: Float_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear_avg` of type `Float`
-  """
-  releaseYear_avg: Float_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating_min` of type `Float`
-  """
-  rating_min: Float_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear_min` of type `Int`
-  """
-  releaseYear_min: Int_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating_max` of type `Float`
-  """
-  rating_max: Float_Filter
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear_max` of type `Int`
-  """
-  releaseYear_max: Int_Filter
-}
-"""
-✨ Generated key input type for table 'MovieMetadata'. It represents the primary key fields used to uniquely identify a row in the table.
-"""
-input MovieMetadata_Key {
-  """
-  ✨ Generated from Field `MovieMetadata`.`id` of type `UUID!`
-  """
-  id: UUID
-  """
-  ✨ `_expr` server value variant of `id` (✨ Generated from Field `MovieMetadata`.`id` of type `UUID!`)
-  """
-  id_expr: UUID_Expr @fdc_forbiddenInVariables
-}
-"""
-✨ Generated list filter input type for table 'MovieMetadata'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
-"""
-input MovieMetadata_ListFilter {
-  """
-  The desired number of objects that match the condition (defaults to at least one).
-  """
-  count: Int_Filter = {gt:0}
-  """
-  Condition of the related objects to filter for.
-  """
-  exist: MovieMetadata_Filter
-}
-"""
-✨ Generated order input type for table 'MovieMetadata'. This input defines the sorting order of rows in query results based on one or more fields.
-"""
-input MovieMetadata_Order {
-  """
-  ✨ Generated from Field `MovieMetadata`.`id` of type `UUID!`
-  """
-  id: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`movieId` of type `UUID!`
-  """
-  movieId: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`movie` of type `Movie!`
-  """
-  movie: Movie_Order
-  """
-  ✨ Generated from Field `MovieMetadata`.`description` of type `String`
-  """
-  description: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating` of type `Float`
-  """
-  rating: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear` of type `Int`
-  """
-  releaseYear: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`_count` of type `Int!`
-  """
-  _count: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`description_count` of type `Int!`
-  """
-  description_count: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`id_count` of type `Int!`
-  """
-  id_count: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`movieId_count` of type `Int!`
-  """
-  movieId_count: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating_count` of type `Int!`
-  """
-  rating_count: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear_count` of type `Int!`
-  """
-  releaseYear_count: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating_sum` of type `Float`
-  """
-  rating_sum: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear_sum` of type `Int`
-  """
-  releaseYear_sum: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating_avg` of type `Float`
-  """
-  rating_avg: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear_avg` of type `Float`
-  """
-  releaseYear_avg: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating_min` of type `Float`
-  """
-  rating_min: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear_min` of type `Int`
-  """
-  releaseYear_min: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`rating_max` of type `Float`
-  """
-  rating_max: OrderDirection
-  """
-  ✨ Generated from Field `MovieMetadata`.`releaseYear_max` of type `Int`
-  """
-  releaseYear_max: OrderDirection
-}
-"""
-✨ Generated data input type for table 'Review'. It includes all necessary fields for creating or upserting rows into table.
-"""
-input Review_Data {
-  """
-  ✨ Generated from Field `Review`.`movieId` of type `UUID!`
-  """
-  movieId: UUID
-  """
-  ✨ `_expr` server value variant of `movieId` (✨ Generated from Field `Review`.`movieId` of type `UUID!`)
-  """
-  movieId_expr: UUID_Expr @fdc_forbiddenInVariables
-  """
-  ✨ Generated from Field `Review`.`userId` of type `String!`
+  ✨ Generated from Field `DailyReward`.`userId` of type `String!`
   """
   userId: String
   """
-  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `Review`.`userId` of type `String!`)
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `DailyReward`.`userId` of type `String!`)
   """
   userId_expr: String_Expr @fdc_forbiddenInVariables
   """
-  ✨ Generated from Field `Review`.`movie` of type `Movie!`
-  """
-  movie: Movie_Key @fdc_forbiddenInVariables
-  """
-  ✨ Generated from Field `Review`.`user` of type `User!`
+  ✨ Generated from Field `DailyReward`.`user` of type `User!`
   """
   user: User_Key @fdc_forbiddenInVariables
   """
-  ✨ Generated from Field `Review`.`rating` of type `Int`
+  ✨ Generated from Field `DailyReward`.`bonusAmount` of type `Int!`
   """
-  rating: Int
+  bonusAmount: Int
   """
-  ✨ `_expr` server value variant of `rating` (✨ Generated from Field `Review`.`rating` of type `Int`)
+  ✨ `_expr` server value variant of `bonusAmount` (✨ Generated from Field `DailyReward`.`bonusAmount` of type `Int!`)
   """
-  rating_expr: Int_Expr @fdc_forbiddenInVariables
+  bonusAmount_expr: Int_Expr @fdc_forbiddenInVariables
   """
-  ✨ `_update` server value variant of `rating` (✨ Generated from Field `Review`.`rating` of type `Int`)
+  ✨ `_update` server value variant of `bonusAmount` (✨ Generated from Field `DailyReward`.`bonusAmount` of type `Int!`)
   """
-  rating_update: [Int_Update!] @fdc_forbiddenInVariables
+  bonusAmount_update: [Int_Update!] @fdc_forbiddenInVariables
   """
-  ✨ Generated from Field `Review`.`reviewDate` of type `Date!`
+  ✨ Generated from Field `DailyReward`.`claimedAt` of type `Timestamp!`
   """
-  reviewDate: Date
+  claimedAt: Timestamp
   """
-  ✨ `_date` server value variant of `reviewDate` (✨ Generated from Field `Review`.`reviewDate` of type `Date!`)
+  ✨ `_expr` server value variant of `claimedAt` (✨ Generated from Field `DailyReward`.`claimedAt` of type `Timestamp!`)
   """
-  reviewDate_date: Date_Relative @fdc_forbiddenInVariables
+  claimedAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
   """
-  ✨ `_expr` server value variant of `reviewDate` (✨ Generated from Field `Review`.`reviewDate` of type `Date!`)
+  ✨ `_time` server value variant of `claimedAt` (✨ Generated from Field `DailyReward`.`claimedAt` of type `Timestamp!`)
   """
-  reviewDate_expr: Date_Expr @fdc_forbiddenInVariables
+  claimedAt_time: Timestamp_Relative @fdc_forbiddenInVariables
   """
-  ✨ `_update` server value variant of `reviewDate` (✨ Generated from Field `Review`.`reviewDate` of type `Date!`)
+  ✨ `_update` server value variant of `claimedAt` (✨ Generated from Field `DailyReward`.`claimedAt` of type `Timestamp!`)
   """
-  reviewDate_update: [Date_Update!] @fdc_forbiddenInVariables
+  claimedAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
   """
-  ✨ Generated from Field `Review`.`reviewText` of type `String`
+  ✨ Generated from Field `DailyReward`.`rewardDate` of type `Date!`
   """
-  reviewText: String
+  rewardDate: Date
   """
-  ✨ `_expr` server value variant of `reviewText` (✨ Generated from Field `Review`.`reviewText` of type `String`)
+  ✨ `_date` server value variant of `rewardDate` (✨ Generated from Field `DailyReward`.`rewardDate` of type `Date!`)
   """
-  reviewText_expr: String_Expr @fdc_forbiddenInVariables
+  rewardDate_date: Date_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_expr` server value variant of `rewardDate` (✨ Generated from Field `DailyReward`.`rewardDate` of type `Date!`)
+  """
+  rewardDate_expr: Date_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `rewardDate` (✨ Generated from Field `DailyReward`.`rewardDate` of type `Date!`)
+  """
+  rewardDate_update: [Date_Update!] @fdc_forbiddenInVariables
 }
 """
-✨ Generated filter input type for table 'Review'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+✨ Generated filter input type for table 'DailyReward'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
 """
-input Review_Filter {
+input DailyReward_Filter {
   """
   Apply multiple filter conditions using `AND` logic.
   """
-  _and: [Review_Filter!]
+  _and: [DailyReward_Filter!]
   """
   Negate the result of the provided filter condition.
   """
-  _not: Review_Filter
+  _not: DailyReward_Filter
   """
   Apply multiple filter conditions using `OR` logic.
   """
-  _or: [Review_Filter!]
+  _or: [DailyReward_Filter!]
   """
-  ✨ Generated from Field `Review`.`movieId` of type `UUID!`
+  ✨ Generated from Field `DailyReward`.`id` of type `UUID!`
   """
-  movieId: UUID_Filter
+  id: UUID_Filter
   """
-  ✨ Generated from Field `Review`.`userId` of type `String!`
+  ✨ Generated from Field `DailyReward`.`userId` of type `String!`
   """
   userId: String_Filter
   """
-  ✨ Generated from Field `Review`.`movie` of type `Movie!`
-  """
-  movie: Movie_Filter
-  """
-  ✨ Generated from Field `Review`.`user` of type `User!`
+  ✨ Generated from Field `DailyReward`.`user` of type `User!`
   """
   user: User_Filter
   """
-  ✨ Generated from Field `Review`.`rating` of type `Int`
+  ✨ Generated from Field `DailyReward`.`bonusAmount` of type `Int!`
   """
-  rating: Int_Filter
+  bonusAmount: Int_Filter
   """
-  ✨ Generated from Field `Review`.`reviewDate` of type `Date!`
+  ✨ Generated from Field `DailyReward`.`claimedAt` of type `Timestamp!`
   """
-  reviewDate: Date_Filter
+  claimedAt: Timestamp_Filter
   """
-  ✨ Generated from Field `Review`.`reviewText` of type `String`
+  ✨ Generated from Field `DailyReward`.`rewardDate` of type `Date!`
   """
-  reviewText: String_Filter
+  rewardDate: Date_Filter
 }
 """
-✨ Generated first-row input type for table 'Review'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+✨ Generated first-row input type for table 'DailyReward'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
 """
-input Review_FirstRow {
+input DailyReward_FirstRow {
   """
   Order the result by the specified fields.
   """
-  orderBy: [Review_Order!]
+  orderBy: [DailyReward_Order!]
   """
   Filters rows based on the specified conditions.
   """
-  where: Review_Filter
+  where: DailyReward_Filter
 }
 """
-✨ Generated having input type for table 'Review'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+✨ Generated having input type for table 'DailyReward'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
 """
-input Review_Having {
+input DailyReward_Having {
   """
   Apply multiple Having conditions using `AND` logic.
   """
-  _and: [Review_Having!]
+  _and: [DailyReward_Having!]
   """
   Whether to apply DISTINCT to the aggregate function.
   """
@@ -662,85 +523,85 @@ input Review_Having {
   """
   Negate the result of the provided Having condition.
   """
-  _not: Review_Having
+  _not: DailyReward_Having
   """
   Apply multiple Having conditions using `OR` logic.
   """
-  _or: [Review_Having!]
+  _or: [DailyReward_Having!]
   """
-  ✨ Generated from Field `Review`.`_count` of type `Int!`
+  ✨ Generated from Field `DailyReward`.`_count` of type `Int!`
   """
   _count: Int_Filter
   """
-  ✨ Generated from Field `Review`.`movieId_count` of type `Int!`
+  ✨ Generated from Field `DailyReward`.`bonusAmount_count` of type `Int!`
   """
-  movieId_count: Int_Filter
+  bonusAmount_count: Int_Filter
   """
-  ✨ Generated from Field `Review`.`rating_count` of type `Int!`
+  ✨ Generated from Field `DailyReward`.`claimedAt_count` of type `Int!`
   """
-  rating_count: Int_Filter
+  claimedAt_count: Int_Filter
   """
-  ✨ Generated from Field `Review`.`reviewDate_count` of type `Int!`
+  ✨ Generated from Field `DailyReward`.`id_count` of type `Int!`
   """
-  reviewDate_count: Int_Filter
+  id_count: Int_Filter
   """
-  ✨ Generated from Field `Review`.`reviewText_count` of type `Int!`
+  ✨ Generated from Field `DailyReward`.`rewardDate_count` of type `Int!`
   """
-  reviewText_count: Int_Filter
+  rewardDate_count: Int_Filter
   """
-  ✨ Generated from Field `Review`.`userId_count` of type `Int!`
+  ✨ Generated from Field `DailyReward`.`userId_count` of type `Int!`
   """
   userId_count: Int_Filter
   """
-  ✨ Generated from Field `Review`.`rating_sum` of type `Int`
+  ✨ Generated from Field `DailyReward`.`bonusAmount_sum` of type `Int`
   """
-  rating_sum: Int_Filter
+  bonusAmount_sum: Int_Filter
   """
-  ✨ Generated from Field `Review`.`rating_avg` of type `Float`
+  ✨ Generated from Field `DailyReward`.`bonusAmount_avg` of type `Float`
   """
-  rating_avg: Float_Filter
+  bonusAmount_avg: Float_Filter
   """
-  ✨ Generated from Field `Review`.`rating_min` of type `Int`
+  ✨ Generated from Field `DailyReward`.`bonusAmount_min` of type `Int`
   """
-  rating_min: Int_Filter
+  bonusAmount_min: Int_Filter
   """
-  ✨ Generated from Field `Review`.`reviewDate_min` of type `Date`
+  ✨ Generated from Field `DailyReward`.`claimedAt_min` of type `Timestamp`
   """
-  reviewDate_min: Date_Filter
+  claimedAt_min: Timestamp_Filter
   """
-  ✨ Generated from Field `Review`.`rating_max` of type `Int`
+  ✨ Generated from Field `DailyReward`.`rewardDate_min` of type `Date`
   """
-  rating_max: Int_Filter
+  rewardDate_min: Date_Filter
   """
-  ✨ Generated from Field `Review`.`reviewDate_max` of type `Date`
+  ✨ Generated from Field `DailyReward`.`bonusAmount_max` of type `Int`
   """
-  reviewDate_max: Date_Filter
+  bonusAmount_max: Int_Filter
+  """
+  ✨ Generated from Field `DailyReward`.`claimedAt_max` of type `Timestamp`
+  """
+  claimedAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `DailyReward`.`rewardDate_max` of type `Date`
+  """
+  rewardDate_max: Date_Filter
 }
 """
-✨ Generated key input type for table 'Review'. It represents the primary key fields used to uniquely identify a row in the table.
+✨ Generated key input type for table 'DailyReward'. It represents the primary key fields used to uniquely identify a row in the table.
 """
-input Review_Key {
+input DailyReward_Key {
   """
-  ✨ Generated from Field `Review`.`movieId` of type `UUID!`
+  ✨ Generated from Field `DailyReward`.`id` of type `UUID!`
   """
-  movieId: UUID
+  id: UUID
   """
-  ✨ `_expr` server value variant of `movieId` (✨ Generated from Field `Review`.`movieId` of type `UUID!`)
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `DailyReward`.`id` of type `UUID!`)
   """
-  movieId_expr: UUID_Expr @fdc_forbiddenInVariables
-  """
-  ✨ Generated from Field `Review`.`userId` of type `String!`
-  """
-  userId: String
-  """
-  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `Review`.`userId` of type `String!`)
-  """
-  userId_expr: String_Expr @fdc_forbiddenInVariables
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
 }
 """
-✨ Generated list filter input type for table 'Review'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+✨ Generated list filter input type for table 'DailyReward'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
 """
-input Review_ListFilter {
+input DailyReward_ListFilter {
   """
   The desired number of objects that match the condition (defaults to at least one).
   """
@@ -748,88 +609,2871 @@ input Review_ListFilter {
   """
   Condition of the related objects to filter for.
   """
-  exist: Review_Filter
+  exist: DailyReward_Filter
 }
 """
-✨ Generated order input type for table 'Review'. This input defines the sorting order of rows in query results based on one or more fields.
+✨ Generated order input type for table 'DailyReward'. This input defines the sorting order of rows in query results based on one or more fields.
 """
-input Review_Order {
+input DailyReward_Order {
   """
-  ✨ Generated from Field `Review`.`movieId` of type `UUID!`
+  ✨ Generated from Field `DailyReward`.`id` of type `UUID!`
   """
-  movieId: OrderDirection
+  id: OrderDirection
   """
-  ✨ Generated from Field `Review`.`userId` of type `String!`
+  ✨ Generated from Field `DailyReward`.`userId` of type `String!`
   """
   userId: OrderDirection
   """
-  ✨ Generated from Field `Review`.`movie` of type `Movie!`
-  """
-  movie: Movie_Order
-  """
-  ✨ Generated from Field `Review`.`user` of type `User!`
+  ✨ Generated from Field `DailyReward`.`user` of type `User!`
   """
   user: User_Order
   """
-  ✨ Generated from Field `Review`.`rating` of type `Int`
+  ✨ Generated from Field `DailyReward`.`bonusAmount` of type `Int!`
   """
-  rating: OrderDirection
+  bonusAmount: OrderDirection
   """
-  ✨ Generated from Field `Review`.`reviewDate` of type `Date!`
+  ✨ Generated from Field `DailyReward`.`claimedAt` of type `Timestamp!`
   """
-  reviewDate: OrderDirection
+  claimedAt: OrderDirection
   """
-  ✨ Generated from Field `Review`.`reviewText` of type `String`
+  ✨ Generated from Field `DailyReward`.`rewardDate` of type `Date!`
   """
-  reviewText: OrderDirection
+  rewardDate: OrderDirection
   """
-  ✨ Generated from Field `Review`.`_count` of type `Int!`
+  ✨ Generated from Field `DailyReward`.`_count` of type `Int!`
   """
   _count: OrderDirection
   """
-  ✨ Generated from Field `Review`.`movieId_count` of type `Int!`
+  ✨ Generated from Field `DailyReward`.`bonusAmount_count` of type `Int!`
   """
-  movieId_count: OrderDirection
+  bonusAmount_count: OrderDirection
   """
-  ✨ Generated from Field `Review`.`rating_count` of type `Int!`
+  ✨ Generated from Field `DailyReward`.`claimedAt_count` of type `Int!`
   """
-  rating_count: OrderDirection
+  claimedAt_count: OrderDirection
   """
-  ✨ Generated from Field `Review`.`reviewDate_count` of type `Int!`
+  ✨ Generated from Field `DailyReward`.`id_count` of type `Int!`
   """
-  reviewDate_count: OrderDirection
+  id_count: OrderDirection
   """
-  ✨ Generated from Field `Review`.`reviewText_count` of type `Int!`
+  ✨ Generated from Field `DailyReward`.`rewardDate_count` of type `Int!`
   """
-  reviewText_count: OrderDirection
+  rewardDate_count: OrderDirection
   """
-  ✨ Generated from Field `Review`.`userId_count` of type `Int!`
+  ✨ Generated from Field `DailyReward`.`userId_count` of type `Int!`
   """
   userId_count: OrderDirection
   """
-  ✨ Generated from Field `Review`.`rating_sum` of type `Int`
+  ✨ Generated from Field `DailyReward`.`bonusAmount_sum` of type `Int`
   """
-  rating_sum: OrderDirection
+  bonusAmount_sum: OrderDirection
   """
-  ✨ Generated from Field `Review`.`rating_avg` of type `Float`
+  ✨ Generated from Field `DailyReward`.`bonusAmount_avg` of type `Float`
   """
-  rating_avg: OrderDirection
+  bonusAmount_avg: OrderDirection
   """
-  ✨ Generated from Field `Review`.`rating_min` of type `Int`
+  ✨ Generated from Field `DailyReward`.`bonusAmount_min` of type `Int`
   """
-  rating_min: OrderDirection
+  bonusAmount_min: OrderDirection
   """
-  ✨ Generated from Field `Review`.`reviewDate_min` of type `Date`
+  ✨ Generated from Field `DailyReward`.`claimedAt_min` of type `Timestamp`
   """
-  reviewDate_min: OrderDirection
+  claimedAt_min: OrderDirection
   """
-  ✨ Generated from Field `Review`.`rating_max` of type `Int`
+  ✨ Generated from Field `DailyReward`.`rewardDate_min` of type `Date`
   """
-  rating_max: OrderDirection
+  rewardDate_min: OrderDirection
   """
-  ✨ Generated from Field `Review`.`reviewDate_max` of type `Date`
+  ✨ Generated from Field `DailyReward`.`bonusAmount_max` of type `Int`
   """
-  reviewDate_max: OrderDirection
+  bonusAmount_max: OrderDirection
+  """
+  ✨ Generated from Field `DailyReward`.`claimedAt_max` of type `Timestamp`
+  """
+  claimedAt_max: OrderDirection
+  """
+  ✨ Generated from Field `DailyReward`.`rewardDate_max` of type `Date`
+  """
+  rewardDate_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'DeviceToken'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input DeviceToken_Data {
+  """
+  ✨ Generated from Field `DeviceToken`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `DeviceToken`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `DeviceToken`.`userId` of type `String!`
+  """
+  userId: String
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `DeviceToken`.`userId` of type `String!`)
+  """
+  userId_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `DeviceToken`.`user` of type `User!`
+  """
+  user: User_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `DeviceToken`.`platform` of type `String!`
+  """
+  platform: String
+  """
+  ✨ `_expr` server value variant of `platform` (✨ Generated from Field `DeviceToken`.`platform` of type `String!`)
+  """
+  platform_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `DeviceToken`.`registeredAt` of type `Timestamp!`
+  """
+  registeredAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `registeredAt` (✨ Generated from Field `DeviceToken`.`registeredAt` of type `Timestamp!`)
+  """
+  registeredAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `registeredAt` (✨ Generated from Field `DeviceToken`.`registeredAt` of type `Timestamp!`)
+  """
+  registeredAt_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `registeredAt` (✨ Generated from Field `DeviceToken`.`registeredAt` of type `Timestamp!`)
+  """
+  registeredAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `DeviceToken`.`token` of type `String!`
+  """
+  token: String
+  """
+  ✨ `_expr` server value variant of `token` (✨ Generated from Field `DeviceToken`.`token` of type `String!`)
+  """
+  token_expr: String_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated filter input type for table 'DeviceToken'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input DeviceToken_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [DeviceToken_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: DeviceToken_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [DeviceToken_Filter!]
+  """
+  ✨ Generated from Field `DeviceToken`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `DeviceToken`.`userId` of type `String!`
+  """
+  userId: String_Filter
+  """
+  ✨ Generated from Field `DeviceToken`.`user` of type `User!`
+  """
+  user: User_Filter
+  """
+  ✨ Generated from Field `DeviceToken`.`platform` of type `String!`
+  """
+  platform: String_Filter
+  """
+  ✨ Generated from Field `DeviceToken`.`registeredAt` of type `Timestamp!`
+  """
+  registeredAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `DeviceToken`.`token` of type `String!`
+  """
+  token: String_Filter
+}
+"""
+✨ Generated first-row input type for table 'DeviceToken'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input DeviceToken_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [DeviceToken_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: DeviceToken_Filter
+}
+"""
+✨ Generated having input type for table 'DeviceToken'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input DeviceToken_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [DeviceToken_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: DeviceToken_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [DeviceToken_Having!]
+  """
+  ✨ Generated from Field `DeviceToken`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `DeviceToken`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `DeviceToken`.`platform_count` of type `Int!`
+  """
+  platform_count: Int_Filter
+  """
+  ✨ Generated from Field `DeviceToken`.`registeredAt_count` of type `Int!`
+  """
+  registeredAt_count: Int_Filter
+  """
+  ✨ Generated from Field `DeviceToken`.`token_count` of type `Int!`
+  """
+  token_count: Int_Filter
+  """
+  ✨ Generated from Field `DeviceToken`.`userId_count` of type `Int!`
+  """
+  userId_count: Int_Filter
+  """
+  ✨ Generated from Field `DeviceToken`.`registeredAt_min` of type `Timestamp`
+  """
+  registeredAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `DeviceToken`.`registeredAt_max` of type `Timestamp`
+  """
+  registeredAt_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'DeviceToken'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input DeviceToken_Key {
+  """
+  ✨ Generated from Field `DeviceToken`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `DeviceToken`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated list filter input type for table 'DeviceToken'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input DeviceToken_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: DeviceToken_Filter
+}
+"""
+✨ Generated order input type for table 'DeviceToken'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input DeviceToken_Order {
+  """
+  ✨ Generated from Field `DeviceToken`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `DeviceToken`.`userId` of type `String!`
+  """
+  userId: OrderDirection
+  """
+  ✨ Generated from Field `DeviceToken`.`user` of type `User!`
+  """
+  user: User_Order
+  """
+  ✨ Generated from Field `DeviceToken`.`platform` of type `String!`
+  """
+  platform: OrderDirection
+  """
+  ✨ Generated from Field `DeviceToken`.`registeredAt` of type `Timestamp!`
+  """
+  registeredAt: OrderDirection
+  """
+  ✨ Generated from Field `DeviceToken`.`token` of type `String!`
+  """
+  token: OrderDirection
+  """
+  ✨ Generated from Field `DeviceToken`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `DeviceToken`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `DeviceToken`.`platform_count` of type `Int!`
+  """
+  platform_count: OrderDirection
+  """
+  ✨ Generated from Field `DeviceToken`.`registeredAt_count` of type `Int!`
+  """
+  registeredAt_count: OrderDirection
+  """
+  ✨ Generated from Field `DeviceToken`.`token_count` of type `Int!`
+  """
+  token_count: OrderDirection
+  """
+  ✨ Generated from Field `DeviceToken`.`userId_count` of type `Int!`
+  """
+  userId_count: OrderDirection
+  """
+  ✨ Generated from Field `DeviceToken`.`registeredAt_min` of type `Timestamp`
+  """
+  registeredAt_min: OrderDirection
+  """
+  ✨ Generated from Field `DeviceToken`.`registeredAt_max` of type `Timestamp`
+  """
+  registeredAt_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Machine'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Machine_Data {
+  """
+  ✨ Generated from Field `Machine`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Machine`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Machine`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `createdAt` (✨ Generated from Field `Machine`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `createdAt` (✨ Generated from Field `Machine`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `createdAt` (✨ Generated from Field `Machine`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Machine`.`isOpen` of type `Boolean!`
+  """
+  isOpen: Boolean
+  """
+  ✨ `_expr` server value variant of `isOpen` (✨ Generated from Field `Machine`.`isOpen` of type `Boolean!`)
+  """
+  isOpen_expr: Boolean_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Machine`.`kent` of type `String`
+  """
+  kent: String
+  """
+  ✨ `_expr` server value variant of `kent` (✨ Generated from Field `Machine`.`kent` of type `String`)
+  """
+  kent_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Machine`.`maxBet` of type `Int!`
+  """
+  maxBet: Int
+  """
+  ✨ `_expr` server value variant of `maxBet` (✨ Generated from Field `Machine`.`maxBet` of type `Int!`)
+  """
+  maxBet_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `maxBet` (✨ Generated from Field `Machine`.`maxBet` of type `Int!`)
+  """
+  maxBet_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Machine`.`minBet` of type `Int!`
+  """
+  minBet: Int
+  """
+  ✨ `_expr` server value variant of `minBet` (✨ Generated from Field `Machine`.`minBet` of type `Int!`)
+  """
+  minBet_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `minBet` (✨ Generated from Field `Machine`.`minBet` of type `Int!`)
+  """
+  minBet_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Machine`.`name` of type `String!`
+  """
+  name: String
+  """
+  ✨ `_expr` server value variant of `name` (✨ Generated from Field `Machine`.`name` of type `String!`)
+  """
+  name_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Machine`.`serial` of type `String`
+  """
+  serial: String
+  """
+  ✨ `_expr` server value variant of `serial` (✨ Generated from Field `Machine`.`serial` of type `String`)
+  """
+  serial_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Machine`.`serie` of type `String`
+  """
+  serie: String
+  """
+  ✨ `_expr` server value variant of `serie` (✨ Generated from Field `Machine`.`serie` of type `String`)
+  """
+  serie_expr: String_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated filter input type for table 'Machine'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Machine_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Machine_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Machine_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Machine_Filter!]
+  """
+  ✨ Generated from Field `Machine`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Machine`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `Machine`.`isOpen` of type `Boolean!`
+  """
+  isOpen: Boolean_Filter
+  """
+  ✨ Generated from Field `Machine`.`kent` of type `String`
+  """
+  kent: String_Filter
+  """
+  ✨ Generated from Field `Machine`.`maxBet` of type `Int!`
+  """
+  maxBet: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`minBet` of type `Int!`
+  """
+  minBet: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`name` of type `String!`
+  """
+  name: String_Filter
+  """
+  ✨ Generated from Field `Machine`.`serial` of type `String`
+  """
+  serial: String_Filter
+  """
+  ✨ Generated from Field `Machine`.`serie` of type `String`
+  """
+  serie: String_Filter
+  """
+  ✨ Generated from Field `Machine`.`machineLedgers_on_machine` of type `[MachineLedger!]!`
+  """
+  machineLedgers_on_machine: MachineLedger_ListFilter
+  """
+  ✨ Generated from Field `Machine`.`machineSessions_on_machine` of type `[MachineSession!]!`
+  """
+  machineSessions_on_machine: MachineSession_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'Machine'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Machine_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Machine_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Machine_Filter
+}
+"""
+✨ Generated having input type for table 'Machine'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Machine_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Machine_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Machine_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Machine_Having!]
+  """
+  ✨ Generated from Field `Machine`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`isOpen_count` of type `Int!`
+  """
+  isOpen_count: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`kent_count` of type `Int!`
+  """
+  kent_count: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`maxBet_count` of type `Int!`
+  """
+  maxBet_count: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`minBet_count` of type `Int!`
+  """
+  minBet_count: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`name_count` of type `Int!`
+  """
+  name_count: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`serial_count` of type `Int!`
+  """
+  serial_count: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`serie_count` of type `Int!`
+  """
+  serie_count: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`maxBet_sum` of type `Int`
+  """
+  maxBet_sum: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`minBet_sum` of type `Int`
+  """
+  minBet_sum: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`maxBet_avg` of type `Float`
+  """
+  maxBet_avg: Float_Filter
+  """
+  ✨ Generated from Field `Machine`.`minBet_avg` of type `Float`
+  """
+  minBet_avg: Float_Filter
+  """
+  ✨ Generated from Field `Machine`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Machine`.`maxBet_min` of type `Int`
+  """
+  maxBet_min: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`minBet_min` of type `Int`
+  """
+  minBet_min: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `Machine`.`maxBet_max` of type `Int`
+  """
+  maxBet_max: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`minBet_max` of type `Int`
+  """
+  minBet_max: Int_Filter
+}
+"""
+✨ Generated key input type for table 'Machine'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Machine_Key {
+  """
+  ✨ Generated from Field `Machine`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Machine`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated list filter input type for table 'Machine'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Machine_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Machine_Filter
+}
+"""
+✨ Generated order input type for table 'Machine'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Machine_Order {
+  """
+  ✨ Generated from Field `Machine`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`isOpen` of type `Boolean!`
+  """
+  isOpen: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`kent` of type `String`
+  """
+  kent: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`maxBet` of type `Int!`
+  """
+  maxBet: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`minBet` of type `Int!`
+  """
+  minBet: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`name` of type `String!`
+  """
+  name: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`serial` of type `String`
+  """
+  serial: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`serie` of type `String`
+  """
+  serie: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`isOpen_count` of type `Int!`
+  """
+  isOpen_count: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`kent_count` of type `Int!`
+  """
+  kent_count: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`maxBet_count` of type `Int!`
+  """
+  maxBet_count: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`minBet_count` of type `Int!`
+  """
+  minBet_count: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`name_count` of type `Int!`
+  """
+  name_count: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`serial_count` of type `Int!`
+  """
+  serial_count: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`serie_count` of type `Int!`
+  """
+  serie_count: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`maxBet_sum` of type `Int`
+  """
+  maxBet_sum: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`minBet_sum` of type `Int`
+  """
+  minBet_sum: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`maxBet_avg` of type `Float`
+  """
+  maxBet_avg: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`minBet_avg` of type `Float`
+  """
+  minBet_avg: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`maxBet_min` of type `Int`
+  """
+  maxBet_min: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`minBet_min` of type `Int`
+  """
+  minBet_min: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`maxBet_max` of type `Int`
+  """
+  maxBet_max: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`minBet_max` of type `Int`
+  """
+  minBet_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'MachineLedger'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input MachineLedger_Data {
+  """
+  ✨ Generated from Field `MachineLedger`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `MachineLedger`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`machineId` of type `UUID!`
+  """
+  machineId: UUID
+  """
+  ✨ `_expr` server value variant of `machineId` (✨ Generated from Field `MachineLedger`.`machineId` of type `UUID!`)
+  """
+  machineId_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`machine` of type `Machine!`
+  """
+  machine: Machine_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn` of type `Int!`
+  """
+  capitalIn: Int
+  """
+  ✨ `_expr` server value variant of `capitalIn` (✨ Generated from Field `MachineLedger`.`capitalIn` of type `Int!`)
+  """
+  capitalIn_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `capitalIn` (✨ Generated from Field `MachineLedger`.`capitalIn` of type `Int!`)
+  """
+  capitalIn_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut` of type `Int!`
+  """
+  capitalOut: Int
+  """
+  ✨ `_expr` server value variant of `capitalOut` (✨ Generated from Field `MachineLedger`.`capitalOut` of type `Int!`)
+  """
+  capitalOut_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `capitalOut` (✨ Generated from Field `MachineLedger`.`capitalOut` of type `Int!`)
+  """
+  capitalOut_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses` of type `Int!`
+  """
+  consecutiveLosses: Int
+  """
+  ✨ `_expr` server value variant of `consecutiveLosses` (✨ Generated from Field `MachineLedger`.`consecutiveLosses` of type `Int!`)
+  """
+  consecutiveLosses_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `consecutiveLosses` (✨ Generated from Field `MachineLedger`.`consecutiveLosses` of type `Int!`)
+  """
+  consecutiveLosses_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA` of type `Int!`
+  """
+  jackpotFourOfAKindA: Int
+  """
+  ✨ `_expr` server value variant of `jackpotFourOfAKindA` (✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA` of type `Int!`)
+  """
+  jackpotFourOfAKindA_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `jackpotFourOfAKindA` (✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA` of type `Int!`)
+  """
+  jackpotFourOfAKindA_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB` of type `Int!`
+  """
+  jackpotFourOfAKindB: Int
+  """
+  ✨ `_expr` server value variant of `jackpotFourOfAKindB` (✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB` of type `Int!`)
+  """
+  jackpotFourOfAKindB_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `jackpotFourOfAKindB` (✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB` of type `Int!`)
+  """
+  jackpotFourOfAKindB_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse` of type `Int!`
+  """
+  jackpotFullHouse: Int
+  """
+  ✨ `_expr` server value variant of `jackpotFullHouse` (✨ Generated from Field `MachineLedger`.`jackpotFullHouse` of type `Int!`)
+  """
+  jackpotFullHouse_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `jackpotFullHouse` (✨ Generated from Field `MachineLedger`.`jackpotFullHouse` of type `Int!`)
+  """
+  jackpotFullHouse_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush` of type `Int!`
+  """
+  jackpotStraightFlush: Int
+  """
+  ✨ `_expr` server value variant of `jackpotStraightFlush` (✨ Generated from Field `MachineLedger`.`jackpotStraightFlush` of type `Int!`)
+  """
+  jackpotStraightFlush_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `jackpotStraightFlush` (✨ Generated from Field `MachineLedger`.`jackpotStraightFlush` of type `Int!`)
+  """
+  jackpotStraightFlush_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`lastDistributionMode` of type `String!`
+  """
+  lastDistributionMode: String
+  """
+  ✨ `_expr` server value variant of `lastDistributionMode` (✨ Generated from Field `MachineLedger`.`lastDistributionMode` of type `String!`)
+  """
+  lastDistributionMode_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`lastWinChannel` of type `String`
+  """
+  lastWinChannel: String
+  """
+  ✨ `_expr` server value variant of `lastWinChannel` (✨ Generated from Field `MachineLedger`.`lastWinChannel` of type `String`)
+  """
+  lastWinChannel_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount` of type `Int!`
+  """
+  roundCount: Int
+  """
+  ✨ `_expr` server value variant of `roundCount` (✨ Generated from Field `MachineLedger`.`roundCount` of type `Int!`)
+  """
+  roundCount_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `roundCount` (✨ Generated from Field `MachineLedger`.`roundCount` of type `Int!`)
+  """
+  roundCount_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit` of type `Int!`
+  """
+  roundsSinceLucky5Hit: Int
+  """
+  ✨ `_expr` server value variant of `roundsSinceLucky5Hit` (✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit` of type `Int!`)
+  """
+  roundsSinceLucky5Hit_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `roundsSinceLucky5Hit` (✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit` of type `Int!`)
+  """
+  roundsSinceLucky5Hit_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`snapshotAt` of type `Timestamp!`
+  """
+  snapshotAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `snapshotAt` (✨ Generated from Field `MachineLedger`.`snapshotAt` of type `Timestamp!`)
+  """
+  snapshotAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `snapshotAt` (✨ Generated from Field `MachineLedger`.`snapshotAt` of type `Timestamp!`)
+  """
+  snapshotAt_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `snapshotAt` (✨ Generated from Field `MachineLedger`.`snapshotAt` of type `Timestamp!`)
+  """
+  snapshotAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+}
+"""
+✨ Generated filter input type for table 'MachineLedger'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input MachineLedger_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [MachineLedger_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: MachineLedger_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [MachineLedger_Filter!]
+  """
+  ✨ Generated from Field `MachineLedger`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`machineId` of type `UUID!`
+  """
+  machineId: UUID_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`machine` of type `Machine!`
+  """
+  machine: Machine_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn` of type `Int!`
+  """
+  capitalIn: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut` of type `Int!`
+  """
+  capitalOut: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses` of type `Int!`
+  """
+  consecutiveLosses: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA` of type `Int!`
+  """
+  jackpotFourOfAKindA: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB` of type `Int!`
+  """
+  jackpotFourOfAKindB: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse` of type `Int!`
+  """
+  jackpotFullHouse: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush` of type `Int!`
+  """
+  jackpotStraightFlush: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`lastDistributionMode` of type `String!`
+  """
+  lastDistributionMode: String_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`lastWinChannel` of type `String`
+  """
+  lastWinChannel: String_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount` of type `Int!`
+  """
+  roundCount: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit` of type `Int!`
+  """
+  roundsSinceLucky5Hit: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`snapshotAt` of type `Timestamp!`
+  """
+  snapshotAt: Timestamp_Filter
+}
+"""
+✨ Generated first-row input type for table 'MachineLedger'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input MachineLedger_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [MachineLedger_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: MachineLedger_Filter
+}
+"""
+✨ Generated having input type for table 'MachineLedger'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input MachineLedger_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [MachineLedger_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: MachineLedger_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [MachineLedger_Having!]
+  """
+  ✨ Generated from Field `MachineLedger`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn_count` of type `Int!`
+  """
+  capitalIn_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut_count` of type `Int!`
+  """
+  capitalOut_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses_count` of type `Int!`
+  """
+  consecutiveLosses_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA_count` of type `Int!`
+  """
+  jackpotFourOfAKindA_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB_count` of type `Int!`
+  """
+  jackpotFourOfAKindB_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_count` of type `Int!`
+  """
+  jackpotFullHouse_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_count` of type `Int!`
+  """
+  jackpotStraightFlush_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`lastDistributionMode_count` of type `Int!`
+  """
+  lastDistributionMode_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`lastWinChannel_count` of type `Int!`
+  """
+  lastWinChannel_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`machineId_count` of type `Int!`
+  """
+  machineId_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount_count` of type `Int!`
+  """
+  roundCount_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_count` of type `Int!`
+  """
+  roundsSinceLucky5Hit_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`snapshotAt_count` of type `Int!`
+  """
+  snapshotAt_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn_sum` of type `Int`
+  """
+  capitalIn_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut_sum` of type `Int`
+  """
+  capitalOut_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses_sum` of type `Int`
+  """
+  consecutiveLosses_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA_sum` of type `Int`
+  """
+  jackpotFourOfAKindA_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB_sum` of type `Int`
+  """
+  jackpotFourOfAKindB_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_sum` of type `Int`
+  """
+  jackpotFullHouse_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_sum` of type `Int`
+  """
+  jackpotStraightFlush_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount_sum` of type `Int`
+  """
+  roundCount_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_sum` of type `Int`
+  """
+  roundsSinceLucky5Hit_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn_avg` of type `Float`
+  """
+  capitalIn_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut_avg` of type `Float`
+  """
+  capitalOut_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses_avg` of type `Float`
+  """
+  consecutiveLosses_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA_avg` of type `Float`
+  """
+  jackpotFourOfAKindA_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB_avg` of type `Float`
+  """
+  jackpotFourOfAKindB_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_avg` of type `Float`
+  """
+  jackpotFullHouse_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_avg` of type `Float`
+  """
+  jackpotStraightFlush_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount_avg` of type `Float`
+  """
+  roundCount_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_avg` of type `Float`
+  """
+  roundsSinceLucky5Hit_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn_min` of type `Int`
+  """
+  capitalIn_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut_min` of type `Int`
+  """
+  capitalOut_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses_min` of type `Int`
+  """
+  consecutiveLosses_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA_min` of type `Int`
+  """
+  jackpotFourOfAKindA_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB_min` of type `Int`
+  """
+  jackpotFourOfAKindB_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_min` of type `Int`
+  """
+  jackpotFullHouse_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_min` of type `Int`
+  """
+  jackpotStraightFlush_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount_min` of type `Int`
+  """
+  roundCount_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_min` of type `Int`
+  """
+  roundsSinceLucky5Hit_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`snapshotAt_min` of type `Timestamp`
+  """
+  snapshotAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn_max` of type `Int`
+  """
+  capitalIn_max: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut_max` of type `Int`
+  """
+  capitalOut_max: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses_max` of type `Int`
+  """
+  consecutiveLosses_max: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA_max` of type `Int`
+  """
+  jackpotFourOfAKindA_max: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB_max` of type `Int`
+  """
+  jackpotFourOfAKindB_max: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_max` of type `Int`
+  """
+  jackpotFullHouse_max: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_max` of type `Int`
+  """
+  jackpotStraightFlush_max: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount_max` of type `Int`
+  """
+  roundCount_max: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_max` of type `Int`
+  """
+  roundsSinceLucky5Hit_max: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`snapshotAt_max` of type `Timestamp`
+  """
+  snapshotAt_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'MachineLedger'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input MachineLedger_Key {
+  """
+  ✨ Generated from Field `MachineLedger`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `MachineLedger`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated list filter input type for table 'MachineLedger'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input MachineLedger_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: MachineLedger_Filter
+}
+"""
+✨ Generated order input type for table 'MachineLedger'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input MachineLedger_Order {
+  """
+  ✨ Generated from Field `MachineLedger`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`machineId` of type `UUID!`
+  """
+  machineId: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`machine` of type `Machine!`
+  """
+  machine: Machine_Order
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn` of type `Int!`
+  """
+  capitalIn: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut` of type `Int!`
+  """
+  capitalOut: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses` of type `Int!`
+  """
+  consecutiveLosses: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA` of type `Int!`
+  """
+  jackpotFourOfAKindA: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB` of type `Int!`
+  """
+  jackpotFourOfAKindB: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse` of type `Int!`
+  """
+  jackpotFullHouse: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush` of type `Int!`
+  """
+  jackpotStraightFlush: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`lastDistributionMode` of type `String!`
+  """
+  lastDistributionMode: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`lastWinChannel` of type `String`
+  """
+  lastWinChannel: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount` of type `Int!`
+  """
+  roundCount: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit` of type `Int!`
+  """
+  roundsSinceLucky5Hit: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`snapshotAt` of type `Timestamp!`
+  """
+  snapshotAt: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn_count` of type `Int!`
+  """
+  capitalIn_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut_count` of type `Int!`
+  """
+  capitalOut_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses_count` of type `Int!`
+  """
+  consecutiveLosses_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA_count` of type `Int!`
+  """
+  jackpotFourOfAKindA_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB_count` of type `Int!`
+  """
+  jackpotFourOfAKindB_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_count` of type `Int!`
+  """
+  jackpotFullHouse_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_count` of type `Int!`
+  """
+  jackpotStraightFlush_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`lastDistributionMode_count` of type `Int!`
+  """
+  lastDistributionMode_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`lastWinChannel_count` of type `Int!`
+  """
+  lastWinChannel_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`machineId_count` of type `Int!`
+  """
+  machineId_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount_count` of type `Int!`
+  """
+  roundCount_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_count` of type `Int!`
+  """
+  roundsSinceLucky5Hit_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`snapshotAt_count` of type `Int!`
+  """
+  snapshotAt_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn_sum` of type `Int`
+  """
+  capitalIn_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut_sum` of type `Int`
+  """
+  capitalOut_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses_sum` of type `Int`
+  """
+  consecutiveLosses_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA_sum` of type `Int`
+  """
+  jackpotFourOfAKindA_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB_sum` of type `Int`
+  """
+  jackpotFourOfAKindB_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_sum` of type `Int`
+  """
+  jackpotFullHouse_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_sum` of type `Int`
+  """
+  jackpotStraightFlush_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount_sum` of type `Int`
+  """
+  roundCount_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_sum` of type `Int`
+  """
+  roundsSinceLucky5Hit_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn_avg` of type `Float`
+  """
+  capitalIn_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut_avg` of type `Float`
+  """
+  capitalOut_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses_avg` of type `Float`
+  """
+  consecutiveLosses_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA_avg` of type `Float`
+  """
+  jackpotFourOfAKindA_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB_avg` of type `Float`
+  """
+  jackpotFourOfAKindB_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_avg` of type `Float`
+  """
+  jackpotFullHouse_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_avg` of type `Float`
+  """
+  jackpotStraightFlush_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount_avg` of type `Float`
+  """
+  roundCount_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_avg` of type `Float`
+  """
+  roundsSinceLucky5Hit_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn_min` of type `Int`
+  """
+  capitalIn_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut_min` of type `Int`
+  """
+  capitalOut_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses_min` of type `Int`
+  """
+  consecutiveLosses_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA_min` of type `Int`
+  """
+  jackpotFourOfAKindA_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB_min` of type `Int`
+  """
+  jackpotFourOfAKindB_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_min` of type `Int`
+  """
+  jackpotFullHouse_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_min` of type `Int`
+  """
+  jackpotStraightFlush_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount_min` of type `Int`
+  """
+  roundCount_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_min` of type `Int`
+  """
+  roundsSinceLucky5Hit_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`snapshotAt_min` of type `Timestamp`
+  """
+  snapshotAt_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalIn_max` of type `Int`
+  """
+  capitalIn_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`capitalOut_max` of type `Int`
+  """
+  capitalOut_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`consecutiveLosses_max` of type `Int`
+  """
+  consecutiveLosses_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindA_max` of type `Int`
+  """
+  jackpotFourOfAKindA_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFourOfAKindB_max` of type `Int`
+  """
+  jackpotFourOfAKindB_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_max` of type `Int`
+  """
+  jackpotFullHouse_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_max` of type `Int`
+  """
+  jackpotStraightFlush_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`roundCount_max` of type `Int`
+  """
+  roundCount_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_max` of type `Int`
+  """
+  roundsSinceLucky5Hit_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`snapshotAt_max` of type `Timestamp`
+  """
+  snapshotAt_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'MachineSession'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input MachineSession_Data {
+  """
+  ✨ Generated from Field `MachineSession`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `MachineSession`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineSession`.`machineId` of type `UUID!`
+  """
+  machineId: UUID
+  """
+  ✨ `_expr` server value variant of `machineId` (✨ Generated from Field `MachineSession`.`machineId` of type `UUID!`)
+  """
+  machineId_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineSession`.`userId` of type `String!`
+  """
+  userId: String
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `MachineSession`.`userId` of type `String!`)
+  """
+  userId_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineSession`.`machine` of type `Machine!`
+  """
+  machine: Machine_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineSession`.`user` of type `User!`
+  """
+  user: User_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore` of type `Int!`
+  """
+  counterplayScore: Int
+  """
+  ✨ `_expr` server value variant of `counterplayScore` (✨ Generated from Field `MachineSession`.`counterplayScore` of type `Int!`)
+  """
+  counterplayScore_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `counterplayScore` (✨ Generated from Field `MachineSession`.`counterplayScore` of type `Int!`)
+  """
+  counterplayScore_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineSession`.`endedAt` of type `Timestamp`
+  """
+  endedAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `endedAt` (✨ Generated from Field `MachineSession`.`endedAt` of type `Timestamp`)
+  """
+  endedAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `endedAt` (✨ Generated from Field `MachineSession`.`endedAt` of type `Timestamp`)
+  """
+  endedAt_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `endedAt` (✨ Generated from Field `MachineSession`.`endedAt` of type `Timestamp`)
+  """
+  endedAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineSession`.`isClosed` of type `Boolean!`
+  """
+  isClosed: Boolean
+  """
+  ✨ `_expr` server value variant of `isClosed` (✨ Generated from Field `MachineSession`.`isClosed` of type `Boolean!`)
+  """
+  isClosed_expr: Boolean_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineSession`.`lastUpdatedAt` of type `Timestamp!`
+  """
+  lastUpdatedAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `lastUpdatedAt` (✨ Generated from Field `MachineSession`.`lastUpdatedAt` of type `Timestamp!`)
+  """
+  lastUpdatedAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `lastUpdatedAt` (✨ Generated from Field `MachineSession`.`lastUpdatedAt` of type `Timestamp!`)
+  """
+  lastUpdatedAt_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `lastUpdatedAt` (✨ Generated from Field `MachineSession`.`lastUpdatedAt` of type `Timestamp!`)
+  """
+  lastUpdatedAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits` of type `Int!`
+  """
+  machineCredits: Int
+  """
+  ✨ `_expr` server value variant of `machineCredits` (✨ Generated from Field `MachineSession`.`machineCredits` of type `Int!`)
+  """
+  machineCredits_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `machineCredits` (✨ Generated from Field `MachineSession`.`machineCredits` of type `Int!`)
+  """
+  machineCredits_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineSession`.`startedAt` of type `Timestamp!`
+  """
+  startedAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `startedAt` (✨ Generated from Field `MachineSession`.`startedAt` of type `Timestamp!`)
+  """
+  startedAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `startedAt` (✨ Generated from Field `MachineSession`.`startedAt` of type `Timestamp!`)
+  """
+  startedAt_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `startedAt` (✨ Generated from Field `MachineSession`.`startedAt` of type `Timestamp!`)
+  """
+  startedAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn` of type `Int!`
+  """
+  totalCashIn: Int
+  """
+  ✨ `_expr` server value variant of `totalCashIn` (✨ Generated from Field `MachineSession`.`totalCashIn` of type `Int!`)
+  """
+  totalCashIn_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `totalCashIn` (✨ Generated from Field `MachineSession`.`totalCashIn` of type `Int!`)
+  """
+  totalCashIn_update: [Int_Update!] @fdc_forbiddenInVariables
+}
+"""
+✨ Generated filter input type for table 'MachineSession'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input MachineSession_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [MachineSession_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: MachineSession_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [MachineSession_Filter!]
+  """
+  ✨ Generated from Field `MachineSession`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`machineId` of type `UUID!`
+  """
+  machineId: UUID_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`userId` of type `String!`
+  """
+  userId: String_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`machine` of type `Machine!`
+  """
+  machine: Machine_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`user` of type `User!`
+  """
+  user: User_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore` of type `Int!`
+  """
+  counterplayScore: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`endedAt` of type `Timestamp`
+  """
+  endedAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`isClosed` of type `Boolean!`
+  """
+  isClosed: Boolean_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`lastUpdatedAt` of type `Timestamp!`
+  """
+  lastUpdatedAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits` of type `Int!`
+  """
+  machineCredits: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`startedAt` of type `Timestamp!`
+  """
+  startedAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn` of type `Int!`
+  """
+  totalCashIn: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`rounds_on_session` of type `[Round!]!`
+  """
+  rounds_on_session: Round_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'MachineSession'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input MachineSession_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [MachineSession_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: MachineSession_Filter
+}
+"""
+✨ Generated having input type for table 'MachineSession'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input MachineSession_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [MachineSession_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: MachineSession_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [MachineSession_Having!]
+  """
+  ✨ Generated from Field `MachineSession`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore_count` of type `Int!`
+  """
+  counterplayScore_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`endedAt_count` of type `Int!`
+  """
+  endedAt_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`isClosed_count` of type `Int!`
+  """
+  isClosed_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`lastUpdatedAt_count` of type `Int!`
+  """
+  lastUpdatedAt_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits_count` of type `Int!`
+  """
+  machineCredits_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`machineId_count` of type `Int!`
+  """
+  machineId_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`startedAt_count` of type `Int!`
+  """
+  startedAt_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn_count` of type `Int!`
+  """
+  totalCashIn_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`userId_count` of type `Int!`
+  """
+  userId_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore_sum` of type `Int`
+  """
+  counterplayScore_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits_sum` of type `Int`
+  """
+  machineCredits_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn_sum` of type `Int`
+  """
+  totalCashIn_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore_avg` of type `Float`
+  """
+  counterplayScore_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits_avg` of type `Float`
+  """
+  machineCredits_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn_avg` of type `Float`
+  """
+  totalCashIn_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore_min` of type `Int`
+  """
+  counterplayScore_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`endedAt_min` of type `Timestamp`
+  """
+  endedAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`lastUpdatedAt_min` of type `Timestamp`
+  """
+  lastUpdatedAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits_min` of type `Int`
+  """
+  machineCredits_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`startedAt_min` of type `Timestamp`
+  """
+  startedAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn_min` of type `Int`
+  """
+  totalCashIn_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore_max` of type `Int`
+  """
+  counterplayScore_max: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`endedAt_max` of type `Timestamp`
+  """
+  endedAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`lastUpdatedAt_max` of type `Timestamp`
+  """
+  lastUpdatedAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits_max` of type `Int`
+  """
+  machineCredits_max: Int_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`startedAt_max` of type `Timestamp`
+  """
+  startedAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn_max` of type `Int`
+  """
+  totalCashIn_max: Int_Filter
+}
+"""
+✨ Generated key input type for table 'MachineSession'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input MachineSession_Key {
+  """
+  ✨ Generated from Field `MachineSession`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `MachineSession`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated list filter input type for table 'MachineSession'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input MachineSession_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: MachineSession_Filter
+}
+"""
+✨ Generated order input type for table 'MachineSession'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input MachineSession_Order {
+  """
+  ✨ Generated from Field `MachineSession`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`machineId` of type `UUID!`
+  """
+  machineId: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`userId` of type `String!`
+  """
+  userId: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`machine` of type `Machine!`
+  """
+  machine: Machine_Order
+  """
+  ✨ Generated from Field `MachineSession`.`user` of type `User!`
+  """
+  user: User_Order
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore` of type `Int!`
+  """
+  counterplayScore: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`endedAt` of type `Timestamp`
+  """
+  endedAt: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`isClosed` of type `Boolean!`
+  """
+  isClosed: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`lastUpdatedAt` of type `Timestamp!`
+  """
+  lastUpdatedAt: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits` of type `Int!`
+  """
+  machineCredits: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`startedAt` of type `Timestamp!`
+  """
+  startedAt: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn` of type `Int!`
+  """
+  totalCashIn: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore_count` of type `Int!`
+  """
+  counterplayScore_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`endedAt_count` of type `Int!`
+  """
+  endedAt_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`isClosed_count` of type `Int!`
+  """
+  isClosed_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`lastUpdatedAt_count` of type `Int!`
+  """
+  lastUpdatedAt_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits_count` of type `Int!`
+  """
+  machineCredits_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`machineId_count` of type `Int!`
+  """
+  machineId_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`startedAt_count` of type `Int!`
+  """
+  startedAt_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn_count` of type `Int!`
+  """
+  totalCashIn_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`userId_count` of type `Int!`
+  """
+  userId_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore_sum` of type `Int`
+  """
+  counterplayScore_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits_sum` of type `Int`
+  """
+  machineCredits_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn_sum` of type `Int`
+  """
+  totalCashIn_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore_avg` of type `Float`
+  """
+  counterplayScore_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits_avg` of type `Float`
+  """
+  machineCredits_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn_avg` of type `Float`
+  """
+  totalCashIn_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore_min` of type `Int`
+  """
+  counterplayScore_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`endedAt_min` of type `Timestamp`
+  """
+  endedAt_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`lastUpdatedAt_min` of type `Timestamp`
+  """
+  lastUpdatedAt_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits_min` of type `Int`
+  """
+  machineCredits_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`startedAt_min` of type `Timestamp`
+  """
+  startedAt_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn_min` of type `Int`
+  """
+  totalCashIn_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`counterplayScore_max` of type `Int`
+  """
+  counterplayScore_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`endedAt_max` of type `Timestamp`
+  """
+  endedAt_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`lastUpdatedAt_max` of type `Timestamp`
+  """
+  lastUpdatedAt_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`machineCredits_max` of type `Int`
+  """
+  machineCredits_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`startedAt_max` of type `Timestamp`
+  """
+  startedAt_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineSession`.`totalCashIn_max` of type `Int`
+  """
+  totalCashIn_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Round'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Round_Data {
+  """
+  ✨ Generated from Field `Round`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Round`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`sessionId` of type `UUID!`
+  """
+  sessionId: UUID
+  """
+  ✨ `_expr` server value variant of `sessionId` (✨ Generated from Field `Round`.`sessionId` of type `UUID!`)
+  """
+  sessionId_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`session` of type `MachineSession!`
+  """
+  session: MachineSession_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount` of type `Int!`
+  """
+  baseWinAmount: Int
+  """
+  ✨ `_expr` server value variant of `baseWinAmount` (✨ Generated from Field `Round`.`baseWinAmount` of type `Int!`)
+  """
+  baseWinAmount_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `baseWinAmount` (✨ Generated from Field `Round`.`baseWinAmount` of type `Int!`)
+  """
+  baseWinAmount_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`betAmount` of type `Int!`
+  """
+  betAmount: Int
+  """
+  ✨ `_expr` server value variant of `betAmount` (✨ Generated from Field `Round`.`betAmount` of type `Int!`)
+  """
+  betAmount_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `betAmount` (✨ Generated from Field `Round`.`betAmount` of type `Int!`)
+  """
+  betAmount_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts` of type `Int!`
+  """
+  doubleUpAttempts: Int
+  """
+  ✨ `_expr` server value variant of `doubleUpAttempts` (✨ Generated from Field `Round`.`doubleUpAttempts` of type `Int!`)
+  """
+  doubleUpAttempts_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `doubleUpAttempts` (✨ Generated from Field `Round`.`doubleUpAttempts` of type `Int!`)
+  """
+  doubleUpAttempts_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`doubleUpOutcome` of type `String`
+  """
+  doubleUpOutcome: String
+  """
+  ✨ `_expr` server value variant of `doubleUpOutcome` (✨ Generated from Field `Round`.`doubleUpOutcome` of type `String`)
+  """
+  doubleUpOutcome_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount` of type `Int`
+  """
+  doubleUpWinAmount: Int
+  """
+  ✨ `_expr` server value variant of `doubleUpWinAmount` (✨ Generated from Field `Round`.`doubleUpWinAmount` of type `Int`)
+  """
+  doubleUpWinAmount_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `doubleUpWinAmount` (✨ Generated from Field `Round`.`doubleUpWinAmount` of type `Int`)
+  """
+  doubleUpWinAmount_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`finalHand` of type `String`
+  """
+  finalHand: String
+  """
+  ✨ `_expr` server value variant of `finalHand` (✨ Generated from Field `Round`.`finalHand` of type `String`)
+  """
+  finalHand_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`handCategory` of type `String!`
+  """
+  handCategory: String
+  """
+  ✨ `_expr` server value variant of `handCategory` (✨ Generated from Field `Round`.`handCategory` of type `String!`)
+  """
+  handCategory_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`heldCards` of type `String`
+  """
+  heldCards: String
+  """
+  ✨ `_expr` server value variant of `heldCards` (✨ Generated from Field `Round`.`heldCards` of type `String`)
+  """
+  heldCards_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`initialHand` of type `String!`
+  """
+  initialHand: String
+  """
+  ✨ `_expr` server value variant of `initialHand` (✨ Generated from Field `Round`.`initialHand` of type `String!`)
+  """
+  initialHand_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`lucky5Armed` of type `Boolean!`
+  """
+  lucky5Armed: Boolean
+  """
+  ✨ `_expr` server value variant of `lucky5Armed` (✨ Generated from Field `Round`.`lucky5Armed` of type `Boolean!`)
+  """
+  lucky5Armed_expr: Boolean_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`outcome` of type `String!`
+  """
+  outcome: String
+  """
+  ✨ `_expr` server value variant of `outcome` (✨ Generated from Field `Round`.`outcome` of type `String!`)
+  """
+  outcome_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`payoutScale` of type `Float`
+  """
+  payoutScale: Float
+  """
+  ✨ `_expr` server value variant of `payoutScale` (✨ Generated from Field `Round`.`payoutScale` of type `Float`)
+  """
+  payoutScale_expr: Float_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `payoutScale` (✨ Generated from Field `Round`.`payoutScale` of type `Float`)
+  """
+  payoutScale_update: [Float_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`phase` of type `String!`
+  """
+  phase: String
+  """
+  ✨ `_expr` server value variant of `phase` (✨ Generated from Field `Round`.`phase` of type `String!`)
+  """
+  phase_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`playedAt` of type `Timestamp!`
+  """
+  playedAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `playedAt` (✨ Generated from Field `Round`.`playedAt` of type `Timestamp!`)
+  """
+  playedAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `playedAt` (✨ Generated from Field `Round`.`playedAt` of type `Timestamp!`)
+  """
+  playedAt_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `playedAt` (✨ Generated from Field `Round`.`playedAt` of type `Timestamp!`)
+  """
+  playedAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`policyMode` of type `String`
+  """
+  policyMode: String
+  """
+  ✨ `_expr` server value variant of `policyMode` (✨ Generated from Field `Round`.`policyMode` of type `String`)
+  """
+  policyMode_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount` of type `Int!`
+  """
+  totalWinAmount: Int
+  """
+  ✨ `_expr` server value variant of `totalWinAmount` (✨ Generated from Field `Round`.`totalWinAmount` of type `Int!`)
+  """
+  totalWinAmount_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `totalWinAmount` (✨ Generated from Field `Round`.`totalWinAmount` of type `Int!`)
+  """
+  totalWinAmount_update: [Int_Update!] @fdc_forbiddenInVariables
+}
+"""
+✨ Generated filter input type for table 'Round'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Round_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Round_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Round_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Round_Filter!]
+  """
+  ✨ Generated from Field `Round`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Round`.`sessionId` of type `UUID!`
+  """
+  sessionId: UUID_Filter
+  """
+  ✨ Generated from Field `Round`.`session` of type `MachineSession!`
+  """
+  session: MachineSession_Filter
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount` of type `Int!`
+  """
+  baseWinAmount: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`betAmount` of type `Int!`
+  """
+  betAmount: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts` of type `Int!`
+  """
+  doubleUpAttempts: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpOutcome` of type `String`
+  """
+  doubleUpOutcome: String_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount` of type `Int`
+  """
+  doubleUpWinAmount: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`finalHand` of type `String`
+  """
+  finalHand: String_Filter
+  """
+  ✨ Generated from Field `Round`.`handCategory` of type `String!`
+  """
+  handCategory: String_Filter
+  """
+  ✨ Generated from Field `Round`.`heldCards` of type `String`
+  """
+  heldCards: String_Filter
+  """
+  ✨ Generated from Field `Round`.`initialHand` of type `String!`
+  """
+  initialHand: String_Filter
+  """
+  ✨ Generated from Field `Round`.`lucky5Armed` of type `Boolean!`
+  """
+  lucky5Armed: Boolean_Filter
+  """
+  ✨ Generated from Field `Round`.`outcome` of type `String!`
+  """
+  outcome: String_Filter
+  """
+  ✨ Generated from Field `Round`.`payoutScale` of type `Float`
+  """
+  payoutScale: Float_Filter
+  """
+  ✨ Generated from Field `Round`.`phase` of type `String!`
+  """
+  phase: String_Filter
+  """
+  ✨ Generated from Field `Round`.`playedAt` of type `Timestamp!`
+  """
+  playedAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `Round`.`policyMode` of type `String`
+  """
+  policyMode: String_Filter
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount` of type `Int!`
+  """
+  totalWinAmount: Int_Filter
+}
+"""
+✨ Generated first-row input type for table 'Round'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Round_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Round_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Round_Filter
+}
+"""
+✨ Generated having input type for table 'Round'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Round_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Round_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Round_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Round_Having!]
+  """
+  ✨ Generated from Field `Round`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount_count` of type `Int!`
+  """
+  baseWinAmount_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`betAmount_count` of type `Int!`
+  """
+  betAmount_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts_count` of type `Int!`
+  """
+  doubleUpAttempts_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpOutcome_count` of type `Int!`
+  """
+  doubleUpOutcome_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount_count` of type `Int!`
+  """
+  doubleUpWinAmount_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`finalHand_count` of type `Int!`
+  """
+  finalHand_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`handCategory_count` of type `Int!`
+  """
+  handCategory_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`heldCards_count` of type `Int!`
+  """
+  heldCards_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`initialHand_count` of type `Int!`
+  """
+  initialHand_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`lucky5Armed_count` of type `Int!`
+  """
+  lucky5Armed_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`outcome_count` of type `Int!`
+  """
+  outcome_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`payoutScale_count` of type `Int!`
+  """
+  payoutScale_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`phase_count` of type `Int!`
+  """
+  phase_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`playedAt_count` of type `Int!`
+  """
+  playedAt_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`policyMode_count` of type `Int!`
+  """
+  policyMode_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`sessionId_count` of type `Int!`
+  """
+  sessionId_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount_count` of type `Int!`
+  """
+  totalWinAmount_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount_sum` of type `Int`
+  """
+  baseWinAmount_sum: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`betAmount_sum` of type `Int`
+  """
+  betAmount_sum: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts_sum` of type `Int`
+  """
+  doubleUpAttempts_sum: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount_sum` of type `Int`
+  """
+  doubleUpWinAmount_sum: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`payoutScale_sum` of type `Float`
+  """
+  payoutScale_sum: Float_Filter
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount_sum` of type `Int`
+  """
+  totalWinAmount_sum: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount_avg` of type `Float`
+  """
+  baseWinAmount_avg: Float_Filter
+  """
+  ✨ Generated from Field `Round`.`betAmount_avg` of type `Float`
+  """
+  betAmount_avg: Float_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts_avg` of type `Float`
+  """
+  doubleUpAttempts_avg: Float_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount_avg` of type `Float`
+  """
+  doubleUpWinAmount_avg: Float_Filter
+  """
+  ✨ Generated from Field `Round`.`payoutScale_avg` of type `Float`
+  """
+  payoutScale_avg: Float_Filter
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount_avg` of type `Float`
+  """
+  totalWinAmount_avg: Float_Filter
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount_min` of type `Int`
+  """
+  baseWinAmount_min: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`betAmount_min` of type `Int`
+  """
+  betAmount_min: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts_min` of type `Int`
+  """
+  doubleUpAttempts_min: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount_min` of type `Int`
+  """
+  doubleUpWinAmount_min: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`payoutScale_min` of type `Float`
+  """
+  payoutScale_min: Float_Filter
+  """
+  ✨ Generated from Field `Round`.`playedAt_min` of type `Timestamp`
+  """
+  playedAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount_min` of type `Int`
+  """
+  totalWinAmount_min: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount_max` of type `Int`
+  """
+  baseWinAmount_max: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`betAmount_max` of type `Int`
+  """
+  betAmount_max: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts_max` of type `Int`
+  """
+  doubleUpAttempts_max: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount_max` of type `Int`
+  """
+  doubleUpWinAmount_max: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`payoutScale_max` of type `Float`
+  """
+  payoutScale_max: Float_Filter
+  """
+  ✨ Generated from Field `Round`.`playedAt_max` of type `Timestamp`
+  """
+  playedAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount_max` of type `Int`
+  """
+  totalWinAmount_max: Int_Filter
+}
+"""
+✨ Generated key input type for table 'Round'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Round_Key {
+  """
+  ✨ Generated from Field `Round`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Round`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated list filter input type for table 'Round'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Round_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Round_Filter
+}
+"""
+✨ Generated order input type for table 'Round'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Round_Order {
+  """
+  ✨ Generated from Field `Round`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`sessionId` of type `UUID!`
+  """
+  sessionId: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`session` of type `MachineSession!`
+  """
+  session: MachineSession_Order
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount` of type `Int!`
+  """
+  baseWinAmount: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`betAmount` of type `Int!`
+  """
+  betAmount: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts` of type `Int!`
+  """
+  doubleUpAttempts: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpOutcome` of type `String`
+  """
+  doubleUpOutcome: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount` of type `Int`
+  """
+  doubleUpWinAmount: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`finalHand` of type `String`
+  """
+  finalHand: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`handCategory` of type `String!`
+  """
+  handCategory: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`heldCards` of type `String`
+  """
+  heldCards: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`initialHand` of type `String!`
+  """
+  initialHand: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`lucky5Armed` of type `Boolean!`
+  """
+  lucky5Armed: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`outcome` of type `String!`
+  """
+  outcome: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`payoutScale` of type `Float`
+  """
+  payoutScale: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`phase` of type `String!`
+  """
+  phase: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`playedAt` of type `Timestamp!`
+  """
+  playedAt: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`policyMode` of type `String`
+  """
+  policyMode: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount` of type `Int!`
+  """
+  totalWinAmount: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount_count` of type `Int!`
+  """
+  baseWinAmount_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`betAmount_count` of type `Int!`
+  """
+  betAmount_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts_count` of type `Int!`
+  """
+  doubleUpAttempts_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpOutcome_count` of type `Int!`
+  """
+  doubleUpOutcome_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount_count` of type `Int!`
+  """
+  doubleUpWinAmount_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`finalHand_count` of type `Int!`
+  """
+  finalHand_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`handCategory_count` of type `Int!`
+  """
+  handCategory_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`heldCards_count` of type `Int!`
+  """
+  heldCards_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`initialHand_count` of type `Int!`
+  """
+  initialHand_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`lucky5Armed_count` of type `Int!`
+  """
+  lucky5Armed_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`outcome_count` of type `Int!`
+  """
+  outcome_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`payoutScale_count` of type `Int!`
+  """
+  payoutScale_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`phase_count` of type `Int!`
+  """
+  phase_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`playedAt_count` of type `Int!`
+  """
+  playedAt_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`policyMode_count` of type `Int!`
+  """
+  policyMode_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`sessionId_count` of type `Int!`
+  """
+  sessionId_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount_count` of type `Int!`
+  """
+  totalWinAmount_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount_sum` of type `Int`
+  """
+  baseWinAmount_sum: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`betAmount_sum` of type `Int`
+  """
+  betAmount_sum: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts_sum` of type `Int`
+  """
+  doubleUpAttempts_sum: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount_sum` of type `Int`
+  """
+  doubleUpWinAmount_sum: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`payoutScale_sum` of type `Float`
+  """
+  payoutScale_sum: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount_sum` of type `Int`
+  """
+  totalWinAmount_sum: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount_avg` of type `Float`
+  """
+  baseWinAmount_avg: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`betAmount_avg` of type `Float`
+  """
+  betAmount_avg: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts_avg` of type `Float`
+  """
+  doubleUpAttempts_avg: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount_avg` of type `Float`
+  """
+  doubleUpWinAmount_avg: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`payoutScale_avg` of type `Float`
+  """
+  payoutScale_avg: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount_avg` of type `Float`
+  """
+  totalWinAmount_avg: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount_min` of type `Int`
+  """
+  baseWinAmount_min: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`betAmount_min` of type `Int`
+  """
+  betAmount_min: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts_min` of type `Int`
+  """
+  doubleUpAttempts_min: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount_min` of type `Int`
+  """
+  doubleUpWinAmount_min: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`payoutScale_min` of type `Float`
+  """
+  payoutScale_min: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`playedAt_min` of type `Timestamp`
+  """
+  playedAt_min: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount_min` of type `Int`
+  """
+  totalWinAmount_min: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`baseWinAmount_max` of type `Int`
+  """
+  baseWinAmount_max: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`betAmount_max` of type `Int`
+  """
+  betAmount_max: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpAttempts_max` of type `Int`
+  """
+  doubleUpAttempts_max: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`doubleUpWinAmount_max` of type `Int`
+  """
+  doubleUpWinAmount_max: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`payoutScale_max` of type `Float`
+  """
+  payoutScale_max: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`playedAt_max` of type `Timestamp`
+  """
+  playedAt_max: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`totalWinAmount_max` of type `Int`
+  """
+  totalWinAmount_max: OrderDirection
 }
 """
 ✨ Generated data input type for table 'User'. It includes all necessary fields for creating or upserting rows into table.
@@ -843,6 +3487,130 @@ input User_Data {
   ✨ `_expr` server value variant of `id` (✨ Generated from Field `User`.`id` of type `String!`)
   """
   id_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`agentId` of type `UUID`
+  """
+  agentId: UUID
+  """
+  ✨ `_expr` server value variant of `agentId` (✨ Generated from Field `User`.`agentId` of type `UUID`)
+  """
+  agentId_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`agent` of type `Agent`
+  """
+  agent: Agent_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `createdAt` (✨ Generated from Field `User`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `createdAt` (✨ Generated from Field `User`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `createdAt` (✨ Generated from Field `User`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`dateOfBirth` of type `Date`
+  """
+  dateOfBirth: Date
+  """
+  ✨ `_date` server value variant of `dateOfBirth` (✨ Generated from Field `User`.`dateOfBirth` of type `Date`)
+  """
+  dateOfBirth_date: Date_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_expr` server value variant of `dateOfBirth` (✨ Generated from Field `User`.`dateOfBirth` of type `Date`)
+  """
+  dateOfBirth_expr: Date_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `dateOfBirth` (✨ Generated from Field `User`.`dateOfBirth` of type `Date`)
+  """
+  dateOfBirth_update: [Date_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`displayName` of type `String`
+  """
+  displayName: String
+  """
+  ✨ `_expr` server value variant of `displayName` (✨ Generated from Field `User`.`displayName` of type `String`)
+  """
+  displayName_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`email` of type `String`
+  """
+  email: String
+  """
+  ✨ `_expr` server value variant of `email` (✨ Generated from Field `User`.`email` of type `String`)
+  """
+  email_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`fullName` of type `String`
+  """
+  fullName: String
+  """
+  ✨ `_expr` server value variant of `fullName` (✨ Generated from Field `User`.`fullName` of type `String`)
+  """
+  fullName_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`generatedId` of type `String`
+  """
+  generatedId: String
+  """
+  ✨ `_expr` server value variant of `generatedId` (✨ Generated from Field `User`.`generatedId` of type `String`)
+  """
+  generatedId_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`isVerified` of type `Boolean!`
+  """
+  isVerified: Boolean
+  """
+  ✨ `_expr` server value variant of `isVerified` (✨ Generated from Field `User`.`isVerified` of type `Boolean!`)
+  """
+  isVerified_expr: Boolean_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`lastSeenAt` of type `Timestamp!`
+  """
+  lastSeenAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `lastSeenAt` (✨ Generated from Field `User`.`lastSeenAt` of type `Timestamp!`)
+  """
+  lastSeenAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `lastSeenAt` (✨ Generated from Field `User`.`lastSeenAt` of type `Timestamp!`)
+  """
+  lastSeenAt_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `lastSeenAt` (✨ Generated from Field `User`.`lastSeenAt` of type `Timestamp!`)
+  """
+  lastSeenAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`phoneNumber` of type `String`
+  """
+  phoneNumber: String
+  """
+  ✨ `_expr` server value variant of `phoneNumber` (✨ Generated from Field `User`.`phoneNumber` of type `String`)
+  """
+  phoneNumber_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`photoUrl` of type `String`
+  """
+  photoUrl: String
+  """
+  ✨ `_expr` server value variant of `photoUrl` (✨ Generated from Field `User`.`photoUrl` of type `String`)
+  """
+  photoUrl_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `User`.`role` of type `String!`
+  """
+  role: String
+  """
+  ✨ `_expr` server value variant of `role` (✨ Generated from Field `User`.`role` of type `String!`)
+  """
+  role_expr: String_Expr @fdc_forbiddenInVariables
   """
   ✨ Generated from Field `User`.`username` of type `String!`
   """
@@ -873,17 +3641,81 @@ input User_Filter {
   """
   id: String_Filter
   """
+  ✨ Generated from Field `User`.`agentId` of type `UUID`
+  """
+  agentId: UUID_Filter
+  """
+  ✨ Generated from Field `User`.`agent` of type `Agent`
+  """
+  agent: Agent_Filter
+  """
+  ✨ Generated from Field `User`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `User`.`dateOfBirth` of type `Date`
+  """
+  dateOfBirth: Date_Filter
+  """
+  ✨ Generated from Field `User`.`displayName` of type `String`
+  """
+  displayName: String_Filter
+  """
+  ✨ Generated from Field `User`.`email` of type `String`
+  """
+  email: String_Filter
+  """
+  ✨ Generated from Field `User`.`fullName` of type `String`
+  """
+  fullName: String_Filter
+  """
+  ✨ Generated from Field `User`.`generatedId` of type `String`
+  """
+  generatedId: String_Filter
+  """
+  ✨ Generated from Field `User`.`isVerified` of type `Boolean!`
+  """
+  isVerified: Boolean_Filter
+  """
+  ✨ Generated from Field `User`.`lastSeenAt` of type `Timestamp!`
+  """
+  lastSeenAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `User`.`phoneNumber` of type `String`
+  """
+  phoneNumber: String_Filter
+  """
+  ✨ Generated from Field `User`.`photoUrl` of type `String`
+  """
+  photoUrl: String_Filter
+  """
+  ✨ Generated from Field `User`.`role` of type `String!`
+  """
+  role: String_Filter
+  """
   ✨ Generated from Field `User`.`username` of type `String!`
   """
   username: String_Filter
   """
-  ✨ Generated from Field `User`.`reviews_on_user` of type `[Review!]!`
+  ✨ Generated from Field `User`.`dailyRewards_on_user` of type `[DailyReward!]!`
   """
-  reviews_on_user: Review_ListFilter
+  dailyRewards_on_user: DailyReward_ListFilter
   """
-  ✨ Generated from Field `User`.`movies_via_Review` of type `[Movie!]!`
+  ✨ Generated from Field `User`.`deviceTokens_on_user` of type `[DeviceToken!]!`
   """
-  movies_via_Review: Movie_ListFilter
+  deviceTokens_on_user: DeviceToken_ListFilter
+  """
+  ✨ Generated from Field `User`.`machineSessions_on_user` of type `[MachineSession!]!`
+  """
+  machineSessions_on_user: MachineSession_ListFilter
+  """
+  ✨ Generated from Field `User`.`walletLedgers_on_user` of type `[WalletLedger!]!`
+  """
+  walletLedgers_on_user: WalletLedger_ListFilter
+  """
+  ✨ Generated from Field `User`.`wallet_on_user` of type `Wallet`
+  """
+  wallet_on_user: Wallet_Filter
 }
 """
 ✨ Generated first-row input type for table 'User'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
@@ -923,13 +3755,85 @@ input User_Having {
   """
   _count: Int_Filter
   """
+  ✨ Generated from Field `User`.`agentId_count` of type `Int!`
+  """
+  agentId_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`dateOfBirth_count` of type `Int!`
+  """
+  dateOfBirth_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`displayName_count` of type `Int!`
+  """
+  displayName_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`email_count` of type `Int!`
+  """
+  email_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`fullName_count` of type `Int!`
+  """
+  fullName_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`generatedId_count` of type `Int!`
+  """
+  generatedId_count: Int_Filter
+  """
   ✨ Generated from Field `User`.`id_count` of type `Int!`
   """
   id_count: Int_Filter
   """
+  ✨ Generated from Field `User`.`isVerified_count` of type `Int!`
+  """
+  isVerified_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`lastSeenAt_count` of type `Int!`
+  """
+  lastSeenAt_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`phoneNumber_count` of type `Int!`
+  """
+  phoneNumber_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`photoUrl_count` of type `Int!`
+  """
+  photoUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`role_count` of type `Int!`
+  """
+  role_count: Int_Filter
+  """
   ✨ Generated from Field `User`.`username_count` of type `Int!`
   """
   username_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `User`.`dateOfBirth_min` of type `Date`
+  """
+  dateOfBirth_min: Date_Filter
+  """
+  ✨ Generated from Field `User`.`lastSeenAt_min` of type `Timestamp`
+  """
+  lastSeenAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `User`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `User`.`dateOfBirth_max` of type `Date`
+  """
+  dateOfBirth_max: Date_Filter
+  """
+  ✨ Generated from Field `User`.`lastSeenAt_max` of type `Timestamp`
+  """
+  lastSeenAt_max: Timestamp_Filter
 }
 """
 ✨ Generated key input type for table 'User'. It represents the primary key fields used to uniquely identify a row in the table.
@@ -966,6 +3870,58 @@ input User_Order {
   """
   id: OrderDirection
   """
+  ✨ Generated from Field `User`.`agentId` of type `UUID`
+  """
+  agentId: OrderDirection
+  """
+  ✨ Generated from Field `User`.`agent` of type `Agent`
+  """
+  agent: Agent_Order
+  """
+  ✨ Generated from Field `User`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: OrderDirection
+  """
+  ✨ Generated from Field `User`.`dateOfBirth` of type `Date`
+  """
+  dateOfBirth: OrderDirection
+  """
+  ✨ Generated from Field `User`.`displayName` of type `String`
+  """
+  displayName: OrderDirection
+  """
+  ✨ Generated from Field `User`.`email` of type `String`
+  """
+  email: OrderDirection
+  """
+  ✨ Generated from Field `User`.`fullName` of type `String`
+  """
+  fullName: OrderDirection
+  """
+  ✨ Generated from Field `User`.`generatedId` of type `String`
+  """
+  generatedId: OrderDirection
+  """
+  ✨ Generated from Field `User`.`isVerified` of type `Boolean!`
+  """
+  isVerified: OrderDirection
+  """
+  ✨ Generated from Field `User`.`lastSeenAt` of type `Timestamp!`
+  """
+  lastSeenAt: OrderDirection
+  """
+  ✨ Generated from Field `User`.`phoneNumber` of type `String`
+  """
+  phoneNumber: OrderDirection
+  """
+  ✨ Generated from Field `User`.`photoUrl` of type `String`
+  """
+  photoUrl: OrderDirection
+  """
+  ✨ Generated from Field `User`.`role` of type `String!`
+  """
+  role: OrderDirection
+  """
   ✨ Generated from Field `User`.`username` of type `String!`
   """
   username: OrderDirection
@@ -974,11 +3930,1029 @@ input User_Order {
   """
   _count: OrderDirection
   """
+  ✨ Generated from Field `User`.`agentId_count` of type `Int!`
+  """
+  agentId_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`dateOfBirth_count` of type `Int!`
+  """
+  dateOfBirth_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`displayName_count` of type `Int!`
+  """
+  displayName_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`email_count` of type `Int!`
+  """
+  email_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`fullName_count` of type `Int!`
+  """
+  fullName_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`generatedId_count` of type `Int!`
+  """
+  generatedId_count: OrderDirection
+  """
   ✨ Generated from Field `User`.`id_count` of type `Int!`
   """
   id_count: OrderDirection
   """
+  ✨ Generated from Field `User`.`isVerified_count` of type `Int!`
+  """
+  isVerified_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`lastSeenAt_count` of type `Int!`
+  """
+  lastSeenAt_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`phoneNumber_count` of type `Int!`
+  """
+  phoneNumber_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`photoUrl_count` of type `Int!`
+  """
+  photoUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`role_count` of type `Int!`
+  """
+  role_count: OrderDirection
+  """
   ✨ Generated from Field `User`.`username_count` of type `Int!`
   """
   username_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: OrderDirection
+  """
+  ✨ Generated from Field `User`.`dateOfBirth_min` of type `Date`
+  """
+  dateOfBirth_min: OrderDirection
+  """
+  ✨ Generated from Field `User`.`lastSeenAt_min` of type `Timestamp`
+  """
+  lastSeenAt_min: OrderDirection
+  """
+  ✨ Generated from Field `User`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: OrderDirection
+  """
+  ✨ Generated from Field `User`.`dateOfBirth_max` of type `Date`
+  """
+  dateOfBirth_max: OrderDirection
+  """
+  ✨ Generated from Field `User`.`lastSeenAt_max` of type `Timestamp`
+  """
+  lastSeenAt_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Wallet'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Wallet_Data {
+  """
+  ✨ Generated from Field `Wallet`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Wallet`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Wallet`.`userId` of type `String!`
+  """
+  userId: String
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `Wallet`.`userId` of type `String!`)
+  """
+  userId_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Wallet`.`user` of type `User!`
+  """
+  user: User_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount` of type `Int!`
+  """
+  bonusRechargeCount: Int
+  """
+  ✨ `_expr` server value variant of `bonusRechargeCount` (✨ Generated from Field `Wallet`.`bonusRechargeCount` of type `Int!`)
+  """
+  bonusRechargeCount_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `bonusRechargeCount` (✨ Generated from Field `Wallet`.`bonusRechargeCount` of type `Int!`)
+  """
+  bonusRechargeCount_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance` of type `Int!`
+  """
+  creditBalance: Int
+  """
+  ✨ `_expr` server value variant of `creditBalance` (✨ Generated from Field `Wallet`.`creditBalance` of type `Int!`)
+  """
+  creditBalance_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `creditBalance` (✨ Generated from Field `Wallet`.`creditBalance` of type `Int!`)
+  """
+  creditBalance_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Wallet`.`lastBonusClaimedAt` of type `Timestamp`
+  """
+  lastBonusClaimedAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `lastBonusClaimedAt` (✨ Generated from Field `Wallet`.`lastBonusClaimedAt` of type `Timestamp`)
+  """
+  lastBonusClaimedAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `lastBonusClaimedAt` (✨ Generated from Field `Wallet`.`lastBonusClaimedAt` of type `Timestamp`)
+  """
+  lastBonusClaimedAt_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `lastBonusClaimedAt` (✨ Generated from Field `Wallet`.`lastBonusClaimedAt` of type `Timestamp`)
+  """
+  lastBonusClaimedAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Wallet`.`lastUpdatedAt` of type `Timestamp!`
+  """
+  lastUpdatedAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `lastUpdatedAt` (✨ Generated from Field `Wallet`.`lastUpdatedAt` of type `Timestamp!`)
+  """
+  lastUpdatedAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `lastUpdatedAt` (✨ Generated from Field `Wallet`.`lastUpdatedAt` of type `Timestamp!`)
+  """
+  lastUpdatedAt_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `lastUpdatedAt` (✨ Generated from Field `Wallet`.`lastUpdatedAt` of type `Timestamp!`)
+  """
+  lastUpdatedAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut` of type `Int!`
+  """
+  minimumOut: Int
+  """
+  ✨ `_expr` server value variant of `minimumOut` (✨ Generated from Field `Wallet`.`minimumOut` of type `Int!`)
+  """
+  minimumOut_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `minimumOut` (✨ Generated from Field `Wallet`.`minimumOut` of type `Int!`)
+  """
+  minimumOut_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Wallet`.`totalWins` of type `Int!`
+  """
+  totalWins: Int
+  """
+  ✨ `_expr` server value variant of `totalWins` (✨ Generated from Field `Wallet`.`totalWins` of type `Int!`)
+  """
+  totalWins_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `totalWins` (✨ Generated from Field `Wallet`.`totalWins` of type `Int!`)
+  """
+  totalWins_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance` of type `Int!`
+  """
+  walletBalance: Int
+  """
+  ✨ `_expr` server value variant of `walletBalance` (✨ Generated from Field `Wallet`.`walletBalance` of type `Int!`)
+  """
+  walletBalance_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `walletBalance` (✨ Generated from Field `Wallet`.`walletBalance` of type `Int!`)
+  """
+  walletBalance_update: [Int_Update!] @fdc_forbiddenInVariables
+}
+"""
+✨ Generated filter input type for table 'Wallet'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Wallet_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Wallet_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Wallet_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Wallet_Filter!]
+  """
+  ✨ Generated from Field `Wallet`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Wallet`.`userId` of type `String!`
+  """
+  userId: String_Filter
+  """
+  ✨ Generated from Field `Wallet`.`user` of type `User!`
+  """
+  user: User_Filter
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount` of type `Int!`
+  """
+  bonusRechargeCount: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance` of type `Int!`
+  """
+  creditBalance: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`lastBonusClaimedAt` of type `Timestamp`
+  """
+  lastBonusClaimedAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `Wallet`.`lastUpdatedAt` of type `Timestamp!`
+  """
+  lastUpdatedAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut` of type `Int!`
+  """
+  minimumOut: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`totalWins` of type `Int!`
+  """
+  totalWins: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance` of type `Int!`
+  """
+  walletBalance: Int_Filter
+}
+"""
+✨ Generated first-row input type for table 'Wallet'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Wallet_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Wallet_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Wallet_Filter
+}
+"""
+✨ Generated having input type for table 'Wallet'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Wallet_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Wallet_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Wallet_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Wallet_Having!]
+  """
+  ✨ Generated from Field `Wallet`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount_count` of type `Int!`
+  """
+  bonusRechargeCount_count: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance_count` of type `Int!`
+  """
+  creditBalance_count: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`lastBonusClaimedAt_count` of type `Int!`
+  """
+  lastBonusClaimedAt_count: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`lastUpdatedAt_count` of type `Int!`
+  """
+  lastUpdatedAt_count: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut_count` of type `Int!`
+  """
+  minimumOut_count: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`totalWins_count` of type `Int!`
+  """
+  totalWins_count: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`userId_count` of type `Int!`
+  """
+  userId_count: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance_count` of type `Int!`
+  """
+  walletBalance_count: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount_sum` of type `Int`
+  """
+  bonusRechargeCount_sum: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance_sum` of type `Int`
+  """
+  creditBalance_sum: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut_sum` of type `Int`
+  """
+  minimumOut_sum: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`totalWins_sum` of type `Int`
+  """
+  totalWins_sum: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance_sum` of type `Int`
+  """
+  walletBalance_sum: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount_avg` of type `Float`
+  """
+  bonusRechargeCount_avg: Float_Filter
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance_avg` of type `Float`
+  """
+  creditBalance_avg: Float_Filter
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut_avg` of type `Float`
+  """
+  minimumOut_avg: Float_Filter
+  """
+  ✨ Generated from Field `Wallet`.`totalWins_avg` of type `Float`
+  """
+  totalWins_avg: Float_Filter
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance_avg` of type `Float`
+  """
+  walletBalance_avg: Float_Filter
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount_min` of type `Int`
+  """
+  bonusRechargeCount_min: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance_min` of type `Int`
+  """
+  creditBalance_min: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`lastBonusClaimedAt_min` of type `Timestamp`
+  """
+  lastBonusClaimedAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Wallet`.`lastUpdatedAt_min` of type `Timestamp`
+  """
+  lastUpdatedAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut_min` of type `Int`
+  """
+  minimumOut_min: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`totalWins_min` of type `Int`
+  """
+  totalWins_min: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance_min` of type `Int`
+  """
+  walletBalance_min: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount_max` of type `Int`
+  """
+  bonusRechargeCount_max: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance_max` of type `Int`
+  """
+  creditBalance_max: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`lastBonusClaimedAt_max` of type `Timestamp`
+  """
+  lastBonusClaimedAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `Wallet`.`lastUpdatedAt_max` of type `Timestamp`
+  """
+  lastUpdatedAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut_max` of type `Int`
+  """
+  minimumOut_max: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`totalWins_max` of type `Int`
+  """
+  totalWins_max: Int_Filter
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance_max` of type `Int`
+  """
+  walletBalance_max: Int_Filter
+}
+"""
+✨ Generated key input type for table 'Wallet'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Wallet_Key {
+  """
+  ✨ Generated from Field `Wallet`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Wallet`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated list filter input type for table 'Wallet'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Wallet_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Wallet_Filter
+}
+"""
+✨ Generated order input type for table 'Wallet'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Wallet_Order {
+  """
+  ✨ Generated from Field `Wallet`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`userId` of type `String!`
+  """
+  userId: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`user` of type `User!`
+  """
+  user: User_Order
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount` of type `Int!`
+  """
+  bonusRechargeCount: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance` of type `Int!`
+  """
+  creditBalance: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`lastBonusClaimedAt` of type `Timestamp`
+  """
+  lastBonusClaimedAt: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`lastUpdatedAt` of type `Timestamp!`
+  """
+  lastUpdatedAt: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut` of type `Int!`
+  """
+  minimumOut: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`totalWins` of type `Int!`
+  """
+  totalWins: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance` of type `Int!`
+  """
+  walletBalance: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount_count` of type `Int!`
+  """
+  bonusRechargeCount_count: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance_count` of type `Int!`
+  """
+  creditBalance_count: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`lastBonusClaimedAt_count` of type `Int!`
+  """
+  lastBonusClaimedAt_count: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`lastUpdatedAt_count` of type `Int!`
+  """
+  lastUpdatedAt_count: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut_count` of type `Int!`
+  """
+  minimumOut_count: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`totalWins_count` of type `Int!`
+  """
+  totalWins_count: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`userId_count` of type `Int!`
+  """
+  userId_count: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance_count` of type `Int!`
+  """
+  walletBalance_count: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount_sum` of type `Int`
+  """
+  bonusRechargeCount_sum: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance_sum` of type `Int`
+  """
+  creditBalance_sum: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut_sum` of type `Int`
+  """
+  minimumOut_sum: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`totalWins_sum` of type `Int`
+  """
+  totalWins_sum: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance_sum` of type `Int`
+  """
+  walletBalance_sum: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount_avg` of type `Float`
+  """
+  bonusRechargeCount_avg: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance_avg` of type `Float`
+  """
+  creditBalance_avg: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut_avg` of type `Float`
+  """
+  minimumOut_avg: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`totalWins_avg` of type `Float`
+  """
+  totalWins_avg: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance_avg` of type `Float`
+  """
+  walletBalance_avg: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount_min` of type `Int`
+  """
+  bonusRechargeCount_min: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance_min` of type `Int`
+  """
+  creditBalance_min: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`lastBonusClaimedAt_min` of type `Timestamp`
+  """
+  lastBonusClaimedAt_min: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`lastUpdatedAt_min` of type `Timestamp`
+  """
+  lastUpdatedAt_min: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut_min` of type `Int`
+  """
+  minimumOut_min: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`totalWins_min` of type `Int`
+  """
+  totalWins_min: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance_min` of type `Int`
+  """
+  walletBalance_min: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`bonusRechargeCount_max` of type `Int`
+  """
+  bonusRechargeCount_max: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`creditBalance_max` of type `Int`
+  """
+  creditBalance_max: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`lastBonusClaimedAt_max` of type `Timestamp`
+  """
+  lastBonusClaimedAt_max: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`lastUpdatedAt_max` of type `Timestamp`
+  """
+  lastUpdatedAt_max: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`minimumOut_max` of type `Int`
+  """
+  minimumOut_max: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`totalWins_max` of type `Int`
+  """
+  totalWins_max: OrderDirection
+  """
+  ✨ Generated from Field `Wallet`.`walletBalance_max` of type `Int`
+  """
+  walletBalance_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'WalletLedger'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input WalletLedger_Data {
+  """
+  ✨ Generated from Field `WalletLedger`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `WalletLedger`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `WalletLedger`.`userId` of type `String!`
+  """
+  userId: String
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `WalletLedger`.`userId` of type `String!`)
+  """
+  userId_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `WalletLedger`.`user` of type `User!`
+  """
+  user: User_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `WalletLedger`.`amount` of type `Int!`
+  """
+  amount: Int
+  """
+  ✨ `_expr` server value variant of `amount` (✨ Generated from Field `WalletLedger`.`amount` of type `Int!`)
+  """
+  amount_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `amount` (✨ Generated from Field `WalletLedger`.`amount` of type `Int!`)
+  """
+  amount_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter` of type `Int!`
+  """
+  balanceAfter: Int
+  """
+  ✨ `_expr` server value variant of `balanceAfter` (✨ Generated from Field `WalletLedger`.`balanceAfter` of type `Int!`)
+  """
+  balanceAfter_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `balanceAfter` (✨ Generated from Field `WalletLedger`.`balanceAfter` of type `Int!`)
+  """
+  balanceAfter_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `WalletLedger`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `createdAt` (✨ Generated from Field `WalletLedger`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_expr: Timestamp_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_time` server value variant of `createdAt` (✨ Generated from Field `WalletLedger`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_time: Timestamp_Relative @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `createdAt` (✨ Generated from Field `WalletLedger`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `WalletLedger`.`notes` of type `String`
+  """
+  notes: String
+  """
+  ✨ `_expr` server value variant of `notes` (✨ Generated from Field `WalletLedger`.`notes` of type `String`)
+  """
+  notes_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `WalletLedger`.`referenceId` of type `String`
+  """
+  referenceId: String
+  """
+  ✨ `_expr` server value variant of `referenceId` (✨ Generated from Field `WalletLedger`.`referenceId` of type `String`)
+  """
+  referenceId_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `WalletLedger`.`transactionType` of type `String!`
+  """
+  transactionType: String
+  """
+  ✨ `_expr` server value variant of `transactionType` (✨ Generated from Field `WalletLedger`.`transactionType` of type `String!`)
+  """
+  transactionType_expr: String_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated filter input type for table 'WalletLedger'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input WalletLedger_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [WalletLedger_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: WalletLedger_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [WalletLedger_Filter!]
+  """
+  ✨ Generated from Field `WalletLedger`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`userId` of type `String!`
+  """
+  userId: String_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`user` of type `User!`
+  """
+  user: User_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`amount` of type `Int!`
+  """
+  amount: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter` of type `Int!`
+  """
+  balanceAfter: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`notes` of type `String`
+  """
+  notes: String_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`referenceId` of type `String`
+  """
+  referenceId: String_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`transactionType` of type `String!`
+  """
+  transactionType: String_Filter
+}
+"""
+✨ Generated first-row input type for table 'WalletLedger'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input WalletLedger_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [WalletLedger_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: WalletLedger_Filter
+}
+"""
+✨ Generated having input type for table 'WalletLedger'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input WalletLedger_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [WalletLedger_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: WalletLedger_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [WalletLedger_Having!]
+  """
+  ✨ Generated from Field `WalletLedger`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`amount_count` of type `Int!`
+  """
+  amount_count: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter_count` of type `Int!`
+  """
+  balanceAfter_count: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`notes_count` of type `Int!`
+  """
+  notes_count: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`referenceId_count` of type `Int!`
+  """
+  referenceId_count: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`transactionType_count` of type `Int!`
+  """
+  transactionType_count: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`userId_count` of type `Int!`
+  """
+  userId_count: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`amount_sum` of type `Int`
+  """
+  amount_sum: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter_sum` of type `Int`
+  """
+  balanceAfter_sum: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`amount_avg` of type `Float`
+  """
+  amount_avg: Float_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter_avg` of type `Float`
+  """
+  balanceAfter_avg: Float_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`amount_min` of type `Int`
+  """
+  amount_min: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter_min` of type `Int`
+  """
+  balanceAfter_min: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`amount_max` of type `Int`
+  """
+  amount_max: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter_max` of type `Int`
+  """
+  balanceAfter_max: Int_Filter
+  """
+  ✨ Generated from Field `WalletLedger`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'WalletLedger'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input WalletLedger_Key {
+  """
+  ✨ Generated from Field `WalletLedger`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `WalletLedger`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr @fdc_forbiddenInVariables
+}
+"""
+✨ Generated list filter input type for table 'WalletLedger'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input WalletLedger_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: WalletLedger_Filter
+}
+"""
+✨ Generated order input type for table 'WalletLedger'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input WalletLedger_Order {
+  """
+  ✨ Generated from Field `WalletLedger`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`userId` of type `String!`
+  """
+  userId: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`user` of type `User!`
+  """
+  user: User_Order
+  """
+  ✨ Generated from Field `WalletLedger`.`amount` of type `Int!`
+  """
+  amount: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter` of type `Int!`
+  """
+  balanceAfter: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`notes` of type `String`
+  """
+  notes: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`referenceId` of type `String`
+  """
+  referenceId: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`transactionType` of type `String!`
+  """
+  transactionType: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`amount_count` of type `Int!`
+  """
+  amount_count: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter_count` of type `Int!`
+  """
+  balanceAfter_count: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`notes_count` of type `Int!`
+  """
+  notes_count: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`referenceId_count` of type `Int!`
+  """
+  referenceId_count: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`transactionType_count` of type `Int!`
+  """
+  transactionType_count: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`userId_count` of type `Int!`
+  """
+  userId_count: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`amount_sum` of type `Int`
+  """
+  amount_sum: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter_sum` of type `Int`
+  """
+  balanceAfter_sum: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`amount_avg` of type `Float`
+  """
+  amount_avg: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter_avg` of type `Float`
+  """
+  balanceAfter_avg: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`amount_min` of type `Int`
+  """
+  amount_min: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter_min` of type `Int`
+  """
+  balanceAfter_min: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`amount_max` of type `Int`
+  """
+  amount_max: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`balanceAfter_max` of type `Int`
+  """
+  balanceAfter_max: OrderDirection
+  """
+  ✨ Generated from Field `WalletLedger`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: OrderDirection
 }

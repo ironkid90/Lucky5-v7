@@ -1,17 +1,17 @@
-extend type Movie {
+extend type Agent {
   """
-  ✨ List `Review` objects in a one-to-many relationship (where `Review`.`movie` is this object).
+  ✨ List `User` objects in a one-to-many relationship (where `User`.`agent` is this object).
   """
-  reviews_on_movie(
+  users_on_agent(
     """
     Filter condition to narrow down the query results.
     """
-    where: Review_Filter
+    where: User_Filter
 
     """
     Order the query results by specific fields.
     """
-    orderBy: [Review_Order!]
+    orderBy: [User_Order!]
 
     """
     Number of rows to skip before starting to return the results.
@@ -31,313 +31,1485 @@ extend type Movie {
     """
     Filter condition to apply to the groups of aggregate queries.
     """
-    having: Review_Having
-  ): [Review!]! @fdc_generated(from: "Review.movie", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
-  """
-  ✨ List `MovieMetadata` objects in a one-to-one relationship (where `MovieMetadata`.`movie` is this object).
-  """
-  movieMetadata_on_movie: MovieMetadata @fdc_generated(from: "MovieMetadata.movie", purpose: QUERY_SINGLE_ONE_TO_ONE)
-  """
-  ✨ List `User` objects using `Review` as the join table (a `Review` object exists where its `movie` is this and its `user` is that).
-  """
-  users_via_Review(
-    """
-    Filter condition to narrow down the query results.
-    """
-    where: Review_Filter
-
-    """
-    Order the query results by specific fields.
-    """
-    orderBy: [Review_Order!]
-
-    """
-    Number of rows to skip before starting to return the results.
-    """
-    offset: Int
-
-    """
-    Maximum number of rows to return (defaults to 100 rows).
-    """
-    limit: Int = 100
-
-    """
-    Set to true to return distinct results.
-    """
-    distinct: Boolean = false
-
-    """
-    Filter condition to apply to the groups of aggregate queries.
-    """
-    having: Review_Having
-  ): [User!]! @fdc_generated(from: "Review", purpose: QUERY_MULTIPLE_MANY_TO_MANY)
+    having: User_Having
+  ): [User!]! @fdc_generated(from: "User.agent", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
   """
   Implicit metadata field that cannot be written. It provides extra information about query results.
   """
-  _metadata: _Metadata @fdc_generated(from: "Movie", purpose: METADATA_FIELD)
+  _metadata: _Metadata @fdc_generated(from: "Agent", purpose: METADATA_FIELD)
   """
-  ✨ Count the number of rows in the `Movie` table.
+  ✨ Count the number of rows in the `Agent` table.
   """
-  _count: Int! @fdc_generated(from: "Movie.", purpose: QUERY_COUNT)
+  _count: Int! @fdc_generated(from: "Agent.", purpose: QUERY_COUNT)
   """
-  ✨ Count the number of rows in the `Movie` table where the `genre` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  ✨ Count the number of rows in the `Agent` table where the `code` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
-  genre_count(
+  code_count(
     """
     Set to true to count the number of distinct values.
     """
     distinct: Boolean = false
-  ): Int! @fdc_generated(from: "Movie.genre", purpose: QUERY_COUNT)
+  ): Int! @fdc_generated(from: "Agent.code", purpose: QUERY_COUNT)
   """
-  ✨ Count the number of rows in the `Movie` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  ✨ Count the number of rows in the `Agent` table where the `createdAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  createdAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Agent.createdAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Agent` table where the `creditPool` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  creditPool_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Agent.creditPool", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Agent` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
   id_count(
     """
     Set to true to count the number of distinct values.
     """
     distinct: Boolean = false
-  ): Int! @fdc_generated(from: "Movie.id", purpose: QUERY_COUNT)
+  ): Int! @fdc_generated(from: "Agent.id", purpose: QUERY_COUNT)
   """
-  ✨ Count the number of rows in the `Movie` table where the `imageUrl` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  ✨ Count the number of rows in the `Agent` table where the `isActive` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
-  imageUrl_count(
+  isActive_count(
     """
     Set to true to count the number of distinct values.
     """
     distinct: Boolean = false
-  ): Int! @fdc_generated(from: "Movie.imageUrl", purpose: QUERY_COUNT)
+  ): Int! @fdc_generated(from: "Agent.isActive", purpose: QUERY_COUNT)
   """
-  ✨ Count the number of rows in the `Movie` table where the `title` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  ✨ Count the number of rows in the `Agent` table where the `name` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
-  title_count(
+  name_count(
     """
     Set to true to count the number of distinct values.
     """
     distinct: Boolean = false
-  ): Int! @fdc_generated(from: "Movie.title", purpose: QUERY_COUNT)
+  ): Int! @fdc_generated(from: "Agent.name", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Agent` table where the `phoneNumber` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  phoneNumber_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Agent.phoneNumber", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `creditPool` field in the `Agent` table.
+  """
+  creditPool_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Agent.creditPool", purpose: QUERY_SUM)
+  """
+  ✨ Average the `creditPool` field in the `Agent` table.
+  """
+  creditPool_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Agent.creditPool", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `createdAt` field in the `Agent` table.
+  """
+  createdAt_min: Timestamp @fdc_generated(from: "Agent.createdAt", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `creditPool` field in the `Agent` table.
+  """
+  creditPool_min: Int @fdc_generated(from: "Agent.creditPool", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `createdAt` field in the `Agent` table.
+  """
+  createdAt_max: Timestamp @fdc_generated(from: "Agent.createdAt", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `creditPool` field in the `Agent` table.
+  """
+  creditPool_max: Int @fdc_generated(from: "Agent.creditPool", purpose: QUERY_MAX)
   """
   A generated field that is used for caching results in SDKs.
   """
-  _id: ID! @fdc_generated(from: "Movie.id", purpose: ENTITY_ID)
+  _id: ID! @fdc_generated(from: "Agent.id", purpose: ENTITY_ID)
 }
-extend type MovieMetadata {
+extend type DailyReward {
   """
   Implicit metadata field that cannot be written. It provides extra information about query results.
   """
-  _metadata: _Metadata @fdc_generated(from: "MovieMetadata", purpose: METADATA_FIELD)
+  _metadata: _Metadata @fdc_generated(from: "DailyReward", purpose: METADATA_FIELD)
   """
-  ✨ Count the number of rows in the `MovieMetadata` table.
+  ✨ Count the number of rows in the `DailyReward` table.
   """
-  _count: Int! @fdc_generated(from: "MovieMetadata.", purpose: QUERY_COUNT)
+  _count: Int! @fdc_generated(from: "DailyReward.", purpose: QUERY_COUNT)
   """
-  ✨ Count the number of rows in the `MovieMetadata` table where the `description` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  ✨ Count the number of rows in the `DailyReward` table where the `bonusAmount` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
-  description_count(
+  bonusAmount_count(
     """
     Set to true to count the number of distinct values.
     """
     distinct: Boolean = false
-  ): Int! @fdc_generated(from: "MovieMetadata.description", purpose: QUERY_COUNT)
+  ): Int! @fdc_generated(from: "DailyReward.bonusAmount", purpose: QUERY_COUNT)
   """
-  ✨ Count the number of rows in the `MovieMetadata` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  ✨ Count the number of rows in the `DailyReward` table where the `claimedAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  claimedAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DailyReward.claimedAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DailyReward` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
   id_count(
     """
     Set to true to count the number of distinct values.
     """
     distinct: Boolean = false
-  ): Int! @fdc_generated(from: "MovieMetadata.id", purpose: QUERY_COUNT)
+  ): Int! @fdc_generated(from: "DailyReward.id", purpose: QUERY_COUNT)
   """
-  ✨ Count the number of rows in the `MovieMetadata` table where the `movieId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  ✨ Count the number of rows in the `DailyReward` table where the `rewardDate` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
-  movieId_count(
+  rewardDate_count(
     """
     Set to true to count the number of distinct values.
     """
     distinct: Boolean = false
-  ): Int! @fdc_generated(from: "MovieMetadata.movieId", purpose: QUERY_COUNT)
+  ): Int! @fdc_generated(from: "DailyReward.rewardDate", purpose: QUERY_COUNT)
   """
-  ✨ Count the number of rows in the `MovieMetadata` table where the `rating` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
-  """
-  rating_count(
-    """
-    Set to true to count the number of distinct values.
-    """
-    distinct: Boolean = false
-  ): Int! @fdc_generated(from: "MovieMetadata.rating", purpose: QUERY_COUNT)
-  """
-  ✨ Count the number of rows in the `MovieMetadata` table where the `releaseYear` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
-  """
-  releaseYear_count(
-    """
-    Set to true to count the number of distinct values.
-    """
-    distinct: Boolean = false
-  ): Int! @fdc_generated(from: "MovieMetadata.releaseYear", purpose: QUERY_COUNT)
-  """
-  ✨ Sum the `rating` field in the `MovieMetadata` table.
-  """
-  rating_sum(
-    """
-    Set to true to sum the distinct values.
-    """
-    distinct: Boolean = false
-  ): Float @fdc_generated(from: "MovieMetadata.rating", purpose: QUERY_SUM)
-  """
-  ✨ Sum the `releaseYear` field in the `MovieMetadata` table.
-  """
-  releaseYear_sum(
-    """
-    Set to true to sum the distinct values.
-    """
-    distinct: Boolean = false
-  ): Int @fdc_generated(from: "MovieMetadata.releaseYear", purpose: QUERY_SUM)
-  """
-  ✨ Average the `rating` field in the `MovieMetadata` table.
-  """
-  rating_avg(
-    """
-    Set to true to average the distinct values.
-    """
-    distinct: Boolean = false
-  ): Float @fdc_generated(from: "MovieMetadata.rating", purpose: QUERY_AVG)
-  """
-  ✨ Average the `releaseYear` field in the `MovieMetadata` table.
-  """
-  releaseYear_avg(
-    """
-    Set to true to average the distinct values.
-    """
-    distinct: Boolean = false
-  ): Float @fdc_generated(from: "MovieMetadata.releaseYear", purpose: QUERY_AVG)
-  """
-  ✨ Minimum of the `rating` field in the `MovieMetadata` table.
-  """
-  rating_min: Float @fdc_generated(from: "MovieMetadata.rating", purpose: QUERY_MIN)
-  """
-  ✨ Minimum of the `releaseYear` field in the `MovieMetadata` table.
-  """
-  releaseYear_min: Int @fdc_generated(from: "MovieMetadata.releaseYear", purpose: QUERY_MIN)
-  """
-  ✨ Maximum of the `rating` field in the `MovieMetadata` table.
-  """
-  rating_max: Float @fdc_generated(from: "MovieMetadata.rating", purpose: QUERY_MAX)
-  """
-  ✨ Maximum of the `releaseYear` field in the `MovieMetadata` table.
-  """
-  releaseYear_max: Int @fdc_generated(from: "MovieMetadata.releaseYear", purpose: QUERY_MAX)
-  """
-  A generated field that is used for caching results in SDKs.
-  """
-  _id: ID! @fdc_generated(from: "MovieMetadata.id", purpose: ENTITY_ID)
-}
-extend type Review {
-  """
-  Implicit metadata field that cannot be written. It provides extra information about query results.
-  """
-  _metadata: _Metadata @fdc_generated(from: "Review", purpose: METADATA_FIELD)
-  """
-  ✨ Count the number of rows in the `Review` table.
-  """
-  _count: Int! @fdc_generated(from: "Review.", purpose: QUERY_COUNT)
-  """
-  ✨ Count the number of rows in the `Review` table where the `movieId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
-  """
-  movieId_count(
-    """
-    Set to true to count the number of distinct values.
-    """
-    distinct: Boolean = false
-  ): Int! @fdc_generated(from: "Review.movieId", purpose: QUERY_COUNT)
-  """
-  ✨ Count the number of rows in the `Review` table where the `rating` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
-  """
-  rating_count(
-    """
-    Set to true to count the number of distinct values.
-    """
-    distinct: Boolean = false
-  ): Int! @fdc_generated(from: "Review.rating", purpose: QUERY_COUNT)
-  """
-  ✨ Count the number of rows in the `Review` table where the `reviewDate` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
-  """
-  reviewDate_count(
-    """
-    Set to true to count the number of distinct values.
-    """
-    distinct: Boolean = false
-  ): Int! @fdc_generated(from: "Review.reviewDate", purpose: QUERY_COUNT)
-  """
-  ✨ Count the number of rows in the `Review` table where the `reviewText` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
-  """
-  reviewText_count(
-    """
-    Set to true to count the number of distinct values.
-    """
-    distinct: Boolean = false
-  ): Int! @fdc_generated(from: "Review.reviewText", purpose: QUERY_COUNT)
-  """
-  ✨ Count the number of rows in the `Review` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  ✨ Count the number of rows in the `DailyReward` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
   userId_count(
     """
     Set to true to count the number of distinct values.
     """
     distinct: Boolean = false
-  ): Int! @fdc_generated(from: "Review.userId", purpose: QUERY_COUNT)
+  ): Int! @fdc_generated(from: "DailyReward.userId", purpose: QUERY_COUNT)
   """
-  ✨ Sum the `rating` field in the `Review` table.
+  ✨ Sum the `bonusAmount` field in the `DailyReward` table.
   """
-  rating_sum(
+  bonusAmount_sum(
     """
     Set to true to sum the distinct values.
     """
     distinct: Boolean = false
-  ): Int @fdc_generated(from: "Review.rating", purpose: QUERY_SUM)
+  ): Int @fdc_generated(from: "DailyReward.bonusAmount", purpose: QUERY_SUM)
   """
-  ✨ Average the `rating` field in the `Review` table.
+  ✨ Average the `bonusAmount` field in the `DailyReward` table.
   """
-  rating_avg(
+  bonusAmount_avg(
     """
     Set to true to average the distinct values.
     """
     distinct: Boolean = false
-  ): Float @fdc_generated(from: "Review.rating", purpose: QUERY_AVG)
+  ): Float @fdc_generated(from: "DailyReward.bonusAmount", purpose: QUERY_AVG)
   """
-  ✨ Minimum of the `rating` field in the `Review` table.
+  ✨ Minimum of the `bonusAmount` field in the `DailyReward` table.
   """
-  rating_min: Int @fdc_generated(from: "Review.rating", purpose: QUERY_MIN)
+  bonusAmount_min: Int @fdc_generated(from: "DailyReward.bonusAmount", purpose: QUERY_MIN)
   """
-  ✨ Minimum of the `reviewDate` field in the `Review` table.
+  ✨ Minimum of the `claimedAt` field in the `DailyReward` table.
   """
-  reviewDate_min: Date @fdc_generated(from: "Review.reviewDate", purpose: QUERY_MIN)
+  claimedAt_min: Timestamp @fdc_generated(from: "DailyReward.claimedAt", purpose: QUERY_MIN)
   """
-  ✨ Maximum of the `rating` field in the `Review` table.
+  ✨ Minimum of the `rewardDate` field in the `DailyReward` table.
   """
-  rating_max: Int @fdc_generated(from: "Review.rating", purpose: QUERY_MAX)
+  rewardDate_min: Date @fdc_generated(from: "DailyReward.rewardDate", purpose: QUERY_MIN)
   """
-  ✨ Maximum of the `reviewDate` field in the `Review` table.
+  ✨ Maximum of the `bonusAmount` field in the `DailyReward` table.
   """
-  reviewDate_max: Date @fdc_generated(from: "Review.reviewDate", purpose: QUERY_MAX)
+  bonusAmount_max: Int @fdc_generated(from: "DailyReward.bonusAmount", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `claimedAt` field in the `DailyReward` table.
+  """
+  claimedAt_max: Timestamp @fdc_generated(from: "DailyReward.claimedAt", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `rewardDate` field in the `DailyReward` table.
+  """
+  rewardDate_max: Date @fdc_generated(from: "DailyReward.rewardDate", purpose: QUERY_MAX)
   """
   A generated field that is used for caching results in SDKs.
   """
-  _id: ID! @fdc_generated(from: "Review.movieId,userId", purpose: ENTITY_ID)
+  _id: ID! @fdc_generated(from: "DailyReward.id", purpose: ENTITY_ID)
+}
+extend type DeviceToken {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "DeviceToken", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `DeviceToken` table.
+  """
+  _count: Int! @fdc_generated(from: "DeviceToken.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceToken` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceToken.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceToken` table where the `platform` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  platform_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceToken.platform", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceToken` table where the `registeredAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  registeredAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceToken.registeredAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceToken` table where the `token` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  token_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceToken.token", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceToken` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  userId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceToken.userId", purpose: QUERY_COUNT)
+  """
+  ✨ Minimum of the `registeredAt` field in the `DeviceToken` table.
+  """
+  registeredAt_min: Timestamp @fdc_generated(from: "DeviceToken.registeredAt", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `registeredAt` field in the `DeviceToken` table.
+  """
+  registeredAt_max: Timestamp @fdc_generated(from: "DeviceToken.registeredAt", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "DeviceToken.id", purpose: ENTITY_ID)
+}
+extend type Machine {
+  """
+  ✨ List `MachineLedger` objects in a one-to-many relationship (where `MachineLedger`.`machine` is this object).
+  """
+  machineLedgers_on_machine(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MachineLedger_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MachineLedger_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MachineLedger_Having
+  ): [MachineLedger!]! @fdc_generated(from: "MachineLedger.machine", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `MachineSession` objects in a one-to-many relationship (where `MachineSession`.`machine` is this object).
+  """
+  machineSessions_on_machine(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MachineSession_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MachineSession_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MachineSession_Having
+  ): [MachineSession!]! @fdc_generated(from: "MachineSession.machine", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "Machine", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `Machine` table.
+  """
+  _count: Int! @fdc_generated(from: "Machine.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Machine` table where the `createdAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  createdAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Machine.createdAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Machine` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Machine.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Machine` table where the `isOpen` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  isOpen_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Machine.isOpen", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Machine` table where the `kent` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  kent_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Machine.kent", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Machine` table where the `maxBet` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  maxBet_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Machine.maxBet", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Machine` table where the `minBet` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  minBet_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Machine.minBet", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Machine` table where the `name` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  name_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Machine.name", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Machine` table where the `serial` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  serial_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Machine.serial", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Machine` table where the `serie` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  serie_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Machine.serie", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `maxBet` field in the `Machine` table.
+  """
+  maxBet_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Machine.maxBet", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `minBet` field in the `Machine` table.
+  """
+  minBet_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Machine.minBet", purpose: QUERY_SUM)
+  """
+  ✨ Average the `maxBet` field in the `Machine` table.
+  """
+  maxBet_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Machine.maxBet", purpose: QUERY_AVG)
+  """
+  ✨ Average the `minBet` field in the `Machine` table.
+  """
+  minBet_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Machine.minBet", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `createdAt` field in the `Machine` table.
+  """
+  createdAt_min: Timestamp @fdc_generated(from: "Machine.createdAt", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `maxBet` field in the `Machine` table.
+  """
+  maxBet_min: Int @fdc_generated(from: "Machine.maxBet", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `minBet` field in the `Machine` table.
+  """
+  minBet_min: Int @fdc_generated(from: "Machine.minBet", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `createdAt` field in the `Machine` table.
+  """
+  createdAt_max: Timestamp @fdc_generated(from: "Machine.createdAt", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `maxBet` field in the `Machine` table.
+  """
+  maxBet_max: Int @fdc_generated(from: "Machine.maxBet", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `minBet` field in the `Machine` table.
+  """
+  minBet_max: Int @fdc_generated(from: "Machine.minBet", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "Machine.id", purpose: ENTITY_ID)
+}
+extend type MachineLedger {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "MachineLedger", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table.
+  """
+  _count: Int! @fdc_generated(from: "MachineLedger.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `capitalIn` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  capitalIn_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.capitalIn", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `capitalOut` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  capitalOut_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.capitalOut", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `consecutiveLosses` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  consecutiveLosses_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.consecutiveLosses", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `jackpotFourOfAKindA` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  jackpotFourOfAKindA_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.jackpotFourOfAKindA", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `jackpotFourOfAKindB` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  jackpotFourOfAKindB_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.jackpotFourOfAKindB", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `jackpotFullHouse` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  jackpotFullHouse_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.jackpotFullHouse", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `jackpotStraightFlush` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  jackpotStraightFlush_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.jackpotStraightFlush", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `lastDistributionMode` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  lastDistributionMode_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.lastDistributionMode", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `lastWinChannel` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  lastWinChannel_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.lastWinChannel", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `machineId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  machineId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.machineId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `roundCount` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  roundCount_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.roundCount", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `roundsSinceLucky5Hit` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  roundsSinceLucky5Hit_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.roundsSinceLucky5Hit", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `snapshotAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  snapshotAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.snapshotAt", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `capitalIn` field in the `MachineLedger` table.
+  """
+  capitalIn_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.capitalIn", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `capitalOut` field in the `MachineLedger` table.
+  """
+  capitalOut_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.capitalOut", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `consecutiveLosses` field in the `MachineLedger` table.
+  """
+  consecutiveLosses_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.consecutiveLosses", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `jackpotFourOfAKindA` field in the `MachineLedger` table.
+  """
+  jackpotFourOfAKindA_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.jackpotFourOfAKindA", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `jackpotFourOfAKindB` field in the `MachineLedger` table.
+  """
+  jackpotFourOfAKindB_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.jackpotFourOfAKindB", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `jackpotFullHouse` field in the `MachineLedger` table.
+  """
+  jackpotFullHouse_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.jackpotFullHouse", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `jackpotStraightFlush` field in the `MachineLedger` table.
+  """
+  jackpotStraightFlush_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.jackpotStraightFlush", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `roundCount` field in the `MachineLedger` table.
+  """
+  roundCount_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.roundCount", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `roundsSinceLucky5Hit` field in the `MachineLedger` table.
+  """
+  roundsSinceLucky5Hit_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.roundsSinceLucky5Hit", purpose: QUERY_SUM)
+  """
+  ✨ Average the `capitalIn` field in the `MachineLedger` table.
+  """
+  capitalIn_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.capitalIn", purpose: QUERY_AVG)
+  """
+  ✨ Average the `capitalOut` field in the `MachineLedger` table.
+  """
+  capitalOut_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.capitalOut", purpose: QUERY_AVG)
+  """
+  ✨ Average the `consecutiveLosses` field in the `MachineLedger` table.
+  """
+  consecutiveLosses_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.consecutiveLosses", purpose: QUERY_AVG)
+  """
+  ✨ Average the `jackpotFourOfAKindA` field in the `MachineLedger` table.
+  """
+  jackpotFourOfAKindA_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.jackpotFourOfAKindA", purpose: QUERY_AVG)
+  """
+  ✨ Average the `jackpotFourOfAKindB` field in the `MachineLedger` table.
+  """
+  jackpotFourOfAKindB_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.jackpotFourOfAKindB", purpose: QUERY_AVG)
+  """
+  ✨ Average the `jackpotFullHouse` field in the `MachineLedger` table.
+  """
+  jackpotFullHouse_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.jackpotFullHouse", purpose: QUERY_AVG)
+  """
+  ✨ Average the `jackpotStraightFlush` field in the `MachineLedger` table.
+  """
+  jackpotStraightFlush_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.jackpotStraightFlush", purpose: QUERY_AVG)
+  """
+  ✨ Average the `roundCount` field in the `MachineLedger` table.
+  """
+  roundCount_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.roundCount", purpose: QUERY_AVG)
+  """
+  ✨ Average the `roundsSinceLucky5Hit` field in the `MachineLedger` table.
+  """
+  roundsSinceLucky5Hit_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.roundsSinceLucky5Hit", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `capitalIn` field in the `MachineLedger` table.
+  """
+  capitalIn_min: Int @fdc_generated(from: "MachineLedger.capitalIn", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `capitalOut` field in the `MachineLedger` table.
+  """
+  capitalOut_min: Int @fdc_generated(from: "MachineLedger.capitalOut", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `consecutiveLosses` field in the `MachineLedger` table.
+  """
+  consecutiveLosses_min: Int @fdc_generated(from: "MachineLedger.consecutiveLosses", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `jackpotFourOfAKindA` field in the `MachineLedger` table.
+  """
+  jackpotFourOfAKindA_min: Int @fdc_generated(from: "MachineLedger.jackpotFourOfAKindA", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `jackpotFourOfAKindB` field in the `MachineLedger` table.
+  """
+  jackpotFourOfAKindB_min: Int @fdc_generated(from: "MachineLedger.jackpotFourOfAKindB", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `jackpotFullHouse` field in the `MachineLedger` table.
+  """
+  jackpotFullHouse_min: Int @fdc_generated(from: "MachineLedger.jackpotFullHouse", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `jackpotStraightFlush` field in the `MachineLedger` table.
+  """
+  jackpotStraightFlush_min: Int @fdc_generated(from: "MachineLedger.jackpotStraightFlush", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `roundCount` field in the `MachineLedger` table.
+  """
+  roundCount_min: Int @fdc_generated(from: "MachineLedger.roundCount", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `roundsSinceLucky5Hit` field in the `MachineLedger` table.
+  """
+  roundsSinceLucky5Hit_min: Int @fdc_generated(from: "MachineLedger.roundsSinceLucky5Hit", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `snapshotAt` field in the `MachineLedger` table.
+  """
+  snapshotAt_min: Timestamp @fdc_generated(from: "MachineLedger.snapshotAt", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `capitalIn` field in the `MachineLedger` table.
+  """
+  capitalIn_max: Int @fdc_generated(from: "MachineLedger.capitalIn", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `capitalOut` field in the `MachineLedger` table.
+  """
+  capitalOut_max: Int @fdc_generated(from: "MachineLedger.capitalOut", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `consecutiveLosses` field in the `MachineLedger` table.
+  """
+  consecutiveLosses_max: Int @fdc_generated(from: "MachineLedger.consecutiveLosses", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `jackpotFourOfAKindA` field in the `MachineLedger` table.
+  """
+  jackpotFourOfAKindA_max: Int @fdc_generated(from: "MachineLedger.jackpotFourOfAKindA", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `jackpotFourOfAKindB` field in the `MachineLedger` table.
+  """
+  jackpotFourOfAKindB_max: Int @fdc_generated(from: "MachineLedger.jackpotFourOfAKindB", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `jackpotFullHouse` field in the `MachineLedger` table.
+  """
+  jackpotFullHouse_max: Int @fdc_generated(from: "MachineLedger.jackpotFullHouse", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `jackpotStraightFlush` field in the `MachineLedger` table.
+  """
+  jackpotStraightFlush_max: Int @fdc_generated(from: "MachineLedger.jackpotStraightFlush", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `roundCount` field in the `MachineLedger` table.
+  """
+  roundCount_max: Int @fdc_generated(from: "MachineLedger.roundCount", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `roundsSinceLucky5Hit` field in the `MachineLedger` table.
+  """
+  roundsSinceLucky5Hit_max: Int @fdc_generated(from: "MachineLedger.roundsSinceLucky5Hit", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `snapshotAt` field in the `MachineLedger` table.
+  """
+  snapshotAt_max: Timestamp @fdc_generated(from: "MachineLedger.snapshotAt", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "MachineLedger.id", purpose: ENTITY_ID)
+}
+extend type MachineSession {
+  """
+  ✨ List `Round` objects in a one-to-many relationship (where `Round`.`session` is this object).
+  """
+  rounds_on_session(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Round_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Round_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Round_Having
+  ): [Round!]! @fdc_generated(from: "Round.session", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "MachineSession", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `MachineSession` table.
+  """
+  _count: Int! @fdc_generated(from: "MachineSession.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineSession` table where the `counterplayScore` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  counterplayScore_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineSession.counterplayScore", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineSession` table where the `endedAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  endedAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineSession.endedAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineSession` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineSession.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineSession` table where the `isClosed` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  isClosed_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineSession.isClosed", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineSession` table where the `lastUpdatedAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  lastUpdatedAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineSession.lastUpdatedAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineSession` table where the `machineCredits` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  machineCredits_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineSession.machineCredits", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineSession` table where the `machineId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  machineId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineSession.machineId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineSession` table where the `startedAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  startedAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineSession.startedAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineSession` table where the `totalCashIn` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  totalCashIn_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineSession.totalCashIn", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineSession` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  userId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineSession.userId", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `counterplayScore` field in the `MachineSession` table.
+  """
+  counterplayScore_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineSession.counterplayScore", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `machineCredits` field in the `MachineSession` table.
+  """
+  machineCredits_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineSession.machineCredits", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `totalCashIn` field in the `MachineSession` table.
+  """
+  totalCashIn_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineSession.totalCashIn", purpose: QUERY_SUM)
+  """
+  ✨ Average the `counterplayScore` field in the `MachineSession` table.
+  """
+  counterplayScore_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineSession.counterplayScore", purpose: QUERY_AVG)
+  """
+  ✨ Average the `machineCredits` field in the `MachineSession` table.
+  """
+  machineCredits_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineSession.machineCredits", purpose: QUERY_AVG)
+  """
+  ✨ Average the `totalCashIn` field in the `MachineSession` table.
+  """
+  totalCashIn_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineSession.totalCashIn", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `counterplayScore` field in the `MachineSession` table.
+  """
+  counterplayScore_min: Int @fdc_generated(from: "MachineSession.counterplayScore", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `endedAt` field in the `MachineSession` table.
+  """
+  endedAt_min: Timestamp @fdc_generated(from: "MachineSession.endedAt", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `lastUpdatedAt` field in the `MachineSession` table.
+  """
+  lastUpdatedAt_min: Timestamp @fdc_generated(from: "MachineSession.lastUpdatedAt", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `machineCredits` field in the `MachineSession` table.
+  """
+  machineCredits_min: Int @fdc_generated(from: "MachineSession.machineCredits", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `startedAt` field in the `MachineSession` table.
+  """
+  startedAt_min: Timestamp @fdc_generated(from: "MachineSession.startedAt", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `totalCashIn` field in the `MachineSession` table.
+  """
+  totalCashIn_min: Int @fdc_generated(from: "MachineSession.totalCashIn", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `counterplayScore` field in the `MachineSession` table.
+  """
+  counterplayScore_max: Int @fdc_generated(from: "MachineSession.counterplayScore", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `endedAt` field in the `MachineSession` table.
+  """
+  endedAt_max: Timestamp @fdc_generated(from: "MachineSession.endedAt", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `lastUpdatedAt` field in the `MachineSession` table.
+  """
+  lastUpdatedAt_max: Timestamp @fdc_generated(from: "MachineSession.lastUpdatedAt", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `machineCredits` field in the `MachineSession` table.
+  """
+  machineCredits_max: Int @fdc_generated(from: "MachineSession.machineCredits", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `startedAt` field in the `MachineSession` table.
+  """
+  startedAt_max: Timestamp @fdc_generated(from: "MachineSession.startedAt", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `totalCashIn` field in the `MachineSession` table.
+  """
+  totalCashIn_max: Int @fdc_generated(from: "MachineSession.totalCashIn", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "MachineSession.id", purpose: ENTITY_ID)
+}
+extend type Round {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "Round", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `Round` table.
+  """
+  _count: Int! @fdc_generated(from: "Round.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `baseWinAmount` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  baseWinAmount_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.baseWinAmount", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `betAmount` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  betAmount_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.betAmount", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `doubleUpAttempts` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  doubleUpAttempts_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.doubleUpAttempts", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `doubleUpOutcome` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  doubleUpOutcome_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.doubleUpOutcome", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `doubleUpWinAmount` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  doubleUpWinAmount_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.doubleUpWinAmount", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `finalHand` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  finalHand_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.finalHand", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `handCategory` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  handCategory_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.handCategory", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `heldCards` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  heldCards_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.heldCards", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `initialHand` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  initialHand_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.initialHand", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `lucky5Armed` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  lucky5Armed_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.lucky5Armed", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `outcome` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  outcome_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.outcome", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `payoutScale` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  payoutScale_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.payoutScale", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `phase` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  phase_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.phase", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `playedAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  playedAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.playedAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `policyMode` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  policyMode_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.policyMode", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `sessionId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  sessionId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.sessionId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `totalWinAmount` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  totalWinAmount_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.totalWinAmount", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `baseWinAmount` field in the `Round` table.
+  """
+  baseWinAmount_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Round.baseWinAmount", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `betAmount` field in the `Round` table.
+  """
+  betAmount_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Round.betAmount", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `doubleUpAttempts` field in the `Round` table.
+  """
+  doubleUpAttempts_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Round.doubleUpAttempts", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `doubleUpWinAmount` field in the `Round` table.
+  """
+  doubleUpWinAmount_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Round.doubleUpWinAmount", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `payoutScale` field in the `Round` table.
+  """
+  payoutScale_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Round.payoutScale", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `totalWinAmount` field in the `Round` table.
+  """
+  totalWinAmount_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Round.totalWinAmount", purpose: QUERY_SUM)
+  """
+  ✨ Average the `baseWinAmount` field in the `Round` table.
+  """
+  baseWinAmount_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Round.baseWinAmount", purpose: QUERY_AVG)
+  """
+  ✨ Average the `betAmount` field in the `Round` table.
+  """
+  betAmount_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Round.betAmount", purpose: QUERY_AVG)
+  """
+  ✨ Average the `doubleUpAttempts` field in the `Round` table.
+  """
+  doubleUpAttempts_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Round.doubleUpAttempts", purpose: QUERY_AVG)
+  """
+  ✨ Average the `doubleUpWinAmount` field in the `Round` table.
+  """
+  doubleUpWinAmount_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Round.doubleUpWinAmount", purpose: QUERY_AVG)
+  """
+  ✨ Average the `payoutScale` field in the `Round` table.
+  """
+  payoutScale_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Round.payoutScale", purpose: QUERY_AVG)
+  """
+  ✨ Average the `totalWinAmount` field in the `Round` table.
+  """
+  totalWinAmount_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Round.totalWinAmount", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `baseWinAmount` field in the `Round` table.
+  """
+  baseWinAmount_min: Int @fdc_generated(from: "Round.baseWinAmount", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `betAmount` field in the `Round` table.
+  """
+  betAmount_min: Int @fdc_generated(from: "Round.betAmount", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `doubleUpAttempts` field in the `Round` table.
+  """
+  doubleUpAttempts_min: Int @fdc_generated(from: "Round.doubleUpAttempts", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `doubleUpWinAmount` field in the `Round` table.
+  """
+  doubleUpWinAmount_min: Int @fdc_generated(from: "Round.doubleUpWinAmount", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `payoutScale` field in the `Round` table.
+  """
+  payoutScale_min: Float @fdc_generated(from: "Round.payoutScale", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `playedAt` field in the `Round` table.
+  """
+  playedAt_min: Timestamp @fdc_generated(from: "Round.playedAt", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `totalWinAmount` field in the `Round` table.
+  """
+  totalWinAmount_min: Int @fdc_generated(from: "Round.totalWinAmount", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `baseWinAmount` field in the `Round` table.
+  """
+  baseWinAmount_max: Int @fdc_generated(from: "Round.baseWinAmount", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `betAmount` field in the `Round` table.
+  """
+  betAmount_max: Int @fdc_generated(from: "Round.betAmount", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `doubleUpAttempts` field in the `Round` table.
+  """
+  doubleUpAttempts_max: Int @fdc_generated(from: "Round.doubleUpAttempts", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `doubleUpWinAmount` field in the `Round` table.
+  """
+  doubleUpWinAmount_max: Int @fdc_generated(from: "Round.doubleUpWinAmount", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `payoutScale` field in the `Round` table.
+  """
+  payoutScale_max: Float @fdc_generated(from: "Round.payoutScale", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `playedAt` field in the `Round` table.
+  """
+  playedAt_max: Timestamp @fdc_generated(from: "Round.playedAt", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `totalWinAmount` field in the `Round` table.
+  """
+  totalWinAmount_max: Int @fdc_generated(from: "Round.totalWinAmount", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "Round.id", purpose: ENTITY_ID)
 }
 extend type User {
   """
-  ✨ List `Review` objects in a one-to-many relationship (where `Review`.`user` is this object).
+  ✨ List `DailyReward` objects in a one-to-many relationship (where `DailyReward`.`user` is this object).
   """
-  reviews_on_user(
+  dailyRewards_on_user(
     """
     Filter condition to narrow down the query results.
     """
-    where: Review_Filter
+    where: DailyReward_Filter
 
     """
     Order the query results by specific fields.
     """
-    orderBy: [Review_Order!]
+    orderBy: [DailyReward_Order!]
 
     """
     Number of rows to skip before starting to return the results.
@@ -357,21 +1529,21 @@ extend type User {
     """
     Filter condition to apply to the groups of aggregate queries.
     """
-    having: Review_Having
-  ): [Review!]! @fdc_generated(from: "Review.user", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+    having: DailyReward_Having
+  ): [DailyReward!]! @fdc_generated(from: "DailyReward.user", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
   """
-  ✨ List `Movie` objects using `Review` as the join table (a `Review` object exists where its `user` is this and its `movie` is that).
+  ✨ List `DeviceToken` objects in a one-to-many relationship (where `DeviceToken`.`user` is this object).
   """
-  movies_via_Review(
+  deviceTokens_on_user(
     """
     Filter condition to narrow down the query results.
     """
-    where: Review_Filter
+    where: DeviceToken_Filter
 
     """
     Order the query results by specific fields.
     """
-    orderBy: [Review_Order!]
+    orderBy: [DeviceToken_Order!]
 
     """
     Number of rows to skip before starting to return the results.
@@ -391,8 +1563,80 @@ extend type User {
     """
     Filter condition to apply to the groups of aggregate queries.
     """
-    having: Review_Having
-  ): [Movie!]! @fdc_generated(from: "Review", purpose: QUERY_MULTIPLE_MANY_TO_MANY)
+    having: DeviceToken_Having
+  ): [DeviceToken!]! @fdc_generated(from: "DeviceToken.user", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `MachineSession` objects in a one-to-many relationship (where `MachineSession`.`user` is this object).
+  """
+  machineSessions_on_user(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MachineSession_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MachineSession_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MachineSession_Having
+  ): [MachineSession!]! @fdc_generated(from: "MachineSession.user", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `WalletLedger` objects in a one-to-many relationship (where `WalletLedger`.`user` is this object).
+  """
+  walletLedgers_on_user(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: WalletLedger_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [WalletLedger_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: WalletLedger_Having
+  ): [WalletLedger!]! @fdc_generated(from: "WalletLedger.user", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `Wallet` objects in a one-to-one relationship (where `Wallet`.`user` is this object).
+  """
+  wallet_on_user: Wallet @fdc_generated(from: "Wallet.user", purpose: QUERY_SINGLE_ONE_TO_ONE)
   """
   Implicit metadata field that cannot be written. It provides extra information about query results.
   """
@@ -401,6 +1645,69 @@ extend type User {
   ✨ Count the number of rows in the `User` table.
   """
   _count: Int! @fdc_generated(from: "User.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `agentId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  agentId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.agentId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `createdAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  createdAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.createdAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `dateOfBirth` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  dateOfBirth_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.dateOfBirth", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `displayName` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  displayName_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.displayName", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `email` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  email_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.email", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `fullName` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  fullName_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.fullName", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `generatedId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  generatedId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.generatedId", purpose: QUERY_COUNT)
   """
   ✨ Count the number of rows in the `User` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
@@ -411,6 +1718,51 @@ extend type User {
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "User.id", purpose: QUERY_COUNT)
   """
+  ✨ Count the number of rows in the `User` table where the `isVerified` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  isVerified_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.isVerified", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `lastSeenAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  lastSeenAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.lastSeenAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `phoneNumber` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  phoneNumber_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.phoneNumber", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `photoUrl` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  photoUrl_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.photoUrl", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `role` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  role_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.role", purpose: QUERY_COUNT)
+  """
   ✨ Count the number of rows in the `User` table where the `username` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
   username_count(
@@ -420,7 +1772,418 @@ extend type User {
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "User.username", purpose: QUERY_COUNT)
   """
+  ✨ Minimum of the `createdAt` field in the `User` table.
+  """
+  createdAt_min: Timestamp @fdc_generated(from: "User.createdAt", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `dateOfBirth` field in the `User` table.
+  """
+  dateOfBirth_min: Date @fdc_generated(from: "User.dateOfBirth", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `lastSeenAt` field in the `User` table.
+  """
+  lastSeenAt_min: Timestamp @fdc_generated(from: "User.lastSeenAt", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `createdAt` field in the `User` table.
+  """
+  createdAt_max: Timestamp @fdc_generated(from: "User.createdAt", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `dateOfBirth` field in the `User` table.
+  """
+  dateOfBirth_max: Date @fdc_generated(from: "User.dateOfBirth", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `lastSeenAt` field in the `User` table.
+  """
+  lastSeenAt_max: Timestamp @fdc_generated(from: "User.lastSeenAt", purpose: QUERY_MAX)
+  """
   A generated field that is used for caching results in SDKs.
   """
   _id: ID! @fdc_generated(from: "User.id", purpose: ENTITY_ID)
+}
+extend type Wallet {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "Wallet", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `Wallet` table.
+  """
+  _count: Int! @fdc_generated(from: "Wallet.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Wallet` table where the `bonusRechargeCount` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  bonusRechargeCount_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Wallet.bonusRechargeCount", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Wallet` table where the `creditBalance` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  creditBalance_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Wallet.creditBalance", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Wallet` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Wallet.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Wallet` table where the `lastBonusClaimedAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  lastBonusClaimedAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Wallet.lastBonusClaimedAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Wallet` table where the `lastUpdatedAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  lastUpdatedAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Wallet.lastUpdatedAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Wallet` table where the `minimumOut` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  minimumOut_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Wallet.minimumOut", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Wallet` table where the `totalWins` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  totalWins_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Wallet.totalWins", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Wallet` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  userId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Wallet.userId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Wallet` table where the `walletBalance` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  walletBalance_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Wallet.walletBalance", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `bonusRechargeCount` field in the `Wallet` table.
+  """
+  bonusRechargeCount_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Wallet.bonusRechargeCount", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `creditBalance` field in the `Wallet` table.
+  """
+  creditBalance_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Wallet.creditBalance", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `minimumOut` field in the `Wallet` table.
+  """
+  minimumOut_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Wallet.minimumOut", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `totalWins` field in the `Wallet` table.
+  """
+  totalWins_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Wallet.totalWins", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `walletBalance` field in the `Wallet` table.
+  """
+  walletBalance_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Wallet.walletBalance", purpose: QUERY_SUM)
+  """
+  ✨ Average the `bonusRechargeCount` field in the `Wallet` table.
+  """
+  bonusRechargeCount_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Wallet.bonusRechargeCount", purpose: QUERY_AVG)
+  """
+  ✨ Average the `creditBalance` field in the `Wallet` table.
+  """
+  creditBalance_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Wallet.creditBalance", purpose: QUERY_AVG)
+  """
+  ✨ Average the `minimumOut` field in the `Wallet` table.
+  """
+  minimumOut_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Wallet.minimumOut", purpose: QUERY_AVG)
+  """
+  ✨ Average the `totalWins` field in the `Wallet` table.
+  """
+  totalWins_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Wallet.totalWins", purpose: QUERY_AVG)
+  """
+  ✨ Average the `walletBalance` field in the `Wallet` table.
+  """
+  walletBalance_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Wallet.walletBalance", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `bonusRechargeCount` field in the `Wallet` table.
+  """
+  bonusRechargeCount_min: Int @fdc_generated(from: "Wallet.bonusRechargeCount", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `creditBalance` field in the `Wallet` table.
+  """
+  creditBalance_min: Int @fdc_generated(from: "Wallet.creditBalance", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `lastBonusClaimedAt` field in the `Wallet` table.
+  """
+  lastBonusClaimedAt_min: Timestamp @fdc_generated(from: "Wallet.lastBonusClaimedAt", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `lastUpdatedAt` field in the `Wallet` table.
+  """
+  lastUpdatedAt_min: Timestamp @fdc_generated(from: "Wallet.lastUpdatedAt", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `minimumOut` field in the `Wallet` table.
+  """
+  minimumOut_min: Int @fdc_generated(from: "Wallet.minimumOut", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `totalWins` field in the `Wallet` table.
+  """
+  totalWins_min: Int @fdc_generated(from: "Wallet.totalWins", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `walletBalance` field in the `Wallet` table.
+  """
+  walletBalance_min: Int @fdc_generated(from: "Wallet.walletBalance", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `bonusRechargeCount` field in the `Wallet` table.
+  """
+  bonusRechargeCount_max: Int @fdc_generated(from: "Wallet.bonusRechargeCount", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `creditBalance` field in the `Wallet` table.
+  """
+  creditBalance_max: Int @fdc_generated(from: "Wallet.creditBalance", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `lastBonusClaimedAt` field in the `Wallet` table.
+  """
+  lastBonusClaimedAt_max: Timestamp @fdc_generated(from: "Wallet.lastBonusClaimedAt", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `lastUpdatedAt` field in the `Wallet` table.
+  """
+  lastUpdatedAt_max: Timestamp @fdc_generated(from: "Wallet.lastUpdatedAt", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `minimumOut` field in the `Wallet` table.
+  """
+  minimumOut_max: Int @fdc_generated(from: "Wallet.minimumOut", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `totalWins` field in the `Wallet` table.
+  """
+  totalWins_max: Int @fdc_generated(from: "Wallet.totalWins", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `walletBalance` field in the `Wallet` table.
+  """
+  walletBalance_max: Int @fdc_generated(from: "Wallet.walletBalance", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "Wallet.id", purpose: ENTITY_ID)
+}
+extend type WalletLedger {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "WalletLedger", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `WalletLedger` table.
+  """
+  _count: Int! @fdc_generated(from: "WalletLedger.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `WalletLedger` table where the `amount` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  amount_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "WalletLedger.amount", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `WalletLedger` table where the `balanceAfter` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  balanceAfter_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "WalletLedger.balanceAfter", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `WalletLedger` table where the `createdAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  createdAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "WalletLedger.createdAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `WalletLedger` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "WalletLedger.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `WalletLedger` table where the `notes` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  notes_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "WalletLedger.notes", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `WalletLedger` table where the `referenceId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  referenceId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "WalletLedger.referenceId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `WalletLedger` table where the `transactionType` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  transactionType_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "WalletLedger.transactionType", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `WalletLedger` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  userId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "WalletLedger.userId", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `amount` field in the `WalletLedger` table.
+  """
+  amount_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "WalletLedger.amount", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `balanceAfter` field in the `WalletLedger` table.
+  """
+  balanceAfter_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "WalletLedger.balanceAfter", purpose: QUERY_SUM)
+  """
+  ✨ Average the `amount` field in the `WalletLedger` table.
+  """
+  amount_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "WalletLedger.amount", purpose: QUERY_AVG)
+  """
+  ✨ Average the `balanceAfter` field in the `WalletLedger` table.
+  """
+  balanceAfter_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "WalletLedger.balanceAfter", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `amount` field in the `WalletLedger` table.
+  """
+  amount_min: Int @fdc_generated(from: "WalletLedger.amount", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `balanceAfter` field in the `WalletLedger` table.
+  """
+  balanceAfter_min: Int @fdc_generated(from: "WalletLedger.balanceAfter", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `createdAt` field in the `WalletLedger` table.
+  """
+  createdAt_min: Timestamp @fdc_generated(from: "WalletLedger.createdAt", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `amount` field in the `WalletLedger` table.
+  """
+  amount_max: Int @fdc_generated(from: "WalletLedger.amount", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `balanceAfter` field in the `WalletLedger` table.
+  """
+  balanceAfter_max: Int @fdc_generated(from: "WalletLedger.balanceAfter", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `createdAt` field in the `WalletLedger` table.
+  """
+  createdAt_max: Timestamp @fdc_generated(from: "WalletLedger.createdAt", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "WalletLedger.id", purpose: ENTITY_ID)
 }

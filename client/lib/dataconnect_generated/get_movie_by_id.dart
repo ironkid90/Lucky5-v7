@@ -12,7 +12,7 @@ class GetMovieByIdVariablesBuilder {
   }
 
   QueryRef<GetMovieByIdData, GetMovieByIdVariables> ref() {
-    GetMovieByIdVariables vars= GetMovieByIdVariables(id: id,);
+    final GetMovieByIdVariables vars= GetMovieByIdVariables(id: id,);
     return _dataConnect.query("GetMovieById", dataDeserializer, varsSerializer, vars);
   }
 }
@@ -58,7 +58,7 @@ class GetMovieByIdMovie {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['id'] = nativeToJson<String>(id);
     json['title'] = nativeToJson<String>(title);
     json['imageUrl'] = nativeToJson<String>(imageUrl);
@@ -72,7 +72,7 @@ class GetMovieByIdMovie {
     return json;
   }
 
-  GetMovieByIdMovie({
+  const GetMovieByIdMovie({
     required this.id,
     required this.title,
     required this.imageUrl,
@@ -112,7 +112,7 @@ class GetMovieByIdMovieMetadata {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     if (rating != null) {
       json['rating'] = nativeToJson<double?>(rating);
     }
@@ -125,7 +125,7 @@ class GetMovieByIdMovieMetadata {
     return json;
   }
 
-  GetMovieByIdMovieMetadata({
+  const GetMovieByIdMovieMetadata({
     this.rating,
     this.releaseYear,
     this.description,
@@ -165,7 +165,7 @@ class GetMovieByIdMovieReviews {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     if (reviewText != null) {
       json['reviewText'] = nativeToJson<String?>(reviewText);
     }
@@ -177,7 +177,7 @@ class GetMovieByIdMovieReviews {
     return json;
   }
 
-  GetMovieByIdMovieReviews({
+  const GetMovieByIdMovieReviews({
     this.reviewText,
     required this.reviewDate,
     this.rating,
@@ -212,13 +212,13 @@ class GetMovieByIdMovieReviewsUser {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['id'] = nativeToJson<String>(id);
     json['username'] = nativeToJson<String>(username);
     return json;
   }
 
-  GetMovieByIdMovieReviewsUser({
+  const GetMovieByIdMovieReviewsUser({
     required this.id,
     required this.username,
   });
@@ -248,14 +248,14 @@ class GetMovieByIdData {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     if (movie != null) {
       json['movie'] = movie!.toJson();
     }
     return json;
   }
 
-  GetMovieByIdData({
+  const GetMovieByIdData({
     this.movie,
   });
 }
@@ -285,12 +285,12 @@ class GetMovieByIdVariables {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['id'] = nativeToJson<String>(id);
     return json;
   }
 
-  GetMovieByIdVariables({
+  const GetMovieByIdVariables({
     required this.id,
   });
 }

@@ -14,7 +14,7 @@ class AddReviewVariablesBuilder {
   }
 
   MutationRef<AddReviewData, AddReviewVariables> ref() {
-    AddReviewVariables vars= AddReviewVariables(movieId: movieId,rating: rating,reviewText: reviewText,);
+    final AddReviewVariables vars= AddReviewVariables(movieId: movieId,rating: rating,reviewText: reviewText,);
     return _dataConnect.mutation("AddReview", dataDeserializer, varsSerializer, vars);
   }
 }
@@ -46,13 +46,13 @@ class AddReviewReviewUpsert {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['userId'] = nativeToJson<String>(userId);
     json['movieId'] = nativeToJson<String>(movieId);
     return json;
   }
 
-  AddReviewReviewUpsert({
+  const AddReviewReviewUpsert({
     required this.userId,
     required this.movieId,
   });
@@ -82,12 +82,12 @@ class AddReviewData {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['review_upsert'] = review_upsert.toJson();
     return json;
   }
 
-  AddReviewData({
+  const AddReviewData({
     required this.review_upsert,
   });
 }
@@ -123,14 +123,14 @@ class AddReviewVariables {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['movieId'] = nativeToJson<String>(movieId);
     json['rating'] = nativeToJson<int>(rating);
     json['reviewText'] = nativeToJson<String>(reviewText);
     return json;
   }
 
-  AddReviewVariables({
+  const AddReviewVariables({
     required this.movieId,
     required this.rating,
     required this.reviewText,

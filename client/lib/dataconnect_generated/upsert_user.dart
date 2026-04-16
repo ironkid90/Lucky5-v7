@@ -12,7 +12,7 @@ class UpsertUserVariablesBuilder {
   }
 
   MutationRef<UpsertUserData, UpsertUserVariables> ref() {
-    UpsertUserVariables vars= UpsertUserVariables(username: username,);
+    final UpsertUserVariables vars= UpsertUserVariables(username: username,);
     return _dataConnect.mutation("UpsertUser", dataDeserializer, varsSerializer, vars);
   }
 }
@@ -41,12 +41,12 @@ class UpsertUserUserUpsert {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['id'] = nativeToJson<String>(id);
     return json;
   }
 
-  UpsertUserUserUpsert({
+  const UpsertUserUserUpsert({
     required this.id,
   });
 }
@@ -75,12 +75,12 @@ class UpsertUserData {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['user_upsert'] = user_upsert.toJson();
     return json;
   }
 
-  UpsertUserData({
+  const UpsertUserData({
     required this.user_upsert,
   });
 }
@@ -110,12 +110,12 @@ class UpsertUserVariables {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['username'] = nativeToJson<String>(username);
     return json;
   }
 
-  UpsertUserVariables({
+  const UpsertUserVariables({
     required this.username,
   });
 }

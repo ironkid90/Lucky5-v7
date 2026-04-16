@@ -43,13 +43,13 @@ class ListUsersUsers {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['id'] = nativeToJson<String>(id);
     json['username'] = nativeToJson<String>(username);
     return json;
   }
 
-  ListUsersUsers({
+  const ListUsersUsers({
     required this.id,
     required this.username,
   });
@@ -81,12 +81,12 @@ class ListUsersData {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['users'] = users.map((e) => e.toJson()).toList();
     return json;
   }
 
-  ListUsersData({
+  const ListUsersData({
     required this.users,
   });
 }

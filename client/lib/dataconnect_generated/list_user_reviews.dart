@@ -48,14 +48,14 @@ class ListUserReviewsUser {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['id'] = nativeToJson<String>(id);
     json['username'] = nativeToJson<String>(username);
     json['reviews'] = reviews.map((e) => e.toJson()).toList();
     return json;
   }
 
-  ListUserReviewsUser({
+  const ListUserReviewsUser({
     required this.id,
     required this.username,
     required this.reviews,
@@ -95,7 +95,7 @@ class ListUserReviewsUserReviews {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     if (rating != null) {
       json['rating'] = nativeToJson<int?>(rating);
     }
@@ -107,7 +107,7 @@ class ListUserReviewsUserReviews {
     return json;
   }
 
-  ListUserReviewsUserReviews({
+  const ListUserReviewsUserReviews({
     this.rating,
     required this.reviewDate,
     this.reviewText,
@@ -142,13 +142,13 @@ class ListUserReviewsUserReviewsMovie {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['id'] = nativeToJson<String>(id);
     json['title'] = nativeToJson<String>(title);
     return json;
   }
 
-  ListUserReviewsUserReviewsMovie({
+  const ListUserReviewsUserReviewsMovie({
     required this.id,
     required this.title,
   });
@@ -178,14 +178,14 @@ class ListUserReviewsData {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     if (user != null) {
       json['user'] = user!.toJson();
     }
     return json;
   }
 
-  ListUserReviewsData({
+  const ListUserReviewsData({
     this.user,
   });
 }

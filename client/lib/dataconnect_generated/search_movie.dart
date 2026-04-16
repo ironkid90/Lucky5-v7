@@ -1,8 +1,8 @@
 part of 'generated.dart';
 
 class SearchMovieVariablesBuilder {
-  Optional<String> _titleInput = Optional.optional(nativeFromJson, nativeToJson);
-  Optional<String> _genre = Optional.optional(nativeFromJson, nativeToJson);
+  final Optional<String> _titleInput = Optional.optional(nativeFromJson, nativeToJson);
+  final Optional<String> _genre = Optional.optional(nativeFromJson, nativeToJson);
 
   final FirebaseDataConnect _dataConnect;
   SearchMovieVariablesBuilder titleInput(String? t) {
@@ -22,7 +22,7 @@ class SearchMovieVariablesBuilder {
   }
 
   QueryRef<SearchMovieData, SearchMovieVariables> ref() {
-    SearchMovieVariables vars= SearchMovieVariables(titleInput: _titleInput,genre: _genre,);
+    final SearchMovieVariables vars= SearchMovieVariables(titleInput: _titleInput,genre: _genre,);
     return _dataConnect.query("SearchMovie", dataDeserializer, varsSerializer, vars);
   }
 }
@@ -60,7 +60,7 @@ class SearchMovieMovies {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['id'] = nativeToJson<String>(id);
     json['title'] = nativeToJson<String>(title);
     if (genre != null) {
@@ -70,7 +70,7 @@ class SearchMovieMovies {
     return json;
   }
 
-  SearchMovieMovies({
+  const SearchMovieMovies({
     required this.id,
     required this.title,
     this.genre,
@@ -104,12 +104,12 @@ class SearchMovieData {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['movies'] = movies.map((e) => e.toJson()).toList();
     return json;
   }
 
-  SearchMovieData({
+  const SearchMovieData({
     required this.movies,
   });
 }
@@ -149,7 +149,7 @@ class SearchMovieVariables {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     if(titleInput.state == OptionalState.set) {
       json['titleInput'] = titleInput.toJson();
     }
@@ -159,7 +159,7 @@ class SearchMovieVariables {
     return json;
   }
 
-  SearchMovieVariables({
+  const SearchMovieVariables({
     required this.titleInput,
     required this.genre,
   });

@@ -12,7 +12,7 @@ class DeleteReviewVariablesBuilder {
   }
 
   MutationRef<DeleteReviewData, DeleteReviewVariables> ref() {
-    DeleteReviewVariables vars= DeleteReviewVariables(movieId: movieId,);
+    final DeleteReviewVariables vars= DeleteReviewVariables(movieId: movieId,);
     return _dataConnect.mutation("DeleteReview", dataDeserializer, varsSerializer, vars);
   }
 }
@@ -44,13 +44,13 @@ class DeleteReviewReviewDelete {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['userId'] = nativeToJson<String>(userId);
     json['movieId'] = nativeToJson<String>(movieId);
     return json;
   }
 
-  DeleteReviewReviewDelete({
+  const DeleteReviewReviewDelete({
     required this.userId,
     required this.movieId,
   });
@@ -80,14 +80,14 @@ class DeleteReviewData {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     if (review_delete != null) {
       json['review_delete'] = review_delete!.toJson();
     }
     return json;
   }
 
-  DeleteReviewData({
+  const DeleteReviewData({
     this.review_delete,
   });
 }
@@ -117,12 +117,12 @@ class DeleteReviewVariables {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['movieId'] = nativeToJson<String>(movieId);
     return json;
   }
 
-  DeleteReviewVariables({
+  const DeleteReviewVariables({
     required this.movieId,
   });
 }

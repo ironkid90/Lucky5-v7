@@ -1,8 +1,155 @@
 {
   "mcpServers": {
+    "sequentialthinking": {
+      "command": "C:\\Users\\Gabi\\AppData\\Local\\nvm\\v22.14.0\\node.exe",
+      "args": [
+        "C:\\Users\\Gabi\\AppData\\Local\\nvm\\v22.14.0\\node_modules\\npm\\bin\\npx-cli.js",
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "alwaysAllow": [
+        "sequentialthinking"
+      ]
+    },
+    "puppeteer": {
+      "command": "C:\\Users\\Gabi\\AppData\\Local\\nvm\\v22.14.0\\node.exe",
+      "args": [
+        "C:\\Users\\Gabi\\AppData\\Local\\nvm\\v22.14.0\\node_modules\\npm\\bin\\npx-cli.js",
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ],
+      "alwaysAllow": [
+        "puppeteer_navigate",
+        "puppeteer_screenshot",
+        "puppeteer_click",
+        "puppeteer_fill",
+        "puppeteer_select",
+        "puppeteer_evaluate",
+        "puppeteer_hover"
+      ]
+    },
+    "playwright": {
+      "command": "C:\\Users\\Gabi\\AppData\\Local\\nvm\\v22.14.0\\node.exe",
+      "args": [
+        "C:\\Users\\Gabi\\AppData\\Local\\nvm\\v22.14.0\\node_modules\\npm\\bin\\npx-cli.js",
+        "-y",
+        "@playwright/mcp@0.0.38"
+      ],
+      "alwaysAllow": [
+        "browser_close",
+        "browser_resize",
+        "browser_console_messages",
+        "browser_handle_dialog",
+        "browser_evaluate",
+        "browser_file_upload",
+        "browser_fill_form",
+        "browser_install",
+        "browser_type",
+        "browser_navigate",
+        "browser_navigate_back",
+        "browser_take_screenshot",
+        "browser_network_requests",
+        "browser_snapshot",
+        "browser_click",
+        "browser_drag",
+        "browser_hover",
+        "browser_select_option",
+        "browser_tabs",
+        "browser_press_key",
+        "browser_wait_for"
+      ]
+    },
+    "microsoft-learn": {
+      "type": "streamable-http",
+      "url": "https://learn.microsoft.com/api/mcp",
+      "alwaysAllow": [
+        "microsoft_docs_search",
+        "microsoft_code_sample_search",
+        "microsoft_docs_fetch"
+      ]
+    },
+    "n8n-mcp": {
+      "command": "C:\\Users\\Gabi\\AppData\\Local\\nvm\\v22.14.0\\node.exe",
+      "args": [
+        "C:\\Users\\Gabi\\AppData\\Local\\nvm\\v22.14.0\\node_modules\\npm\\bin\\npx-cli.js",
+        "-y",
+        "n8n-mcp@2.12.2"
+      ],
+      "env": {
+        "MCP_MODE": "stdio",
+        "LOG_LEVEL": "error",
+        "DISABLE_CONSOLE_OUTPUT": "true"
+      },
+      "alwaysAllow": [
+        "tools_documentation",
+        "list_nodes",
+        "get_node_info",
+        "search_nodes",
+        "list_ai_tools",
+        "get_node_documentation",
+        "get_database_statistics",
+        "get_node_essentials",
+        "search_node_properties",
+        "get_node_for_task",
+        "list_tasks",
+        "validate_node_operation",
+        "validate_node_minimal",
+        "get_property_dependencies",
+        "get_node_as_tool_info",
+        "list_templates",
+        "list_node_templates",
+        "get_template",
+        "search_templates",
+        "get_templates_for_task",
+        "search_templates_by_metadata",
+        "validate_workflow",
+        "validate_workflow_connections",
+        "validate_workflow_expressions"
+      ]
+    },
+    "context7": {
+      "command": "C:\\Users\\Gabi\\AppData\\Local\\nvm\\v22.14.0\\node.exe",
+      "args": [
+        "C:\\Users\\Gabi\\AppData\\Local\\nvm\\v22.14.0\\node_modules\\npm\\bin\\npx-cli.js",
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {
+        "DEFAULT_MINIMUM_TOKENS": ""
+      },
+      "alwaysAllow": [
+        "resolve-library-id",
+        "query-docs"
+      ]
+    },
+    "memory": {
+      "command": "C:\\Users\\Gabi\\AppData\\Local\\nvm\\v22.14.0\\node.exe",
+      "args": [
+        "C:\\Users\\Gabi\\AppData\\Local\\nvm\\v22.14.0\\node_modules\\npm\\bin\\npx-cli.js",
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "alwaysAllow": [
+        "create_entities",
+        "create_relations",
+        "add_observations",
+        "delete_entities",
+        "delete_observations",
+        "delete_relations",
+        "read_graph",
+        "search_nodes",
+        "open_nodes"
+      ]
+    },
     "git-mcp": {
       "type": "streamable-http",
-      "url": "https://gitmcp.io/ironkid90/lucky5-v7"
+      "url": "https://gitmcp.io/ironkid90/codex-orch-unified",
+      "alwaysAllow": [
+        "search_codex_orch_code",
+        "search_codex_orch_docs",
+        "fetch_codex_orch_docs",
+        "fetch_generic_url_content"
+      ]
     }
   }
 }

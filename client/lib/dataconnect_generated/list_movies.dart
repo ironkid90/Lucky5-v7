@@ -49,7 +49,7 @@ class ListMoviesMovies {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['id'] = nativeToJson<String>(id);
     json['title'] = nativeToJson<String>(title);
     json['imageUrl'] = nativeToJson<String>(imageUrl);
@@ -59,7 +59,7 @@ class ListMoviesMovies {
     return json;
   }
 
-  ListMoviesMovies({
+  const ListMoviesMovies({
     required this.id,
     required this.title,
     required this.imageUrl,
@@ -93,12 +93,12 @@ class ListMoviesData {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['movies'] = movies.map((e) => e.toJson()).toList();
     return json;
   }
 
-  ListMoviesData({
+  const ListMoviesData({
     required this.movies,
   });
 }

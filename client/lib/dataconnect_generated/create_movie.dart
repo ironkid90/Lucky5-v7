@@ -14,7 +14,7 @@ class CreateMovieVariablesBuilder {
   }
 
   MutationRef<CreateMovieData, CreateMovieVariables> ref() {
-    CreateMovieVariables vars= CreateMovieVariables(title: title,genre: genre,imageUrl: imageUrl,);
+    final CreateMovieVariables vars= CreateMovieVariables(title: title,genre: genre,imageUrl: imageUrl,);
     return _dataConnect.mutation("CreateMovie", dataDeserializer, varsSerializer, vars);
   }
 }
@@ -43,12 +43,12 @@ class CreateMovieMovieInsert {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['id'] = nativeToJson<String>(id);
     return json;
   }
 
-  CreateMovieMovieInsert({
+  const CreateMovieMovieInsert({
     required this.id,
   });
 }
@@ -77,12 +77,12 @@ class CreateMovieData {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['movie_insert'] = movie_insert.toJson();
     return json;
   }
 
-  CreateMovieData({
+  const CreateMovieData({
     required this.movie_insert,
   });
 }
@@ -118,14 +118,14 @@ class CreateMovieVariables {
   
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
+    final Map<String, dynamic> json = {};
     json['title'] = nativeToJson<String>(title);
     json['genre'] = nativeToJson<String>(genre);
     json['imageUrl'] = nativeToJson<String>(imageUrl);
     return json;
   }
 
-  CreateMovieVariables({
+  const CreateMovieVariables({
     required this.title,
     required this.genre,
     required this.imageUrl,

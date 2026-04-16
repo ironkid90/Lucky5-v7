@@ -71,7 +71,7 @@ class FirebaseService {
         notification.hashCode,
         notification.title,
         notification.body,
-        NotificationDetails(
+        const NotificationDetails(
           android: AndroidNotificationDetails(
             'lucky5_rewards',
             'Lucky5 Rewards',

@@ -342,6 +342,74 @@
         });
     }
 
+    // ---------- Card-face load-error guard -----------------------
+    //
+    // If a card face PNG fails to load (404 on the deployed server, broken
+    // CDN cache, or missing asset), the <img> element silently keeps the
+    // previous src OR shows a transparent broken icon depending on browser.
+    // Operators only see "cards look wrong" with no diagnostic signal.
+    //
+    // We attach delegated error/load listeners on the card-area so any
+    // replacement <img> in .card-slot .card-face automatically reports
+    // whether it successfully swapped to a face or failed. Failures mark
+    // the slot with .v8-face-error which the v8 quality CSS renders as
+    // a red MISSING ribbon — instantly visible in any deployment.
+
+    const FACE_ERROR_CLASS = 'v8-face-error';
+
+    function cardBackSrc() {
+        const cfg = window.GAME_CONFIG && window.GAME_CONFIG.assets;
+        return (cfg && cfg.cardBack) || '/assets/images/cards/bside.png';
+    }
+
+    function flagCardSlotError(img) {
+        const slot = img.closest ? img.closest('.card-slot, .du-card-slot') : null;
+        if (!slot) return;
+        slot.classList.add(FACE_ERROR_CLASS);
+        if (console && console.warn) {
+            console.warn('[Lucky5 v8] card face failed to load', {
+                src: img.getAttribute('src'),
+                alt: img.getAttribute('alt'),
+                slot: slot.dataset.slot || slot.dataset.duSlot || '?'
+            });
+        }
+    }
+
+    function clearCardSlotError(img) {
+        const slot = img.closest ? img.closest('.card-slot, .du-card-slot') : null;
+        if (!slot) return;
+        if (slot.classList.contains(FACE_ERROR_CLASS)) {
+            slot.classList.remove(FACE_ERROR_CLASS);
+        }
+    }
+
+    function isCardBackSrc(src) {
+        if (!src) return true;
+        const back = cardBackSrc();
+        return src.indexOf(back) >= 0 || src.toLowerCase().indexOf('bside') >= 0;
+    }
+
+    function wireCardFaceGuard() {
+        const area = document.getElementById('card-area');
+        if (!area) return;
+
+        // Delegated load + error events from all <img> descendants.
+        area.addEventListener('error', function (e) {
+            const target = e.target;
+            if (!target || target.tagName !== 'IMG') return;
+            flagCardSlotError(target);
+        }, true);
+
+        area.addEventListener('load', function (e) {
+            const target = e.target;
+            if (!target || target.tagName !== 'IMG') return;
+            // Only clear the error flag once a real face loaded (not the back).
+            if (!isCardBackSrc(target.getAttribute('src'))) {
+                clearCardSlotError(target);
+            }
+        }, true);
+    }
+
     // ---------- Boot ---------------------------------------------
 
     onReady(function () {
@@ -353,6 +421,7 @@
         observeWinDisplay();
         wireIdleAttract();
         wireResize();
+        wireCardFaceGuard();
     });
 
     // Expose minimal debug hook for manual QA

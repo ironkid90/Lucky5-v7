@@ -1,0 +1,455 @@
+/* ============================================================
+   LUCKY 5 v8 — Quality pass (image-independent button rendering)
+   ------------------------------------------------------------
+   Replaces PNG-based button backgrounds with pure CSS so the
+   cabinet renders correctly even if asset deployment is stale
+   or CDN caching is serving partial files. Also upsizes the
+   control panel and paytable typography to match the approved
+   reference (image 2).
+
+   This file intentionally uses !important for overrides because
+   the earlier cabinet CSS stacks use specific rule chains that
+   otherwise win the cascade; we want deterministic behaviour.
+   ============================================================ */
+
+/* ----- 1. Fonts & color tokens ------------------------------ */
+
+:root {
+    --v8-btn-font: 'Press Start 2P', 'Courier New', monospace;
+    --v8-btn-shadow: 0 3px 0 rgba(0,0,0,0.55), 0 6px 10px rgba(0,0,0,0.55);
+    --v8-btn-inset:
+        inset 0 3px 0 rgba(255,255,255,0.38),
+        inset 0 -4px 0 rgba(0,0,0,0.35);
+    --v8-hold-yellow-1: #ffe66b;
+    --v8-hold-yellow-2: #f5b307;
+    --v8-hold-yellow-3: #9c6d00;
+    --v8-hold-active-1: #fff7a0;
+    --v8-hold-active-2: #ffd92b;
+    --v8-orange-1: #ff993c;
+    --v8-orange-2: #e5651a;
+    --v8-orange-3: #8a3606;
+    --v8-red-1: #ff5956;
+    --v8-red-2: #d01814;
+    --v8-red-3: #6d0907;
+    --v8-green-1: #56d968;
+    --v8-green-2: #1ba237;
+    --v8-green-3: #0a4a18;
+    --v8-cream-1: #fff4e0;
+    --v8-cream-2: #f5d8a8;
+    --v8-cream-3: #9d7538;
+    --v8-gold-ring: #b48423;
+}
+
+/* ----- 2. Universal cab button reset ------------------------ */
+
+.cab-btn {
+    background-image: none !important;
+    background-repeat: no-repeat !important;
+    background-size: 100% 100% !important;
+    background-position: center center !important;
+    color: #111;
+    font-family: var(--v8-btn-font);
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-align: center;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-radius: 10px !important;
+    box-shadow: var(--v8-btn-inset), var(--v8-btn-shadow) !important;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.28), 0 -1px 0 rgba(0,0,0,0.45);
+    transition: transform 0.06s ease-out, filter 0.06s ease-out,
+                box-shadow 0.06s ease-out !important;
+    overflow: hidden;
+    padding: 0 !important;
+    line-height: 1;
+}
+
+.cab-btn:active:not(:disabled),
+.cab-btn.is-pressed:not(:disabled) {
+    transform: translateY(3px) scale(0.97) !important;
+    filter: brightness(0.85) !important;
+    box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.12),
+        inset 0 -2px 0 rgba(0,0,0,0.55),
+        0 1px 0 rgba(0,0,0,0.5),
+        0 2px 4px rgba(0,0,0,0.4) !important;
+}
+
+.cab-btn:disabled {
+    filter: grayscale(0.55) brightness(0.7);
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* Label is drawn via ::before so it is never hidden by a failed PNG.
+   Any existing in-DOM <span> / text children remain inside the button
+   if present; ::before does not conflict with them and is transparent
+   to the inline HOLD badge on card slots (that uses .hold-badge). */
+.cab-btn::before {
+    color: inherit;
+    text-shadow: inherit;
+    pointer-events: none;
+    white-space: nowrap;
+    font-size: clamp(13px, 3.8vw, 22px);
+    letter-spacing: 1px;
+    line-height: 1;
+}
+
+/* ----- 3. HOLD buttons -------------------------------------- */
+
+.cab-btn.cab-hold {
+    background: linear-gradient(180deg,
+        var(--v8-hold-yellow-1) 0%,
+        var(--v8-hold-yellow-2) 55%,
+        var(--v8-hold-yellow-3) 100%) !important;
+    border: 3px solid var(--v8-gold-ring) !important;
+    color: #1c1200 !important;
+    height: clamp(52px, 9vw, 72px) !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+.cab-btn.cab-hold::before {
+    content: 'HOLD';
+    font-size: clamp(16px, 4.2vw, 24px);
+    font-weight: 800;
+}
+
+.cab-btn.cab-hold.active {
+    background: linear-gradient(180deg,
+        var(--v8-hold-active-1) 0%,
+        var(--v8-hold-active-2) 100%) !important;
+    box-shadow:
+        inset 0 0 18px rgba(255, 240, 110, 0.95),
+        inset 0 3px 0 rgba(255,255,255,0.5),
+        0 0 20px rgba(255, 210, 0, 0.75),
+        0 3px 0 rgba(0,0,0,0.55) !important;
+    border-color: #ffcf3a !important;
+}
+
+/* ----- 4. Action row buttons -------------------------------- */
+
+.cab-btn.cab-big,
+.cab-btn.cab-small,
+.cab-btn.cab-takehalf,
+.cab-btn.cab-takescore {
+    background: linear-gradient(180deg,
+        var(--v8-orange-1) 0%,
+        var(--v8-orange-2) 55%,
+        var(--v8-orange-3) 100%) !important;
+    color: #fff !important;
+    height: clamp(56px, 9.5vw, 74px) !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    border: 2px solid #5a2500 !important;
+}
+
+.cab-btn.cab-big::before    { content: 'BIG'; }
+.cab-btn.cab-small::before  { content: 'SMALL'; }
+.cab-btn.cab-takehalf::before  { content: 'TAKE\A HALF'; white-space: pre-line; line-height: 1.05; }
+.cab-btn.cab-takescore::before { content: 'TAKE\A SCORE'; white-space: pre-line; line-height: 1.05; }
+
+.cab-btn.cab-cancel {
+    background: linear-gradient(180deg,
+        var(--v8-cream-1) 0%,
+        var(--v8-cream-2) 60%,
+        var(--v8-cream-3) 100%) !important;
+    color: #b11914 !important;
+    height: clamp(56px, 9.5vw, 74px) !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    border: 2px solid #75531c !important;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+}
+.cab-btn.cab-cancel::before {
+    content: 'CANCEL\A HOLD';
+    white-space: pre-line;
+    line-height: 1.05;
+    font-size: clamp(12px, 3.2vw, 18px);
+}
+
+.cab-btn.cab-deal {
+    background: linear-gradient(180deg,
+        var(--v8-red-1) 0%,
+        var(--v8-red-2) 55%,
+        var(--v8-red-3) 100%) !important;
+    color: #fff !important;
+    height: clamp(56px, 9.5vw, 74px) !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    border: 2px solid #4a0403 !important;
+}
+.cab-btn.cab-deal::before {
+    content: 'DEAL\A DRAW';
+    white-space: pre-line;
+    line-height: 1.05;
+    font-size: clamp(12px, 3.2vw, 18px);
+}
+
+.cab-btn.cab-bet {
+    background: linear-gradient(180deg,
+        var(--v8-green-1) 0%,
+        var(--v8-green-2) 55%,
+        var(--v8-green-3) 100%) !important;
+    color: #fff !important;
+    height: clamp(56px, 9.5vw, 74px) !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    border: 2px solid #052d0e !important;
+}
+.cab-btn.cab-bet::before { content: 'BET'; }
+
+/* ----- 5. Bottom row (take half / menu / take score) ------- */
+
+.cab-btn.cab-takehalf::before  { font-size: clamp(12px, 3.2vw, 18px); }
+.cab-btn.cab-takescore::before { font-size: clamp(12px, 3.2vw, 18px); }
+
+.cab-btn.cab-menu {
+    background: radial-gradient(circle at 50% 42%, #5a5a5a 0%, #2a2a2a 68%, #0e0e0e 100%) !important;
+    color: #f0dc6c !important;
+    border: 2px solid #111 !important;
+    border-radius: 999px !important;
+    width: clamp(52px, 9vw, 66px) !important;
+    height: clamp(52px, 9vw, 66px) !important;
+    box-shadow:
+        inset 0 2px 4px rgba(255,255,255,0.22),
+        inset 0 -4px 8px rgba(0,0,0,0.7),
+        0 3px 0 rgba(0,0,0,0.55),
+        0 6px 10px rgba(0,0,0,0.55) !important;
+}
+.cab-btn.cab-menu::before {
+    content: '\2630'; /* hamburger U+2630 */
+    font-family: 'Segoe UI Symbol', 'Arial', sans-serif;
+    font-size: clamp(22px, 5vw, 30px);
+    letter-spacing: 0;
+    color: #f0dc6c;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.6);
+}
+
+/* ----- 6. Hold row sizing and layout ------------------------ */
+
+#hold-row.hold-row {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: clamp(6px, 1.2vw, 12px) !important;
+    padding: 0 clamp(6px, 1.8vw, 14px) !important;
+    margin-top: 6px;
+}
+
+#action-row.action-row {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: clamp(6px, 1.2vw, 12px) !important;
+    padding: 0 clamp(6px, 1.8vw, 14px) !important;
+    margin-top: 10px;
+}
+
+#bottom-row.bottom-row {
+    display: grid !important;
+    grid-template-columns: 1fr auto 1fr !important;
+    gap: clamp(10px, 2.5vw, 24px) !important;
+    padding: 0 clamp(10px, 3vw, 30px) !important;
+    margin-top: 10px;
+    align-items: center;
+    justify-items: center;
+}
+
+#bottom-row .cab-btn.cab-takehalf,
+#bottom-row .cab-btn.cab-takescore {
+    max-width: 180px !important;
+    width: 100% !important;
+}
+
+/* ----- 7. Control deck wood backdrop ------------------------ */
+
+#controls[data-zone="controls"] {
+    padding: clamp(8px, 2vw, 18px) 0 clamp(12px, 2.5vw, 24px) !important;
+    min-height: clamp(320px, 54vw, 440px);
+}
+
+/* ----- 8. Paytable & machine info sizing -------------------- */
+
+#paytable .pay-row {
+    font-size: clamp(11px, 2.7vw, 16px) !important;
+    padding: 2px 6px !important;
+    line-height: 1.05 !important;
+}
+
+#paytable .pay-row.jackpot-major {
+    font-weight: 700;
+}
+
+#paytable .pay-row .hand-name,
+#paytable .pay-row .pay-amount {
+    font-family: var(--v8-btn-font);
+    letter-spacing: 0.5px;
+}
+
+#paytable .pay-row .pay-amount {
+    color: #e8e8e8;
+}
+
+/* Highlighted active paytable row — bright white frame like reference */
+#paytable .pay-row.active,
+#paytable .pay-row[data-attract-active="1"] {
+    outline: 2px solid #fff !important;
+    background: rgba(255,255,255,0.08) !important;
+}
+
+/* Credit / stake big text (right side of paytable) */
+#credit-stake-bar #credits,
+#credit-stake-bar #stake-display {
+    font-family: var(--v8-btn-font);
+    font-size: clamp(14px, 4vw, 22px) !important;
+    line-height: 1.2;
+}
+
+#credit-stake-bar #credits span,
+#credit-stake-bar #stake-display span {
+    font-size: clamp(18px, 5.5vw, 30px);
+    color: #9bf7ff;
+    text-shadow: 0 0 6px rgba(155, 247, 255, 0.5);
+}
+
+/* Machine info (SERIE / KENT / S/N / jackpot counters) */
+#machine-info-block {
+    font-family: var(--v8-btn-font);
+    font-size: clamp(10px, 2.5vw, 14px) !important;
+    line-height: 1.3;
+}
+
+#machine-info-block #mi-serial {
+    color: #9bf7ff !important;
+}
+
+#machine-info-block #mi-serie,
+#machine-info-block #mi-kent {
+    color: #5ff26f !important;
+}
+
+#machine-info-block #jp-counter-a .jp-cval,
+#machine-info-block #jp-counter-b .jp-cval {
+    color: #5ff26f !important;
+}
+
+#machine-info-block #jp-counter-center .jp-cval {
+    color: #ff4a4a !important;
+}
+
+/* ----- 9. Card slots — crisp borders and guaranteed sizing -- */
+
+#card-area {
+    padding: 0 clamp(6px, 2vw, 18px);
+    gap: clamp(4px, 1.2vw, 10px);
+}
+
+.card-slot {
+    max-width: clamp(72px, 19vw, 120px) !important;
+    aspect-ratio: 2 / 3;
+    border: 2px solid #333;
+    border-radius: 6px;
+    background: #111;
+    box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.06),
+        2px 3px 8px rgba(0,0,0,0.75);
+    overflow: hidden;
+}
+
+.card-slot .card-face {
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.card-slot .card-face img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+/* Diagnostic marker: if JS flags a card as face-load-error, overlay a red
+   X badge so operators can tell a 404 from a legitimate card-back view. */
+.card-slot.v8-face-error::after {
+    content: 'MISSING';
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    text-align: center;
+    color: #fff;
+    background: rgba(200, 30, 30, 0.85);
+    padding: 2px 4px;
+    font-family: var(--v8-btn-font);
+    font-size: 10px;
+    letter-spacing: 1px;
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* HOLD badge below card slot — match the bright amber reference */
+.card-slot .hold-badge {
+    background: transparent;
+    color: #ffbd2c;
+    font-family: var(--v8-btn-font);
+    font-size: clamp(10px, 2.6vw, 14px);
+    letter-spacing: 2px;
+    margin-top: 4px;
+    text-shadow: 0 0 6px rgba(255, 160, 30, 0.7);
+}
+
+/* ----- 10. Win amount display — bigger golden number -------- */
+
+#win-amount-display {
+    font-family: var(--v8-btn-font);
+    letter-spacing: 2px;
+}
+
+#win-amount-display #win-amount-value {
+    font-size: clamp(22px, 7vw, 44px);
+    color: #ffe27a;
+    text-shadow:
+        0 0 8px rgba(255, 210, 60, 0.65),
+        0 0 18px rgba(255, 130, 30, 0.45);
+}
+
+#win-amount-display #win-slot-tag {
+    font-size: clamp(10px, 2.6vw, 14px);
+    color: #ffbd2c;
+}
+
+/* ----- 11. Idle overlay LUCKY 5 POKER ----------------------- */
+
+#idle-overlay #idle-overlay-text {
+    font-family: var(--v8-btn-font);
+    font-size: clamp(32px, 10vw, 74px);
+    color: #5fd8ff;
+    letter-spacing: 4px;
+    text-align: center;
+    text-shadow:
+        0 0 10px rgba(95, 216, 255, 0.7),
+        0 0 24px rgba(30, 150, 220, 0.4);
+    line-height: 1.15;
+    white-space: pre-line;
+}
+
+/* ----- 12. Media refinements for very narrow viewports ------ */
+
+@media (max-width: 380px) {
+    .cab-btn::before { font-size: 12px !important; }
+    .cab-btn.cab-hold::before { font-size: 14px !important; }
+}
+
+/* ----- 13. Safety fallbacks in case another stylesheet
+           still carries background-image rules with !important. */
+
+button.cab-btn {
+    background-image: none !important;
+}

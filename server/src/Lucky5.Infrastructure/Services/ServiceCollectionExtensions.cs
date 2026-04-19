@@ -8,9 +8,11 @@ using Lucky5.Infrastructure.Persistence;
 using PersistenceCoordinator = Lucky5.Infrastructure.Persistence.IPersistentStateCoordinator;
 using PersistenceStore = Lucky5.Infrastructure.Persistence.IPersistentStateStore;
 using RedisSnapshotStore = Lucky5.Infrastructure.Persistence.RedisPersistentStateStore;
+using FileSnapshotStore = Lucky5.Infrastructure.Persistence.FilePersistentStateStore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
@@ -25,13 +27,33 @@ public static class ServiceCollectionExtensions
         services.AddOptions<PersistentStateCheckpointOptions>()
             .Bind(configuration.GetSection("Persistence"));
         
-        // Register Redis distributed cache (fallback to in-memory cache when Redis is not configured).
+        // Persistent state store selection:
+        //   1. If LUCKY5_STATE_DIR / Persistence:SnapshotDirectory is set, use file-backed snapshots.
+        //      On Cloud Run Gen 2 this path can be a mounted Cloud Storage FUSE volume, giving durable
+        //      cross-revision persistence with zero extra infra.
+        //   2. Otherwise, if a Redis connection string is configured, use Redis via IDistributedCache.
+        //   3. Otherwise, fall back to an in-process distributed memory cache. State will NOT survive
+        //      a container restart, but the app runs fine for local/dev.
+        var snapshotDirectory = configuration["Persistence:SnapshotDirectory"]
+            ?? configuration["LUCKY5_STATE_DIR"]
+            ?? configuration["PERSISTENCE__SNAPSHOTDIRECTORY"];
+
         var redisConnectionString = configuration.GetConnectionString("Redis")
             ?? configuration["LUCKY5_REDIS_CONNECTION"]
             ?? configuration["Redis:ConnectionString"]
             ?? configuration["REDIS:CONNECTION"];
 
-        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+        if (!string.IsNullOrWhiteSpace(snapshotDirectory))
+        {
+            services.AddDistributedMemoryCache();
+            services.AddSingleton<PersistenceStore>(sp =>
+            {
+                var opts = sp.GetRequiredService<IOptions<PersistentStateCheckpointOptions>>();
+                var logger = sp.GetRequiredService<ILogger<FileSnapshotStore>>();
+                return new FileSnapshotStore(snapshotDirectory!, opts, logger);
+            });
+        }
+        else if (!string.IsNullOrWhiteSpace(redisConnectionString))
         {
             services.AddStackExchangeRedisCache(options =>
             {
@@ -57,13 +79,14 @@ public static class ServiceCollectionExtensions
 
                 options.ConfigurationOptions = configOptions;
             });
+            services.AddSingleton<PersistenceStore, RedisSnapshotStore>();
         }
         else
         {
             services.AddDistributedMemoryCache();
+            services.AddSingleton<PersistenceStore, RedisSnapshotStore>();
         }
-        
-        services.AddSingleton<PersistenceStore, RedisSnapshotStore>();
+
         services.AddSingleton<PersistenceCoordinator, InMemoryPersistentStateCoordinator>();
         services.AddSingleton<PersistentStateCheckpointService>();
         services.AddHostedService(sp => sp.GetRequiredService<PersistentStateCheckpointService>());

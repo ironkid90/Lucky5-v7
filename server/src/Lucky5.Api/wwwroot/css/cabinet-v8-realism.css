@@ -23,6 +23,9 @@ body {
 }
 
 #game-container {
+    /* position:relative anchors the marquee, coin hopper, coin canvas,
+       and CRT pseudo-elements to the cabinet wrapper instead of <body>. */
+    position: relative;
     /* Slight padding so bezel is visible inside container */
     box-shadow:
         0 0 0 6px #2a1a0c,              /* inner cabinet lip */

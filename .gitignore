@@ -85,6 +85,7 @@ replit.md
 copilot-instructions.md
 ${SQLITE_DB_PATH}
 $APPDATA/
+%USERPROFILE%/
 
 # ── Logs & runtime artifacts ──────────────────────────────────────────────────
 *.log

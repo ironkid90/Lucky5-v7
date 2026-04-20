@@ -932,6 +932,13 @@ function setButtonStates() {
         } else {
             btn.disabled = gameState !== 'hold';
         }
+        // Visual affordance: the first hold button doubles as the
+        // Full-House jackpot rank cycler during idle+armed state. Tag it
+        // with .fh-target so the v8 CSS paints a red-edged "FH" label,
+        // making the dual behavior unambiguous to the player.
+        if (i === 0) {
+            btn.classList.toggle('fh-target', canAdjustJackpotRank());
+        }
     });
 }
 

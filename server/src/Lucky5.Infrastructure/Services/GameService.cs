@@ -221,7 +221,10 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         };
         active4kSlot = (ledger.RoundCount % 2 == 0) ? (int)(seed % 2) : 1 - (int)(seed % 2);
         ledger.ActiveFourOfAKindSlot = active4kSlot;
-        ApplyJackpotContributions(ledger, EngineCfg);
+        // Only the currently-starred Four-of-a-Kind jackpot accrues this round.
+        // The non-starred side is frozen — matching the UI rule that the red *
+        // marks the sole jackpot able to both grow and pay this round.
+        ApplyJackpotContributions(ledger, EngineCfg, active4kSlot);
         ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
 
         await store.UpdateMachineLedgerAsync(ledger);
@@ -990,10 +993,22 @@ return guessResult;
             ledger.MachineSerie,
             ledger.MachineKent);
 
-    private static void ApplyJackpotContributions(MachineLedgerState ledger, EngineConfig cfg)
+    /// <summary>
+    /// Applies per-round jackpot contributions. Only the currently-starred
+    /// Four-of-a-Kind jackpot (slot 0 -> A, slot 1 -> B) accrues this round;
+    /// the other side is frozen. Full House and Straight Flush jackpots
+    /// always accrue because they have no A/B split.
+    /// </summary>
+    private static void ApplyJackpotContributions(MachineLedgerState ledger, EngineConfig cfg, int activeFourOfAKindSlot)
     {
-        ledger.JackpotFourOfAKindA = Math.Min(ledger.JackpotFourOfAKindA + cfg.JackpotFourOfAKindContribution, cfg.JackpotFourOfAKindCap);
-        ledger.JackpotFourOfAKindB = Math.Min(ledger.JackpotFourOfAKindB + cfg.JackpotFourOfAKindContribution, cfg.JackpotFourOfAKindCap);
+        if (activeFourOfAKindSlot == 0)
+        {
+            ledger.JackpotFourOfAKindA = Math.Min(ledger.JackpotFourOfAKindA + cfg.JackpotFourOfAKindContribution, cfg.JackpotFourOfAKindCap);
+        }
+        else
+        {
+            ledger.JackpotFourOfAKindB = Math.Min(ledger.JackpotFourOfAKindB + cfg.JackpotFourOfAKindContribution, cfg.JackpotFourOfAKindCap);
+        }
         ledger.JackpotFullHouse = Math.Min(ledger.JackpotFullHouse + cfg.JackpotFullHouseContribution, cfg.JackpotFullHouseCap);
         ledger.JackpotStraightFlush = Math.Min(ledger.JackpotStraightFlush + cfg.JackpotStraightFlushContribution, cfg.JackpotStraightFlushCap);
     }

@@ -545,8 +545,17 @@ bool[] ComputeOptimalHolds(CleanRoomCard[] hand)
 
 void ApplyJackpotContributions(MachineLedgerState ledger)
 {
-    ledger.JackpotFourOfAKindA = Math.Min(ledger.JackpotFourOfAKindA + cfg.JackpotFourOfAKindContribution, cfg.JackpotFourOfAKindCap);
-    ledger.JackpotFourOfAKindB = Math.Min(ledger.JackpotFourOfAKindB + cfg.JackpotFourOfAKindContribution, cfg.JackpotFourOfAKindCap);
+    // Only the currently-starred Four-of-a-Kind jackpot accrues this round,
+    // mirroring GameService.ApplyJackpotContributions so the simulation
+    // reflects production jackpot dynamics faithfully.
+    if (ledger.ActiveFourOfAKindSlot == 0)
+    {
+        ledger.JackpotFourOfAKindA = Math.Min(ledger.JackpotFourOfAKindA + cfg.JackpotFourOfAKindContribution, cfg.JackpotFourOfAKindCap);
+    }
+    else
+    {
+        ledger.JackpotFourOfAKindB = Math.Min(ledger.JackpotFourOfAKindB + cfg.JackpotFourOfAKindContribution, cfg.JackpotFourOfAKindCap);
+    }
     ledger.JackpotFullHouse = Math.Min(ledger.JackpotFullHouse + cfg.JackpotFullHouseContribution, cfg.JackpotFullHouseCap);
     ledger.JackpotStraightFlush = Math.Min(ledger.JackpotStraightFlush + cfg.JackpotStraightFlushContribution, cfg.JackpotStraightFlushCap);
 }

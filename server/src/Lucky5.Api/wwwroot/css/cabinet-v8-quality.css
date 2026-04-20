@@ -135,6 +135,39 @@
     border-color: #ffcf3a !important;
 }
 
+/* FH-TARGET MODE on the first (leftmost) hold button.
+   Set by game.js::setButtonStates when canAdjustJackpotRank() is true
+   (gameState === 'idle' && jackpotRankArmed). In this mode the button
+   cycles the Full House jackpot rank (2..A) instead of toggling a hold.
+   We paint it with a red-edged border and swap the label to "FH" + rank,
+   so the two different behaviors of the same physical button cannot be
+   confused by the player. */
+.cab-btn.cab-hold.fh-target {
+    background: linear-gradient(180deg, #ffd14d 0%, #c45a0f 55%, #5a1f04 100%) !important;
+    border-color: #ff6a1a !important;
+    box-shadow:
+        inset 0 0 1.4cqh rgba(255, 170, 50, 0.75),
+        inset 0 0.3cqh 0 rgba(255, 255, 255, 0.35),
+        0 0 2cqh rgba(255, 90, 20, 0.7),
+        0 0.3cqh 0 rgba(0, 0, 0, 0.55) !important;
+    animation: v8-fh-target-pulse 1.1s ease-in-out infinite alternate;
+    color: #ffffff !important;
+}
+
+.cab-btn.cab-hold.fh-target::before {
+    content: 'FH';
+    font-size: 1.75cqh;
+    color: #ffffff;
+    text-shadow:
+        0 0 0.5cqh rgba(255, 80, 20, 0.9),
+        0 1px 0 rgba(80, 20, 0, 0.9);
+}
+
+@keyframes v8-fh-target-pulse {
+    0%   { filter: brightness(0.95); }
+    100% { filter: brightness(1.12); }
+}
+
 /* ----- 4. Action row buttons -------------------------------- */
 
 .cab-btn.cab-big,
@@ -268,15 +301,86 @@
     background: rgba(255,255,255,0.08) !important;
 }
 
-/* FH jackpot meter is the 9th line inside paytable; keep it tight. */
+/* FH jackpot meter is anchored to the BOTTOM-RIGHT of the paytable zone
+   so it sits visually:
+     - above the deck (paytable bottom is exactly at 15%, deck starts at 19%)
+     - to the right of the 2 PAIR row (anchored right:0 with width:55%)
+     - out of the pay-row flow so it never overflows and never pushes rows
+   This replaces the old in-flow 9th-row rendering that caused the white
+   "A 20000000" ribbon glitch when rows overflowed their 15% band. */
+#paytable { position: absolute; } /* already absolute in layout css — ensure */
+
 #paytable #jackpot-full-house {
-    font-size: 1.35cqh;
+    position: absolute;
+    right: 0.4cqh;
+    bottom: 0.15cqh;
+    left: auto;
+    width: auto;
+    max-width: 60%;
+    padding: 0.25cqh 0.7cqh;
+    font-family: var(--v8-btn-font);
+    font-size: 1.4cqh;
     line-height: 1;
-    padding: 0.15cqh 0.6cqh;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     color: #ffe27a;
+    background: linear-gradient(180deg, rgba(50, 20, 0, 0.72) 0%, rgba(25, 10, 0, 0.85) 100%);
+    border: 1px solid rgba(255, 200, 60, 0.35);
+    border-radius: 0.4cqh 0 0.2cqh 0.2cqh;
+    box-shadow:
+        0 0 0.6cqh rgba(255, 180, 40, 0.25),
+        inset 0 0 0.4cqh rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: flex-end;
+    align-items: baseline;
+    gap: 0.5cqh;
+    z-index: 3;
+    pointer-events: none;
+}
+
+#paytable #jackpot-full-house .jp-meter-label {
+    font-size: 1.15cqh;
+    color: #ffbd2c;
+    letter-spacing: 0.15cqh;
+}
+
+#paytable #jackpot-full-house #jp-fh-rank {
+    color: #ffffff;
+    font-weight: 900;
+    margin-left: 0.15cqh;
+}
+
+#paytable #jackpot-full-house .jp-counter-fh .jp-cval {
+    color: #ffe27a;
+    font-size: 1.55cqh;
+    letter-spacing: 0.1cqh;
+    text-shadow: 0 0 0.5cqh rgba(255, 200, 40, 0.65);
+}
+
+/* 4-of-a-kind star — red, blinking, only visible on the starred slot.
+   game.js::updateActive4kHighlight toggles style.display inline between
+   'inline' and 'none'. We make it unmistakably red and prominent. */
+.jp-4k-star {
+    color: #ff2a2a !important;
+    font-size: 1.6cqh !important;
+    margin-right: 0.25cqh;
+    text-shadow:
+        0 0 0.45cqh rgba(255, 80, 80, 0.85),
+        0 0 0.9cqh rgba(255, 40, 40, 0.5);
+    animation: v8-star-blink 0.9s steps(1, end) infinite;
+}
+
+@keyframes v8-star-blink {
+    0%, 49%   { opacity: 1; transform: scale(1); }
+    50%, 100% { opacity: 0.35; transform: scale(0.92); }
+}
+
+/* Active 4OAK counter gets a soft ring so the starred side stays obvious
+   even at a glance. updateActive4kHighlight adds .jp-active on the
+   active `[data-jackpot-slot^="4k-"]` element. */
+#machine-info-block .jp-counter[data-jackpot-slot^="4k-"].jp-active {
+    background: rgba(255, 60, 40, 0.18);
+    outline: 1px solid rgba(255, 90, 60, 0.7);
+    border-radius: 0.4cqh;
+    padding: 0 0.25cqh;
 }
 
 /* ----- 7. Credit / stake bar -------------------------------- */
@@ -388,42 +492,56 @@
     z-index: 5;
 }
 
-/* HOLD badge under the card — only appears when slot is marked held. */
+/* HOLD badge under the card — only appears when the slot is marked held.
+   The app toggles `.held` on .card-slot (see game.js::toggleHold,
+   cabinet-stage-vnext.js::setHold, and the original game.css rule
+   `.card-slot.held .hold-badge { display:block }`). We MUST match that
+   exact class; earlier iterations used `.is-held` / `[data-held="1"]`
+   which the app never sets, leaving the badge permanently hidden. */
 .card-slot .hold-badge {
+    display: none;
     background: transparent;
-    color: #ffbd2c;
+    color: #ffd23a;
     font-family: var(--v8-btn-font);
-    font-size: 1.1cqh;
-    letter-spacing: 0.2cqh;
+    font-size: 1.2cqh;
+    letter-spacing: 0.25cqh;
     margin-top: 0.3cqh;
     text-align: center;
-    text-shadow: 0 0 0.6cqh rgba(255, 160, 30, 0.7);
-    visibility: hidden;
+    text-shadow:
+        0 0 0.4cqh rgba(255, 200, 40, 0.95),
+        0 0 0.9cqh rgba(255, 140, 20, 0.55);
+    animation: v8-hold-pulse 0.95s ease-in-out infinite alternate;
 }
 
-.card-slot.is-held .hold-badge,
-.card-slot[data-held="1"] .hold-badge {
-    visibility: visible;
+.card-slot.held .hold-badge {
+    display: block;
 }
 
-/* ----- 10. Win amount display ------------------------------- */
+@keyframes v8-hold-pulse {
+    0%   { filter: brightness(1);   transform: translateY(0); }
+    100% { filter: brightness(1.25); transform: translateY(-0.15cqh); }
+}
+
+/* Held card face: soft golden ring so the state is readable even if the
+   badge is scrolled off. Complements game.css .card-slot.held .card-face. */
+.card-slot.held .card-face {
+    box-shadow:
+        0 0 0.8cqh rgba(255, 210, 60, 0.65),
+        0 0 1.6cqh rgba(255, 140, 30, 0.35),
+        0.2cqh 0.3cqh 0.8cqh rgba(0,0,0,0.7) !important;
+}
+
+/* ----- 10. Win display — no duplicate label -------------------
+   The separate #win-amount-display label is redundant with the
+   existing paytable-drain animation (animateJackpotFill in game.js)
+   which decrements the matching jackpot counter straight into the
+   credits span. We hide the duplicate label so winnings always
+   read from the paytable/jackpot counters the player is already
+   watching. JS still writes to these nodes; display:none just
+   suppresses the extra visible chrome. */
 
 #win-amount-display {
-    font-family: var(--v8-btn-font);
-    letter-spacing: 0.3cqh;
-}
-
-#win-amount-display #win-amount-value {
-    font-size: 3.2cqh;
-    color: #ffe27a;
-    text-shadow:
-        0 0 0.6cqh rgba(255, 210, 60, 0.65),
-        0 0 1.4cqh rgba(255, 130, 30, 0.45);
-}
-
-#win-amount-display #win-slot-tag {
-    font-size: 1.4cqh;
-    color: #ffbd2c;
+    display: none !important;
 }
 
 /* ----- 11. Idle overlay LUCKY 5 POKER (cqh, tilted, wooden) */

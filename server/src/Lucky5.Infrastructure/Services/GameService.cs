@@ -298,7 +298,11 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
         var ledger = await RequireMachineLedgerAsync(round.MachineId);
         ledger.CapitalIn += round.BetAmount;
-        ApplyJackpotContributions(ledger, EngineCfg);
+        // Draw-phase jackpot contribution honors the deal-time starred slot.
+        // This keeps "only the starred 4OAK grows this round" consistent across
+        // both the deal bet and the draw bet even if the ledger's live active
+        // slot has since rotated to a new value for the next deal.
+        ApplyJackpotContributions(ledger, EngineCfg, round.ActiveFourOfAKindSlotAtDeal);
         ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
 
         await store.UpdateMachineLedgerAsync(ledger);

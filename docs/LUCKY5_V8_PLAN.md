@@ -1,8 +1,11 @@
 # Lucky 5 v8 — "Cabinet Real" Plan
 
-**Status:** In progress  
-**Scope:** Major version bump focused on (a) realistic arcade-cabinet visual & tactile feel, and (b) engine RTP **calibration** to 80% composite **without changing any game rules**.  
+**Status:** Tracks A+B+C code-complete. Track A RTP verification pending user-run sim.
+**Last updated:** 2026-04-20
+**Scope:** Major version bump focused on (a) realistic arcade-cabinet visual & tactile feel, (b) engine RTP **calibration** to 80% composite **without changing any game rules**, and (c) targeted 2026-04-20 surgery (hold-badge fix, FH-target button, FH jackpot reposition, single-star 4OAK accrual, paytable drain for wins).
 **Non-goals:** Mobile-first redesign, new game modes, database migration (Data Connect schema remains aspirational).
+
+> **New contributor?** Read `LUCKY5_V8_HANDOFF.md` first — it is the shortest path to resuming this work.
 
 ---
 

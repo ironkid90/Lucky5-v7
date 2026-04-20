@@ -16,15 +16,17 @@ window.CabinetStage = (function () {
         const timing = cfg && cfg.timing ? cfg.timing : {};
         const assets = cfg && cfg.assets ? cfg.assets : {};
 
+        // Arcade-calibrated defaults (2026-04-20). All overridable from
+        // GAME_CONFIG.timing so variants can retune the feel centrally.
         const next = {
             cardBack: assets.cardBack || '/assets/images/cards/bside.png',
-            dealStaggerMs: Number(timing.dealStaggerMs) || 100,
-            dealDurationMs: Number(timing.dealAnimDurationMs) || 120,
-            drawOutMs: 60,
-            drawInMs: 80,
-            drawStaggerMs: 40,
-            shuffleFrameMs: Number(timing.shuffleFrameMs) || 80,
-            lucky5ActiveMs: Number(timing.lucky5ActiveScreenMs) || 700
+            dealStaggerMs: Number(timing.dealStaggerMs) || 70,
+            dealDurationMs: Number(timing.dealAnimDurationMs) || 180,
+            drawOutMs: Number(timing.drawOutMs) || 55,
+            drawInMs: Number(timing.drawInMs) || 75,
+            drawStaggerMs: Number(timing.drawStaggerMs) || 45,
+            shuffleFrameMs: Number(timing.shuffleFrameMs) || 130,
+            lucky5ActiveMs: Number(timing.lucky5ActiveScreenMs) || 1300
         };
 
         if (overrides && typeof overrides === 'object') {

@@ -770,12 +770,12 @@ function resetIdleOverlayTimer() {
     // Hide overlay immediately if visible
     hideIdleOverlay();
     
-    // Show overlay after 3 seconds if conditions are met
+    // Show overlay after the configured quiet period (arcade default 2.2 s).
     idleOverlayTimer = setTimeout(() => {
         if (gameState === 'idle' && holdIndexes.size === 0 && !isDoubleUpMode()) {
             showIdleOverlay();
         }
-    }, 3000);
+    }, T.idleOverlayAppearMs || 2200);
 }
 
 function updateIdleOverlayVisibility() {

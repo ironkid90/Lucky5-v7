@@ -21,7 +21,16 @@
     if (window.__lucky5V8EffectsLoaded) return;
     window.__lucky5V8EffectsLoaded = true;
 
-    const IDLE_ATTRACT_MS = 30_000;
+    // Arcade-calibrated attract delay (2026-04-20). Reads from GAME_CONFIG
+    // so variants can extend / shorten the attract-mode trigger centrally.
+    // Falls back to 12 s if GAME_CONFIG hasn't loaded yet.
+    const IDLE_ATTRACT_MS = (function () {
+        try {
+            const t = window.GAME_CONFIG && window.GAME_CONFIG.timing;
+            const v = t && Number(t.idleAttractModeMs);
+            return (v && v > 0) ? v : 12_000;
+        } catch (e) { return 12_000; }
+    })();
     const MARQUEE_TEXT =
         'LUCKY 5  \u2022  LEBANESE LEGEND  \u2022  80% RTP  \u2022  FIVE OF SPADES NEVER LOSES  \u2022  ';
 
@@ -336,10 +345,21 @@
     // ---------- Resize handling ----------------------------------
 
     function wireResize() {
-        window.addEventListener('resize', function () {
+        // rAF-debounced so a burst of resize / orientation events collapses
+        // into a single relayout. Critical on mobile where orientation
+        // change fires many pixel-ratio / viewport events in < 16 ms.
+        let pending = 0;
+        const run = function () {
+            pending = 0;
             const canvas = document.getElementById('v8-coin-canvas');
             if (canvas) sizeCanvas(canvas);
-        });
+        };
+        const schedule = function () {
+            if (pending) return;
+            pending = requestAnimationFrame(run);
+        };
+        window.addEventListener('resize', schedule, { passive: true });
+        window.addEventListener('orientationchange', schedule, { passive: true });
     }
 
     // ---------- Card-face load-error guard -----------------------

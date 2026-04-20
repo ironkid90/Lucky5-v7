@@ -50,53 +50,74 @@ const GAME_CONFIG = Object.freeze({
 
     // ── 2. TIMING ────────────────────────────────────────────────────────────
     // All durations are in milliseconds.
-    // Adjust these to change the overall rhythm of the game without touching
-    // any rendering or state logic.
+    //
+    // 2026-04-20 ARCADE CALIBRATION PASS.
+    // Reference: Lebanese Lucky5 cabinets, Italian/Balkan video poker
+    // machines — snappy, punchy, no dead air. The previous values (10-15s
+    // jackpot fills, 3-8s credit drains, 250ms shuffle frames) felt like
+    // a slow web app, not a coin-op. Rule of thumb:
+    //   - Player-press to visible feedback: < 100 ms
+    //   - Card deal full cycle: 400-550 ms
+    //   - Card draw full cycle: 350-500 ms
+    //   - Shuffle flicker: 100-150 ms per frame
+    //   - Credit count-up: 1.2-3.5 s total, ease-out cubic
+    //   - Jackpot fill: 2.5-5.5 s total, ease-out cubic
+    // If you change these, mirror the feel-check in GAME_FEEL_REFERENCE.md.
     timing: Object.freeze({
         // Main-hand deal animation
-        dealBaseMs:           60,   // delay before the first card starts dropping
-        dealStaggerMs:        80,   // extra delay per subsequent card (left → right)
-        dealAnimDurationMs:   220,  // CSS transition length for the drop itself
-
-        // Double-up: shuffle animation
-        shuffleFrameMs:       250,  // how often the shuffle swaps to a random card
-
-        // Double-up: reveal sequence
-        duRevealDelayMs:      150,  // wait after server responds before showing challenger card
-        duWinHoldMs:          700,  // show WIN message this long before advancing the trail
-        duStaggerPerCardMs:   80,   // stagger between cards on a fresh DU page
-
-        // Win collection / drain-to-credits
-        countUpMinMs:         3000,
-        countUpMaxMs:         8000,
-        creditTickMs:         120,  // toggle interval for the credit-ticking flash class
-
-        // Jackpot fill animation (for jackpot-level wins)
-        jackpotFillMinMs:     10000,
-        jackpotFillMaxMs:     15000,
-
-        // Lucky5 safe / machine-closed payout drain
-        drainDelayMs:         1200, // wait before starting the drain animation
-
-        // Double-up exit delays
-        exitDuLoseMs:         1000, // delay before exiting DU after a loss
-        exitDuCatchMs:        1500, // delay before exiting DU after a network error
-
-        // Lucky5 flash presentation
-        lucky5FlashDurationMs: 600,   // CSS animation duration
-        lucky5ActiveScreenMs:  1600,  // how long .lucky5-active stays on the game screen
+        dealBaseMs:           50,   // delay before the first card starts dropping
+        dealStaggerMs:        70,   // extra delay per subsequent card (left → right)
+        dealAnimDurationMs:   180,  // CSS transition length for the drop itself
 
         // Draw animation (re-dealing only non-held cards)
-        drawRevealStartMs:     60,    // delay before first replaced card starts dropping
-        // draw card stagger reuses dealStaggerMs (same physics as deal)
+        drawOutMs:            55,   // fade-out duration on replaced cards
+        drawInMs:             75,   // fade-in / drop-in duration on new cards
+        drawStaggerMs:        45,   // stagger between replaced card slots
+        drawRevealStartMs:    50,   // delay before first replaced card starts dropping
+
+        // Double-up: shuffle animation
+        shuffleFrameMs:       130,  // how often the shuffle swaps to a random card
+
+        // Double-up: reveal sequence
+        duRevealDelayMs:      120,  // wait after server responds before showing challenger card
+        duWinHoldMs:          550,  // show WIN message this long before advancing the trail
+        duStaggerPerCardMs:   65,   // stagger between cards on a fresh DU page
+
+        // Win collection / drain-to-credits
+        //   At 500 k credits/unit: 500 k * 1.4 s / 500 k = 1.4 s (minimum).
+        //   Max capped at 3.5 s so 10 M+ wins don't drag.
+        countUpMinMs:         1400,
+        countUpMaxMs:         3500,
+        creditTickMs:         90,   // digit-flash toggle during count-up (classic tick cadence)
+
+        // Jackpot fill animation (for jackpot-level wins)
+        //   Formula: amount / 500 k * 3000, clamped to [2.8 s, 5.5 s].
+        //   A 5 M jackpot now fills in ~4.5 s instead of the old 15 s.
+        jackpotFillMinMs:     2800,
+        jackpotFillMaxMs:     5500,
+
+        // Lucky5 safe / machine-closed payout drain
+        drainDelayMs:         700,  // wait before starting the drain animation
+
+        // Double-up exit delays
+        exitDuLoseMs:         750,  // delay before exiting DU after a loss
+        exitDuCatchMs:        1000, // delay before exiting DU after a network error
+
+        // Lucky5 flash presentation
+        lucky5FlashDurationMs: 500,   // CSS animation duration
+        lucky5ActiveScreenMs:  1300,  // how long .lucky5-active stays on the game screen
 
         // Post-draw flow
-        drawResultDelayMs:     500,   // delay after draw cards settle before showing result/DU
-        winToDuPromptMs:       500,   // delay before auto-launching DU after a win
-        postLossIdleTitleMs:   2000,  // delay before idle title shows after a loss
+        drawResultDelayMs:     350,   // delay after draw cards settle before showing result/DU
+        winToDuPromptMs:       400,   // delay before auto-launching DU after a win
+        postLossIdleTitleMs:   1400,  // delay before idle title shows after a loss
 
         // Take-half continue delay
-        takeHalfContinueMs:    800,   // delay before re-offering DU after taking half
+        takeHalfContinueMs:    550,   // delay before re-offering DU after taking half
+
+        // Idle overlay / attract
+        idleOverlayAppearMs:   2200,  // quiet period before the LUCKY 5 POKER overlay appears
+        idleAttractModeMs:     12000, // full arcade attract sequence kicks in after this long
     }),
 
     // ── 3. API ───────────────────────────────────────────────────────────────

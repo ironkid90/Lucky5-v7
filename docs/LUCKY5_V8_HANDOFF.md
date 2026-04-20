@@ -244,3 +244,4 @@ git push origin main
 - **v8 Asset restore (2026-04-19):** 178 missing PNG/TTF assets recovered from commit `933788b^`.
 - **v8 CSS coordinate-system rewrite (2026-04-19):** `cabinet-v8-quality.css` migrated from `vw/vh/px` to `cqh` after user-reported layout breakage.
 - **v8 Track C surgery (2026-04-20):** Hold-badge selector fix, FH-target button visual, FH meter relocation, win-amount-display hidden, single-star 4OAK accrual. **This handoff doc.**
+- **v8 Arcade calibration (2026-04-20, late):** Timing pass to match real coin-op feel. Credit count-up now 1.4-3.5 s (was 3-8 s). Jackpot fill now 2.8-5.5 s (was 10-15 s). Shuffle at 130 ms/frame (was 250). Deal at 70 ms stagger / 180 ms drop. Draw timings surfaced from hardcoded to config. Idle overlay + attract delays also surfaced. rAF-debounced coin-canvas resize. See `game-config.js::timing` header comment for the full reference.

@@ -544,24 +544,114 @@
     display: none !important;
 }
 
-/* ----- 11. Idle overlay LUCKY 5 POKER (cqh, tilted, wooden) */
-/* Original sizing was 2.8cqh; reference art shows slightly larger
-   but still contained well within the control deck. 6cqh fits. */
+/* ----- 11. Idle attract title LUCKY 5 / POKER (arcade VFD look) ------
+   2026-04-20: reworked to match reference cabinet art. The title now
+   sits in the screen band (positioned via cabinet-layout-vnext.css),
+   renders on two stacked lines ("LUCKY 5" over "POKER" indented right),
+   uses a bold pixel-matrix typeface, and glows cyan like a vacuum
+   fluorescent display. No rotation — real cabinets display straight.
+   We use `-webkit-text-stroke` as a pixel-block outline and a double
+   text-shadow for the soft LED bloom. */
 
-#idle-overlay #idle-overlay-text {
+#idle-overlay #idle-overlay-text .idle-line {
     font-family: var(--v8-btn-font);
-    font-size: 6cqh;
-    color: #5fd8ff;
+    font-weight: 900;
+    font-size: 9cqh;
     letter-spacing: 0.6cqh;
-    text-align: center;
+    color: #9ceaff;
+    text-transform: uppercase;
+    /* Sharp pixel edge + outer bloom stack — reads like a VFD/LED screen */
     text-shadow:
-        0 0 1.2cqh rgba(95, 216, 255, 0.65),
-        0 0 2.4cqh rgba(30, 150, 220, 0.35);
-    line-height: 1.1;
-    transform: rotate(-4deg);
-    opacity: 0.9;
+        0 0 0.4cqh #9ceaff,
+        0 0 1.4cqh rgba(95, 216, 255, 0.9),
+        0 0 3cqh rgba(40, 160, 220, 0.55),
+        0 0.25cqh 0 rgba(0, 0, 0, 0.65);
+    -webkit-text-stroke: 0.08cqh #1a5d7a;
+    opacity: 0.95;
+}
+#idle-overlay #idle-overlay-text .idle-line-lucky { font-size: 10cqh; }
+#idle-overlay #idle-overlay-text .idle-line-poker { font-size: 11.5cqh; }
+
+/* Attract-mode pulse: slow cyan breathing to sell the "cabinet calling
+   for a coin" feel. Disabled by prefers-reduced-motion. */
+@keyframes v8-idle-title-breathe {
+    0%, 100% { filter: brightness(1) drop-shadow(0 0 0.6cqh rgba(95, 216, 255, 0.4)); }
+    50%      { filter: brightness(1.25) drop-shadow(0 0 1.4cqh rgba(95, 216, 255, 0.8)); }
+}
+#idle-overlay.visible #idle-overlay-text {
+    animation: v8-idle-title-breathe 2.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    #idle-overlay.visible #idle-overlay-text { animation: none; }
 }
 
-/* ----- 12. Safety fallbacks -------------------------------- */
+/* ----- 12. FH jackpot meter + 2 PAIR coexistence ------------
+   2026-04-20: previous CSS sized the FH pill at ~2.5cqh tall and
+   absolutely positioned it at bottom:0.15cqh — tall enough that it
+   covered the 2 PAIR row entirely, hiding row 8 of the paytable.
+   Fix: shrink FH pill to one-row-tall, align it with the 2 PAIR
+   row, and let the "2 PAIR" label remain visible on the left half
+   while the FH jackpot takes the right half (matching reference
+   art where 2 PAIR text + FH badge share the same baseline). */
+
+#paytable #jackpot-full-house {
+    height: 1.9cqh;
+    bottom: 0.15cqh;
+    right: 0.2cqh;
+    padding: 0.1cqh 0.45cqh;
+    gap: 0.35cqh;
+    background: linear-gradient(180deg, #1a120a 0%, #0c0805 100%);
+    border: 0.15cqh solid #e4b12e;
+    border-radius: 0.35cqh;
+    box-shadow:
+        inset 0 0 0.25cqh rgba(255, 200, 60, 0.35),
+        0 0.1cqh 0.25cqh rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    max-width: 48%;
+    overflow: hidden;
+}
+
+/* "FH A" label: bright gold, pixel-block */
+#paytable #jackpot-full-house .jp-meter-label {
+    font-size: 1.1cqh;
+    color: #ffc83d;
+    letter-spacing: 0.12cqh;
+    text-shadow: 0 0 0.2cqh rgba(255, 200, 60, 0.6);
+}
+
+/* FH rank badge ("A" / "2" / ... / "K") in a cream chip so it stands
+   out as the active-target indicator, matching reference art. */
+#paytable #jackpot-full-house #jp-fh-rank {
+    display: inline-block;
+    min-width: 1cqh;
+    padding: 0 0.25cqh;
+    margin: 0 0.25cqh 0 0.1cqh;
+    background: #fff6d8;
+    color: #1a1207;
+    border-radius: 0.15cqh;
+    font-weight: 900;
+}
+
+/* Jackpot value: pale-cyan on black so it reads against the gold frame
+   and doesn't clash with the paytable amounts. */
+#paytable #jackpot-full-house .jp-counter-fh .jp-cval {
+    color: #c4f1ff;
+    font-size: 1.35cqh;
+    letter-spacing: 0.08cqh;
+    font-weight: 900;
+    text-shadow: 0 0 0.3cqh rgba(95, 216, 255, 0.6);
+}
+
+/* Guarantee 2 PAIR row visibility: rows before it stay at the default
+   1.5cqh; we force the last row to remain in flow even under tight
+   viewports by dropping row vertical padding to zero on the last row. */
+#paytable .pay-row.tp {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* ----- 13. Safety fallbacks -------------------------------- */
 /* Ensure no other stylesheet re-applies button background PNGs. */
 button.cab-btn { background-image: none !important; }

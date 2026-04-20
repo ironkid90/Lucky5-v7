@@ -967,6 +967,16 @@ async function doBet() {
     updateBonusHandText();
     setButtonStates();
     showIdleTitle(true);
+
+    // Arcade convention: the BET button ALSO advances the Full House target
+    // rank on every idle press (like the classic cabinet where BET cycles
+    // the FH selector between 2-3-...-K-A). We fire-and-forget so the bet
+    // UX stays instant; the server reconciles the new rank on its own rhythm.
+    // Gated on jackpotRankArmed so it only fires in true idle state, never
+    // mid-round.
+    if (jackpotRankArmed) {
+        try { cycleJackpotRank(); } catch (err) { /* non-fatal */ }
+    }
 }
 
 async function doSwitchDealer() {

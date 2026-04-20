@@ -231,40 +231,50 @@
     gap: 6px;
 }
 
-/* ── Idle overlay on board background ───────────────────────────────────── */
+/* ── Idle attract overlay (arcade VFD title in the SCREEN band) ──────────
+   2026-04-20: moved out of #controls into #game-screen so the LUCKY 5
+   POKER title reads like a classic cabinet attract banner sitting on the
+   CRT, not in the wooden control deck. Spans the vertical band 15%-42%
+   so it covers the label band + card area + win-amount row while idle. */
 #idle-overlay {
     position: absolute;
-    top: 0;
+    top: 15%;
     left: 0;
     width: 100%;
-    height: 100%;
+    height: 27%;
     display: flex;
     align-items: center;
     justify-content: center;
     pointer-events: none;
+    z-index: 5;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.6s ease-in-out, visibility 0.6s ease-in-out;
-    z-index: 1;
+    transition: opacity 320ms ease;
 }
-
 #idle-overlay.visible {
     opacity: 1;
     visibility: visible;
 }
 
+/* The per-line spans that render LUCKY 5 over POKER stacked like a
+   classic coin-op attract title. Full typographic treatment lives in
+   cabinet-v8-quality.css so the v8 quality layer can override fonts,
+   pixel-matrix shadow, and LED-glow cleanly. */
 #idle-overlay-text {
-    color: #004400;
-    font-family: 'Press Start 2P', 'Arcade', monospace;
-    font-size: 2.8cqh;
-    letter-spacing: 0.15cqh;
-    text-shadow:
-        0.1cqh 0.1cqh 0 #000000,
-        -0.1cqh -0.1cqh 0 #000000,
-        0.1cqh -0.1cqh 0 #000000,
-        -0.1cqh 0.1cqh 0 #000000;
-    transform: rotate(-5deg);
-    opacity: 0.7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4cqh;
+}
+#idle-overlay-text .idle-line {
+    display: block;
+    line-height: 1;
+    white-space: nowrap;
+}
+#idle-overlay-text .idle-line-poker {
+    align-self: flex-end;
+    padding-right: 4cqh;
 }
 
 /* Button sizing and alignment only; image states handled by JS */

@@ -6,13 +6,13 @@
     <meta name="lucky5-api-base" content="">
     <title>Lucky 5 - Video Poker</title>
     <link rel="stylesheet" href="/css/game.css?v=17">
-    <link rel="stylesheet" href="/css/cabinet-layout-vnext.css?v=1">
+    <link rel="stylesheet" href="/css/cabinet-layout-vnext.css?v=2">
     <link rel="stylesheet" href="/css/cabinet-labels-vnext.css?v=2">
     <link rel="stylesheet" href="/css/cabinet-shell-vnext.css?v=1">
     <link rel="stylesheet" href="/css/cabinet-frame-vnext.css?v=2">
     <link rel="stylesheet" href="/css/cabinet-frame-azurefix.css?v=1">
     <link rel="stylesheet" href="/css/cabinet-v8-realism.css?v=3">
-    <link rel="stylesheet" href="/css/cabinet-v8-quality.css?v=3">
+    <link rel="stylesheet" href="/css/cabinet-v8-quality.css?v=4">
     <link rel="icon" href="/assets/images/coin.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -237,6 +237,16 @@
 
             <div id="lucky5-banner" data-zone="label-band">LUCKY 5 IS ACTIVE</div>
 
+            <!-- Idle attract title lives in the SCREEN zone (not in controls) so
+                 it reads like an arcade cabinet VFD attract banner sitting on
+                 top of the card area. Hidden by default; game.js toggles .visible. -->
+            <div id="idle-overlay">
+                <div id="idle-overlay-text">
+                    <span class="idle-line idle-line-lucky">LUCKY 5</span>
+                    <span class="idle-line idle-line-poker">POKER</span>
+                </div>
+            </div>
+
             <div id="credit-stake-bar" data-zone="credit-stake">
                 <div id="credits" class="credit-val">CREDIT<br><span>0</span></div>
                 <div id="win-indicator"></div>
@@ -288,10 +298,6 @@
 
             <!-- Control deck (board background) -->
             <div id="controls" data-zone="controls">
-                <!-- Idle overlay appears on board when machine is idle -->
-                <div id="idle-overlay">
-                    <div id="idle-overlay-text">LUCKY 5 POKER</div>
-                </div>
                 <div id="hold-row" data-zone="hold-row" class="hold-row">
                     <button class="cab-btn cab-hold" data-index="0"></button>
                     <button class="cab-btn cab-hold" data-index="1"></button>
@@ -327,7 +333,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
     <script src="/js/game-config.js?v=4"></script>
-    <script src="/js/game.js?v=22"></script>
+    <script src="/js/game.js?v=23"></script>
     <script src="/js/cabinet-stage-vnext.js?v=4"></script>
     <script src="/js/cabinet-pace-vnext.js?v=1"></script>
     <script src="/js/cabinet-image-cache.js?v=1"></script>

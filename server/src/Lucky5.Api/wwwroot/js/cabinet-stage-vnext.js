@@ -114,8 +114,59 @@ window.CabinetStage = (function () {
         return null;
     }
 
+    function _setFaceDiagnostic(slotEl, hasError, reason) {
+        if (!slotEl) return;
+
+        slotEl.classList.toggle('v8-face-error', Boolean(hasError));
+
+        if (hasError && reason) {
+            slotEl.dataset.faceError = reason;
+            return;
+        }
+
+        delete slotEl.dataset.faceError;
+    }
+
+    function resolveCardFaceSrc(cardLike) {
+        const card = _asCard(cardLike);
+        return card && card.code
+            ? `/assets/images/cards/${card.code}.png`
+            : _config.cardBack;
+    }
+
     function _cardSrc(code) {
-        return `/assets/images/cards/${code}.png`;
+        return resolveCardFaceSrc(code);
+    }
+
+    function _applyCardFace(slotEl, img, cardLike, options) {
+        const card = _asCard(cardLike);
+        const requireFace = Boolean(options && options.requireFace);
+
+        if (!slotEl || !img) {
+            return null;
+        }
+
+        img.onerror = null;
+        img.onload = null;
+
+        if (!card || !card.code) {
+            img.src = _config.cardBack;
+            img.alt = requireFace ? 'Missing card face' : 'Card back';
+            _setFaceDiagnostic(slotEl, requireFace, requireFace ? 'missing-card-code' : '');
+            return null;
+        }
+
+        _setFaceDiagnostic(slotEl, false, '');
+        img.onload = function handleFaceLoad() {
+            _setFaceDiagnostic(slotEl, false, '');
+        };
+        img.onerror = function handleFaceError() {
+            _setFaceDiagnostic(slotEl, true, `missing-face:${card.code}`);
+            img.alt = `${card.code} missing face`;
+        };
+        img.src = resolveCardFaceSrc(card);
+        img.alt = card.code;
+        return card;
     }
 
     function _allCardCodes() {
@@ -178,6 +229,7 @@ window.CabinetStage = (function () {
         if (!slotEl) return;
 
         slotEl.classList.remove('held', 'lucky5-active');
+        _setFaceDiagnostic(slotEl, false, '');
         slotEl.style.transition = 'none';
         slotEl.style.transform = 'translateY(0)';
         slotEl.style.opacity = '1';
@@ -233,6 +285,7 @@ window.CabinetStage = (function () {
             if (!slotEl || !frame || !label || !img) continue;
 
             slotEl.classList.remove('du-trail-card', 'du-shuffling');
+            _setFaceDiagnostic(slotEl, false, '');
             frame.classList.remove('dealer-card', 'lucky5-glow');
             label.textContent = '';
             img.src = _config.cardBack;
@@ -300,8 +353,9 @@ window.CabinetStage = (function () {
             if (!slotEl || !frame || !label || !img) continue;
 
             if (card) {
-                img.src = _cardSrc(card.code);
-                img.alt = card.code;
+                _applyCardFace(slotEl, img, card, { requireFace: true });
+            } else {
+                _applyCardFace(slotEl, img, null, { requireFace: false });
             }
 
             if (card && i < dealerIndex) {
@@ -349,7 +403,7 @@ window.CabinetStage = (function () {
         _shuffleInterval = setInterval(() => {
             const code = codes[cursor % codes.length];
             cursor++;
-            img.src = _cardSrc(code);
+            img.src = resolveCardFaceSrc(code);
             img.alt = `${code} shuffle`;
         }, frameMs);
     }
@@ -370,6 +424,28 @@ window.CabinetStage = (function () {
             shuffleFrameMs: _config.shuffleFrameMs,
             lucky5ActiveMs: _config.lucky5ActiveMs
         };
+    }
+
+    function renderHand(cardArray, heldIndexes) {
+        if (!_ensureMainSlots()) return;
+
+        _stopShuffle();
+
+        const cards = Array.isArray(cardArray) ? cardArray.map(_asCard) : [];
+        const held = new Set(Array.isArray(heldIndexes) ? heldIndexes : Array.from(heldIndexes || []));
+
+        clearAllHolds();
+
+        for (let i = 0; i < 5; i++) {
+            const slotEl = _slot(i);
+            const img = _cardImg(slotEl);
+
+            if (!slotEl || !img) continue;
+
+            _resetMainSlot(slotEl);
+            _applyCardFace(slotEl, img, cards[i], { requireFace: true });
+            setHold(i, held.has(i));
+        }
     }
 
     function initCardSlots() {
@@ -424,8 +500,7 @@ window.CabinetStage = (function () {
             if (!slotEl || !img) return;
 
             _resetMainSlot(slotEl);
-            img.src = card && card.code ? _cardSrc(card.code) : _config.cardBack;
-            img.alt = card && card.code ? card.code : 'Card back';
+            _applyCardFace(slotEl, img, card, { requireFace: true });
             slotEl.style.transform = 'translateY(-60px)';
         });
 
@@ -468,10 +543,7 @@ window.CabinetStage = (function () {
 
             if (held.has(i)) {
                 slotEl.classList.add('held');
-                if (card && card.code) {
-                    img.src = _cardSrc(card.code);
-                    img.alt = card.code;
-                }
+                _applyCardFace(slotEl, img, card, { requireFace: true });
                 if (face) {
                     face.style.transition = 'none';
                     face.style.opacity = '1';
@@ -489,8 +561,7 @@ window.CabinetStage = (function () {
                 }
 
                 setTimeout(() => {
-                    img.src = card && card.code ? _cardSrc(card.code) : _config.cardBack;
-                    img.alt = card && card.code ? card.code : 'Card back';
+                    _applyCardFace(slotEl, img, card, { requireFace: true });
 
                     if (face) {
                         face.style.transition = `opacity ${inMs}ms ease-out`;
@@ -657,7 +728,9 @@ window.CabinetStage = (function () {
     return {
         configure,
         getConfig,
+        resolveCardFaceSrc,
         initCardSlots,
+        renderHand,
         dealCards,
         drawCards,
         setHold,

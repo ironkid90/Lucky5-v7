@@ -195,59 +195,40 @@ window.CabinetOrchestrator = (function () {
             };
         });
 
-        _patch('renderCards', function (legacy) {
-            return function patchedRenderCards(cardData, animate) {
-                const heldSnapshot = typeof holdIndexes !== 'undefined' ? Array.from(holdIndexes || []) : [];
+        _patch('renderDealStage', function (legacy) {
+            return function patchedRenderDealStage(cardData) {
+                const result = legacy.call(this, cardData);
+                CabinetState.updateMachine({
+                    cards: Array.isArray(cardData) ? cardData : [],
+                    holdIndexes: []
+                });
+                return result;
+            };
+        });
+
+        _patch('renderDrawStage', function (legacy) {
+            return function patchedRenderDrawStage(cardData, heldIndexes) {
+                const result = legacy.call(this, cardData, heldIndexes);
+                const heldSnapshot = Array.isArray(heldIndexes)
+                    ? heldIndexes
+                    : Array.from(heldIndexes || []);
                 CabinetState.updateMachine({
                     cards: Array.isArray(cardData) ? cardData : [],
                     holdIndexes: heldSnapshot
                 });
-
-                if (animate) {
-                    // CabinetStage.dealCards is called directly by game.js after this function;
-                    // dispatch RENDER_DEAL for the transition lock/audio only — skip legacy DOM rebuild.
-                    CabinetTransition.dispatch({
-                        type: 'RENDER_DEAL',
-                        cards: cardData,
-                        cardCount: Array.isArray(cardData) ? cardData.length : 5,
-                        staggerFrames: Math.max(1, Math.round((Number(window.GAME_CONFIG?.timing?.dealStaggerMs || 80) / 1000) * 60)),
-                        settleFrames: Math.max(1, Math.round((Number(window.GAME_CONFIG?.timing?.dealAnimDurationMs || 220) / 1000) * 60))
-                    });
-                    // Do NOT call legacy here — game.js's own DOM loop + CabinetStage.dealCards handles rendering.
-                    return;
-                }
-
-                // Non-animated draw path: dispatch RENDER_DRAW transition for lock/audio,
-                // then let CabinetStage.drawCards (called by game.js) handle the flip animation.
-                CabinetTransition.dispatch({
-                    type: 'RENDER_DRAW',
-                    cards: cardData,
-                    heldIndexes: heldSnapshot,
-                    frames: Math.max(1, Math.round((Number(window.GAME_CONFIG?.timing?.dealBaseMs || 120) / 1000) * 60) + 6)
-                });
-                // Skip legacy DOM rebuild — CabinetStage.drawCards handles it.
+                return result;
             };
         });
 
         _patch('renderDoubleUpCards', function (legacy) {
             return function patchedRenderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
+                const result = legacy.call(this, dealerCard, showShuffle, challengerCard);
                 const trail = (typeof duCardTrail !== 'undefined' && Array.isArray(duCardTrail)) ? duCardTrail : [];
                 CabinetState.updateMachine({
                     duDealerCard: dealerCard || null,
                     duCardTrail: trail
                 });
-
-                // CabinetStage.enterDoubleUp / updateDoubleUpTrail are called directly by game.js;
-                // dispatch only for transition lock and audio cue — do NOT call legacy DOM builder.
-                CabinetTransition.dispatch({
-                    type: 'RENDER_DOUBLEUP',
-                    dealerCard: dealerCard || null,
-                    challengerCard: challengerCard || null,
-                    trailCards: trail.map((entry) => (entry && entry.card) ? entry.card : entry),
-                    status: challengerCard ? 'resolved' : 'pending',
-                    frames: showShuffle ? 10 : 6
-                });
-                // Skip legacy — CabinetStage handles the DU viewport.
+                return result;
             };
         });
 

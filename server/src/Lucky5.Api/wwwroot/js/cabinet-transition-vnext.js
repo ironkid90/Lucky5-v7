@@ -103,8 +103,8 @@ window.CabinetTransition = (function () {
 
         switch (action.type) {
             case 'RENDER_DEAL':
-                // game.js calls CabinetStage.dealCards directly after renderCards(cards, true).
-                // This step provides lock window + audio; initCardSlots is safe to call (idempotent reset).
+                // game.js / CabinetStage own the deal DOM directly.
+                // This step is lock window + audio only.
                 enqueue([
                     {
                         name: 'deal-cards',
@@ -112,9 +112,6 @@ window.CabinetTransition = (function () {
                         frames: Math.max(1, Math.ceil((Number(action.cardCount || 5) * Number(action.staggerFrames || 6)) + Number(action.settleFrames || 12))),
                         run: function () {
                             if (window.CabinetAudio) CabinetAudio.queue('deal');
-                            if (window.CabinetStage?.initCardSlots) {
-                                CabinetStage.initCardSlots();
-                            }
                         }
                     }
                 ]);
@@ -134,8 +131,8 @@ window.CabinetTransition = (function () {
                 ]);
                 break;
             case 'RENDER_DOUBLEUP':
-                // game.js calls CabinetStage.enterDoubleUp + updateDoubleUpTrail directly.
-                // Only shuffleChallenger is NOT called directly by game.js for the pending phase.
+                // game.js / CabinetStage own the double-up DOM directly.
+                // This step is lock window + audio only.
                 enqueue([
                     {
                         name: 'doubleup-stage',
@@ -143,9 +140,6 @@ window.CabinetTransition = (function () {
                         frames: Math.max(1, Number(action.frames || 10)),
                         run: function () {
                             if (window.CabinetAudio) CabinetAudio.queue('doubleup');
-                            if (action.status === 'pending' && window.CabinetStage?.shuffleChallenger) {
-                                CabinetStage.shuffleChallenger();
-                            }
                         }
                     }
                 ]);

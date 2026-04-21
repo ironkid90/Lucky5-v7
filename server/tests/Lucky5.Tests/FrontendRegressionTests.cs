@@ -11,6 +11,7 @@ public static class FrontendRegressionTests
         string indexHtml;
         string gameCss;
         string orchestratorJs;
+        string stageJs;
         try
         {
             gameJs = await File.ReadAllTextAsync(ResolveGameJsPath());
@@ -18,6 +19,7 @@ public static class FrontendRegressionTests
             indexHtml = await File.ReadAllTextAsync(ResolveIndexHtmlPath());
             gameCss = await File.ReadAllTextAsync(ResolveGameCssPath());
             orchestratorJs = await File.ReadAllTextAsync(ResolveWwwrootFilePath("js", "cabinet-orchestrator-vnext.js"));
+            stageJs = await File.ReadAllTextAsync(ResolveWwwrootFilePath("js", "cabinet-stage-vnext.js"));
         }
         catch (Exception ex)
         {
@@ -248,6 +250,26 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
+            "game.js renderCards should delegate all cabinet-enabled face-up restoration through CabinetStage",
+            Regex.IsMatch(
+                gameJs,
+                @"function\s+renderCards\(cardData,\s*animate\)\s*\{[\s\S]{0,300}?hasCabinetStage\(\)[\s\S]{0,220}?CabinetStage\.dealCards\(normalizedCards\)[\s\S]{0,220}?CabinetStage\.renderHand\(normalizedCards,\s*holdIndexes\)",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "game.js renderDoubleUpCards should route cabinet-enabled double-up rendering through CabinetStage instead of bailing out early",
+            Regex.IsMatch(
+                gameJs,
+                @"function\s+renderDoubleUpCards\(dealerCard,\s*showShuffle,\s*challengerCard\)\s*\{[\s\S]{0,500}?hasCabinetStage\(\)[\s\S]{0,300}?getCabinetDoubleUpTrailCards\(\)[\s\S]{0,500}?CabinetStage\.updateDoubleUpTrail[\s\S]{0,400}?CabinetStage\.enterDoubleUp",
+                RegexOptions.CultureInvariant)
+                && !Regex.IsMatch(
+                    gameJs,
+                    @"function\s+renderDoubleUpCards\(dealerCard,\s*showShuffle,\s*challengerCard\)\s*\{[\s\S]{0,120}?if\s*\(hasCabinetStage\(\)\)\s*\{\s*return;\s*\}",
+                    RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
             "initGame should restore active rounds before falling back to idle cabinet state",
             Regex.IsMatch(
                 gameJs,
@@ -419,9 +441,11 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
-            "cabinet-orchestrator-vnext.js renderCards patch must not call legacy for animated deal (double-animation prevention)",
-            orchestratorJs.Contains("Do NOT call legacy here", StringComparison.Ordinal)
-                && orchestratorJs.Contains("Skip legacy DOM rebuild", StringComparison.Ordinal));
+            "cabinet-orchestrator-vnext.js should stop monkey-patching renderCards, and any double-up bridge patch must defer to legacy without dispatching render transitions",
+            !orchestratorJs.Contains("_patch('renderCards'", StringComparison.Ordinal)
+                && orchestratorJs.Contains("_patch('renderDoubleUpCards'", StringComparison.Ordinal)
+                && orchestratorJs.Contains("legacy.call(this, dealerCard, showShuffle, challengerCard);", StringComparison.Ordinal)
+                && !orchestratorJs.Contains("type: 'RENDER_DOUBLEUP'", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -435,8 +459,16 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
-            "cabinet-orchestrator-vnext.js renderDoubleUpCards must guard duCardTrail with typeof + Array.isArray check",
-            orchestratorJs.Contains("typeof duCardTrail !== 'undefined' && Array.isArray(duCardTrail)", StringComparison.Ordinal));
+            "cabinet-stage-vnext.js should expose a shared resolveCardFaceSrc helper and export it for legacy callers",
+            stageJs.Contains("function resolveCardFaceSrc(cardLike)", StringComparison.Ordinal)
+                && stageJs.Contains("resolveCardFaceSrc,", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-stage-vnext.js should expose an immediate renderHand helper for restore paths and route face assignment through _applyCardFace",
+            stageJs.Contains("function renderHand(cardArray, heldIndexes)", StringComparison.Ordinal)
+                && stageJs.Contains("renderHand,", StringComparison.Ordinal)
+                && stageJs.Contains("_applyCardFace(slotEl, img, cards[i], { requireFace: true });", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -464,8 +496,9 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
-            "cabinet-transition-vnext.js RENDER_DEAL case must not call CabinetStage.dealCards (game.js does it directly)",
-            transitionJs.Contains("game.js calls CabinetStage.dealCards directly", StringComparison.Ordinal));
+            "cabinet-transition-vnext.js RENDER_DEAL case must not mutate CabinetStage card slots",
+            !transitionJs.Contains("CabinetStage.initCardSlots()", StringComparison.Ordinal)
+                && transitionJs.Contains("This step is lock window + audio only", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -474,8 +507,9 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
-            "cabinet-transition-vnext.js RENDER_DOUBLEUP case must not call enterDoubleUp or updateDoubleUpTrail (game.js does it directly)",
-            transitionJs.Contains("game.js calls CabinetStage.enterDoubleUp", StringComparison.Ordinal));
+            "cabinet-transition-vnext.js RENDER_DOUBLEUP case must not mutate CabinetStage shuffle state",
+            !transitionJs.Contains("CabinetStage.shuffleChallenger()", StringComparison.Ordinal)
+                && transitionJs.Contains("double-up DOM directly", StringComparison.Ordinal));
 
         Assert(
             failures,

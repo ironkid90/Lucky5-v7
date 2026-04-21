@@ -728,6 +728,9 @@ function updateBonusBar(handRank, jackpotWon) {
 }
 
 function cardImagePath(card) {
+ if (hasCabinetStage() && typeof CabinetStage.resolveCardFaceSrc === 'function') {
+ return CabinetStage.resolveCardFaceSrc(card);
+ }
     if (!card || !card.code) return CARD_BACK_SRC;
     return `/assets/images/cards/${card.code}.png`;
 }
@@ -817,7 +820,17 @@ function hideIdleTitle() {
 
 // ── 6. RENDERING ─────────────────────────────────────────────────────────
 function renderCards(cardData, animate) {
-    const area = $('#card-area');
+ if (hasCabinetStage()) {
+ const normalizedCards = Array.isArray(cardData) ? cardData : [];
+ if (animate) {
+ CabinetStage.dealCards(normalizedCards);
+ return;
+ }
+ CabinetStage.renderHand(normalizedCards, holdIndexes);
+ return;
+ }
+
+ const area = $('#card-area');
     area.innerHTML = '';
     area.classList.remove('du-mode');
     for (let i = 0; i < 5; i++) {
@@ -1247,7 +1260,6 @@ function restoreRoundFromSnapshot(snapshot) {
         showDuInfo();
         updateIdleOverlayVisibility();
         renderDoubleUpCards(duDealerCard, true, null);
-        if (hasCabinetStage()) CabinetStage.enterDoubleUp(duDealerCard);
         updateWinIndicator(winAmount);
         updateWinAmountDisplay(winAmount, getFourOfAKindSlotTag(currentHandRank));
         if (duIsNoLoseActive) {
@@ -1461,9 +1473,23 @@ function hideDuInfo() {
 }
 
 function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
-    if (hasCabinetStage()) {
-        return;
-    }
+ if (hasCabinetStage()) {
+ const trailCards = getCabinetDoubleUpTrailCards();
+ if (challengerCard) {
+ CabinetStage.updateDoubleUpTrail(trailCards, dealerCard, challengerCard, '');
+ return;
+ }
+ if (showShuffle) {
+ if (trailCards.length > 0) {
+ CabinetStage.updateDoubleUpTrail(trailCards, dealerCard, null, 'pending');
+ } else {
+ CabinetStage.enterDoubleUp(dealerCard);
+ }
+ return;
+ }
+ CabinetStage.updateDoubleUpTrail(trailCards, dealerCard, null, 'pending');
+ return;
+ }
 
     const area = $('#card-area');
     area.innerHTML = '';

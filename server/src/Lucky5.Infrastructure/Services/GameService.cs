@@ -819,7 +819,9 @@ return guessResult;
                 CurrentAmount: duSession.CurrentAmount,
                 SwitchesRemaining: switchesRemaining,
                 IsNoLoseActive: duSession.IsNoLoseActive,
-                LuckyMultiplier: multiplier);
+                LuckyMultiplier: multiplier,
+                CardTrail: BuildCardTrail(duSession),
+                IsLucky5Active: duSession.IsNoLoseActive);
         }
 
         var dto = new ActiveRoundStateDto(

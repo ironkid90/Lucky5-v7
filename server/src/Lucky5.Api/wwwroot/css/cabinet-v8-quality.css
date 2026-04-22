@@ -655,3 +655,49 @@
 /* ----- 13. Safety fallbacks -------------------------------- */
 /* Ensure no other stylesheet re-applies button background PNGs. */
 button.cab-btn { background-image: none !important; }
+
+/* ----- 14. Clone asset buttons re-enabled ---------------------
+   v8 initially forced pure CSS buttons so the cabinet could survive
+   missing PNG assets. The full asset set is present again, and the
+   shipped vanilla cabinet is closer to the real machine when the clone
+   PNG button faces are used. We keep the CSS buttons as a fallback, but
+   any button that JS marks with .asset-button now renders the PNG face. */
+
+.cab-btn.asset-button {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background-repeat: no-repeat !important;
+    background-position: center center !important;
+    background-size: contain !important;
+    color: transparent !important;
+    text-indent: -9999px !important;
+    overflow: hidden !important;
+}
+
+.cab-btn.asset-button::before,
+.cab-btn.asset-button::after {
+    display: none !important;
+    content: none !important;
+}
+
+button.cab-btn.asset-button {
+    background-image: var(--cab-btn-image, none) !important;
+}
+
+.cab-btn.cab-hold.asset-button {
+    background-size: 100% 100% !important;
+}
+
+.cab-btn.cab-hold.fh-target.asset-button {
+    background-image: none !important;
+    color: #ffe7aa !important;
+    text-indent: 0 !important;
+    overflow: visible !important;
+}
+
+.cab-btn.cab-hold.fh-target.asset-button::before {
+    display: block !important;
+    content: 'FH' !important;
+}

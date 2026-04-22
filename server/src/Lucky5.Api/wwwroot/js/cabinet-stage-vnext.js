@@ -203,6 +203,31 @@ window.CabinetStage = (function () {
         return slotEl ? slotEl.querySelector('.du-card-label') : null;
     }
 
+    function _asTrailEntry(input) {
+        if (!input) return null;
+
+        if (input.card || input.label) {
+            const card = _asCard(input.card || input);
+            if (!card) return null;
+            return {
+                card,
+                label: String(input.label || '').trim().toUpperCase()
+            };
+        }
+
+        const card = _asCard(input);
+        return card ? { card, label: '' } : null;
+    }
+
+    function _setButtonBackground(btn, assetPath) {
+        if (!btn) return;
+        btn.classList.add('asset-button');
+        btn.style.setProperty('background-image', `url('${assetPath}')`, 'important');
+        btn.style.setProperty('background-repeat', 'no-repeat', 'important');
+        btn.style.setProperty('background-position', 'center center', 'important');
+        btn.style.setProperty('background-size', 'contain', 'important');
+    }
+
     function _stopShuffle() {
         if (_shuffleInterval) {
             clearInterval(_shuffleInterval);
@@ -284,7 +309,7 @@ window.CabinetStage = (function () {
 
             if (!slotEl || !frame || !label || !img) continue;
 
-            slotEl.classList.remove('du-trail-card', 'du-shuffling');
+            slotEl.classList.remove('du-trail-card', 'du-shuffling', 'du-chall-in', 'du-challenger-card', 'lucky5-active');
             _setFaceDiagnostic(slotEl, false, '');
             frame.classList.remove('dealer-card', 'lucky5-glow');
             label.textContent = '';
@@ -295,7 +320,7 @@ window.CabinetStage = (function () {
 
     function _getVisibleDoubleUpWindow(trailCards, dealerCard) {
         const normalizedTrail = Array.isArray(trailCards)
-            ? trailCards.map(_asCard).filter(Boolean)
+            ? trailCards.map(_asTrailEntry).filter(Boolean)
             : [];
         const normalizedDealer = _asCard(dealerCard);
 
@@ -315,7 +340,10 @@ window.CabinetStage = (function () {
 
         if (normalizedDealer) {
             dealerIndex = Math.min(visibleTrail.length, 4);
-            sequence.push(normalizedDealer);
+            sequence.push({
+                card: normalizedDealer,
+                label: 'DEALER'
+            });
         }
 
         return {
@@ -338,8 +366,14 @@ window.CabinetStage = (function () {
         }
     }
 
-    function _renderDoubleUpSequence(sequence, dealerIndex, revealIndex, status) {
+    function _renderDoubleUpSequence(sequence, dealerIndex, revealIndex, options) {
         if (!_ensureDoubleUpSlots()) return;
+
+        const opts = (typeof options === 'string')
+            ? { outcome: options }
+            : (options && typeof options === 'object' ? options : {});
+        const revealedLabel = String(opts.challengerLabel || '').trim().toUpperCase()
+            || _statusLabel(opts.outcome || opts.status);
 
         _clearDoubleUpSlots();
 
@@ -348,7 +382,9 @@ window.CabinetStage = (function () {
             const frame = _duFrame(slotEl);
             const label = _duLabel(slotEl);
             const img = _duImg(slotEl);
-            const card = sequence[i] || null;
+            const entry = sequence[i] || null;
+            const card = entry && entry.card ? entry.card : null;
+            const entryLabel = entry && entry.label ? String(entry.label).trim().toUpperCase() : '';
 
             if (!slotEl || !frame || !label || !img) continue;
 
@@ -360,7 +396,7 @@ window.CabinetStage = (function () {
 
             if (card && i < dealerIndex) {
                 slotEl.classList.add('du-trail-card');
-                label.textContent = 'PLAYED';
+                label.textContent = entryLabel || 'PLAYED';
             }
 
             if (card && i === dealerIndex) {
@@ -372,8 +408,9 @@ window.CabinetStage = (function () {
                 label.textContent = 'BIG / SMALL ?';
             }
 
-            if (card && revealIndex == null && i === dealerIndex + 1 && status) {
-                label.textContent = status;
+            if (card && revealIndex == null && i === dealerIndex + 1) {
+                slotEl.classList.add('du-challenger-card');
+                label.textContent = revealedLabel || entryLabel || label.textContent;
             }
 
             if (card && card.code === '5S') {
@@ -382,11 +419,11 @@ window.CabinetStage = (function () {
         }
     }
 
-    function _beginSequentialShuffle(trailCards, dealerCard) {
+    function _beginSequentialShuffle(trailCards, dealerCard, options) {
         _stopShuffle();
 
         const view = _getVisibleDoubleUpWindow(trailCards, dealerCard);
-        _renderDoubleUpSequence(view.sequence, view.dealerIndex, view.revealIndex, '');
+        _renderDoubleUpSequence(view.sequence, view.dealerIndex, view.revealIndex, Object.assign({ pending: true }, options || {}));
 
         const slotEl = _duSlot(view.revealIndex);
         const img = _duImg(slotEl);
@@ -588,9 +625,9 @@ window.CabinetStage = (function () {
         const btn = _holdBtn(slotIndex);
         if (btn) {
             btn.classList.toggle('active', isHeld);
-            btn.style.backgroundImage = isHeld
-                ? "url('/assets/images/hold_on.png')"
-                : "url('/assets/images/hold_off.png')";
+            _setButtonBackground(btn, isHeld
+                ? '/assets/images/hold_on.png'
+                : '/assets/images/hold_off.png');
             btn.setAttribute('aria-label', isHeld ? 'HOLD ON' : 'HOLD OFF');
             btn.title = isHeld ? 'HOLD' : '';
         }
@@ -617,12 +654,12 @@ window.CabinetStage = (function () {
             const btn = document.getElementById(id);
             if (!btn || btn.dataset.assetsBound === '1') return;
 
-            const offUrl = `url('/assets/images/${off}')`;
-            const onUrl = `url('/assets/images/${on}')`;
-            btn.style.backgroundImage = offUrl;
+            const offPath = `/assets/images/${off}`;
+            const onPath = `/assets/images/${on}`;
+            _setButtonBackground(btn, offPath);
 
-            const press = () => { btn.style.backgroundImage = onUrl; };
-            const release = () => { btn.style.backgroundImage = offUrl; };
+            const press = () => { _setButtonBackground(btn, onPath); };
+            const release = () => { _setButtonBackground(btn, offPath); };
 
             btn.addEventListener('mousedown', press);
             btn.addEventListener('touchstart', press, { passive: true });
@@ -638,20 +675,20 @@ window.CabinetStage = (function () {
 
             const syncVisual = () => {
                 const held = btn.classList.contains('active');
-                btn.style.backgroundImage = held
-                    ? "url('/assets/images/hold_on.png')"
-                    : "url('/assets/images/hold_off.png')";
+                _setButtonBackground(btn, held
+                    ? '/assets/images/hold_on.png'
+                    : '/assets/images/hold_off.png');
                 btn.setAttribute('aria-label', held ? 'HOLD ON' : 'HOLD OFF');
                 btn.title = held ? 'HOLD' : '';
             };
 
             btn.addEventListener('mousedown', () => {
-                btn.style.backgroundImage = "url('/assets/images/hold_on.png')";
+                _setButtonBackground(btn, '/assets/images/hold_on.png');
             });
             btn.addEventListener('mouseup', syncVisual);
             btn.addEventListener('mouseleave', syncVisual);
             btn.addEventListener('touchstart', () => {
-                btn.style.backgroundImage = "url('/assets/images/hold_on.png')";
+                _setButtonBackground(btn, '/assets/images/hold_on.png');
             }, { passive: true });
             btn.addEventListener('touchend', syncVisual, { passive: true });
             btn.addEventListener('touchcancel', syncVisual, { passive: true });
@@ -661,20 +698,26 @@ window.CabinetStage = (function () {
         });
     }
 
-    function enterDoubleUp(dealerCard) {
-        _duTrailCards = [];
+    function enterDoubleUp(dealerCard, trailCards = []) {
+        _duTrailCards = Array.isArray(trailCards)
+            ? trailCards.map(_asTrailEntry).filter(Boolean)
+            : [];
         _duDealerCard = _asCard(dealerCard);
-        _beginSequentialShuffle(_duTrailCards, _duDealerCard);
+        _beginSequentialShuffle(_duTrailCards, _duDealerCard, { pending: true });
     }
 
-    function updateDoubleUpTrail(trailCards, dealerCard, challengerCard, status) {
+    function updateDoubleUpTrail(trailCards, dealerCard, challengerCard, statusOrOptions) {
         _duTrailCards = Array.isArray(trailCards)
-            ? trailCards.map(_asCard).filter(Boolean)
+            ? trailCards.map(_asTrailEntry).filter(Boolean)
             : [];
         _duDealerCard = _asCard(dealerCard);
 
+        const options = (typeof statusOrOptions === 'string')
+            ? { outcome: statusOrOptions }
+            : (statusOrOptions && typeof statusOrOptions === 'object' ? statusOrOptions : {});
+
         if (!challengerCard) {
-            _beginSequentialShuffle(_duTrailCards, _duDealerCard);
+            _beginSequentialShuffle(_duTrailCards, _duDealerCard, options);
             return;
         }
 
@@ -683,9 +726,17 @@ window.CabinetStage = (function () {
         const challenger = _asCard(challengerCard);
         const view = _getVisibleDoubleUpWindow(_duTrailCards, _duDealerCard);
         const sequence = view.sequence.slice(0, view.revealIndex);
-        sequence[view.revealIndex] = challenger;
+        sequence[view.revealIndex] = {
+            card: challenger,
+            label: String(options.challengerLabel || '').trim().toUpperCase()
+        };
 
-        _renderDoubleUpSequence(sequence, view.dealerIndex, null, _statusLabel(status));
+        _renderDoubleUpSequence(sequence, view.dealerIndex, null, Object.assign({}, options, { pending: false }));
+
+        const revealSlot = _duSlot(view.revealIndex);
+        if (revealSlot) {
+            revealSlot.classList.add('du-chall-in');
+        }
 
         if (challenger && challenger.code === '5S') {
             showLucky5Active();
@@ -693,7 +744,7 @@ window.CabinetStage = (function () {
     }
 
     function shuffleChallenger() {
-        _beginSequentialShuffle(_duTrailCards, _duDealerCard);
+        _beginSequentialShuffle(_duTrailCards, _duDealerCard, { pending: true });
     }
 
     function exitDoubleUp() {

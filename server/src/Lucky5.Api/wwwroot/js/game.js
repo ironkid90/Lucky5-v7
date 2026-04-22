@@ -252,19 +252,65 @@ function renderDrawStage(cardData, held) {
     renderCards(cardData, false);
 }
 
-function getCabinetDoubleUpTrailCards() {
+function normalizeDoubleUpTrailEntry(entry) {
+    if (!entry) return null;
+
+    if (entry.card || entry.label) {
+        const card = entry.card && entry.card.code ? entry.card : null;
+        return card ? {
+            card,
+            label: String(entry.label || '').trim().toUpperCase()
+        } : null;
+    }
+
+    return entry.code ? { card: entry, label: '' } : null;
+}
+
+function getCabinetDoubleUpTrailEntries() {
     const trail = Array.isArray(duCardTrail)
-        ? duCardTrail.map(entry => entry?.card).filter(card => Boolean(card?.code))
+        ? duCardTrail.map(normalizeDoubleUpTrailEntry).filter(Boolean)
         : [];
 
     if (!duDealerCard || trail.length === 0) {
         return trail;
     }
 
-    const lastCard = trail[trail.length - 1];
-    return lastCard?.code === duDealerCard?.code
+    const lastEntry = trail[trail.length - 1];
+    return lastEntry?.card?.code === duDealerCard?.code
         ? trail.slice(0, -1)
         : trail;
+}
+
+function syncDoubleUpTrailFromServer(cardTrail, dealerCard, fallbackTrail = duCardTrail) {
+    const normalizedFallback = Array.isArray(fallbackTrail)
+        ? fallbackTrail.map(normalizeDoubleUpTrailEntry).filter(Boolean)
+        : [];
+
+    const normalizedServer = Array.isArray(cardTrail)
+        ? cardTrail
+            .filter(card => Boolean(card?.code))
+            .map((card, index, all) => {
+                const directMatch = normalizedFallback[index];
+                const fallbackMatch = directMatch?.card?.code === card.code
+                    ? directMatch
+                    : normalizedFallback.find(entry => entry?.card?.code === card.code && entry.label && entry.label !== 'DEALER');
+                const isDealer = dealerCard?.code && card.code === dealerCard.code && index === all.length - 1;
+                return {
+                    card,
+                    label: isDealer ? 'DEALER' : (fallbackMatch?.label || '')
+                };
+            })
+        : [];
+
+    if (normalizedServer.length > 0) {
+        return normalizedServer;
+    }
+
+    return normalizedFallback;
+}
+
+function getCabinetDoubleUpTrailCards() {
+    return getCabinetDoubleUpTrailEntries().map(entry => entry.card);
 }
 
 function bindSingleButton(id, handler) {
@@ -293,7 +339,18 @@ window.render_game_to_text = function renderGameToText() {
             started: duSessionStarted,
             dealer: duDealerCard?.code || null,
             switchesRemaining: duSwitchesRemaining,
-            noLose: duIsNoLoseActive
+            noLose: duIsNoLoseActive,
+            trail: getCabinetDoubleUpTrailEntries().map(entry => ({
+                card: entry.card?.code || null,
+                label: entry.label || ''
+            }))
+        },
+        jackpots: {
+            fullHouseRank: jackpotRank,
+            activeFourOfAKindSlot: active4kSlot,
+            machineSerial,
+            machineSerie,
+            machineKent
         },
         viewport: { innerWidth: window.innerWidth, innerHeight: window.innerHeight }
     });
@@ -324,7 +381,9 @@ function setLobbyNavActive(target) {
 function setMenuPanelOpen(isOpen) {
     const menuPanel = document.getElementById('menu-panel');
     if (!menuPanel) return;
-    menuPanel.classList.toggle('is-open', Boolean(isOpen));
+    const nextOpen = Boolean(isOpen);
+    menuPanel.classList.toggle('is-open', nextOpen);
+    document.body.classList.toggle('menu-open', nextOpen);
 }
 
 function activateShellScreen(screenName, navTarget = screenName === 'game' ? null : screenName) {
@@ -1000,13 +1059,13 @@ async function doSwitchDealer() {
     try {
         const result = await apiCall('POST', GAME_CONFIG.api.duSwitch, { roundId });
         duSwitchesRemaining = result.switchesRemaining;
-        duIsNoLoseActive = result.isNoLoseActive;
+        duIsNoLoseActive = Boolean(result.isLucky5Active || result.isNoLoseActive);
         winAmount = result.currentAmount;
         duDealerCard = result.dealerCard;
 
-        // Update the last trail entry with the new dealer card after switch
-        if (duCardTrail.length > 0) {
-            duCardTrail[duCardTrail.length - 1] = {card: duDealerCard, label: 'DEALER'};
+        duCardTrail = syncDoubleUpTrailFromServer(result.cardTrail, duDealerCard, duCardTrail);
+        if ((!Array.isArray(duCardTrail) || duCardTrail.length === 0) && duDealerCard) {
+            duCardTrail = [{ card: duDealerCard, label: 'DEALER' }];
         }
 
         const isLucky5 = result.status === 'Lucky5';
@@ -1014,10 +1073,7 @@ async function doSwitchDealer() {
             triggerLucky5Flash();
         }
 
-        renderDoubleUpCards(duDealerCard, true, null);
-        if (hasCabinetStage()) {
-            CabinetStage.updateDoubleUpTrail(getCabinetDoubleUpTrailCards(), duDealerCard, null, 'pending');
-        }
+        renderDoubleUpCards(duDealerCard, true, null, { pending: true });
         if (isLucky5) {
             showMessage(`5\u2660 LUCKY 5 ACTIVE! WIN: ${formatNum(result.currentAmount)}`, 'win');
         } else {
@@ -1253,13 +1309,16 @@ function restoreRoundFromSnapshot(snapshot) {
         duSessionStarted = true;
         duDealerCard = duSnapshot.dealerCard;
         duSwitchesRemaining = Number(duSnapshot.switchesRemaining || 0);
-        duIsNoLoseActive = Boolean(duSnapshot.isNoLoseActive);
-        duCardTrail = duDealerCard ? [{ card: duDealerCard, label: 'DEALER' }] : [];
+        duIsNoLoseActive = Boolean(duSnapshot.isLucky5Active || duSnapshot.isNoLoseActive);
+        duCardTrail = syncDoubleUpTrailFromServer(duSnapshot.cardTrail, duDealerCard, duCardTrail);
+        if ((!Array.isArray(duCardTrail) || duCardTrail.length === 0) && duDealerCard) {
+            duCardTrail = [{ card: duDealerCard, label: 'DEALER' }];
+        }
         duLastRenderedTrailLength = 0;
         gameState = 'doubleup';
         showDuInfo();
         updateIdleOverlayVisibility();
-        renderDoubleUpCards(duDealerCard, true, null);
+        renderDoubleUpCards(duDealerCard, true, null, { pending: true });
         updateWinIndicator(winAmount);
         updateWinAmountDisplay(winAmount, getFourOfAKindSlotTag(currentHandRank));
         if (duIsNoLoseActive) {
@@ -1473,23 +1532,27 @@ function hideDuInfo() {
 }
 
 function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
- if (hasCabinetStage()) {
- const trailCards = getCabinetDoubleUpTrailCards();
- if (challengerCard) {
- CabinetStage.updateDoubleUpTrail(trailCards, dealerCard, challengerCard, '');
- return;
- }
- if (showShuffle) {
- if (trailCards.length > 0) {
- CabinetStage.updateDoubleUpTrail(trailCards, dealerCard, null, 'pending');
- } else {
- CabinetStage.enterDoubleUp(dealerCard);
- }
- return;
- }
- CabinetStage.updateDoubleUpTrail(trailCards, dealerCard, null, 'pending');
- return;
- }
+    const stageOptions = arguments.length > 3 ? arguments[3] : null;
+    if (hasCabinetStage()) {
+        const trailCards = getCabinetDoubleUpTrailCards();
+        const trailEntries = getCabinetDoubleUpTrailEntries();
+        const cabinetTrail = trailEntries.length > 0 ? trailEntries : trailCards;
+        const options = stageOptions || (showShuffle ? { pending: true } : {});
+        if (challengerCard) {
+            CabinetStage.updateDoubleUpTrail(cabinetTrail, dealerCard, challengerCard, options);
+            return;
+        }
+        if (showShuffle) {
+            if (cabinetTrail.length > 0) {
+                CabinetStage.updateDoubleUpTrail(cabinetTrail, dealerCard, null, options);
+            } else {
+                CabinetStage.enterDoubleUp(dealerCard, cabinetTrail);
+            }
+            return;
+        }
+        CabinetStage.updateDoubleUpTrail(cabinetTrail, dealerCard, null, options);
+        return;
+    }
 
     const area = $('#card-area');
     area.innerHTML = '';
@@ -1632,14 +1695,17 @@ async function startDoubleUpFlow() {
         const result = await apiCall('POST', GAME_CONFIG.api.duStart, { roundId });
         duSessionStarted = true;
         duSwitchesRemaining = result.switchesRemaining;
-        duIsNoLoseActive = result.isNoLoseActive;
+        duIsNoLoseActive = Boolean(result.isLucky5Active || result.isNoLoseActive);
         duDealerCard = result.dealerCard;
-        duCardTrail = [{card: duDealerCard, label: 'DEALER'}];
+        duCardTrail = syncDoubleUpTrailFromServer(result.cardTrail, duDealerCard, duCardTrail);
+        if ((!Array.isArray(duCardTrail) || duCardTrail.length === 0) && duDealerCard) {
+            duCardTrail = [{ card: duDealerCard, label: 'DEALER' }];
+        }
         duLastRenderedTrailLength = 0;
         gameState = 'doubleup';
 
         showDuInfo();
-        if (result.isNoLoseActive) {
+        if (duIsNoLoseActive) {
             triggerLucky5Flash();
             showMessage(`5\u2660 LUCKY 5 ACTIVE! DOUBLE UP: ${formatNum(result.currentAmount)}`, 'win');
         } else {
@@ -1648,8 +1714,7 @@ async function startDoubleUpFlow() {
         updateWinAmountDisplay(result.currentAmount, getFourOfAKindSlotTag(currentHandRank));
         updateWinIndicator(result.currentAmount);
         if (currentHandRank) highlightPaytableDU(currentHandRank, result.currentAmount);
-        renderDoubleUpCards(duDealerCard, true, null);
-        if (hasCabinetStage()) CabinetStage.enterDoubleUp(duDealerCard);
+        renderDoubleUpCards(duDealerCard, true, null, { pending: true });
         setButtonStates();
     } catch (e) {
         if ((e.message || '').toLowerCase().includes('not available')) {
@@ -1679,13 +1744,13 @@ async function doDoubleUp(guess) {
 
     try {
         const result = await apiCall('POST', GAME_CONFIG.api.duGuess, { roundId, guess });
+        const challengerLabel = String(guess || '').trim().toUpperCase();
 
         setTimeout(() => {
-            renderDoubleUpCards(duDealerCard, false, result.challengerCard);
-            if (hasCabinetStage()) {
-                CabinetStage.updateDoubleUpTrail(getCabinetDoubleUpTrailCards(), duDealerCard, result.challengerCard,
-                    result.status === 'Win' ? 'win' : result.status === 'SafeFail' ? 'push' : 'lose');
-            }
+            renderDoubleUpCards(duDealerCard, false, result.challengerCard, {
+                challengerLabel,
+                outcome: result.status
+            });
 
             if (result.status === 'Win') {
                 winAmount = result.currentAmount;
@@ -1699,14 +1764,12 @@ async function doDoubleUp(guess) {
                 setTimeout(() => {
                     if (gameState === 'doubleup') {
                         // Add the winning challenger to the trail with the guess label
-                        duCardTrail.push({card: result.challengerCard, label: guess.toUpperCase()});
+                        duCardTrail.push({ card: result.challengerCard, label: challengerLabel });
                         duDealerCard = result.dealerCard;
-                        renderDoubleUpCards(duDealerCard, true, null);
-                        if (hasCabinetStage()) {
-                            CabinetStage.updateDoubleUpTrail(getCabinetDoubleUpTrailCards(), duDealerCard, null, 'pending');
-                        }
+                        duCardTrail = syncDoubleUpTrailFromServer(result.cardTrail, duDealerCard, duCardTrail);
+                        renderDoubleUpCards(duDealerCard, true, null, { pending: true });
                         duSwitchesRemaining = result.switchesRemaining;
-                        duIsNoLoseActive = result.isNoLoseActive;
+                        duIsNoLoseActive = Boolean(result.isLucky5Active || result.isNoLoseActive);
                         setButtonStates();
                     }
                 }, T.duWinHoldMs);

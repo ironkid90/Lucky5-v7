@@ -66,7 +66,7 @@ const GAME_CONFIG = Object.freeze({
     timing: Object.freeze({
         // Main-hand deal animation
         dealBaseMs:           50,   // delay before the first card starts dropping
-        dealStaggerMs:        70,   // extra delay per subsequent card (left → right)
+        dealStaggerMs:        90,   // extra delay per subsequent card (left → right)
         dealAnimDurationMs:   180,  // CSS transition length for the drop itself
 
         // Draw animation (re-dealing only non-held cards)
@@ -76,7 +76,7 @@ const GAME_CONFIG = Object.freeze({
         drawRevealStartMs:    50,   // delay before first replaced card starts dropping
 
         // Double-up: shuffle animation
-        shuffleFrameMs:       130,  // how often the shuffle swaps to a random card
+        shuffleFrameMs:       90,   // how often the shuffle swaps to a random card
 
         // Double-up: reveal sequence
         duRevealDelayMs:      120,  // wait after server responds before showing challenger card

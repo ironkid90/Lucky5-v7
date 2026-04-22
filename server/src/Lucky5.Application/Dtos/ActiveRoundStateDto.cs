@@ -33,10 +33,14 @@ public sealed record ActiveRoundStateDto(
 
 /// <summary>
 /// Snapshot of the Lucky5 double-up session for reconnect hydration.
+/// CardTrail is presentation-only data for the cabinet viewport and does not
+/// influence engine outcomes.
 /// </summary>
 public sealed record DoubleUpStateDto(
     PokerCardDto DealerCard,
     int CurrentAmount,
     int SwitchesRemaining,
     bool IsNoLoseActive,
-    int LuckyMultiplier);
+    int LuckyMultiplier,
+    IReadOnlyList<PokerCardDto>? CardTrail = null,
+    bool IsLucky5Active = false);

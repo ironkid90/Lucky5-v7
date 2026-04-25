@@ -772,7 +772,7 @@ return guessResult;
 
     public async Task<CabinetSnapshotDto> GetCabinetSnapshotAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
-        await RequireMachineAsync(machineId);
+        var machine = await RequireMachineAsync(machineId);
 
         var profile = await RequireProfileAsync(userId);
         var session = await RequireMachineSessionAsync(userId, machineId, createIfMissing: true);
@@ -814,12 +814,12 @@ return guessResult;
             StateVersion: stateVersion,
             SessionId: session.SessionId,
             MachineId: machineId,
-            VariantId: "classic",
+            VariantId: BuildCabinetVariantId(machine),
             GameState: gameState,
             Hand: new CabinetHandDto(cards, held, cards),
             Evaluation: new CabinetEvaluationDto(handRank, Rules.GetValueOrDefault(handRank), pendingWin),
             DoubleUp: doubleUp,
-            Credits: new CabinetCreditsDto(session.MachineCredits, roundBet, pendingWin, roundBet > 0m ? roundBet : 1m),
+            Credits: new CabinetCreditsDto(session.MachineCredits, roundBet, pendingWin, BuildCabinetDenomination(machine, roundBet)),
             Jackpot: new CabinetJackpotDto(
                 CurrentValues: new Dictionary<string, decimal>
                 {
@@ -1132,11 +1132,7 @@ return guessResult;
             buttons.Add("cancel");
             buttons.Add("deal");
         }
-        else if (gameState == "drawn")
-        {
-            buttons.AddRange(["big", "small", "take_half", "take_score"]);
-        }
-        else if (gameState == "double_up")
+        else if (gameState is "drawn" or "double_up")
         {
             buttons.AddRange(["big", "small", "take_half", "take_score"]);
         }
@@ -1173,11 +1169,28 @@ return guessResult;
         var sourceTicks = session.LastUpdatedUtc.Ticks ^ ledger.LastRoundUtc.Ticks;
         if (round is not null)
         {
-            sourceTicks ^= round.RoundId.GetHashCode();
+            sourceTicks ^= RoundIdVersionComponent(round.RoundId);
         }
 
-        return Math.Abs(sourceTicks);
+        return sourceTicks & long.MaxValue;
     }
+
+    private static long RoundIdVersionComponent(Guid roundId)
+    {
+        var bytes = roundId.ToByteArray();
+        return BitConverter.ToInt64(bytes, 0) ^ BitConverter.ToInt64(bytes, 8);
+    }
+
+    private static string BuildCabinetVariantId(Machine machine)
+        => machine.MinBet switch
+        {
+            >= 50_000m => "vip",
+            >= 10_000m => "hamra",
+            _ => "classic"
+        };
+
+    private static decimal BuildCabinetDenomination(Machine machine, decimal roundBet)
+        => roundBet > 0m ? roundBet : machine.MinBet;
 
     private async Task<Machine> RequireMachineAsync(int machineId)
     {

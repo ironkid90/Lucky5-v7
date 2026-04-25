@@ -265,8 +265,8 @@ func _render_snapshot(snapshot: Dictionary) -> void:
 	for key in _button_nodes.keys():
 		_button_nodes[key].disabled = not enabled.has(key)
 
-	_bonus_text.text = String(snapshot.get("ui_hints", {}).get("message", ""))
-	_message_label.text = String(snapshot.get("ui_hints", {}).get("animation_cue", "ready")).to_upper().replace("_", " ")
+	_message_label.text = String(snapshot.get("ui_hints", {}).get("message", "READY"))
+	_bonus_text.text = String(snapshot.get("ui_hints", {}).get("bonus_message", ""))
 	_idle_overlay.visible = bool(snapshot.get("ui_hints", {}).get("idle_title_visible", false))
 
 func _render_card(card_node: Dictionary, card: Dictionary) -> void:

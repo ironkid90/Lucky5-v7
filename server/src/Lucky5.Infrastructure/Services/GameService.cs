@@ -770,6 +770,80 @@ return guessResult;
         return SnapshotJackpots(ledger);
     }
 
+    public async Task<CabinetSnapshotDto> GetCabinetSnapshotAsync(Guid userId, int machineId, CancellationToken cancellationToken)
+    {
+        var machine = await RequireMachineAsync(machineId);
+
+        var profile = await RequireProfileAsync(userId);
+        var session = await store.GetMachineSessionAsync(userId, machineId) ?? CreateEmptyCabinetSession(userId, machineId);
+        var ledger = await RequireMachineLedgerAsync(machineId);
+        var activeRound = await GetActiveRoundAsync(userId, machineId, cancellationToken);
+
+        var cards = activeRound?.Cards ?? [];
+        var held = activeRound?.HeldIndexes ?? [];
+        var handRank = string.IsNullOrWhiteSpace(activeRound?.HandRank) ? "Nothing" : activeRound.HandRank;
+        var pendingWin = activeRound?.PendingWinAmount ?? 0m;
+        var roundBet = activeRound?.BetAmount ?? 0m;
+
+        var gameState = activeRound?.Phase switch
+        {
+            "Dealt" => "dealing",
+            "Drawn" => activeRound.DoubleUpAvailable ? "drawn" : "complete",
+            "DoubleUp" => "double_up",
+            _ when session.IsMachineClosed => "closed",
+            _ => "idle"
+        };
+
+        var doubleUpSession = activeRound?.DoubleUpSession;
+        var doubleUp = new CabinetDoubleUpDto(
+            Active: gameState == "double_up",
+            CardRevealed: doubleUpSession is not null,
+            Outcome: doubleUpSession is null ? "idle" : activeRound?.Phase ?? "DoubleUp",
+            DealerCard: doubleUpSession?.DealerCard,
+            ChallengerCard: null,
+            SwitchesRemaining: doubleUpSession?.SwitchesRemaining ?? 0,
+            IsNoLoseActive: doubleUpSession?.IsNoLoseActive ?? false,
+            CardTrail: doubleUpSession?.CardTrail ?? []);
+
+        var enabledButtons = BuildCabinetEnabledButtons(gameState, cards.Count, session);
+        var stateVersion = BuildCabinetStateVersion(session, ledger, activeRound);
+        var jackpot = SnapshotJackpots(ledger);
+
+        return new CabinetSnapshotDto(
+            SchemaVersion: "v1",
+            StateVersion: stateVersion,
+            SessionId: session.SessionId,
+            MachineId: machineId,
+            VariantId: BuildCabinetVariantId(machine),
+            GameState: gameState,
+            Hand: new CabinetHandDto(cards, held, activeRound?.ResultCards ?? cards),
+            Evaluation: new CabinetEvaluationDto(handRank, Rules.GetValueOrDefault(handRank), pendingWin),
+            DoubleUp: doubleUp,
+            Credits: new CabinetCreditsDto(session.MachineCredits, roundBet, pendingWin, BuildCabinetDenomination(machine, roundBet)),
+            Jackpot: new CabinetJackpotDto(
+                CurrentValues: new Dictionary<string, decimal>
+                {
+                    ["full_house"] = jackpot.FullHouse,
+                    ["four_of_a_kind_a"] = jackpot.FourOfAKindA,
+                    ["four_of_a_kind_b"] = jackpot.FourOfAKindB,
+                    ["straight_flush"] = jackpot.StraightFlush
+                },
+                LastHit: ledger.LastWinChannel.ToString(),
+                FullHouseRank: jackpot.FullHouseRank,
+                ActiveFourOfAKindSlot: jackpot.ActiveFourOfAKindSlot,
+                MachineSerial: jackpot.MachineSerial,
+                MachineSerie: jackpot.MachineSerie,
+                MachineKent: jackpot.MachineKent),
+            UiHints: new CabinetUiHintsDto(
+                EnabledButtons: enabledButtons,
+                AnimationCue: gameState,
+                Message: BuildCabinetMessage(gameState, pendingWin, session),
+                BonusMessage: string.Empty,
+                IdleTitleVisible: gameState == "idle"),
+            Timestamp: DateTime.UtcNow,
+            SequenceNumber: stateVersion);
+    }
+
     public async Task<ActiveRoundStateDto?> GetActiveRoundAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
         var cached = await stateCache.GetActiveRoundAsync(userId, machineId);
@@ -795,8 +869,8 @@ return guessResult;
         else
             phase = "Drawn";
 
-        // Build card list from current hand
-        var cards = state.Hand.Select(ToCleanRoomDto).ToArray();
+        var cards = round.InitialCards.Select(ToDto).ToArray();
+        var resultCards = state.Hand.Select(ToCleanRoomDto).ToArray();
 
         // Held indexes (only meaningful during Dealt phase)
         var heldIndexes = phase == "Dealt"
@@ -831,6 +905,7 @@ return guessResult;
             Phase: phase,
             HandRank: round.HandRank,
             Cards: cards,
+            ResultCards: resultCards,
             HeldIndexes: heldIndexes,
             PendingWinAmount: round.WinAmount,
             DoubleUpAvailable: round.DoubleUpOffered && round.WinAmount > 0,
@@ -1048,6 +1123,82 @@ return guessResult;
         HandCategory.TwoPair => "TwoPair",
         _ => "Nothing"
     };
+
+    private static IReadOnlyList<string> BuildCabinetEnabledButtons(string gameState, int cardCount, MachineSessionState session)
+    {
+        var buttons = new List<string> { "menu", "bet" };
+        if (gameState == "dealing")
+        {
+            buttons.AddRange(Enumerable.Range(0, cardCount).Select(index => $"hold_{index}"));
+            buttons.Add("cancel");
+            buttons.Add("deal");
+        }
+        else if (gameState is "drawn" or "double_up")
+        {
+            buttons.AddRange(["big", "small", "take_half", "take_score"]);
+        }
+        else if (!session.IsMachineClosed && session.MachineCredits > 0m)
+        {
+            buttons.Add("deal");
+        }
+
+        if (CanCashOut(session))
+        {
+            buttons.Add("take_score");
+        }
+
+        return buttons.Distinct().ToArray();
+    }
+
+    private static string BuildCabinetMessage(string gameState, decimal pendingWin, MachineSessionState session)
+    {
+        return gameState switch
+        {
+            "idle" when session.MachineCredits <= 0m => "INSERT COIN",
+            "idle" => "PRESS DEAL",
+            "dealing" => "SELECT HOLDS",
+            "drawn" when pendingWin > 0m => "WIN BONUS",
+            "drawn" => "NO WIN",
+            "double_up" => "BIG OR SMALL",
+            "closed" => "TAKE SCORE",
+            _ => "READY"
+        };
+    }
+
+    private static MachineSessionState CreateEmptyCabinetSession(Guid userId, int machineId)
+        => new()
+        {
+            UserId = userId,
+            MachineId = machineId
+        };
+
+    private static long BuildCabinetStateVersion(MachineSessionState session, MachineLedgerState ledger, ActiveRoundStateDto? round)
+    {
+        var sourceTicks = session.LastUpdatedUtc.Ticks ^ ledger.LastRoundUtc.Ticks;
+        if (round is not null)
+        {
+            sourceTicks ^= RoundIdVersionComponent(round.RoundId);
+        }
+
+        return sourceTicks & long.MaxValue;
+    }
+
+    private static long RoundIdVersionComponent(Guid roundId)
+    {
+        var bytes = roundId.ToByteArray();
+        return BitConverter.ToInt64(bytes, 0) ^ BitConverter.ToInt64(bytes, 8);
+    }
+
+    private static string BuildCabinetVariantId(Machine machine)
+        => machine.MinBet switch
+        {
+            >= 50_000m => "vip",
+            >= 10_000m => "hamra",
+            _ => "classic"
+        };
+
+    private static decimal BuildCabinetDenomination(Machine machine, decimal roundBet)
+        => roundBet > 0m ? roundBet : machine.MinBet;
 
     private async Task<Machine> RequireMachineAsync(int machineId)
     {

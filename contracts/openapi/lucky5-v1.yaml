@@ -229,6 +229,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseOfOfferArray'
+  /api/Game/machine/{machine_id}/cabinet-snapshot:
+    get:
+      tags: [Game]
+      summary: Get authoritative Godot cabinet snapshot
+      parameters:
+        - name: machine_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseOfCabinetSnapshot'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/Game/cards/deal:
     post:
       tags: [Game]
@@ -522,6 +544,13 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Offer'
+    ApiResponseOfCabinetSnapshot:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/CabinetSnapshot'
     ApiResponseOfContactTypeArray:
       allOf:
         - $ref: '#/components/schemas/ApiResponseBase'
@@ -713,6 +742,169 @@ components:
           type: string
         code:
           type: string
+    CabinetSnapshot:
+      type: object
+      required:
+        - schema_version
+        - state_version
+        - session_id
+        - machine_id
+        - variant_id
+        - game_state
+        - hand
+        - evaluation
+        - double_up
+        - credits
+        - jackpot
+        - ui_hints
+        - timestamp
+        - sequence_number
+      properties:
+        schema_version:
+          type: string
+          enum: [v1]
+        state_version:
+          type: integer
+          format: int64
+        session_id:
+          type: string
+          format: uuid
+          nullable: true
+        machine_id:
+          type: integer
+          format: int32
+        variant_id:
+          type: string
+        game_state:
+          type: string
+          enum: [idle, dealing, drawn, double_up, complete, closed, recovery]
+        hand:
+          $ref: '#/components/schemas/CabinetHand'
+        evaluation:
+          $ref: '#/components/schemas/CabinetEvaluation'
+        double_up:
+          $ref: '#/components/schemas/CabinetDoubleUp'
+        credits:
+          $ref: '#/components/schemas/CabinetCredits'
+        jackpot:
+          $ref: '#/components/schemas/CabinetJackpot'
+        ui_hints:
+          $ref: '#/components/schemas/CabinetUiHints'
+        timestamp:
+          type: string
+          format: date-time
+        sequence_number:
+          type: integer
+          format: int64
+    CabinetHand:
+      type: object
+      required: [cards, held, result_cards]
+      properties:
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/PokerCard'
+        held:
+          type: array
+          items:
+            type: integer
+            format: int32
+        result_cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/PokerCard'
+    CabinetEvaluation:
+      type: object
+      required: [hand_rank, payout_multiplier, win_amount]
+      properties:
+        hand_rank:
+          type: string
+        payout_multiplier:
+          type: number
+          format: decimal
+        win_amount:
+          type: number
+          format: decimal
+    CabinetDoubleUp:
+      type: object
+      required: [active, card_revealed, outcome, switches_remaining, is_no_lose_active, card_trail]
+      properties:
+        active:
+          type: boolean
+        card_revealed:
+          type: boolean
+        outcome:
+          type: string
+        dealer_card:
+          $ref: '#/components/schemas/PokerCard'
+          nullable: true
+        challenger_card:
+          $ref: '#/components/schemas/PokerCard'
+          nullable: true
+        switches_remaining:
+          type: integer
+          format: int32
+        is_no_lose_active:
+          type: boolean
+        card_trail:
+          type: array
+          items:
+            $ref: '#/components/schemas/PokerCard'
+    CabinetCredits:
+      type: object
+      required: [balance, bet, total_won, denomination]
+      properties:
+        balance:
+          type: number
+          format: decimal
+        bet:
+          type: number
+          format: decimal
+        total_won:
+          type: number
+          format: decimal
+        denomination:
+          type: number
+          format: decimal
+    CabinetJackpot:
+      type: object
+      required: [current_values, last_hit, full_house_rank, active_four_of_a_kind_slot, machine_serial, machine_serie, machine_kent]
+      properties:
+        current_values:
+          type: object
+          additionalProperties:
+            type: number
+            format: decimal
+        last_hit:
+          type: string
+        full_house_rank:
+          type: integer
+          format: int32
+        active_four_of_a_kind_slot:
+          type: integer
+          format: int32
+        machine_serial:
+          type: string
+        machine_serie:
+          type: string
+        machine_kent:
+          type: string
+    CabinetUiHints:
+      type: object
+      required: [enabled_buttons, animation_cue, message, bonus_message, idle_title_visible]
+      properties:
+        enabled_buttons:
+          type: array
+          items:
+            type: string
+        animation_cue:
+          type: string
+        message:
+          type: string
+        bonus_message:
+          type: string
+        idle_title_visible:
+          type: boolean
     DealResult:
       type: object
       required: [roundId, cards, betAmount, walletBalanceAfterBet]

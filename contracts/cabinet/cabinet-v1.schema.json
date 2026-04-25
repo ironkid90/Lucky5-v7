@@ -1,0 +1,547 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucky5.dev/contracts/cabinet/cabinet-v1.schema.json",
+  "title": "Lucky5 Cabinet Contracts v1",
+  "description": "Versioned boundary between the authoritative ASP.NET backend and the Godot cabinet client.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/CabinetSnapshot"
+    },
+    {
+      "$ref": "#/$defs/CabinetEvent"
+    },
+    {
+      "$ref": "#/$defs/CabinetCommand"
+    },
+    {
+      "$ref": "#/$defs/VariantDefinition"
+    }
+  ],
+  "$defs": {
+    "Uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "DecimalString": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$"
+        }
+      ]
+    },
+    "PokerCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rank",
+        "suit",
+        "code"
+      ],
+      "properties": {
+        "rank": {
+          "type": "string"
+        },
+        "suit": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        }
+      }
+    },
+    "CabinetHand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cards",
+        "held",
+        "result_cards"
+      ],
+      "properties": {
+        "cards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PokerCard"
+          }
+        },
+        "held": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "result_cards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PokerCard"
+          }
+        }
+      }
+    },
+    "CabinetEvaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hand_rank",
+        "payout_multiplier",
+        "win_amount"
+      ],
+      "properties": {
+        "hand_rank": {
+          "type": "string"
+        },
+        "payout_multiplier": {
+          "$ref": "#/$defs/DecimalString"
+        },
+        "win_amount": {
+          "$ref": "#/$defs/DecimalString"
+        }
+      }
+    },
+    "CabinetDoubleUp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active",
+        "card_revealed",
+        "outcome",
+        "switches_remaining",
+        "is_no_lose_active",
+        "card_trail"
+      ],
+      "properties": {
+        "active": {
+          "type": "boolean"
+        },
+        "card_revealed": {
+          "type": "boolean"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "dealer_card": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PokerCard"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "challenger_card": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PokerCard"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "switches_remaining": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "is_no_lose_active": {
+          "type": "boolean"
+        },
+        "card_trail": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PokerCard"
+          }
+        }
+      }
+    },
+    "CabinetCredits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "balance",
+        "bet",
+        "total_won",
+        "denomination"
+      ],
+      "properties": {
+        "balance": {
+          "$ref": "#/$defs/DecimalString"
+        },
+        "bet": {
+          "$ref": "#/$defs/DecimalString"
+        },
+        "total_won": {
+          "$ref": "#/$defs/DecimalString"
+        },
+        "denomination": {
+          "$ref": "#/$defs/DecimalString"
+        }
+      }
+    },
+    "CabinetJackpot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_values",
+        "last_hit",
+        "full_house_rank",
+        "active_four_of_a_kind_slot",
+        "machine_serial",
+        "machine_serie",
+        "machine_kent"
+      ],
+      "properties": {
+        "current_values": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/DecimalString"
+          }
+        },
+        "last_hit": {
+          "type": "string"
+        },
+        "full_house_rank": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 14
+        },
+        "active_four_of_a_kind_slot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "machine_serial": {
+          "type": "string"
+        },
+        "machine_serie": {
+          "type": "string"
+        },
+        "machine_kent": {
+          "type": "string"
+        }
+      }
+    },
+    "CabinetUiHints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled_buttons",
+        "animation_cue",
+        "message",
+        "bonus_message",
+        "idle_title_visible"
+      ],
+      "properties": {
+        "enabled_buttons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "animation_cue": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "bonus_message": {
+          "type": "string"
+        },
+        "idle_title_visible": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CabinetSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "state_version",
+        "session_id",
+        "machine_id",
+        "variant_id",
+        "game_state",
+        "hand",
+        "evaluation",
+        "double_up",
+        "credits",
+        "jackpot",
+        "ui_hints",
+        "timestamp",
+        "sequence_number"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "v1"
+        },
+        "state_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "machine_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "variant_id": {
+          "type": "string"
+        },
+        "game_state": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "dealing",
+            "drawn",
+            "double_up",
+            "complete",
+            "closed",
+            "recovery"
+          ]
+        },
+        "hand": {
+          "$ref": "#/$defs/CabinetHand"
+        },
+        "evaluation": {
+          "$ref": "#/$defs/CabinetEvaluation"
+        },
+        "double_up": {
+          "$ref": "#/$defs/CabinetDoubleUp"
+        },
+        "credits": {
+          "$ref": "#/$defs/CabinetCredits"
+        },
+        "jackpot": {
+          "$ref": "#/$defs/CabinetJackpot"
+        },
+        "ui_hints": {
+          "$ref": "#/$defs/CabinetUiHints"
+        },
+        "timestamp": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "sequence_number": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "CabinetEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "event_type",
+        "payload",
+        "sequence_number",
+        "timestamp"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "v1"
+        },
+        "event_type": {
+          "type": "string",
+          "enum": [
+            "state_change",
+            "jackpot_update",
+            "session_sync",
+            "error"
+          ]
+        },
+        "payload": {
+          "type": "object"
+        },
+        "sequence_number": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "timestamp": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      }
+    },
+    "CabinetCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "command_id",
+        "command_type",
+        "session_id",
+        "machine_id",
+        "expected_state_version",
+        "idempotency_key",
+        "payload",
+        "timestamp"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "v1"
+        },
+        "command_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "command_type": {
+          "type": "string",
+          "enum": [
+            "deal",
+            "draw",
+            "hold",
+            "double_up",
+            "cash_out",
+            "bet_change",
+            "switch",
+            "take_half",
+            "take_score"
+          ]
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "machine_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expected_state_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "payload": {
+          "type": "object"
+        },
+        "timestamp": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      }
+    },
+    "VariantGovernance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approved_by",
+        "approved_at",
+        "simulation_report_id",
+        "enabled_for_production",
+        "migration_notes"
+      ],
+      "properties": {
+        "approved_by": {
+          "type": "string"
+        },
+        "approved_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "simulation_report_id": {
+          "type": "string"
+        },
+        "enabled_for_production": {
+          "type": "boolean"
+        },
+        "migration_notes": {
+          "type": "string"
+        }
+      }
+    },
+    "VariantDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "variant_id",
+        "display_name",
+        "description",
+        "variant_schema_version",
+        "ruleset_version",
+        "paytable",
+        "paytable_hash",
+        "rtp_model_version",
+        "double_up_profile",
+        "cabinet_skin",
+        "presentation_profile",
+        "machine_policy",
+        "governance"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "v1"
+        },
+        "variant_id": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "variant_schema_version": {
+          "type": "string"
+        },
+        "ruleset_version": {
+          "type": "string"
+        },
+        "rules": {
+          "type": "object"
+        },
+        "paytable": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/DecimalString"
+          }
+        },
+        "paytable_hash": {
+          "type": "string"
+        },
+        "rtp_model_version": {
+          "type": "string"
+        },
+        "double_up_profile": {
+          "type": "object"
+        },
+        "cabinet_skin": {
+          "type": "object"
+        },
+        "presentation_profile": {
+          "type": "object"
+        },
+        "machine_policy": {
+          "type": "object"
+        },
+        "governance": {
+          "$ref": "#/$defs/VariantGovernance"
+        }
+      }
+    }
+  }
+}

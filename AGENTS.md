@@ -91,6 +91,7 @@ Do not paste any of the following into AGENTS.md:
  
 ## Reinforcements 
 - Keep the summary artifact step explicit after meaningful tasks. 
+- For Kanban worker, steward, review, and recovery sessions, follow `docs/KANBAN_ORCHESTRATION.md`.
 - If memory, MCP, or helper tools are unavailable, fall back cleanly to direct repo inspection. 
 - Never expose secrets, tokens, private keys, session data, or sensitive personal information. 
 - High-value local context files include `docs/CLAUDE.md`, `src/web/CLAUDE.md`, `server/src/Lucky5.Api/CLAUDE.md`, `server/src/Lucky5.Domain/Game/CleanRoom/CLAUDE.md`, and `server/tests/CLAUDE.md`. 

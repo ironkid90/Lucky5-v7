@@ -53,6 +53,11 @@ The Orchestrator is the master workflow coordinator. You do not write code direc
 
 ## Delegation Patterns for Lucky5
 
+### Kanban Stewarding
+- Follow `docs/KANBAN_ORCHESTRATION.md` for board setup, task prompts, dependency linking, worker completion, stale-session recovery, and review gates.
+- Keep steward cards orchestration-only; create or update dedicated Kanban tasks for implementation work.
+- Do not trash dirty worktrees or discard uncommitted changes without explicit user review.
+
 ### New Game Feature
 1. Architect mode: Design state/action types for CleanRoom reducer
 2. Code mode: Implement in `Game/CleanRoom/` (pure static methods)

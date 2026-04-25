@@ -522,6 +522,7 @@ docker compose -f infra/docker-compose.yml --env-file infra/.env.local.example u
 | Location | Content |
 |----------|---------|
 | `docs/GAME_FEEL_REFERENCE.md` | Pixel-accurate visual design reference from original Lebanese cabinet |
+| `docs/KANBAN_ORCHESTRATION.md` | Reusable Lucky5 development, Kanban steward, review, recovery, and task-template playbook |
 | `docs/ANDROID_BUILD.md` | Capacitor-based Android APK build instructions |
 | `docs/forensics/` | Original APK reverse-engineering findings (endpoints, events, module map) |
 | `analysis/` | Clean-room engine prototype (Python), signal extraction, research notes |
@@ -563,3 +564,5 @@ Admin accounts can:
 ## Handoff
 
 See **[CONTINUATION_GUIDE.md](CONTINUATION_GUIDE.md)** for the fastest catch-up path for the next developer.
+
+For Kanban setup, task templates, steward cadence, worker completion, review gates, and stuck-task recovery, see **[KANBAN_ORCHESTRATION.md](KANBAN_ORCHESTRATION.md)**.

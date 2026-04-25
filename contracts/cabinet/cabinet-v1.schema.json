@@ -115,10 +115,9 @@
         "active",
         "card_revealed",
         "outcome",
-        "dealer_card",
-        "challenger_card",
         "switches_remaining",
-        "is_no_lose_active"
+        "is_no_lose_active",
+        "card_trail"
       ],
       "properties": {
         "active": {
@@ -238,7 +237,9 @@
       "required": [
         "enabled_buttons",
         "animation_cue",
-        "message"
+        "message",
+        "bonus_message",
+        "idle_title_visible"
       ],
       "properties": {
         "enabled_buttons": {

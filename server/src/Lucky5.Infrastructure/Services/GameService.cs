@@ -775,7 +775,7 @@ return guessResult;
         var machine = await RequireMachineAsync(machineId);
 
         var profile = await RequireProfileAsync(userId);
-        var session = await RequireMachineSessionAsync(userId, machineId, createIfMissing: true);
+        var session = await store.GetMachineSessionAsync(userId, machineId) ?? CreateEmptyCabinetSession(userId, machineId);
         var ledger = await RequireMachineLedgerAsync(machineId);
         var activeRound = await GetActiveRoundAsync(userId, machineId, cancellationToken);
 
@@ -816,7 +816,7 @@ return guessResult;
             MachineId: machineId,
             VariantId: BuildCabinetVariantId(machine),
             GameState: gameState,
-            Hand: new CabinetHandDto(cards, held, cards),
+            Hand: new CabinetHandDto(cards, held, activeRound?.ResultCards ?? cards),
             Evaluation: new CabinetEvaluationDto(handRank, Rules.GetValueOrDefault(handRank), pendingWin),
             DoubleUp: doubleUp,
             Credits: new CabinetCreditsDto(session.MachineCredits, roundBet, pendingWin, BuildCabinetDenomination(machine, roundBet)),
@@ -869,8 +869,8 @@ return guessResult;
         else
             phase = "Drawn";
 
-        // Build card list from current hand
-        var cards = state.Hand.Select(ToCleanRoomDto).ToArray();
+        var cards = round.InitialCards.Select(ToDto).ToArray();
+        var resultCards = state.Hand.Select(ToCleanRoomDto).ToArray();
 
         // Held indexes (only meaningful during Dealt phase)
         var heldIndexes = phase == "Dealt"
@@ -905,6 +905,7 @@ return guessResult;
             Phase: phase,
             HandRank: round.HandRank,
             Cards: cards,
+            ResultCards: resultCards,
             HeldIndexes: heldIndexes,
             PendingWinAmount: round.WinAmount,
             DoubleUpAvailable: round.DoubleUpOffered && round.WinAmount > 0,
@@ -1163,6 +1164,13 @@ return guessResult;
             _ => "READY"
         };
     }
+
+    private static MachineSessionState CreateEmptyCabinetSession(Guid userId, int machineId)
+        => new()
+        {
+            UserId = userId,
+            MachineId = machineId
+        };
 
     private static long BuildCabinetStateVersion(MachineSessionState session, MachineLedgerState ledger, ActiveRoundStateDto? round)
     {

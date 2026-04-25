@@ -20,6 +20,8 @@ public sealed record ActiveRoundStateDto(
 
     IReadOnlyList<PokerCardDto> Cards,
 
+    IReadOnlyList<PokerCardDto> ResultCards,
+
     /// <summary>Indexes that were held when the disconnect occurred (Dealt phase only).</summary>
     IReadOnlyList<int> HeldIndexes,
 

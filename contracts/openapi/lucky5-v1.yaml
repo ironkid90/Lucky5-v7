@@ -642,9 +642,9 @@ components:
           type: string
     DealRequest:
       type: object
-      required: [machine_id, betAmount]
+      required: [machineId, betAmount]
       properties:
-        machine_id:
+        machineId:
           type: integer
           format: int32
         betAmount:
@@ -725,9 +725,9 @@ components:
           format: decimal
     DefaultRules:
       type: object
-      required: [payout_multipliers]
+      required: [payoutMultipliers]
       properties:
-        payout_multipliers:
+        payoutMultipliers:
           type: object
           additionalProperties:
             type: number

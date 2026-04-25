@@ -409,6 +409,7 @@
         "double_up_updated",
         "command_accepted",
         "command_rejected",
+        "heartbeat_ack",
         "replay_gap",
         "heartbeat_timeout",
         "recovery_required"
@@ -460,6 +461,7 @@
         "reset_machine",
         "join_machine",
         "leave_machine",
+        "heartbeat",
         "reconnect_sync"
       ]
     },

@@ -5,9 +5,9 @@ This slice starts the Lucky5 cabinet migration without changing backend game aut
 ## What is in this slice
 
 - `docs/contracts/godot-cabinet/`
-  - Phase 0 discovery, Godot-facing schemas, and the Lucky5 Classic variant record
+  - Phase 0 discovery, authoritative Godot-facing schemas, and the Lucky5 Classic variant record
 - `contracts/cabinet/cabinet-v1.schema.json`
-  - versioned `CabinetSnapshot`, `CabinetEvent`, `CabinetCommand`, and `VariantDefinition` contracts
+  - earlier transitional schema copy; reconcile changes into `docs/contracts/godot-cabinet/` before using it for Godot work
 - `server/src/Lucky5.Application/Dtos/CabinetContractsDto.cs`
   - backend DTO symbols matching the migration boundary
 - `GET /api/Game/machine/{machineId}/cabinet-snapshot`

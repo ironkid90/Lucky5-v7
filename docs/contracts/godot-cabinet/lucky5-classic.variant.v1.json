@@ -90,9 +90,13 @@
       "straight_flush_orange": "#ff8800",
       "four_kind_aqua": "#44ffcc",
       "full_house_yellow": "#ffff00",
+      "flush_red": "#ff6666",
       "straight_green": "#44ff88",
       "three_kind_blue": "#44ddff",
-      "two_pair_beige": "#ddddaa"
+      "two_pair_beige": "#ddddaa",
+      "value_white": "#ffffff",
+      "machine_info_green": "#44ff88",
+      "active_jackpot_amber": "#ffcc00"
     },
     "identity_notes": [
       "Preserve Lebanese arcade cabinet feel.",

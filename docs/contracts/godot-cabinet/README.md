@@ -26,5 +26,7 @@ Godot can bind to stable JSON contracts instead of server internals.
 - Cabinet messages use explicit `schema_version`, `state_version`,
   `sequence_number`, `command_id`, `expected_state_version`, and
   `idempotency_key` fields for safe reconnect and retry behavior.
+- `heartbeat` and `reconnect_sync` are contract commands, not gameplay rules;
+  they exist to preserve session visibility and recovery ordering.
 - No payout table, RNG, hand evaluation, double-up math, RTP, or game rule
   change is authorized by these contracts.

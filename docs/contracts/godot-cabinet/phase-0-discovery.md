@@ -24,6 +24,11 @@ Godot must reproduce the player-facing cabinet feel from this directory first,
 then consume JSON contracts from the backend. It must not couple to DOM IDs,
 CSS selectors, or backend C# type names.
 
+The durable Phase 0 contract package is this directory:
+`docs/contracts/godot-cabinet/`. Any older or transitional schema copy outside
+`docs/` is not the source of truth for Godot implementation decisions unless it
+is explicitly reconciled back into this package.
+
 ## Player-Facing Surface Catalog
 
 ### Screens
@@ -47,6 +52,7 @@ CSS selectors, or backend C# type names.
 | Cash out | Menu posts `cash-out`; success shows `CASHED OUT - MACHINE READY`; blocked states show backend error. | Use backend command result and recovery overlay if session closes mid-round. |
 | Deal | Posts deal, animates dealing, displays advised holds and `AUTO-HOLD SUGGESTED - DRAW OR ADJUST`. | Keep deal pacing and require server state before enabling draw/hold controls. |
 | Hold | Hold buttons toggle local `holdIndexes`; badges show held/cancel state. | Current hold is local-only until draw. Godot contract includes optional server-visible hold commands for authoritative state. |
+| Bet / jackpot selector | BET cycles stake locally in 100-credit steps between machine min/max. Idle BET also fire-and-forget cycles the Full House jackpot rank; HOLD[0] can cycle that rank when the idle selector is armed. | Godot must not keep this as an unsynchronized side effect. Use explicit `bet_change` and `jackpot_rank_change` commands, or a combined backend command if Phase 1 chooses that surface. |
 | Draw | Posts draw with held indexes, animates replacement cards, then shows hand result or `NO WIN`. | Keep draw pacing and result timing. |
 | Win | Shows win amount and `TAKE SCORE`, `TAKE HALF`, or `DOUBLE UP` prompts depending on backend state. | Server snapshot drives available buttons and pending win. |
 | Double-up | Shows dealer card, Big/Small controls, switching, Lucky5 no-lose messaging, card trail, and take options. | Server owns current amount, card trail, switch count, lucky state, and terminal result. |
@@ -179,8 +185,12 @@ Known asset risks:
 
 - `assets/images/cards/10C.png` is currently zero bytes and should be repaired
   before Godot asset import is treated as complete.
-- `cabinet-audio-vnext.js` references `assets/sounds/jackpot.mp3`, but the file
-  is not present in the current asset tree.
+- `assets/sounds/press.mp3` is the only sound file present. `game-config.js`
+  falls back to it for core events, but `cabinet-audio-vnext.js` references
+  missing event-specific files: `deal.mp3`, `draw.mp3`, `collect.mp3`,
+  `lucky5.mp3`, `machine-close.mp3`, `win.mp3`, `bonus-claim.mp3`,
+  `doubleup-win.mp3`, `doubleup-lose.mp3`, `cash-in.mp3`, `cash-out.mp3`,
+  `hold.mp3`, and `jackpot.mp3`.
 
 ## REST Endpoint Audit
 
@@ -190,13 +200,13 @@ the endpoint is static content.
 
 | Surface | Method and path | Request body used by web | Response data shape | Godot contract decision |
 | --- | --- | --- | --- | --- |
-| Login | `POST /api/Auth/login` | `{ username, password }` | `AuthResultDto` with tokens and profile | Keep JSON. Godot stores token securely and treats profile as session seed. |
-| Signup | `POST /api/Auth/signup` | `{ username, password, phoneNumber }` | `AuthResultDto` or OTP flow result | Keep JSON. Do not rely on web placeholder phone behavior. |
-| OTP | `POST /api/Auth/verify-otp` | `{ username, otpCode }` | `AuthResultDto` | Optional for Godot onboarding. |
+| Login | `POST /api/Auth/login` | `{ username, password }` | `ApiResponse.data = { tokens, profile }` | Keep JSON. Godot stores token securely and treats profile as session seed. |
+| Signup | `POST /api/Auth/signup` | `{ username, password, phoneNumber }` | `MemberProfileDto` | Keep JSON. Do not rely on the web placeholder phone number. |
+| OTP | `POST /api/Auth/verify-otp` | `{ username, otpCode }` | `{ verified: true }` in the response envelope | Optional for Godot onboarding. The current web uses a hard-coded OTP after signup and should not be copied as a real onboarding flow. |
 | Profile | `GET /api/Auth/GetUserById` | none | `MemberProfileDto` | Keep as current balance/profile source until cabinet snapshot covers all fields. |
 | Member history | `GET /api/Auth/MemberHistory` | none | transaction/history records | Wallet screen only. |
 | Logout | `POST /api/Auth/logout` | none | message/envelope | Endpoint exists, but current web logout clears local state without calling it. Godot should call it when available. |
-| Firebase config | `GET /api/config/firebase` | none | Firebase config object | Web-specific notification setup. Optional for Godot unless push is reused. |
+| Firebase config | `GET /api/config/firebase` | none | `{ configured: false }` or `{ configured: true, config }` without `ApiResponse<T>` envelope | Web-specific notification setup. Optional for Godot unless push is reused. |
 | Reward status | `GET /api/Reward/status` | none | `BonusStatusDto` | Optional lobby banner contract. |
 | Reward claim | `POST /api/Reward/claim` | none | `BonusClaimResultDto` | Optional lobby command. |
 | Notification device | `POST /api/Notification/register-device` | `{ Token, Platform }` | message/envelope | Web push-specific today. Godot needs platform-specific equivalent only if notifications ship. |
@@ -211,7 +221,7 @@ the endpoint is static content.
 | Reset machine | `POST /api/Game/machine/{machineId}/reset` | none | message/envelope | Admin/maintenance command only. |
 | Deal | `POST /api/Game/cards/deal` | `{ machineId, betAmount }` | `DealResultDto` | Godot command type `deal`. Alias `/api/Game/deal` exists. |
 | Draw | `POST /api/Game/cards/draw` | `{ roundId, holdIndexes }` | `DrawResultDto` | Godot command type `draw`. Alias `/api/Game/draw` exists. |
-| Jackpot rank | `POST /api/Game/jackpot/rank` | `{ machineId, rank }` | jackpot/machine response | Menu/debug command today. Godot should hide unless explicitly authorized. |
+| Jackpot rank | `POST /api/Game/jackpot/rank` | `{ machineId, rank }` | `JackpotInfoDto` | Idle BET and idle HOLD[0] can call this today as the Full House rank selector. Godot should make it explicit, ordered, and backend-authorized. |
 | Double-up start | `POST /api/Game/double-up/start` | `{ roundId }` | `DoubleUpResultDto` | Godot command type `double_up_start`. |
 | Double-up guess | `POST /api/Game/double-up/guess` | `{ roundId, guess }` | `DoubleUpResultDto` | Godot command type `double_up_guess`, canonical guesses `big` and `small`. |
 | Double-up switch | `POST /api/Game/double-up/switch` | `{ roundId }` | `DoubleUpResultDto` | Godot command type `double_up_switch`. |
@@ -231,6 +241,9 @@ reflection for Godot:
   multi-device visibility can be authoritative.
 - Bet changes are local until deal. The canonical contract includes `bet_change`
   so the backend can validate stake and reflect enabled buttons consistently.
+- The Full House jackpot rank selector is a current web side effect of idle BET
+  and idle HOLD[0]. Godot should use `jackpot_rank_change` as an explicit,
+  ordered command or receive the rank inside the authoritative snapshot.
 
 Configured but not observed as current gameplay calls:
 
@@ -242,6 +255,8 @@ Configured but not observed as current gameplay calls:
 Common envelope:
 
 - `ApiResponse<T>`: `success`, `message`, `data`, `errors`, `traceId`.
+- Exception: `GET /api/config/firebase` returns a plain object with
+  `configured` and optional `config`; it is not wrapped in `ApiResponse<T>`.
 - Web JavaScript normalizes PascalCase responses to camelCase. Godot should
   consume explicit JSON naming from OpenAPI/schema rather than rely on this
   normalization layer.
@@ -249,14 +264,20 @@ Common envelope:
 Auth/session:
 
 - `LoginRequest`: `username`, `password`.
+- Login response `data`: `tokens`, `profile`.
 - `SignupRequest`: `username`, `password`, `phoneNumber`, optional `email`,
   `fullName`, `dateOfBirth`, `agentId`.
+- Signup response `data`: `MemberProfileDto`.
 - `VerifyOtpRequest`: `username`, `otpCode`.
-- `AuthTokens`: `accessToken`, `refreshToken`, `expiresAt`.
+- Verify OTP response `data`: `verified`.
+- `ResendOtpRequest`: `username`; response `data`: `resent`.
+- `AuthTokens`: `accessToken`, `refreshToken`, `expiresAtUtc`.
 - `MemberProfileDto`: `userId`, `username`, `displayName`, `fullName`, `email`,
   `phoneNumber`, `dateOfBirth`, `walletBalance`, `credit`, `totalWins`,
   `agentId`, `generatedID`, `minimumOut`, `bonusDate`, `bonusRechargeCount`,
   `lastSeenUtc`, `role`.
+- `WalletLedgerEntryDto`: `id`, `amount`, `balanceAfter`, `type`, `reference`,
+  `createdUtc`.
 
 Machine/session/balance:
 
@@ -269,6 +290,13 @@ Machine/session/balance:
 - `GET /api/Game/machine/{id}/state`: anonymous machine state with active round
   count, session count, RTP phase fields, jackpot counters, machine serial, and
   timestamp.
+- Current `CabinetSnapshotDto`: `schema_version`, `state_version`,
+  `session_id`, `machine_id`, `variant_id`, `game_state`, `hand`, `evaluation`,
+  `double_up`, `credits`, `jackpot`, `ui_hints`, `timestamp`,
+  `sequence_number`. This is a legacy seed shape, not the final Godot contract:
+  it uses `schema_version: "v1"`, has no `message_type`, omits the v1
+  `session`/`machine`/`buttons`/`presentation`/`recovery` sections, and sets
+  `sequence_number` to the derived `state_version`.
 
 Round and recovery:
 
@@ -321,8 +349,9 @@ Jackpot/rank:
 
 - `ChangeJackpotRankRequest`: `machineId`, `rank`.
 - `JackpotInfoDto`: `fullHouse`, `fullHouseRank`, `fourOfAKindA`,
-  `fourOfAKindB`, `activeFourOfAKindSlot`, `straightFlush`, `machineSerial`,
-  `machineSerie`, `machineKent`.
+  `fourOfAKindB`, `activeFourOfAKindSlot` as the current numeric slot,
+  `straightFlush`, `machineSerial`, `machineSerie`, `machineKent`. The Godot
+  v1 contract normalizes the active slot to `A` or `B`.
 
 Reward and notification:
 
@@ -331,6 +360,16 @@ Reward and notification:
 - `BonusClaimResultDto`: `amountAwarded`, `newCreditBalance`, `claimedAtUtc`,
   `bonusRechargeCount`.
 - `register-device` body: `Token`, `Platform`.
+
+Admin and maintenance surfaces used by the current cabinet shell:
+
+- `AdminCreditRequest`: `targetUserId`, `amount`, `reason`.
+- `AdminUserDto`: `userId`, `username`, `displayName`, `phoneNumber`,
+  `walletBalance`, `role`, `createdUtc`, `lastSeenUtc`.
+- `AdminMachineDto`: machine identity, RTP fields, jackpot fields,
+  `activeRounds`, `activePlayers`, and `sessions`.
+- Player reset response: generic object with `success`, `message`, and
+  wallet/session values depending on whether a session existed.
 
 ## SignalR And WebSocket Audit
 
@@ -351,6 +390,10 @@ Current web usage:
 - Session visibility is implicit through connection registry membership and
   heartbeat timeout handling; there is no player-facing visibility state in the
   current web UI.
+- `HeartbeatMonitorService` sends hub `Error` with code `HEARTBEAT_TIMEOUT`
+  when registry entries go stale. Because the web cabinet does not currently
+  invoke `Heartbeat()`, this is a backend channel Godot must either use
+  intentionally or replace with a contract-level heartbeat command.
 
 Hub methods:
 
@@ -361,7 +404,7 @@ Hub methods:
 | `Deal(machineId, betAmount)` | Server deals, sends `CardsDealt` to caller, broadcasts `MachineStateUpdated`. | Prefer unified command envelope and `CabinetEvent`. |
 | `Draw(roundId, holdIndexes)` | Server draws, sends `CardRevealed`, `WalletUpdated`, broadcasts `MachineStateUpdated`. | Prefer unified command envelope and ordered event stream. |
 | `DoubleUp(roundId, guess)` | Server executes double-up and sends `RewardStatus` and `DoubleUpCard`. | Prefer split command types for start, guess, switch, take-half, and take-score. |
-| `Heartbeat()` | Touches connection registry. | Godot should use heartbeat or transport keepalive and treat timeout as recovery-required. |
+| `Heartbeat()` | Touches connection registry. | Godot should send contract `heartbeat` while connected or rely on a documented transport keepalive; timeout becomes recovery-required. |
 | `ReconnectSync(machineId)` | Sends current `MachineStateUpdated` after reconnect. | Replace with last-seen sequence/state handshake and replay-or-snapshot response. |
 
 Hub events:
@@ -375,6 +418,7 @@ Hub events:
 | `RewardStatus` | Double-up status/current amount. | Use double-up state in event payload. |
 | `DoubleUpCard` | Double-up result DTO. | Use double-up event payload with ordered sequence. |
 | `Error` | Object with `code` and `message`. | Use `command_rejected`, `heartbeat_timeout`, or `recovery_required` events with visible overlay behavior. |
+| `heartbeat_ack` | Not emitted today. | Contract event acknowledging a Godot heartbeat when the backend needs explicit visibility confirmation. |
 
 Current realtime gaps to close for Godot:
 
@@ -393,6 +437,9 @@ However, several flows are web/DOM-specific and need Godot-native equivalents:
 
 - Browser `prompt` for cash-in amount should become a structured `cash_in`
   command payload.
+- Browser `prompt` for admin credit/debit amount and reason should remain
+  admin-only and become structured admin command payloads if Godot exposes those
+  tools.
 - Browser `confirm` for reset/logout/back-to-lobby should become explicit
   Godot dialog state followed by command payloads.
 - Browser `alert` for auth or network errors should become a cabinet overlay
@@ -402,6 +449,9 @@ However, several flows are web/DOM-specific and need Godot-native equivalents:
   Godot needs a platform-specific push or no-op path.
 - CDN script loading and static HTML asset preloading are web-only; Godot should
   ship imported assets and use the JSON contract for runtime state.
+- `cabinet-image-cache.js` fetches static image assets. These fetches are not
+  REST gameplay endpoints and should not become runtime state dependencies for
+  Godot.
 - `GET /api/General/terms` returns Markdown-style terms content and is not used
   by the cabinet gameplay surface.
 
@@ -473,6 +523,7 @@ Required event types for Godot:
 - `double_up_updated`
 - `command_accepted`
 - `command_rejected`
+- `heartbeat_ack`
 - `replay_gap`
 - `heartbeat_timeout`
 - `recovery_required`
@@ -510,7 +561,17 @@ Required command types:
 - `reset_machine`
 - `join_machine`
 - `leave_machine`
+- `heartbeat`
 - `reconnect_sync`
+
+Legacy compatibility notes:
+
+- `hold`, `clear_holds`, `bet_change`, and `heartbeat` do not have dedicated
+  REST endpoints today.
+- `jackpot_rank_change` exists as `/api/Game/jackpot/rank`, but the web calls
+  it as an idle UI side effect rather than an ordered cabinet command.
+- `join_machine`, `leave_machine`, and `reconnect_sync` exist only as hub
+  methods today.
 
 ### Idempotency And Concurrency
 
@@ -630,6 +691,8 @@ Production activation rules:
 
 - Add a JSON-only command endpoint or hub envelope that accepts
   `CabinetCommand`.
+- Promote `GET /api/Game/machine/{machineId}/cabinet-snapshot` from its legacy
+  seed DTO to the schema-defined `CabinetSnapshot` shape.
 - Make cabinet `state_version` monotonic or otherwise document its ordering
   guarantees separately from `sequence_number`.
 - Add a replay buffer or explicitly standardize snapshot-only reconnect.

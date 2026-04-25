@@ -1,0 +1,28 @@
+<img width="1672" height="941" alt="ChatGPT Image 2026年4月22日 06_27_35" src="https://github.com/user-attachments/assets/501fa074-759c-41fa-966c-e3ea2377f468" />
+
+Cover art inspired by Agent 47.
+
+# Agent Godette
+
+v0.3.1
+
+**Per-session model, mode, and reasoning** — switch model, reasoning effort, and permission mode per thread, right from the composer bar.
+
+<img width="3840" height="2076" alt="Snipaste_2026-04-24_22-18-27" src="https://github.com/user-attachments/assets/832df8ad-b280-4d42-8f54-8d170a200d58" />
+
+**Plan · Queue · SceneTree focus** — the agent's TodoWrite plan collapses above the composer, queued follow-up prompts stack underneath it, and any node you've selected in the SceneTree auto-attaches as implicit context on send.
+
+<img width="3840" height="2076" alt="Snipaste_2026-04-24_22-19-50" src="https://github.com/user-attachments/assets/1e804118-7a33-496e-bdf9-7094b0407733" />
+
+
+## What it is
+
+A Godot 4 editor plugin that talks to local ACP (Agent Client Protocol) adapters — Claude and Codex run as stdio subprocesses, the editor is the client. No HTTP bridge.
+
+## What it solves
+
+Godot had no in-editor agent. This plugin makes the editor itself the chat surface: attach scene nodes, FileSystem files, or pasted screenshots as context; the agent edits your project in place. No copy-paste between a separate chat app and the editor.
+
+## Credits
+
+Standing on [Zed](https://github.com/zed-industries/zed)'s shoulders — the ACP transport and most of the UX (plan / queue drawers, composer chips, transcript persistence, tool-call rendering) are modeled directly on Zed's external-agent implementation.

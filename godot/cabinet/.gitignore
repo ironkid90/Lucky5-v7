@@ -1,0 +1,30 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+*.translation
+
+# Vendored reference sources (not shipped)
+/vendor/
+
+# Local prototypes / scratch scenes (not shipped)
+/prototypes/pong/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backups & scratch
+*.bak
+*.tmp
+*.orig
+
+# Godette: pasted clipboard images + drag-dropped blobs. Per-machine
+# scratch, not project content.
+/addons/godette_agent/attachments/

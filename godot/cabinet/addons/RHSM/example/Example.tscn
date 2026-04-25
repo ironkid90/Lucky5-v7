@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://xh3prnr2leoh"]
+
+[ext_resource type="PackedScene" uid="uid://bcpchb5bn6j56" path="res://addons/RHSM/example/src/scenes/Player.tscn" id="1_qh6ir"]
+[ext_resource type="Texture2D" uid="uid://ckm4yvicrfy2s" path="res://addons/RHSM/example/icon.svg" id="2_fiawj"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_fiw6e"]
+size = Vector2(16384, 128)
+
+[node name="Example" type="Node2D" unique_id=1662719203]
+
+[node name="Example" parent="." unique_id=1899598425 instance=ExtResource("1_qh6ir")]
+position = Vector2(0, -64)
+
+[node name="Camera2D" type="Camera2D" parent="Example" unique_id=1015386820]
+zoom = Vector2(0.5, 0.5)
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=953694930]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=87308167]
+position = Vector2(0, 64)
+shape = SubResource("RectangleShape2D_fiw6e")
+
+[node name="Sprite" type="Sprite2D" parent="StaticBody2D" unique_id=763173478]
+position = Vector2(0, 64)
+scale = Vector2(128, 1)
+texture = ExtResource("2_fiawj")

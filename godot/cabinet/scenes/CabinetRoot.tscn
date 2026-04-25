@@ -1,12 +1,14 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://b7o1pu8o7p586"]
 
-[ext_resource type="Script" path="res://scripts/cabinet_root.gd" id="1_nxpl4"]
+[ext_resource type="Script" uid="uid://dpby8acd7u5y" path="res://scripts/cabinet_root.gd" id="1_nxpl4"]
 
-[node name="CabinetRoot" type="Control"]
+[node name="CabinetRoot" type="Control" unique_id=2092488634]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = -216.0
+offset_bottom = -216.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_nxpl4")

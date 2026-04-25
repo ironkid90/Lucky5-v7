@@ -7,18 +7,18 @@
   "game_state": "drawn",
   "hand": {
     "cards": [
-      { "rank": "J", "suit": "C", "code": "JC" },
       { "rank": "10", "suit": "H", "code": "10H" },
       { "rank": "10", "suit": "C", "code": "10C" },
-      { "rank": "A", "suit": "H", "code": "AH" },
+      { "rank": "10", "suit": "D", "code": "10D" },
+      { "rank": "10", "suit": "S", "code": "10S" },
       { "rank": "8", "suit": "C", "code": "8C" }
     ],
     "held": [],
     "result_cards": [
-      { "rank": "J", "suit": "C", "code": "JC" },
       { "rank": "10", "suit": "H", "code": "10H" },
       { "rank": "10", "suit": "C", "code": "10C" },
-      { "rank": "A", "suit": "H", "code": "AH" },
+      { "rank": "10", "suit": "D", "code": "10D" },
+      { "rank": "10", "suit": "S", "code": "10S" },
       { "rank": "8", "suit": "C", "code": "8C" }
     ]
   },

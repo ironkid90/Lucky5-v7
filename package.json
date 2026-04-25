@@ -3,7 +3,8 @@
     "@genkit-ai/google-genai": "^1.32.0",
     "@genkit-ai/mcp": "^1.32.0",
     "eslint": "^10.2.1",
-    "genkit": "^1.32.0"
+    "genkit": "^1.32.0",
+    "github-cli": "^0.0.5"
   },
   "devDependencies": {
     "repomix": "^1.13.1"

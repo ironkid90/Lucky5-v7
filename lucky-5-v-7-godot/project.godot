@@ -11,8 +11,13 @@ config_version=5
 [application]
 
 config/name="Lucky5-v7-Godot"
+run/main_scene="uid://cle505r20rfwq"
 config/features=PackedStringArray("4.6", "Mobile")
 config/icon="res://icon.svg"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_symbol_search/plugin.cfg")
 
 [physics]
 

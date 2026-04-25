@@ -1,0 +1,171 @@
+{
+  "schema_version": "variant.v1",
+  "variant_id": "lucky5.classic",
+  "display_name": "Lucky5 Classic",
+  "family": "five_card_draw",
+  "status": "draft",
+  "ruleset_version": "lucky5-clean-room-current",
+  "paytable": {
+    "RoyalFlush": 1000,
+    "StraightFlush": 75,
+    "FourOfAKind": 15,
+    "FullHouse": 12,
+    "Flush": 10,
+    "Straight": 8,
+    "ThreeOfAKind": 3,
+    "TwoPair": 2
+  },
+  "paytable_hash": "sha256:cbe816c3eaa3d13cf0a55850ffb27140b856a35015a8fd44d41bd507babdb196",
+  "rtp_gate": {
+    "simulation_required": true,
+    "simulation_status": "not_run",
+    "minimum_rounds": 10000000,
+    "target_rtp": null,
+    "tolerance_bps": null,
+    "report_uri": "",
+    "approved_for_production": false
+  },
+  "double_up_profile": {
+    "enabled": true,
+    "choices": ["big", "small"],
+    "switch_enabled": true,
+    "lucky_card": "5S",
+    "take_half_enabled": true,
+    "take_score_enabled": true,
+    "notes": "Metadata only. Backend double-up math and Lucky5 behavior remain authoritative."
+  },
+  "jackpot_profile": {
+    "meters": [
+      {
+        "id": "full_house",
+        "display_name": "Full House"
+      },
+      {
+        "id": "four_of_a_kind_a",
+        "display_name": "4K-A"
+      },
+      {
+        "id": "four_of_a_kind_b",
+        "display_name": "4K-B"
+      },
+      {
+        "id": "straight_flush",
+        "display_name": "SF"
+      }
+    ],
+    "counter_labels": ["SERIE", "KENT /3", "S/N", "4K-A", "SF", "4K-B"]
+  },
+  "machine_policy": {
+    "min_bet_source": "MachineListingDto.minBet",
+    "max_bet_source": "MachineListingDto.maxBet",
+    "cash_in_unit_source": "GameService machine cash-in policy",
+    "cash_out_threshold_source": "MachineSessionDto.cashOutThreshold",
+    "authoritative_balance_owner": "backend"
+  },
+  "cabinet_skin": {
+    "skin_id": "lebanese_retro_v1",
+    "asset_root": "server/src/Lucky5.Api/wwwroot/assets",
+    "button_assets": {
+      "hold_off": "assets/images/hold_off.png",
+      "hold_on": "assets/images/hold_on.png",
+      "cancel_hold": "assets/images/cancel_hold.png",
+      "cancel_hold_on": "assets/images/cancel_hold_on.png",
+      "deal_draw": "assets/images/deal_draw.png",
+      "deal_draw_on": "assets/images/deal_draw_on.png",
+      "bet": "assets/images/bet.png",
+      "bet_on": "assets/images/bet_on.png",
+      "big": "assets/images/big.png",
+      "big_on": "assets/images/big_on.png",
+      "small": "assets/images/small.png",
+      "small_on": "assets/images/small_on.png",
+      "take_half": "assets/images/take_half.png",
+      "take_half_on": "assets/images/take_half_on.png",
+      "take_score": "assets/images/take_score.png",
+      "take_score_on": "assets/images/take_score_on.png"
+    },
+    "palette": {
+      "credit_green": "#00ff44",
+      "stake_amber": "#ffcc00",
+      "royal_flush_red": "#ff4444",
+      "straight_flush_orange": "#ff8800",
+      "four_kind_aqua": "#44ffcc",
+      "full_house_yellow": "#ffff00",
+      "straight_green": "#44ff88",
+      "three_kind_blue": "#44ddff",
+      "two_pair_beige": "#ddddaa"
+    },
+    "identity_notes": [
+      "Preserve Lebanese arcade cabinet feel.",
+      "Use red DEAL/DRAW, green BET, amber HOLD/BIG/SMALL, cream CANCEL, red TAKE HALF, and orange TAKE SCORE controls.",
+      "Preserve portrait cabinet framing, CRT glow, paytable colors, jackpot counters, and machine labels."
+    ]
+  },
+  "presentation_profile": {
+    "profile_id": "web_cabinet_vnext",
+    "layout": {
+      "width": 720,
+      "height": 1280,
+      "orientation": "portrait"
+    },
+    "timings_ms": {
+      "deal_base": 50,
+      "deal_stagger": 90,
+      "deal_anim": 180,
+      "draw_out": 55,
+      "draw_in": 75,
+      "draw_stagger": 45,
+      "draw_reveal_start": 50,
+      "shuffle_frame": 90,
+      "du_reveal_delay": 120,
+      "du_win_hold": 550,
+      "du_stagger_per_card": 65,
+      "count_up": [1400, 3500],
+      "credit_tick": 90,
+      "jackpot_fill": [2800, 5500],
+      "drain_delay": 700,
+      "exit_du_lose": 750,
+      "exit_du_catch": 1000,
+      "lucky5_flash": 500,
+      "lucky5_active_screen": 1300,
+      "draw_result_delay": 350,
+      "win_to_du_prompt": 400,
+      "post_loss_idle_title": 1400,
+      "take_half_continue": 550,
+      "idle_overlay_appear": 2200,
+      "idle_attract": 12000
+    },
+    "ux_rules": [
+      "Backend controls enabled buttons.",
+      "No gameplay commands while disconnected.",
+      "Apply replay or full snapshot before clearing recovery overlay.",
+      "Cosmetic animation must never imply an unconfirmed win, credit, card, or jackpot result."
+    ]
+  },
+  "governance": {
+    "owner": "Lucky5",
+    "approved_by": null,
+    "approved_at_utc": null,
+    "change_ticket": "phase-0-godot-cabinet-discovery",
+    "simulation_report_id": "",
+    "notes": [
+      "Seeded from current web cabinet discovery.",
+      "Status remains draft until RTP simulation and governance gates are satisfied.",
+      "This record does not change backend game rules."
+    ]
+  },
+  "production_activation": {
+    "enabled": false,
+    "required_gates": [
+      "paytable_hash_match",
+      "rtp_simulation_passed",
+      "governance_approved",
+      "skin_assets_verified",
+      "backend_schema_compatible",
+      "godot_schema_compatible"
+    ]
+  },
+  "compatibility": {
+    "minimum_backend_contract": "cabinet.v1",
+    "minimum_godot_contract": "cabinet.v1"
+  }
+}

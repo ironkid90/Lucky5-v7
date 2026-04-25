@@ -1,0 +1,675 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucky5.local/contracts/godot-cabinet/cabinet-contract-v1.schema.json",
+  "title": "Lucky5 Godot Cabinet Contract v1",
+  "description": "JSON-first cabinet snapshot, event, command, and command result contracts for the Godot cabinet migration.",
+  "oneOf": [
+    { "$ref": "#/$defs/CabinetSnapshot" },
+    { "$ref": "#/$defs/CabinetEvent" },
+    { "$ref": "#/$defs/CabinetCommand" },
+    { "$ref": "#/$defs/CabinetCommandResult" }
+  ],
+  "$defs": {
+    "SchemaVersion": {
+      "type": "string",
+      "const": "cabinet.v1"
+    },
+    "Uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "DateTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "DecimalString": {
+      "type": "string",
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?$"
+    },
+    "StateVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "SequenceNumber": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "CardCode": {
+      "type": "string",
+      "pattern": "^(?:[2-9]|10|J|Q|K|A)[HDCS]$"
+    },
+    "Card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "rank", "suit", "face_up"],
+      "properties": {
+        "code": { "$ref": "#/$defs/CardCode" },
+        "rank": {
+          "type": "string",
+          "enum": ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+        },
+        "suit": {
+          "type": "string",
+          "enum": ["H", "D", "C", "S"]
+        },
+        "face_up": { "type": "boolean" },
+        "held": { "type": "boolean", "default": false },
+        "asset_key": { "type": "string" }
+      }
+    },
+    "GameState": {
+      "type": "string",
+      "enum": [
+        "asset_loading",
+        "auth",
+        "lobby",
+        "wallet",
+        "admin",
+        "idle",
+        "dealing",
+        "hold",
+        "drawing",
+        "drawn",
+        "win",
+        "double_up",
+        "du_waiting",
+        "collecting",
+        "closed",
+        "reconnecting",
+        "recovery",
+        "error"
+      ]
+    },
+    "ButtonId": {
+      "type": "string",
+      "enum": [
+        "menu",
+        "bet",
+        "deal_draw",
+        "cancel_hold",
+        "hold_0",
+        "hold_1",
+        "hold_2",
+        "hold_3",
+        "hold_4",
+        "big",
+        "small",
+        "take_half",
+        "take_score",
+        "cash_in",
+        "cash_out",
+        "reset_machine",
+        "back_to_lobby",
+        "logout"
+      ]
+    },
+    "ButtonState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "enabled", "visible"],
+      "properties": {
+        "id": { "$ref": "#/$defs/ButtonId" },
+        "enabled": { "type": "boolean" },
+        "visible": { "type": "boolean" },
+        "pressed": { "type": "boolean", "default": false },
+        "reason": { "type": "string" }
+      }
+    },
+    "SessionState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_id",
+        "authenticated_user_id",
+        "machine_id",
+        "is_machine_closed",
+        "can_cash_out"
+      ],
+      "properties": {
+        "session_id": { "$ref": "#/$defs/Uuid" },
+        "authenticated_user_id": { "type": "string" },
+        "machine_id": { "type": "integer", "minimum": 1 },
+        "is_machine_closed": { "type": "boolean" },
+        "can_cash_out": { "type": "boolean" },
+        "visibility": {
+          "type": "string",
+          "enum": ["unknown", "foreground", "background", "disconnected"]
+        },
+        "started_at_utc": { "$ref": "#/$defs/DateTime" },
+        "last_seen_utc": { "$ref": "#/$defs/DateTime" }
+      }
+    },
+    "MachineState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["machine_id", "name", "is_open"],
+      "properties": {
+        "machine_id": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string" },
+        "is_open": { "type": "boolean" },
+        "min_bet": { "$ref": "#/$defs/DecimalString" },
+        "max_bet": { "$ref": "#/$defs/DecimalString" },
+        "machine_serial": { "type": "string" },
+        "machine_serie": { "type": "string" },
+        "machine_kent": { "type": "string" }
+      }
+    },
+    "VariantRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variant_id", "variant_schema_version", "paytable_hash"],
+      "properties": {
+        "variant_id": { "type": "string" },
+        "variant_schema_version": { "type": "string" },
+        "display_name": { "type": "string" },
+        "paytable_hash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "cabinet_skin_id": { "type": "string" },
+        "presentation_profile_id": { "type": "string" }
+      }
+    },
+    "CreditsState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "machine_credits",
+        "wallet_balance",
+        "credit_balance",
+        "stake",
+        "total_cash_in",
+        "cash_out_threshold"
+      ],
+      "properties": {
+        "machine_credits": { "$ref": "#/$defs/DecimalString" },
+        "wallet_balance": { "$ref": "#/$defs/DecimalString" },
+        "credit_balance": { "$ref": "#/$defs/DecimalString" },
+        "stake": { "$ref": "#/$defs/DecimalString" },
+        "total_cash_in": { "$ref": "#/$defs/DecimalString" },
+        "cash_out_threshold": { "$ref": "#/$defs/DecimalString" },
+        "pending_win_amount": { "$ref": "#/$defs/DecimalString" }
+      }
+    },
+    "HandState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cards", "held_indexes"],
+      "properties": {
+        "round_id": { "$ref": "#/$defs/Uuid" },
+        "cards": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/Card" }
+        },
+        "result_cards": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/Card" }
+        },
+        "held_indexes": {
+          "type": "array",
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          }
+        },
+        "advised_holds": {
+          "type": "array",
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          }
+        }
+      }
+    },
+    "EvaluationState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hand_rank", "win_amount", "jackpot_won"],
+      "properties": {
+        "hand_rank": {
+          "type": "string",
+          "enum": [
+            "None",
+            "TwoPair",
+            "ThreeOfAKind",
+            "Straight",
+            "Flush",
+            "FullHouse",
+            "FourOfAKind",
+            "StraightFlush",
+            "RoyalFlush"
+          ]
+        },
+        "win_amount": { "$ref": "#/$defs/DecimalString" },
+        "jackpot_won": { "$ref": "#/$defs/DecimalString" },
+        "double_up_available": { "type": "boolean" },
+        "message": { "type": "string" }
+      }
+    },
+    "DoubleUpState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active",
+        "current_amount",
+        "switches_remaining",
+        "is_no_lose_active",
+        "is_lucky5_active"
+      ],
+      "properties": {
+        "active": { "type": "boolean" },
+        "round_id": { "$ref": "#/$defs/Uuid" },
+        "status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "started",
+            "win",
+            "safe_fail",
+            "machine_closed",
+            "lose",
+            "lucky5",
+            "switched",
+            "cashout",
+            "took_half"
+          ]
+        },
+        "dealer_card": { "$ref": "#/$defs/Card" },
+        "challenger_card": { "$ref": "#/$defs/Card" },
+        "card_trail": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Card" }
+        },
+        "current_amount": { "$ref": "#/$defs/DecimalString" },
+        "switches_remaining": { "type": "integer", "minimum": 0 },
+        "is_no_lose_active": { "type": "boolean" },
+        "is_lucky5_active": { "type": "boolean" },
+        "lucky_multiplier": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "JackpotState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "full_house",
+        "full_house_rank",
+        "four_of_a_kind_a",
+        "four_of_a_kind_b",
+        "active_four_of_a_kind_slot",
+        "straight_flush"
+      ],
+      "properties": {
+        "full_house": { "$ref": "#/$defs/DecimalString" },
+        "full_house_rank": { "type": "integer", "minimum": 2, "maximum": 14 },
+        "four_of_a_kind_a": { "$ref": "#/$defs/DecimalString" },
+        "four_of_a_kind_b": { "$ref": "#/$defs/DecimalString" },
+        "active_four_of_a_kind_slot": {
+          "type": "string",
+          "enum": ["A", "B"]
+        },
+        "straight_flush": { "$ref": "#/$defs/DecimalString" }
+      }
+    },
+    "PresentationState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layout_profile", "skin_id", "message"],
+      "properties": {
+        "layout_profile": { "type": "string" },
+        "skin_id": { "type": "string" },
+        "message": { "type": "string" },
+        "message_tone": {
+          "type": "string",
+          "enum": ["normal", "win", "lose", "warning", "recovery", "error"]
+        },
+        "pacing_profile": { "type": "string" },
+        "effects": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "RecoveryState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["connected", "commands_allowed", "requires_full_snapshot"],
+      "properties": {
+        "connected": { "type": "boolean" },
+        "commands_allowed": { "type": "boolean" },
+        "requires_full_snapshot": { "type": "boolean" },
+        "last_applied_state_version": { "$ref": "#/$defs/StateVersion" },
+        "last_applied_sequence_number": { "$ref": "#/$defs/SequenceNumber" },
+        "reason": { "type": "string" }
+      }
+    },
+    "CabinetSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message_type",
+        "schema_version",
+        "state_version",
+        "sequence_number",
+        "server_time_utc",
+        "session",
+        "machine",
+        "variant",
+        "game_state",
+        "credits",
+        "hand",
+        "evaluation",
+        "double_up",
+        "jackpot",
+        "buttons",
+        "presentation",
+        "recovery"
+      ],
+      "properties": {
+        "message_type": { "type": "string", "const": "cabinet_snapshot" },
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "state_version": { "$ref": "#/$defs/StateVersion" },
+        "sequence_number": { "$ref": "#/$defs/SequenceNumber" },
+        "server_time_utc": { "$ref": "#/$defs/DateTime" },
+        "session": { "$ref": "#/$defs/SessionState" },
+        "machine": { "$ref": "#/$defs/MachineState" },
+        "variant": { "$ref": "#/$defs/VariantRef" },
+        "game_state": { "$ref": "#/$defs/GameState" },
+        "credits": { "$ref": "#/$defs/CreditsState" },
+        "hand": { "$ref": "#/$defs/HandState" },
+        "evaluation": { "$ref": "#/$defs/EvaluationState" },
+        "double_up": { "$ref": "#/$defs/DoubleUpState" },
+        "jackpot": { "$ref": "#/$defs/JackpotState" },
+        "buttons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ButtonState" }
+        },
+        "presentation": { "$ref": "#/$defs/PresentationState" },
+        "recovery": { "$ref": "#/$defs/RecoveryState" }
+      }
+    },
+    "EventType": {
+      "type": "string",
+      "enum": [
+        "snapshot",
+        "state_changed",
+        "jackpot_updated",
+        "session_visibility_changed",
+        "credits_updated",
+        "round_updated",
+        "double_up_updated",
+        "command_accepted",
+        "command_rejected",
+        "replay_gap",
+        "heartbeat_timeout",
+        "recovery_required"
+      ]
+    },
+    "CabinetEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message_type",
+        "schema_version",
+        "event_id",
+        "event_type",
+        "state_version",
+        "sequence_number",
+        "server_time_utc",
+        "payload"
+      ],
+      "properties": {
+        "message_type": { "type": "string", "const": "cabinet_event" },
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "event_id": { "$ref": "#/$defs/Uuid" },
+        "event_type": { "$ref": "#/$defs/EventType" },
+        "state_version": { "$ref": "#/$defs/StateVersion" },
+        "sequence_number": { "$ref": "#/$defs/SequenceNumber" },
+        "server_time_utc": { "$ref": "#/$defs/DateTime" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "CommandType": {
+      "type": "string",
+      "enum": [
+        "deal",
+        "draw",
+        "hold",
+        "clear_holds",
+        "double_up_start",
+        "double_up_guess",
+        "double_up_switch",
+        "take_half",
+        "take_score",
+        "cash_in",
+        "cash_out",
+        "bet_change",
+        "jackpot_rank_change",
+        "reset_machine",
+        "join_machine",
+        "leave_machine",
+        "reconnect_sync"
+      ]
+    },
+    "CabinetCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message_type",
+        "schema_version",
+        "command_id",
+        "command_type",
+        "session_id",
+        "machine_id",
+        "expected_state_version",
+        "idempotency_key",
+        "client_sequence_number",
+        "sent_at_utc",
+        "payload"
+      ],
+      "properties": {
+        "message_type": { "type": "string", "const": "cabinet_command" },
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "command_id": { "$ref": "#/$defs/Uuid" },
+        "command_type": { "$ref": "#/$defs/CommandType" },
+        "session_id": { "$ref": "#/$defs/Uuid" },
+        "machine_id": { "type": "integer", "minimum": 1 },
+        "expected_state_version": { "$ref": "#/$defs/StateVersion" },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "client_sequence_number": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sent_at_utc": { "$ref": "#/$defs/DateTime" },
+        "payload": {
+          "oneOf": [
+            { "$ref": "#/$defs/DealCommandPayload" },
+            { "$ref": "#/$defs/DrawCommandPayload" },
+            { "$ref": "#/$defs/HoldCommandPayload" },
+            { "$ref": "#/$defs/RoundIdPayload" },
+            { "$ref": "#/$defs/DoubleUpGuessPayload" },
+            { "$ref": "#/$defs/CashInPayload" },
+            { "$ref": "#/$defs/BetChangePayload" },
+            { "$ref": "#/$defs/JackpotRankPayload" },
+            { "$ref": "#/$defs/ReconnectSyncPayload" },
+            { "$ref": "#/$defs/EmptyPayload" }
+          ]
+        }
+      }
+    },
+    "CabinetCommandResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message_type",
+        "schema_version",
+        "command_id",
+        "idempotency_key",
+        "accepted",
+        "status",
+        "state_version",
+        "sequence_number",
+        "server_time_utc"
+      ],
+      "properties": {
+        "message_type": { "type": "string", "const": "cabinet_command_result" },
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "command_id": { "$ref": "#/$defs/Uuid" },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "accepted": { "type": "boolean" },
+        "status": {
+          "type": "string",
+          "enum": [
+            "accepted",
+            "rejected",
+            "duplicate",
+            "stale_state",
+            "requires_snapshot",
+            "unauthorized",
+            "invalid"
+          ]
+        },
+        "state_version": { "$ref": "#/$defs/StateVersion" },
+        "sequence_number": { "$ref": "#/$defs/SequenceNumber" },
+        "server_time_utc": { "$ref": "#/$defs/DateTime" },
+        "snapshot": { "$ref": "#/$defs/CabinetSnapshot" },
+        "event": { "$ref": "#/$defs/CabinetEvent" },
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": { "type": "string" },
+            "message": { "type": "string" },
+            "retryable": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "EmptyPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 0
+    },
+    "DealCommandPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bet_amount"],
+      "properties": {
+        "bet_amount": { "$ref": "#/$defs/DecimalString" }
+      }
+    },
+    "DrawCommandPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["round_id", "hold_indexes"],
+      "properties": {
+        "round_id": { "$ref": "#/$defs/Uuid" },
+        "hold_indexes": {
+          "type": "array",
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          }
+        }
+      }
+    },
+    "HoldCommandPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hold_indexes"],
+      "properties": {
+        "hold_indexes": {
+          "type": "array",
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          }
+        }
+      }
+    },
+    "RoundIdPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["round_id"],
+      "properties": {
+        "round_id": { "$ref": "#/$defs/Uuid" }
+      }
+    },
+    "DoubleUpGuessPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["round_id", "guess"],
+      "properties": {
+        "round_id": { "$ref": "#/$defs/Uuid" },
+        "guess": {
+          "type": "string",
+          "enum": ["big", "small"]
+        }
+      }
+    },
+    "CashInPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amount"],
+      "properties": {
+        "amount": { "$ref": "#/$defs/DecimalString" }
+      }
+    },
+    "BetChangePayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bet_amount"],
+      "properties": {
+        "bet_amount": { "$ref": "#/$defs/DecimalString" }
+      }
+    },
+    "JackpotRankPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rank"],
+      "properties": {
+        "rank": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 14
+        }
+      }
+    },
+    "ReconnectSyncPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["last_state_version", "last_sequence_number"],
+      "properties": {
+        "last_state_version": { "$ref": "#/$defs/StateVersion" },
+        "last_sequence_number": { "$ref": "#/$defs/SequenceNumber" }
+      }
+    }
+  }
+}

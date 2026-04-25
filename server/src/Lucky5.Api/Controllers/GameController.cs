@@ -73,6 +73,13 @@ public class GameController(IGameService gameService) : ControllerBase
         return Ok(new ApiResponse<ActiveRoundStateDto?>(true, "OK", result, [], HttpContext.TraceIdentifier));
     }
 
+    [HttpGet("machine/{machineId}/cabinet-snapshot")]
+    public async Task<ActionResult<ApiResponse<CabinetSnapshotDto>>> GetCabinetSnapshot(int machineId, CancellationToken cancellationToken)
+    {
+        var result = await gameService.GetCabinetSnapshotAsync(UserId, machineId, cancellationToken);
+        return Ok(ApiResponse<CabinetSnapshotDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+    }
+
     [HttpPost("deal")]
     [HttpPost("cards/deal")]
     public async Task<ActionResult<ApiResponse<DealResultDto>>> Deal([FromBody] DealRequest request, CancellationToken cancellationToken)

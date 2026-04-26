@@ -29,8 +29,8 @@ Durable agent contract for this repository. Keep this file compact, reusable, an
 - Do not paste large logs, generated files, external docs, or tool schemas into AGENTS.md or chat unless they are necessary. 
 - Summarize bulky output instead of carrying it forward verbatim. 
 - Offload large transient output to task artifacts under `tmp/` when useful instead of keeping it in live context. 
-- After meaningful tasks, update `C:/Users/Gabi/.codex/memory.json` with current objective, environment facts, decisions, open questions, and next steps. 
-- After meaningful tasks, write `tmp/summary-<timestamp>.json` with edits, commands, verification, and outcome. 
+- After meaningful tasks, update the canonical Codex memory file defined in `docs/KANBAN_ORCHESTRATION.md` with current objective, environment facts, decisions, open questions, and next steps.
+- After meaningful tasks, write `tmp/summary-<timestamp>.json` using the required summary schema in `docs/KANBAN_ORCHESTRATION.md`.
 ## Tool Strategy 
 - Use the smallest toolset that can complete the task well. 
 - Prefer fast targeted search tools such as `rg` or equivalent. 
@@ -234,7 +234,7 @@ When reporting substantial work, include:
 
 ## Minimal Memory & State
 
-Maintain lightweight state in `C:/Users/Gabi/.codex/memory.json`:
+Maintain lightweight state in the canonical Codex memory file defined in `docs/KANBAN_ORCHESTRATION.md`:
 - current objective, environment facts (OS/shell/versions), constraints & safety notes, key decisions, open questions, next steps.
 
 After each task, write `tmp/summary-<timestamp>.json` with changes, commands, verification, and outcomes.

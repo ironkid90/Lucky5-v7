@@ -77,7 +77,7 @@ Acceptance criteria:
 4. Add/update <tests, docs, templates, or verification artifacts>.
 5. Verify with <exact tightest relevant commands>.
 6. If verification is blocked, report the exact command, blocker, and expected success signal.
-7. Write `tmp/summary-<timestamp>.json` and update `C:/Users/Gabi/.codex/memory.json` for meaningful work when available.
+7. Write `tmp/summary-<timestamp>.json` and update the canonical Codex memory file for meaningful work when available. See [Summary and Memory Artifacts](#summary-and-memory-artifacts).
 8. Finish with a final report listing changed files, verification, residual risks, and follow-ups.
 
 Safety constraints:
@@ -103,6 +103,13 @@ Final report requirements:
 
 Use a steward card when the board has multiple workers, dependencies, or stale-session risk. The steward should not edit repo files unless the card explicitly assigns docs/process work.
 
+Steward card setup:
+
+- Create a dedicated steward card as soon as a repo has two or more active workers, a dependency graph that affects start order, or stale-session/recovery risk.
+- The card owns orchestration only: board reads, dependency checks, stale-session triage, review handoffs, and follow-up task creation. Product/code changes require separate implementation cards.
+- Include the canonical project path, active worker IDs, dependency links, high-risk ownership boundaries, poll cadence, stale thresholds, cleanup approval rule, and final-report requirements in the steward prompt.
+- If no steward card exists while multiple workers are active, create or request one before starting more implementation work.
+
 Polling cadence:
 
 - Poll every 10 to 15 minutes while the steward session is active.
@@ -122,6 +129,8 @@ Start/stop/link rules:
 - Start only dependency-ready tasks.
 - Do not start two tasks that plan to edit the same backend authority files unless ownership is explicit.
 - Link tasks when a real prerequisite exists; unlink only after verifying the prerequisite is no longer required or has moved to an accepted state.
+- Move a task to review only after its final report names changed files, verification, blockers or residual risks, summary artifact status, memory update status, and follow-up needs.
+- Trash, delete, reset, discard, or remove worktrees only after capturing status and receiving explicit user approval.
 - Stop starting new work when review or recovery load is the bottleneck.
 - Create follow-up tasks for discovered issues instead of expanding an active worker's scope.
 
@@ -224,17 +233,39 @@ Use this pattern for Godot, mobile SDKs, desktop tools, and other local tool set
 
 ## Summary and Memory Artifacts
 
-After meaningful tasks:
+Use memory and summary artifacts to preserve durable handoff context without storing secrets, raw logs, transcripts, or vendor/tool catalogs.
 
-- Update `C:/Users/Gabi/.codex/memory.json` with objective, environment facts, decisions, open questions, and next steps.
-- Write `tmp/summary-<timestamp>.json` with edits, commands, verification, outcome, assumptions, and follow-ups.
-- Keep artifacts short and structured. Do not paste raw logs, task transcripts, tool catalogs, vendor docs, or secrets.
-- If the artifact step fails, report the failure and exact next command instead of holding the task in progress.
+Canonical memory path:
 
-Suggested summary JSON shape:
+- Treat `~/.codex/memory.json` as the logical memory path.
+- On Windows workstations with profile aliases, prefer `C:/Users/Gabi/.codex/memory.json` when it exists as the cross-client canonical path. Also read `$env:USERPROFILE/.codex/memory.json` when it differs, because task worktrees may run under aliases such as `C:/Users/Gabi.WIN-CD45QMUUPFF`.
+- Write the canonical path first. If the current profile memory path differs and already exists, keep it in the same schema when feasible. If either write is blocked, record the blocker in the final report and in the summary artifact if available.
+- Do not create new home-directory aliases based on guesswork. Do not copy secrets, tokens, private keys, cookies, service-account JSON, or machine credentials between memory files.
+
+Use this memory schema, with snake_case keys:
 
 ```json
 {
+  "schema_version": "agent-memory/v1",
+  "last_updated": "YYYY-MM-DDTHH:mm:ssZ",
+  "current_objective": "",
+  "environment_facts": {},
+  "constraints_and_safety_notes": [],
+  "key_decisions": [],
+  "open_questions": [],
+  "next_steps": [],
+  "verification": [],
+  "summary_artifact": ""
+}
+```
+
+Create `tmp/summary-<timestamp>.json` after meaningful tasks: code changes, docs/process changes, board stewardship, review/recovery sessions, or verification work whose result should be reusable. Trivial read-only checks can skip the artifact unless the task asks for one.
+
+Required summary JSON shape:
+
+```json
+{
+  "schema_version": "task-summary/v1",
   "timestamp": "YYYYMMDD-HHMMSS",
   "objective": "",
   "changed_files": [],
@@ -242,9 +273,18 @@ Suggested summary JSON shape:
   "verification": [],
   "outcome": "",
   "assumptions": [],
-  "follow_ups": []
+  "follow_ups": [],
+  "memory_paths": [],
+  "redactions": []
 }
 ```
+
+Summary rules:
+
+- Create `tmp/` if it is missing. The directory is ignored by git in this repo.
+- Summarize command output instead of pasting raw logs. Include exact command names, pass/fail/blocker state, and the smallest useful evidence.
+- Redact secrets before writing. If a needed fact is sensitive, write a placeholder such as `<redacted: token>` and note the redaction in `redactions`.
+- If `tmp/` or memory writes are blocked, do not leave the worker active only for artifact polish. Record the blocker, the exact command that failed, and the next manual command in the final report.
 
 ## Reuse on the Next Project
 

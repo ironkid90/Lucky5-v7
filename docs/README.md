@@ -522,7 +522,7 @@ docker compose -f infra/docker-compose.yml --env-file infra/.env.local.example u
 | Location | Content |
 |----------|---------|
 | `docs/GAME_FEEL_REFERENCE.md` | Pixel-accurate visual design reference from original Lebanese cabinet |
-| `docs/KANBAN_ORCHESTRATION.md` | Reusable Lucky5 development, Kanban steward, review, recovery, and task-template playbook |
+| `docs/KANBAN_ORCHESTRATION.md` | Reusable Lucky5 development, Kanban steward, memory, summary-artifact, review, recovery, and task-template playbook |
 | `docs/ANDROID_BUILD.md` | Capacitor-based Android APK build instructions |
 | `docs/forensics/` | Original APK reverse-engineering findings (endpoints, events, module map) |
 | `analysis/` | Clean-room engine prototype (Python), signal extraction, research notes |

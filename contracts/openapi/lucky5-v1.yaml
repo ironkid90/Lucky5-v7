@@ -810,7 +810,8 @@ components:
           type: number
           format: decimal
         autoOpenClosePercentage:
-          type: boolean
+          type: number
+          format: decimal
         carreIndex:
           type: integer
           format: int32

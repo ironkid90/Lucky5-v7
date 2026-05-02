@@ -81,6 +81,10 @@ type Machine @table {
   isOpen: Boolean! @default(expr: "true")
   minBet: Int! @default(expr: "1000")           # Minimum bet in fils
   maxBet: Int! @default(expr: "10000")          # Maximum bet in fils
+  # Operational fields
+  doorState: String! @col(dataType: "varchar(15)") @default(expr: "'Open'") # Open|Closed|Maintenance
+  activeRounds: Int! @default(expr: "0")        # Number of active rounds
+  activePlayers: Int! @default(expr: "0")       # Number of active players
   createdAt: Timestamp! @default(expr: "request.time")
 }
 
@@ -97,9 +101,14 @@ type MachineLedger @table(name: "MachineLedgers") {
   lastDistributionMode: String! @col(dataType: "varchar(10)") @default(expr: "'Neutral'")
   # Jackpots (current value in fils)
   jackpotFullHouse: Int!
+  jackpotFullHouseRank: Int! @default(expr: "14") # Rotating rank (2-14, Ace=14)
   jackpotFourOfAKindA: Int!
   jackpotFourOfAKindB: Int!
+  activeFourOfAKindSlot: Int! @default(expr: "0") # 0=A, 1=B
   jackpotStraightFlush: Int!
+  jackpotKent: Int!                              # 5th progressive jackpot
+  # Operational fields
+  netSinceLastClose: Int! @default(expr: "0")    # Net since last machine close
   lastWinChannel: String @col(dataType: "varchar(15)") # None|BaseGame|DoubleUp|Lucky5|Jackpot
   snapshotAt: Timestamp! @default(expr: "request.time")
 }
@@ -139,6 +148,10 @@ type Round @table(name: "Rounds") {
   payoutScale: Float                            # Effective payout scale applied
   phase: String! @col(dataType: "varchar(15)") @default(expr: "'Idle'")
   # Idle | Dealt | Drawn | DoubleUp | Settled
+  # Ace multiplier fields
+  aceCard: String @col(dataType: "varchar(5)")  # Ace card that triggered multiplier (e.g. "AS")
+  aceMultiplier: Int! @default(expr: "1")       # Multiplier value (1=no multiplier, 2=2x, etc.)
+  aceMultiplierFired: Boolean! @default(expr: "false")
   playedAt: Timestamp! @default(expr: "request.time")
 }
 

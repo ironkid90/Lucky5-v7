@@ -32,6 +32,7 @@ public sealed class GameServiceSimple : IGameService
     public Task<DrawResultDto> DrawAsync(Guid userId, DrawRequest request, CancellationToken cancellationToken) => inner.DrawAsync(userId, request, cancellationToken);
     public Task<DoubleUpResultDto> StartDoubleUpAsync(Guid userId, Guid roundId, CancellationToken cancellationToken) => inner.StartDoubleUpAsync(userId, roundId, cancellationToken);
     public Task<DoubleUpResultDto> SwitchDealerAsync(Guid userId, Guid roundId, CancellationToken cancellationToken) => inner.SwitchDealerAsync(userId, roundId, cancellationToken);
+    public Task<DoubleUpResultDto> SwapDoubleUpCardAsync(Guid userId, Guid roundId, int swapPosition, CancellationToken cancellationToken) => inner.SwapDoubleUpCardAsync(userId, roundId, swapPosition, cancellationToken);
     public Task<DoubleUpResultDto> GuessDoubleUpAsync(Guid userId, Guid roundId, string guess, CancellationToken cancellationToken) => inner.GuessDoubleUpAsync(userId, roundId, guess, cancellationToken);
     public Task<DoubleUpResultDto> CashoutDoubleUpAsync(Guid userId, Guid roundId, CancellationToken cancellationToken) => inner.CashoutDoubleUpAsync(userId, roundId, cancellationToken);
     public Task<DoubleUpResultDto> TakeHalfAsync(Guid userId, Guid roundId, CancellationToken cancellationToken) => inner.TakeHalfAsync(userId, roundId, cancellationToken);

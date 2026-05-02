@@ -4,6 +4,7 @@ using Lucky5.Api.Models;
 using Lucky5.Application.Contracts;
 using Lucky5.Application.Dtos;
 using Lucky5.Application.Requests;
+using Lucky5.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
@@ -65,5 +66,21 @@ public sealed class AdminController(IAdminService adminService) : ControllerBase
         var adminId = HttpContext.RequireAdminRole();
         var machine = await adminService.ResetMachineAsync(adminId, machineId, cancellationToken);
         return Ok(ApiResponse<AdminMachineDto>.Ok(machine, traceId: HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("machines/{machineId:int}/door-state")]
+    public async Task<ActionResult<ApiResponse<DoorState>>> SetDoorState(int machineId, [FromBody] SetDoorStateRequest request, CancellationToken cancellationToken)
+    {
+        HttpContext.RequireAdminRole();
+        var doorState = await adminService.SetDoorStateAsync(machineId, request.DoorState, cancellationToken);
+        return Ok(ApiResponse<DoorState>.Ok(doorState, traceId: HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("users/recharge-bonus")]
+    public async Task<ActionResult<ApiResponse<WalletLedgerEntryDto>>> RechargeBonus([FromBody] RechargeBonusRequest request, CancellationToken cancellationToken)
+    {
+        HttpContext.RequireAdminRole();
+        var row = await adminService.RechargeBonusAsync(request.UserId, request.RechargeAmount, cancellationToken);
+        return Ok(ApiResponse<WalletLedgerEntryDto>.Ok(row, traceId: HttpContext.TraceIdentifier));
     }
 }

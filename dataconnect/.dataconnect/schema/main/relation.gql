@@ -389,6 +389,24 @@ extend type Machine {
   """
   _count: Int! @fdc_generated(from: "Machine.", purpose: QUERY_COUNT)
   """
+  ✨ Count the number of rows in the `Machine` table where the `activePlayers` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  activePlayers_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Machine.activePlayers", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Machine` table where the `activeRounds` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  activeRounds_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Machine.activeRounds", purpose: QUERY_COUNT)
+  """
   ✨ Count the number of rows in the `Machine` table where the `createdAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
   createdAt_count(
@@ -397,6 +415,15 @@ extend type Machine {
     """
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "Machine.createdAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Machine` table where the `doorState` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  doorState_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Machine.doorState", purpose: QUERY_COUNT)
   """
   ✨ Count the number of rows in the `Machine` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
@@ -470,6 +497,24 @@ extend type Machine {
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "Machine.serie", purpose: QUERY_COUNT)
   """
+  ✨ Sum the `activePlayers` field in the `Machine` table.
+  """
+  activePlayers_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Machine.activePlayers", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `activeRounds` field in the `Machine` table.
+  """
+  activeRounds_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Machine.activeRounds", purpose: QUERY_SUM)
+  """
   ✨ Sum the `maxBet` field in the `Machine` table.
   """
   maxBet_sum(
@@ -487,6 +532,24 @@ extend type Machine {
     """
     distinct: Boolean = false
   ): Int @fdc_generated(from: "Machine.minBet", purpose: QUERY_SUM)
+  """
+  ✨ Average the `activePlayers` field in the `Machine` table.
+  """
+  activePlayers_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Machine.activePlayers", purpose: QUERY_AVG)
+  """
+  ✨ Average the `activeRounds` field in the `Machine` table.
+  """
+  activeRounds_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Machine.activeRounds", purpose: QUERY_AVG)
   """
   ✨ Average the `maxBet` field in the `Machine` table.
   """
@@ -506,6 +569,14 @@ extend type Machine {
     distinct: Boolean = false
   ): Float @fdc_generated(from: "Machine.minBet", purpose: QUERY_AVG)
   """
+  ✨ Minimum of the `activePlayers` field in the `Machine` table.
+  """
+  activePlayers_min: Int @fdc_generated(from: "Machine.activePlayers", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `activeRounds` field in the `Machine` table.
+  """
+  activeRounds_min: Int @fdc_generated(from: "Machine.activeRounds", purpose: QUERY_MIN)
+  """
   ✨ Minimum of the `createdAt` field in the `Machine` table.
   """
   createdAt_min: Timestamp @fdc_generated(from: "Machine.createdAt", purpose: QUERY_MIN)
@@ -517,6 +588,14 @@ extend type Machine {
   ✨ Minimum of the `minBet` field in the `Machine` table.
   """
   minBet_min: Int @fdc_generated(from: "Machine.minBet", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `activePlayers` field in the `Machine` table.
+  """
+  activePlayers_max: Int @fdc_generated(from: "Machine.activePlayers", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `activeRounds` field in the `Machine` table.
+  """
+  activeRounds_max: Int @fdc_generated(from: "Machine.activeRounds", purpose: QUERY_MAX)
   """
   ✨ Maximum of the `createdAt` field in the `Machine` table.
   """
@@ -543,6 +622,15 @@ extend type MachineLedger {
   ✨ Count the number of rows in the `MachineLedger` table.
   """
   _count: Int! @fdc_generated(from: "MachineLedger.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `activeFourOfAKindSlot` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  activeFourOfAKindSlot_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.activeFourOfAKindSlot", purpose: QUERY_COUNT)
   """
   ✨ Count the number of rows in the `MachineLedger` table where the `capitalIn` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
@@ -598,6 +686,15 @@ extend type MachineLedger {
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "MachineLedger.jackpotFourOfAKindB", purpose: QUERY_COUNT)
   """
+  ✨ Count the number of rows in the `MachineLedger` table where the `jackpotFullHouseRank` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  jackpotFullHouseRank_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.jackpotFullHouseRank", purpose: QUERY_COUNT)
+  """
   ✨ Count the number of rows in the `MachineLedger` table where the `jackpotFullHouse` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
   jackpotFullHouse_count(
@@ -606,6 +703,15 @@ extend type MachineLedger {
     """
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "MachineLedger.jackpotFullHouse", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MachineLedger` table where the `jackpotKent` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  jackpotKent_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.jackpotKent", purpose: QUERY_COUNT)
   """
   ✨ Count the number of rows in the `MachineLedger` table where the `jackpotStraightFlush` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
@@ -643,6 +749,15 @@ extend type MachineLedger {
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "MachineLedger.machineId", purpose: QUERY_COUNT)
   """
+  ✨ Count the number of rows in the `MachineLedger` table where the `netSinceLastClose` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  netSinceLastClose_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MachineLedger.netSinceLastClose", purpose: QUERY_COUNT)
+  """
   ✨ Count the number of rows in the `MachineLedger` table where the `roundCount` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
   roundCount_count(
@@ -669,6 +784,15 @@ extend type MachineLedger {
     """
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "MachineLedger.snapshotAt", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `activeFourOfAKindSlot` field in the `MachineLedger` table.
+  """
+  activeFourOfAKindSlot_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.activeFourOfAKindSlot", purpose: QUERY_SUM)
   """
   ✨ Sum the `capitalIn` field in the `MachineLedger` table.
   """
@@ -715,6 +839,15 @@ extend type MachineLedger {
     distinct: Boolean = false
   ): Int @fdc_generated(from: "MachineLedger.jackpotFourOfAKindB", purpose: QUERY_SUM)
   """
+  ✨ Sum the `jackpotFullHouseRank` field in the `MachineLedger` table.
+  """
+  jackpotFullHouseRank_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.jackpotFullHouseRank", purpose: QUERY_SUM)
+  """
   ✨ Sum the `jackpotFullHouse` field in the `MachineLedger` table.
   """
   jackpotFullHouse_sum(
@@ -724,6 +857,15 @@ extend type MachineLedger {
     distinct: Boolean = false
   ): Int @fdc_generated(from: "MachineLedger.jackpotFullHouse", purpose: QUERY_SUM)
   """
+  ✨ Sum the `jackpotKent` field in the `MachineLedger` table.
+  """
+  jackpotKent_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.jackpotKent", purpose: QUERY_SUM)
+  """
   ✨ Sum the `jackpotStraightFlush` field in the `MachineLedger` table.
   """
   jackpotStraightFlush_sum(
@@ -732,6 +874,15 @@ extend type MachineLedger {
     """
     distinct: Boolean = false
   ): Int @fdc_generated(from: "MachineLedger.jackpotStraightFlush", purpose: QUERY_SUM)
+  """
+  ✨ Sum the `netSinceLastClose` field in the `MachineLedger` table.
+  """
+  netSinceLastClose_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "MachineLedger.netSinceLastClose", purpose: QUERY_SUM)
   """
   ✨ Sum the `roundCount` field in the `MachineLedger` table.
   """
@@ -750,6 +901,15 @@ extend type MachineLedger {
     """
     distinct: Boolean = false
   ): Int @fdc_generated(from: "MachineLedger.roundsSinceLucky5Hit", purpose: QUERY_SUM)
+  """
+  ✨ Average the `activeFourOfAKindSlot` field in the `MachineLedger` table.
+  """
+  activeFourOfAKindSlot_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.activeFourOfAKindSlot", purpose: QUERY_AVG)
   """
   ✨ Average the `capitalIn` field in the `MachineLedger` table.
   """
@@ -796,6 +956,15 @@ extend type MachineLedger {
     distinct: Boolean = false
   ): Float @fdc_generated(from: "MachineLedger.jackpotFourOfAKindB", purpose: QUERY_AVG)
   """
+  ✨ Average the `jackpotFullHouseRank` field in the `MachineLedger` table.
+  """
+  jackpotFullHouseRank_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.jackpotFullHouseRank", purpose: QUERY_AVG)
+  """
   ✨ Average the `jackpotFullHouse` field in the `MachineLedger` table.
   """
   jackpotFullHouse_avg(
@@ -805,6 +974,15 @@ extend type MachineLedger {
     distinct: Boolean = false
   ): Float @fdc_generated(from: "MachineLedger.jackpotFullHouse", purpose: QUERY_AVG)
   """
+  ✨ Average the `jackpotKent` field in the `MachineLedger` table.
+  """
+  jackpotKent_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.jackpotKent", purpose: QUERY_AVG)
+  """
   ✨ Average the `jackpotStraightFlush` field in the `MachineLedger` table.
   """
   jackpotStraightFlush_avg(
@@ -813,6 +991,15 @@ extend type MachineLedger {
     """
     distinct: Boolean = false
   ): Float @fdc_generated(from: "MachineLedger.jackpotStraightFlush", purpose: QUERY_AVG)
+  """
+  ✨ Average the `netSinceLastClose` field in the `MachineLedger` table.
+  """
+  netSinceLastClose_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "MachineLedger.netSinceLastClose", purpose: QUERY_AVG)
   """
   ✨ Average the `roundCount` field in the `MachineLedger` table.
   """
@@ -831,6 +1018,10 @@ extend type MachineLedger {
     """
     distinct: Boolean = false
   ): Float @fdc_generated(from: "MachineLedger.roundsSinceLucky5Hit", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `activeFourOfAKindSlot` field in the `MachineLedger` table.
+  """
+  activeFourOfAKindSlot_min: Int @fdc_generated(from: "MachineLedger.activeFourOfAKindSlot", purpose: QUERY_MIN)
   """
   ✨ Minimum of the `capitalIn` field in the `MachineLedger` table.
   """
@@ -852,13 +1043,25 @@ extend type MachineLedger {
   """
   jackpotFourOfAKindB_min: Int @fdc_generated(from: "MachineLedger.jackpotFourOfAKindB", purpose: QUERY_MIN)
   """
+  ✨ Minimum of the `jackpotFullHouseRank` field in the `MachineLedger` table.
+  """
+  jackpotFullHouseRank_min: Int @fdc_generated(from: "MachineLedger.jackpotFullHouseRank", purpose: QUERY_MIN)
+  """
   ✨ Minimum of the `jackpotFullHouse` field in the `MachineLedger` table.
   """
   jackpotFullHouse_min: Int @fdc_generated(from: "MachineLedger.jackpotFullHouse", purpose: QUERY_MIN)
   """
+  ✨ Minimum of the `jackpotKent` field in the `MachineLedger` table.
+  """
+  jackpotKent_min: Int @fdc_generated(from: "MachineLedger.jackpotKent", purpose: QUERY_MIN)
+  """
   ✨ Minimum of the `jackpotStraightFlush` field in the `MachineLedger` table.
   """
   jackpotStraightFlush_min: Int @fdc_generated(from: "MachineLedger.jackpotStraightFlush", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `netSinceLastClose` field in the `MachineLedger` table.
+  """
+  netSinceLastClose_min: Int @fdc_generated(from: "MachineLedger.netSinceLastClose", purpose: QUERY_MIN)
   """
   ✨ Minimum of the `roundCount` field in the `MachineLedger` table.
   """
@@ -871,6 +1074,10 @@ extend type MachineLedger {
   ✨ Minimum of the `snapshotAt` field in the `MachineLedger` table.
   """
   snapshotAt_min: Timestamp @fdc_generated(from: "MachineLedger.snapshotAt", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `activeFourOfAKindSlot` field in the `MachineLedger` table.
+  """
+  activeFourOfAKindSlot_max: Int @fdc_generated(from: "MachineLedger.activeFourOfAKindSlot", purpose: QUERY_MAX)
   """
   ✨ Maximum of the `capitalIn` field in the `MachineLedger` table.
   """
@@ -892,13 +1099,25 @@ extend type MachineLedger {
   """
   jackpotFourOfAKindB_max: Int @fdc_generated(from: "MachineLedger.jackpotFourOfAKindB", purpose: QUERY_MAX)
   """
+  ✨ Maximum of the `jackpotFullHouseRank` field in the `MachineLedger` table.
+  """
+  jackpotFullHouseRank_max: Int @fdc_generated(from: "MachineLedger.jackpotFullHouseRank", purpose: QUERY_MAX)
+  """
   ✨ Maximum of the `jackpotFullHouse` field in the `MachineLedger` table.
   """
   jackpotFullHouse_max: Int @fdc_generated(from: "MachineLedger.jackpotFullHouse", purpose: QUERY_MAX)
   """
+  ✨ Maximum of the `jackpotKent` field in the `MachineLedger` table.
+  """
+  jackpotKent_max: Int @fdc_generated(from: "MachineLedger.jackpotKent", purpose: QUERY_MAX)
+  """
   ✨ Maximum of the `jackpotStraightFlush` field in the `MachineLedger` table.
   """
   jackpotStraightFlush_max: Int @fdc_generated(from: "MachineLedger.jackpotStraightFlush", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `netSinceLastClose` field in the `MachineLedger` table.
+  """
+  netSinceLastClose_max: Int @fdc_generated(from: "MachineLedger.netSinceLastClose", purpose: QUERY_MAX)
   """
   ✨ Maximum of the `roundCount` field in the `MachineLedger` table.
   """
@@ -1166,6 +1385,33 @@ extend type Round {
   """
   _count: Int! @fdc_generated(from: "Round.", purpose: QUERY_COUNT)
   """
+  ✨ Count the number of rows in the `Round` table where the `aceCard` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  aceCard_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.aceCard", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `aceMultiplierFired` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  aceMultiplierFired_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.aceMultiplierFired", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Round` table where the `aceMultiplier` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  aceMultiplier_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Round.aceMultiplier", purpose: QUERY_COUNT)
+  """
   ✨ Count the number of rows in the `Round` table where the `baseWinAmount` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
   baseWinAmount_count(
@@ -1328,6 +1574,15 @@ extend type Round {
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "Round.totalWinAmount", purpose: QUERY_COUNT)
   """
+  ✨ Sum the `aceMultiplier` field in the `Round` table.
+  """
+  aceMultiplier_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Round.aceMultiplier", purpose: QUERY_SUM)
+  """
   ✨ Sum the `baseWinAmount` field in the `Round` table.
   """
   baseWinAmount_sum(
@@ -1381,6 +1636,15 @@ extend type Round {
     """
     distinct: Boolean = false
   ): Int @fdc_generated(from: "Round.totalWinAmount", purpose: QUERY_SUM)
+  """
+  ✨ Average the `aceMultiplier` field in the `Round` table.
+  """
+  aceMultiplier_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Round.aceMultiplier", purpose: QUERY_AVG)
   """
   ✨ Average the `baseWinAmount` field in the `Round` table.
   """
@@ -1436,6 +1700,10 @@ extend type Round {
     distinct: Boolean = false
   ): Float @fdc_generated(from: "Round.totalWinAmount", purpose: QUERY_AVG)
   """
+  ✨ Minimum of the `aceMultiplier` field in the `Round` table.
+  """
+  aceMultiplier_min: Int @fdc_generated(from: "Round.aceMultiplier", purpose: QUERY_MIN)
+  """
   ✨ Minimum of the `baseWinAmount` field in the `Round` table.
   """
   baseWinAmount_min: Int @fdc_generated(from: "Round.baseWinAmount", purpose: QUERY_MIN)
@@ -1463,6 +1731,10 @@ extend type Round {
   ✨ Minimum of the `totalWinAmount` field in the `Round` table.
   """
   totalWinAmount_min: Int @fdc_generated(from: "Round.totalWinAmount", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `aceMultiplier` field in the `Round` table.
+  """
+  aceMultiplier_max: Int @fdc_generated(from: "Round.aceMultiplier", purpose: QUERY_MAX)
   """
   ✨ Maximum of the `baseWinAmount` field in the `Round` table.
   """

@@ -207,6 +207,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseOfMachineListingArray'
+  /api/Game/games/machines/{machineId}:
+    get:
+      tags: [Game]
+      summary: Get full machine configuration snapshot
+      parameters:
+        - name: machineId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseOfMachineConfig'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/Game/cards:
+    get:
+      tags: [Game]
+      summary: Get card dictionary
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseOfCardDictionary'
   /api/Game/defaultRules:
     get:
       tags: [Game]
@@ -491,6 +522,22 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/MachineListing'
+    ApiResponseOfMachineConfig:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/MachineConfig'
+    ApiResponseOfCardDictionary:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/CardDictionaryEntry'
     ApiResponseOfDefaultRules:
       allOf:
         - $ref: '#/components/schemas/ApiResponseBase'
@@ -723,6 +770,158 @@ components:
         maxBet:
           type: number
           format: decimal
+    MachineConfig:
+      type: object
+      required: [machineId, gameId, machineName, minBetAmount, maxBetAmount, active, ready]
+      properties:
+        machineId:
+          type: integer
+          format: int32
+        gameId:
+          type: integer
+          format: int32
+        machineName:
+          type: string
+        minBetAmount:
+          type: number
+          format: decimal
+        maxBetAmount:
+          type: number
+          format: decimal
+        machineAmount:
+          type: number
+          format: decimal
+        currentUserAmount:
+          type: number
+          format: decimal
+        openAmount:
+          type: number
+          format: decimal
+        counterStatus:
+          type: boolean
+        active:
+          type: boolean
+        ready:
+          type: boolean
+        openedDoubleUpPercentage:
+          type: number
+          format: decimal
+        closedDoubleUpPercentage:
+          type: number
+          format: decimal
+        autoOpenClosePercentage:
+          type: boolean
+        carreIndex:
+          type: integer
+          format: int32
+        currentMemberId:
+          type: integer
+          format: int32
+          nullable: true
+        profit:
+          type: number
+          format: decimal
+        winBonusDefaultPokerRulesId:
+          type: integer
+          format: int32
+        winBonusAmount:
+          type: number
+          format: decimal
+        maxStraightFlush:
+          type: number
+          format: decimal
+        maxCarre1:
+          type: number
+          format: decimal
+        maxCarre2:
+          type: number
+          format: decimal
+        maxFullHouse:
+          type: number
+          format: decimal
+        maxKent:
+          type: number
+          format: decimal
+        minStraightFlush:
+          type: number
+          format: decimal
+        minCarre1:
+          type: number
+          format: decimal
+        minCarre2:
+          type: number
+          format: decimal
+        minFullHouse:
+          type: number
+          format: decimal
+        minKent:
+          type: number
+          format: decimal
+        currentStraightFlush:
+          type: number
+          format: decimal
+        currentCarre1:
+          type: number
+          format: decimal
+        currentCarre2:
+          type: number
+          format: decimal
+        currentFullHouse:
+          type: number
+          format: decimal
+        currentKent:
+          type: number
+          format: decimal
+        kentRounds:
+          type: integer
+          format: int32
+        doubleUpLimit:
+          type: number
+          format: decimal
+        fullHouseCardId:
+          type: integer
+          format: int32
+        firstRechargeCredit:
+          type: number
+          format: decimal
+        firstRechargeBonus:
+          type: number
+          format: decimal
+        secondRechargeCredit:
+          type: number
+          format: decimal
+        secondRechargeBonus:
+          type: number
+          format: decimal
+    CardDictionaryEntry:
+      type: object
+      required: [cardId, title, suit, rank]
+      properties:
+        cardId:
+          type: integer
+          format: int32
+        title:
+          type: string
+        suit:
+          type: string
+        rank:
+          type: string
+    HandResult:
+      type: object
+      required: [handRank, description, winAmount, isWin, canWin]
+      properties:
+        handRank:
+          type: integer
+          format: int32
+        description:
+          type: string
+        winAmount:
+          type: number
+          format: decimal
+        isWin:
+          type: boolean
+        canWin:
+          type: boolean
     DefaultRules:
       type: object
       required: [payoutMultipliers]
@@ -734,14 +933,20 @@ components:
             format: decimal
     PokerCard:
       type: object
-      required: [rank, suit, code]
+      required: [cardId, title, suit, rank]
       properties:
-        rank:
+        cardId:
+          type: integer
+          format: int32
+        title:
           type: string
         suit:
           type: string
+        rank:
+          type: string
         code:
           type: string
+          nullable: true
     CabinetSnapshot:
       type: object
       required:
@@ -922,6 +1127,79 @@ components:
         walletBalanceAfterBet:
           type: number
           format: decimal
+        # CardsDealt snapshot fields from live protocol
+        memberId:
+          type: integer
+          format: int32
+        result:
+          $ref: '#/components/schemas/HandResult'
+        kentRounds:
+          type: integer
+          format: int32
+        inDoubleUp:
+          type: boolean
+        doubleUpCard:
+          $ref: '#/components/schemas/PokerCard'
+          nullable: true
+        shouldReset:
+          type: boolean
+        dealCount:
+          type: integer
+          format: int32
+        fullHouseBonus:
+          type: boolean
+        currentCarre1:
+          type: number
+          format: decimal
+        currentCarre2:
+          type: number
+          format: decimal
+        currentFullHouse:
+          type: number
+          format: decimal
+        currentKent:
+          type: number
+          format: decimal
+        currentStraightFlush:
+          type: number
+          format: decimal
+        carreIndex:
+          type: integer
+          format: int32
+        currentStake:
+          type: number
+          format: decimal
+        shouldDeductStake:
+          type: boolean
+        offerOccurred:
+          type: boolean
+        offerAmount:
+          type: number
+          format: decimal
+        credit:
+          type: number
+          format: decimal
+        gameId:
+          type: integer
+          format: int32
+        currentBonusAmount:
+          type: number
+          format: decimal
+          nullable: true
+        freeGameCount:
+          type: integer
+          format: int32
+        wasFreeGameRound:
+          type: boolean
+        swap10:
+          type: integer
+          format: int32
+          nullable: true
+        aceCard:
+          type: boolean
+        aceMultiplier:
+          type: integer
+          format: int32
     DrawResult:
       type: object
       required: [roundId, cards, handRank, winAmount, walletBalanceAfterRound]
@@ -956,6 +1234,73 @@ components:
         walletBalance:
           type: number
           format: decimal
+        # DoubleUpWin snapshot fields from live protocol
+        memberId:
+          type: integer
+          format: int32
+        pickedBig:
+          type: boolean
+        newWinAmount:
+          type: number
+          format: decimal
+        lostAmount:
+          type: number
+          format: decimal
+        doubleUpCount:
+          type: integer
+          format: int32
+        canContinue:
+          type: boolean
+        isWin:
+          type: boolean
+        isEquality:
+          type: boolean
+        lucky5:
+          type: boolean
+        winLucky5:
+          type: boolean
+        bonus:
+          type: boolean
+        bonusAmount:
+          type: number
+          format: decimal
+        opened:
+          type: integer
+          format: int32
+        credit:
+          type: number
+          format: decimal
+        freeGame:
+          type: boolean
+        freeGameCount:
+          type: integer
+          format: int32
+        bonusCard:
+          type: boolean
+        bonusCardAmount:
+          type: number
+          format: decimal
+        currentBonusAmount:
+          type: number
+          format: decimal
+          nullable: true
+        aceCard:
+          type: boolean
+        aceMultiplier:
+          type: integer
+          format: int32
+        aceMultiplierFired:
+          type: boolean
+        swapActivePosition:
+          type: integer
+          format: int32
+          nullable: true
+        swapActiveRemaining:
+          type: integer
+          format: int32
+        gameId:
+          type: integer
+          format: int32
     WalletLedgerEntry:
       type: object
       required: [id, amount, balanceAfter, type, reference, createdUtc]

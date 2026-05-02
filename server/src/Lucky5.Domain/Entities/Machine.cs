@@ -3,6 +3,7 @@ namespace Lucky5.Domain.Entities;
 public sealed class Machine
 {
     public int Id { get; init; }
+    public int GameId { get; init; }
     public string Name { get; init; } = string.Empty;
     public string MachineSerial { get; init; } = string.Empty;
     public string MachineSerie { get; init; } = string.Empty;

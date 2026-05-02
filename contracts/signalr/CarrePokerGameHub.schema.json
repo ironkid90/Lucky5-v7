@@ -1,64 +1,114 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://lucky5.local/contracts/signalr/CarrePokerGameHub.schema.json",
-  "title": "CarrePokerGameHub v1",
+  "title": "CarrePokerGameHub v2",
+  "description": "Live-protocol target contract. See docs/forensics/live_protocol_2026-05-02.md. v1 shapes retained in legacy block for migration parity.",
   "type": "object",
+  "required": ["clientToServer", "serverToClient"],
   "properties": {
     "clientToServer": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "JoinMachine": {
-          "type": "object",
-          "required": ["machineId"],
-          "properties": {
-            "machineId": { "type": "integer" }
-          }
-        },
-        "LeaveMachine": {
-          "type": "object",
-          "required": ["machineId"],
-          "properties": {
-            "machineId": { "type": "integer" }
-          }
-        },
         "Deal": {
-          "type": "object",
-          "required": ["machineId", "betAmount"],
-          "properties": {
-            "machineId": { "type": "integer" },
-            "betAmount": { "type": "number" }
-          }
+          "oneOf": [
+            {
+              "type": "object",
+              "title": "Deal v2 (unified)",
+              "required": ["machineId", "cards", "holds"],
+              "additionalProperties": false,
+              "properties": {
+                "machineId": { "type": "integer", "minimum": 1 },
+                "cards": {
+                  "type": "array",
+                  "maxItems": 5,
+                  "items": { "$ref": "#/$defs/shortCard" }
+                },
+                "holds": {
+                  "type": "array",
+                  "minItems": 5,
+                  "maxItems": 5,
+                  "items": { "type": "boolean" }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "title": "Deal v1 (legacy)",
+              "deprecated": true,
+              "required": ["machineId", "betAmount"],
+              "additionalProperties": false,
+              "properties": {
+                "machineId": { "type": "integer", "minimum": 1 },
+                "betAmount": { "type": "number", "exclusiveMinimum": 0 }
+              }
+            }
+          ]
         },
         "Draw": {
           "type": "object",
+          "title": "Draw v1 (legacy, use Deal v2 instead)",
+          "deprecated": true,
           "required": ["roundId", "holdIndexes"],
+          "additionalProperties": false,
           "properties": {
             "roundId": { "type": "string", "format": "uuid" },
             "holdIndexes": {
               "type": "array",
-              "items": { "type": "integer" }
+              "items": { "type": "integer", "minimum": 0, "maximum": 4 }
             }
           }
         },
         "DoubleUp": {
+          "oneOf": [
+            {
+              "type": "object",
+              "title": "DoubleUp v2",
+              "required": ["machineId", "pickedBig"],
+              "additionalProperties": false,
+              "properties": {
+                "machineId": { "type": "integer", "minimum": 1 },
+                "pickedBig": { "type": "boolean" }
+              }
+            },
+            {
+              "type": "object",
+              "title": "DoubleUp v1 (legacy)",
+              "deprecated": true,
+              "required": ["roundId", "guess"],
+              "additionalProperties": false,
+              "properties": {
+                "roundId": { "type": "string", "format": "uuid" },
+                "guess": { "type": "string", "enum": ["big", "small"] }
+              }
+            }
+          ]
+        },
+        "GetAvailableMachines": {
           "type": "object",
-          "required": ["roundId", "guess"],
+          "required": ["gameId"],
+          "additionalProperties": false,
           "properties": {
-            "roundId": { "type": "string", "format": "uuid" },
-            "guess": { "type": "string", "enum": ["big", "small"] }
+            "gameId": { "type": "integer", "minimum": 1 }
           }
         },
-        "Heartbeat": {
+        "JoinMachine": {
           "type": "object",
-          "additionalProperties": false
+          "deprecated": true,
+          "required": ["machineId"],
+          "properties": { "machineId": { "type": "integer" } }
         },
+        "LeaveMachine": {
+          "type": "object",
+          "deprecated": true,
+          "required": ["machineId"],
+          "properties": { "machineId": { "type": "integer" } }
+        },
+        "Heartbeat": { "type": "object", "additionalProperties": false },
         "ReconnectSync": {
           "type": "object",
           "required": ["machineId"],
-          "properties": {
-            "machineId": { "type": "integer" }
-          }
+          "properties": { "machineId": { "type": "integer" } }
         }
       }
     },
@@ -66,67 +116,51 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "MachineStateUpdated": {
+        "CardsDealt": { "$ref": "#/$defs/cardsDealtPayload" },
+        "DoubleUpWin": { "$ref": "#/$defs/doubleUpWinPayload" },
+        "SwapDoubleUpCard": { "$ref": "#/$defs/swapDoubleUpCardPayload" },
+        "BetPlaced": {
           "type": "object",
-          "required": ["machineId", "activeRounds", "timestampUtc"],
+          "required": ["machineId", "memberId", "stake"],
           "properties": {
             "machineId": { "type": "integer" },
-            "activeRounds": { "type": "integer" },
-            "timestampUtc": { "type": "string", "format": "date-time" }
+            "memberId": { "type": "integer" },
+            "stake": { "type": "number" }
           }
         },
-        "CardsDealt": {
+        "HoldCardUpdated": {
           "type": "object",
-          "required": ["roundId", "cards", "betAmount", "walletBalanceAfterBet"],
+          "required": ["machineId", "memberId", "holds"],
           "properties": {
-            "roundId": { "type": "string", "format": "uuid" },
-            "cards": {
+            "machineId": { "type": "integer" },
+            "memberId": { "type": "integer" },
+            "holds": {
               "type": "array",
-              "items": { "$ref": "#/$defs/pokerCard" }
-            },
-            "betAmount": { "type": "number" },
-            "walletBalanceAfterBet": { "type": "number" }
+              "minItems": 5,
+              "maxItems": 5,
+              "items": { "type": "boolean" }
+            }
           }
         },
-        "CardRevealed": {
+        "MachineStatusChanged": {
           "type": "object",
-          "required": ["roundId", "cards", "handRank", "winAmount", "walletBalanceAfterRound"],
+          "required": ["machineId", "isOccupied", "playerId", "gameId"],
           "properties": {
-            "roundId": { "type": "string", "format": "uuid" },
-            "cards": {
-              "type": "array",
-              "items": { "$ref": "#/$defs/pokerCard" }
-            },
-            "handRank": { "type": "string" },
-            "winAmount": { "type": "number" },
-            "walletBalanceAfterRound": { "type": "number" }
+            "machineId": { "type": "integer" },
+            "isOccupied": { "type": "boolean" },
+            "playerId": { "type": ["integer", "null"] },
+            "gameId": { "type": "integer" }
           }
         },
-        "DoubleUpCard": {
-          "type": "object",
-          "required": ["roundId", "guess"],
-          "properties": {
-            "roundId": { "type": "string", "format": "uuid" },
-            "guess": { "type": "string", "enum": ["big", "small"] }
-          }
-        },
-        "RewardStatus": {
-          "type": "object",
-          "required": ["roundId", "status", "payoutAmount", "walletBalance"],
-          "properties": {
-            "roundId": { "type": "string", "format": "uuid" },
-            "status": { "type": "string" },
-            "payoutAmount": { "type": "number" },
-            "walletBalance": { "type": "number" }
-          }
-        },
-        "WalletUpdated": {
-          "type": "object",
-          "required": ["roundId", "walletBalanceAfterRound"],
-          "properties": {
-            "roundId": { "type": "string", "format": "uuid" },
-            "walletBalanceAfterRound": { "type": "number" }
-          }
+        "UserStatusChanged": {
+          "type": "array",
+          "description": "SignalR invocation arguments tuple: [userId, state]",
+          "prefixItems": [
+            { "type": "integer" },
+            { "type": "string", "enum": ["Active", "Reconnecting"] }
+          ],
+          "minItems": 2,
+          "maxItems": 2
         },
         "Error": {
           "type": "object",
@@ -135,20 +169,205 @@
             "code": { "type": "string" },
             "message": { "type": "string" }
           }
+        },
+        "MachineStateUpdated": {
+          "type": "object",
+          "deprecated": true,
+          "description": "v1 legacy. Superseded by MachineStatusChanged + CardsDealt snapshot fields."
+        },
+        "CardRevealed": {
+          "type": "object",
+          "deprecated": true,
+          "description": "v1 legacy. Superseded by CardsDealt with dealCount=1."
+        },
+        "DoubleUpCard": {
+          "type": "object",
+          "deprecated": true,
+          "description": "v1 legacy. Superseded by DoubleUpWin."
+        },
+        "RewardStatus": {
+          "type": "object",
+          "deprecated": true,
+          "description": "v1 legacy. Superseded by DoubleUpWin."
+        },
+        "WalletUpdated": {
+          "type": "object",
+          "deprecated": true,
+          "description": "v1 legacy. Superseded by credit field in CardsDealt and DoubleUpWin."
         }
       }
     }
   },
   "$defs": {
-    "pokerCard": {
+    "shortCard": {
       "type": "object",
-      "required": ["rank", "suit", "code"],
+      "required": ["cardID", "suit", "rank"],
+      "additionalProperties": false,
       "properties": {
-        "rank": { "type": "string" },
-        "suit": { "type": "string" },
-        "code": { "type": "string" }
+        "cardID": { "type": "integer", "minimum": 1, "maximum": 52 },
+        "suit": { "type": "integer", "enum": [67, 68, 72, 83], "description": "ASCII code: 67=C, 68=D, 72=H, 83=S" },
+        "rank": { "type": "integer", "minimum": 2, "maximum": 14 }
+      }
+    },
+    "longCard": {
+      "type": "object",
+      "required": ["cardID", "title", "suit", "rank"],
+      "additionalProperties": false,
+      "properties": {
+        "cardID": { "type": "integer", "minimum": 1, "maximum": 52 },
+        "title": { "type": "string", "pattern": "^(10|[2-9JQKA])[HDCS]$" },
+        "suit": { "type": "string", "enum": ["Hearts", "Diamonds", "Clubs", "Spades"] },
+        "rank": {
+          "type": "string",
+          "enum": ["Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Jack", "Queen", "King", "Ace"]
+        }
+      }
+    },
+    "cardsDealtPayload": {
+      "type": "object",
+      "required": [
+        "memberId", "cards", "result", "dealCount", "inDoubleUp", "doubleUpCard",
+        "shouldReset", "shouldDetuctStake", "currentStake", "credit",
+        "kentRounds", "fullHouseBonus", "carreIndex",
+        "currentCarre1", "currentCarre2", "currentFullHouse", "currentKent", "currentStraightFlush",
+        "offerOccurred", "offerAmount", "currentBonusAmount",
+        "freeGameCount", "wasFreeGameRound",
+        "swap10", "aceCard", "aceMultiplier", "gameId"
+      ],
+      "properties": {
+        "memberId": { "type": "integer" },
+        "cards": { "type": "array", "items": { "$ref": "#/$defs/longCard" }, "minItems": 0, "maxItems": 5 },
+        "result": {
+          "type": "object",
+          "required": ["handRank", "description", "winAmount", "isWin", "canWin"],
+          "properties": {
+            "handRank": { "type": "integer", "minimum": 0 },
+            "description": { "type": "string" },
+            "winAmount": { "type": "number", "minimum": 0 },
+            "isWin": { "type": "boolean" },
+            "canWin": { "type": "boolean" }
+          }
+        },
+        "dealCount": { "type": "integer", "minimum": 0 },
+        "inDoubleUp": { "type": "boolean" },
+        "doubleUpCard": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["cardID", "title"],
+              "properties": {
+                "cardID": { "type": "integer" },
+                "title": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "shouldReset": { "type": "boolean" },
+        "shouldDetuctStake": { "type": "boolean", "description": "Note: [sic] vendor spelling preserved for wire parity." },
+        "currentStake": { "type": "number", "minimum": 0 },
+        "credit": { "type": "number", "minimum": 0 },
+        "kentRounds": { "type": "integer", "minimum": 0 },
+        "fullHouseBonus": { "type": "boolean" },
+        "carreIndex": { "type": "integer", "enum": [1, 2] },
+        "currentCarre1": { "type": "number", "minimum": 0 },
+        "currentCarre2": { "type": "number", "minimum": 0 },
+        "currentFullHouse": { "type": "number", "minimum": 0 },
+        "currentKent": { "type": "number", "minimum": 0 },
+        "currentStraightFlush": { "type": "number", "minimum": 0 },
+        "offerOccurred": { "type": "boolean" },
+        "offerAmount": { "type": "number", "minimum": 0 },
+        "currentBonusAmount": { "type": ["number", "null"] },
+        "freeGameCount": { "type": "integer", "minimum": 0 },
+        "wasFreeGameRound": { "type": "boolean" },
+        "swap10": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["position", "remaining"],
+              "properties": {
+                "position": { "type": "integer", "minimum": 0, "maximum": 4 },
+                "remaining": { "type": "integer", "minimum": 0 }
+              }
+            }
+          ]
+        },
+        "aceCard": { "type": "boolean" },
+        "aceMultiplier": { "type": "integer", "minimum": 0 },
+        "gameId": { "type": "integer" }
+      }
+    },
+    "doubleUpWinPayload": {
+      "type": "object",
+      "required": [
+        "memberId", "previousCard", "nextCard", "pickedBig",
+        "isWin", "isEquality", "canContinue", "doubleUpCount",
+        "newWinAmount", "lostAmount", "opened", "credit",
+        "lucky5", "winLucky5", "bonus", "bonusAmount",
+        "bonusCard", "bonusCardAmount", "currentBonusAmount",
+        "freeGame", "freeGameCount",
+        "aceCard", "aceMultiplier", "aceMultiplierFired",
+        "swapActivePosition", "swapActiveRemaining", "gameId"
+      ],
+      "properties": {
+        "memberId": { "type": "integer" },
+        "previousCard": { "$ref": "#/$defs/shortCardTitled" },
+        "nextCard": { "$ref": "#/$defs/shortCardTitled" },
+        "pickedBig": { "type": "boolean" },
+        "isWin": { "type": "boolean" },
+        "isEquality": { "type": "boolean" },
+        "canContinue": { "type": "boolean" },
+        "doubleUpCount": { "type": "integer", "minimum": 0 },
+        "newWinAmount": { "type": "number", "minimum": 0 },
+        "lostAmount": { "type": "number", "minimum": 0 },
+        "opened": { "type": "integer", "enum": [0, 1], "description": "0 = door closed (live RTP), 1 = door open (test mode)" },
+        "credit": { "type": "number", "minimum": 0 },
+        "lucky5": { "type": "boolean" },
+        "winLucky5": { "type": "boolean" },
+        "bonus": { "type": "boolean" },
+        "bonusAmount": { "type": "number", "minimum": 0 },
+        "bonusCard": { "type": "boolean" },
+        "bonusCardAmount": { "type": "number", "minimum": 0 },
+        "currentBonusAmount": { "type": ["number", "null"] },
+        "freeGame": { "type": "boolean" },
+        "freeGameCount": { "type": "integer", "minimum": 0 },
+        "aceCard": { "type": "boolean" },
+        "aceMultiplier": { "type": "integer", "minimum": 0 },
+        "aceMultiplierFired": { "type": "boolean" },
+        "swapActivePosition": { "type": ["integer", "null"] },
+        "swapActiveRemaining": { "type": "integer", "minimum": 0 },
+        "gameId": { "type": "integer" }
+      }
+    },
+    "swapDoubleUpCardPayload": {
+      "type": "object",
+      "required": [
+        "nextCard", "lucky5", "winLucky5",
+        "isFreeGame", "isBonus", "freeGameCount",
+        "aceCard", "aceMultiplier", "gameId"
+      ],
+      "properties": {
+        "nextCard": { "$ref": "#/$defs/shortCardTitled" },
+        "lucky5": { "type": "boolean" },
+        "winLucky5": { "type": "boolean" },
+        "isFreeGame": { "type": "boolean" },
+        "isBonus": { "type": "boolean" },
+        "freeGameCount": { "type": "integer", "minimum": 0 },
+        "aceCard": { "type": "boolean" },
+        "aceMultiplier": { "type": "integer", "minimum": 0 },
+        "gameId": { "type": "integer" }
+      }
+    },
+    "shortCardTitled": {
+      "type": "object",
+      "required": ["cardID", "suit", "rank", "title"],
+      "properties": {
+        "cardID": { "type": "integer", "minimum": 1, "maximum": 52 },
+        "suit": { "type": "integer", "enum": [67, 68, 72, 83] },
+        "rank": { "type": "integer", "minimum": 2, "maximum": 14 },
+        "title": { "type": "string", "pattern": "^(10|[2-9JQKA])[HDCS]$" }
       }
     }
-  },
-  "required": ["clientToServer", "serverToClient"]
+  }
 }

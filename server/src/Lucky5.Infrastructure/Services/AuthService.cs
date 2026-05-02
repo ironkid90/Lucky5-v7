@@ -139,6 +139,44 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
         return Task.FromResult(AdjustCredit(userId, request.Amount, "UpdateCredit", request.Reference));
     }
 
+    public Task<WalletLedgerEntryDto> RechargeBonusAsync(Guid userId, decimal rechargeAmount, CancellationToken cancellationToken)
+    {
+        if (!store.MemberProfiles.TryGetValue(userId, out var profile))
+        {
+            throw new KeyNotFoundException("Profile not found");
+        }
+
+        // Tiered bonus structure based on recharge amount
+        decimal bonusPercentage = rechargeAmount switch
+        {
+            >= 10_000_000 => 0.20m, // 20% bonus for 10M+
+            >= 5_000_000 => 0.15m,  // 15% bonus for 5M+
+            >= 1_000_000 => 0.10m,  // 10% bonus for 1M+
+            >= 500_000 => 0.05m,    // 5% bonus for 500K+
+            _ => 0m                 // No bonus for smaller amounts
+        };
+
+        var bonusAmount = rechargeAmount * bonusPercentage;
+        var totalAmount = rechargeAmount + bonusAmount;
+
+        profile.WalletBalance += totalAmount;
+        profile.BonusRechargeCount++;
+        profile.BonusDate = DateTime.UtcNow;
+
+        var row = new WalletLedgerEntry
+        {
+            UserId = userId,
+            Amount = totalAmount,
+            Type = "RechargeBonus",
+            Reference = $"Recharge: {rechargeAmount:N0}, Bonus: {bonusAmount:N0}",
+            BalanceAfter = profile.WalletBalance,
+            CreatedUtc = DateTime.UtcNow
+        };
+
+        store.Ledger.Add(row);
+        return Task.FromResult(new WalletLedgerEntryDto(row.Id, row.Amount, row.BalanceAfter, row.Type, row.Reference, row.CreatedUtc));
+    }
+
     public Task LogoutAsync(string accessToken, CancellationToken cancellationToken)
     {
         tokenService.Revoke(accessToken);

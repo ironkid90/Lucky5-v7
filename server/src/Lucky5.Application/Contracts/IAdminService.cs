@@ -2,6 +2,7 @@ namespace Lucky5.Application.Contracts;
 
 using Lucky5.Application.Dtos;
 using Lucky5.Application.Requests;
+using Lucky5.Domain.Entities;
 
 public interface IAdminService
 {
@@ -12,4 +13,6 @@ public interface IAdminService
     Task<IReadOnlyList<AdminMachineDto>> ListMachinesAsync(CancellationToken cancellationToken);
     Task<AdminMachineDto> GetMachineAsync(int machineId, CancellationToken cancellationToken);
     Task<AdminMachineDto> ResetMachineAsync(Guid adminId, int machineId, CancellationToken cancellationToken);
+    Task<WalletLedgerEntryDto> RechargeBonusAsync(Guid userId, decimal rechargeAmount, CancellationToken cancellationToken);
+    Task<DoorState> SetDoorStateAsync(int machineId, DoorState doorState, CancellationToken cancellationToken);
 }

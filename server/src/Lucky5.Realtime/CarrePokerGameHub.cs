@@ -1,6 +1,7 @@
 namespace Lucky5.Realtime;
 
 using System.Security.Claims;
+using System.Collections.Concurrent;
 using Lucky5.Application.Contracts;
 using Lucky5.Application.Requests;
 using Lucky5.Realtime.Services;
@@ -8,18 +9,32 @@ using Microsoft.AspNetCore.SignalR;
 
 public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegistry registry) : Hub
 {
+    // Legacy v1 events (deprecated, kept for backward compatibility during migration)
     private const string MachineStateUpdatedEvent = "MachineStateUpdated";
-    private const string CardsDealtEvent = "CardsDealt";
     private const string CardRevealedEvent = "CardRevealed";
     private const string WalletUpdatedEvent = "WalletUpdated";
+
+    // v2 live protocol events
+    private const string CardsDealtEvent = "CardsDealt";
+    private const string DoubleUpWinEvent = "DoubleUpWin";
+    private const string SwapDoubleUpCardEvent = "SwapDoubleUpCard";
+    private const string BetPlacedEvent = "BetPlaced";
+    private const string HoldCardUpdatedEvent = "HoldCardUpdated";
+    private const string MachineStatusChangedEvent = "MachineStatusChanged";
+    private const string UserStatusChangedEvent = "UserStatusChanged";
     private const string ErrorEvent = "Error";
     private const string CurrentMachineContextKey = "machine-id";
+
+    // Seat-occupancy lock: tracks which machine is occupied by which connection
+    private static readonly ConcurrentDictionary<int, string> MachineOccupancy = new();
 
     public override Task OnConnectedAsync()
     {
         if (TryGetUserId(out var userId))
         {
             registry.Add(Context.ConnectionId, userId);
+            // Emit UserStatusChanged for lobby presence
+            _ = Clients.All.SendAsync(UserStatusChangedEvent, new { userId = GetMemberId(userId), state = "Active" }, Context.ConnectionAborted);
         }
 
         return base.OnConnectedAsync();
@@ -27,7 +42,21 @@ public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegist
 
     public override Task OnDisconnectedAsync(Exception? exception)
     {
-        registry.Remove(Context.ConnectionId);
+        if (TryGetUserId(out var userId))
+        {
+            registry.Remove(Context.ConnectionId);
+            // Emit UserStatusChanged for lobby presence
+            _ = Clients.All.SendAsync(UserStatusChangedEvent, new { userId = GetMemberId(userId), state = "Reconnecting" }, Context.ConnectionAborted);
+        }
+
+        if (TryGetCurrentMachineId(out var machineId))
+        {
+            // Release seat-occupancy lock on disconnect
+            MachineOccupancy.TryRemove(machineId, out _);
+
+            _ = Clients.All.SendAsync(MachineStatusChangedEvent, new { machineId, isOccupied = false, playerId = (int?)null, gameId = 0 }, Context.ConnectionAborted);
+        }
+
         Context.Items.Remove(CurrentMachineContextKey);
         return base.OnDisconnectedAsync(exception);
     }
@@ -40,13 +69,34 @@ public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegist
             throw new HubException("Machine id must be positive.");
         }
 
+        // Seat-occupancy lock: check if machine is already occupied
+        if (MachineOccupancy.TryGetValue(machineId, out var occupyingConnectionId) &&
+            occupyingConnectionId != Context.ConnectionId)
+        {
+            await EmitErrorAsync("MACHINE_OCCUPIED", "Machine is already occupied by another player.");
+            throw new HubException("Machine is already occupied by another player.");
+        }
+
+        // Release previous machine lock if switching machines
         if (TryGetCurrentMachineId(out var previousMachineId) && previousMachineId != machineId)
         {
+            MachineOccupancy.TryRemove(previousMachineId, out _);
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName(previousMachineId));
         }
 
+        // Acquire lock on new machine
+        MachineOccupancy.TryAdd(machineId, Context.ConnectionId);
         Context.Items[CurrentMachineContextKey] = machineId;
         await Groups.AddToGroupAsync(Context.ConnectionId, GroupName(machineId));
+
+        // Emit MachineStatusChanged for lobby presence
+        if (TryGetUserId(out var userId))
+        {
+            await Clients.All.SendAsync(MachineStatusChangedEvent,
+                new { machineId, isOccupied = true, playerId = GetMemberId(userId), gameId = 0 },
+                Context.ConnectionAborted);
+        }
+
         await BroadcastMachineStateAsync(machineId, Clients.Caller, Context.ConnectionAborted);
     }
 
@@ -57,7 +107,15 @@ public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegist
             return;
         }
 
+        // Release seat-occupancy lock
+        MachineOccupancy.TryRemove(machineId, out _);
+
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName(machineId));
+
+        // Emit MachineStatusChanged for lobby presence
+        await Clients.All.SendAsync(MachineStatusChangedEvent,
+            new { machineId, isOccupied = false, playerId = (int?)null, gameId = 0 },
+            Context.ConnectionAborted);
 
         if (TryGetCurrentMachineId(out var currentMachineId) && currentMachineId == machineId)
         {
@@ -87,6 +145,11 @@ public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegist
 
         Context.Items[CurrentMachineContextKey] = machineId;
 
+        // Emit BetPlaced for presentation sync
+        await Clients.Group(GroupName(machineId)).SendAsync(BetPlacedEvent,
+            new { machineId, memberId = GetMemberId(userId), stake = betAmount },
+            Context.ConnectionAborted);
+
         var result = await gameService.DealAsync(
             userId,
             new DealRequest(machineId, betAmount),
@@ -110,6 +173,22 @@ public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegist
             .OrderBy(index => index)
             .ToArray();
 
+        // Emit HoldCardUpdated for presentation sync
+        if (TryGetCurrentMachineId(out var machineId))
+        {
+            var holds = new bool[5];
+            foreach (var index in normalizedHoldIndexes)
+            {
+                if (index >= 0 && index < 5)
+                {
+                    holds[index] = true;
+                }
+            }
+            await Clients.Group(GroupName(machineId)).SendAsync(HoldCardUpdatedEvent,
+                new { machineId, memberId = GetMemberId(userId), holds },
+                Context.ConnectionAborted);
+        }
+
         var result = await gameService.DrawAsync(
             userId,
             new DrawRequest(roundId, normalizedHoldIndexes),
@@ -125,7 +204,7 @@ public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegist
             },
             Context.ConnectionAborted);
 
-        if (TryGetCurrentMachineId(out var machineId))
+        if (TryGetCurrentMachineId(out machineId))
         {
             await BroadcastMachineStateAsync(machineId, Clients.Group(GroupName(machineId)), Context.ConnectionAborted);
         }
@@ -140,7 +219,8 @@ public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegist
         }
 
         var result = await gameService.GuessDoubleUpAsync(userId, roundId, guess, Context.ConnectionAborted);
-        await Clients.Caller.SendAsync("RewardStatus", result, Context.ConnectionAborted);
+        // Emit DoubleUpWin (v2) instead of RewardStatus (v1)
+        await Clients.Caller.SendAsync(DoubleUpWinEvent, result, Context.ConnectionAborted);
         await Clients.Caller.SendAsync("DoubleUpCard", new { roundId, guess }, Context.ConnectionAborted);
     }
 
@@ -148,6 +228,12 @@ public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegist
     {
         registry.Touch(Context.ConnectionId);
         return Task.CompletedTask;
+    }
+
+    public async Task GetAvailableMachines(int gameId)
+    {
+        var machines = await gameService.GetMachinesAsync(Context.ConnectionAborted);
+        await Clients.Caller.SendAsync("AvailableMachines", machines, Context.ConnectionAborted);
     }
 
     public async Task ReconnectSync(int machineId)
@@ -189,6 +275,13 @@ public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegist
         userId = Guid.Empty;
         var value = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
         return value is not null && Guid.TryParse(value, out userId);
+    }
+
+    private static int GetMemberId(Guid userId)
+    {
+        // TODO: In production, this should map Guid to the actual integer memberId from the database
+        // For now, use a simple hash to generate a stable integer
+        return Math.Abs(userId.GetHashCode() % 1000000);
     }
 
     private static string GroupName(int machineId) => $"machine:{machineId}";

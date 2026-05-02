@@ -30,4 +30,7 @@ public sealed class GameRound
     public PolicyDistributionMode PolicyMode { get; set; } = PolicyDistributionMode.Neutral;
     public int ActiveFourOfAKindSlotAtDeal { get; set; }
     public bool DoubleUpOffered { get; set; } = true;
+    public PokerCard? AceCard { get; set; }
+    public int AceMultiplier { get; set; } = 1;
+    public bool AceMultiplierFired { get; set; }
 }

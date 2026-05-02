@@ -960,6 +960,30 @@ input Machine_Data {
   """
   id_expr: UUID_Expr @fdc_forbiddenInVariables
   """
+  ✨ Generated from Field `Machine`.`activePlayers` of type `Int!`
+  """
+  activePlayers: Int
+  """
+  ✨ `_expr` server value variant of `activePlayers` (✨ Generated from Field `Machine`.`activePlayers` of type `Int!`)
+  """
+  activePlayers_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `activePlayers` (✨ Generated from Field `Machine`.`activePlayers` of type `Int!`)
+  """
+  activePlayers_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Machine`.`activeRounds` of type `Int!`
+  """
+  activeRounds: Int
+  """
+  ✨ `_expr` server value variant of `activeRounds` (✨ Generated from Field `Machine`.`activeRounds` of type `Int!`)
+  """
+  activeRounds_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `activeRounds` (✨ Generated from Field `Machine`.`activeRounds` of type `Int!`)
+  """
+  activeRounds_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
   ✨ Generated from Field `Machine`.`createdAt` of type `Timestamp!`
   """
   createdAt: Timestamp
@@ -975,6 +999,14 @@ input Machine_Data {
   ✨ `_update` server value variant of `createdAt` (✨ Generated from Field `Machine`.`createdAt` of type `Timestamp!`)
   """
   createdAt_update: [Timestamp_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Machine`.`doorState` of type `String!`
+  """
+  doorState: String
+  """
+  ✨ `_expr` server value variant of `doorState` (✨ Generated from Field `Machine`.`doorState` of type `String!`)
+  """
+  doorState_expr: String_Expr @fdc_forbiddenInVariables
   """
   ✨ Generated from Field `Machine`.`isOpen` of type `Boolean!`
   """
@@ -1061,9 +1093,21 @@ input Machine_Filter {
   """
   id: UUID_Filter
   """
+  ✨ Generated from Field `Machine`.`activePlayers` of type `Int!`
+  """
+  activePlayers: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`activeRounds` of type `Int!`
+  """
+  activeRounds: Int_Filter
+  """
   ✨ Generated from Field `Machine`.`createdAt` of type `Timestamp!`
   """
   createdAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `Machine`.`doorState` of type `String!`
+  """
+  doorState: String_Filter
   """
   ✨ Generated from Field `Machine`.`isOpen` of type `Boolean!`
   """
@@ -1139,9 +1183,21 @@ input Machine_Having {
   """
   _count: Int_Filter
   """
+  ✨ Generated from Field `Machine`.`activePlayers_count` of type `Int!`
+  """
+  activePlayers_count: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`activeRounds_count` of type `Int!`
+  """
+  activeRounds_count: Int_Filter
+  """
   ✨ Generated from Field `Machine`.`createdAt_count` of type `Int!`
   """
   createdAt_count: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`doorState_count` of type `Int!`
+  """
+  doorState_count: Int_Filter
   """
   ✨ Generated from Field `Machine`.`id_count` of type `Int!`
   """
@@ -1175,6 +1231,14 @@ input Machine_Having {
   """
   serie_count: Int_Filter
   """
+  ✨ Generated from Field `Machine`.`activePlayers_sum` of type `Int`
+  """
+  activePlayers_sum: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`activeRounds_sum` of type `Int`
+  """
+  activeRounds_sum: Int_Filter
+  """
   ✨ Generated from Field `Machine`.`maxBet_sum` of type `Int`
   """
   maxBet_sum: Int_Filter
@@ -1183,6 +1247,14 @@ input Machine_Having {
   """
   minBet_sum: Int_Filter
   """
+  ✨ Generated from Field `Machine`.`activePlayers_avg` of type `Float`
+  """
+  activePlayers_avg: Float_Filter
+  """
+  ✨ Generated from Field `Machine`.`activeRounds_avg` of type `Float`
+  """
+  activeRounds_avg: Float_Filter
+  """
   ✨ Generated from Field `Machine`.`maxBet_avg` of type `Float`
   """
   maxBet_avg: Float_Filter
@@ -1190,6 +1262,14 @@ input Machine_Having {
   ✨ Generated from Field `Machine`.`minBet_avg` of type `Float`
   """
   minBet_avg: Float_Filter
+  """
+  ✨ Generated from Field `Machine`.`activePlayers_min` of type `Int`
+  """
+  activePlayers_min: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`activeRounds_min` of type `Int`
+  """
+  activeRounds_min: Int_Filter
   """
   ✨ Generated from Field `Machine`.`createdAt_min` of type `Timestamp`
   """
@@ -1202,6 +1282,14 @@ input Machine_Having {
   ✨ Generated from Field `Machine`.`minBet_min` of type `Int`
   """
   minBet_min: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`activePlayers_max` of type `Int`
+  """
+  activePlayers_max: Int_Filter
+  """
+  ✨ Generated from Field `Machine`.`activeRounds_max` of type `Int`
+  """
+  activeRounds_max: Int_Filter
   """
   ✨ Generated from Field `Machine`.`createdAt_max` of type `Timestamp`
   """
@@ -1250,9 +1338,21 @@ input Machine_Order {
   """
   id: OrderDirection
   """
+  ✨ Generated from Field `Machine`.`activePlayers` of type `Int!`
+  """
+  activePlayers: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`activeRounds` of type `Int!`
+  """
+  activeRounds: OrderDirection
+  """
   ✨ Generated from Field `Machine`.`createdAt` of type `Timestamp!`
   """
   createdAt: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`doorState` of type `String!`
+  """
+  doorState: OrderDirection
   """
   ✨ Generated from Field `Machine`.`isOpen` of type `Boolean!`
   """
@@ -1286,9 +1386,21 @@ input Machine_Order {
   """
   _count: OrderDirection
   """
+  ✨ Generated from Field `Machine`.`activePlayers_count` of type `Int!`
+  """
+  activePlayers_count: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`activeRounds_count` of type `Int!`
+  """
+  activeRounds_count: OrderDirection
+  """
   ✨ Generated from Field `Machine`.`createdAt_count` of type `Int!`
   """
   createdAt_count: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`doorState_count` of type `Int!`
+  """
+  doorState_count: OrderDirection
   """
   ✨ Generated from Field `Machine`.`id_count` of type `Int!`
   """
@@ -1322,6 +1434,14 @@ input Machine_Order {
   """
   serie_count: OrderDirection
   """
+  ✨ Generated from Field `Machine`.`activePlayers_sum` of type `Int`
+  """
+  activePlayers_sum: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`activeRounds_sum` of type `Int`
+  """
+  activeRounds_sum: OrderDirection
+  """
   ✨ Generated from Field `Machine`.`maxBet_sum` of type `Int`
   """
   maxBet_sum: OrderDirection
@@ -1330,6 +1450,14 @@ input Machine_Order {
   """
   minBet_sum: OrderDirection
   """
+  ✨ Generated from Field `Machine`.`activePlayers_avg` of type `Float`
+  """
+  activePlayers_avg: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`activeRounds_avg` of type `Float`
+  """
+  activeRounds_avg: OrderDirection
+  """
   ✨ Generated from Field `Machine`.`maxBet_avg` of type `Float`
   """
   maxBet_avg: OrderDirection
@@ -1337,6 +1465,14 @@ input Machine_Order {
   ✨ Generated from Field `Machine`.`minBet_avg` of type `Float`
   """
   minBet_avg: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`activePlayers_min` of type `Int`
+  """
+  activePlayers_min: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`activeRounds_min` of type `Int`
+  """
+  activeRounds_min: OrderDirection
   """
   ✨ Generated from Field `Machine`.`createdAt_min` of type `Timestamp`
   """
@@ -1349,6 +1485,14 @@ input Machine_Order {
   ✨ Generated from Field `Machine`.`minBet_min` of type `Int`
   """
   minBet_min: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`activePlayers_max` of type `Int`
+  """
+  activePlayers_max: OrderDirection
+  """
+  ✨ Generated from Field `Machine`.`activeRounds_max` of type `Int`
+  """
+  activeRounds_max: OrderDirection
   """
   ✨ Generated from Field `Machine`.`createdAt_max` of type `Timestamp`
   """
@@ -1386,6 +1530,18 @@ input MachineLedger_Data {
   ✨ Generated from Field `MachineLedger`.`machine` of type `Machine!`
   """
   machine: Machine_Key @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot` of type `Int!`
+  """
+  activeFourOfAKindSlot: Int
+  """
+  ✨ `_expr` server value variant of `activeFourOfAKindSlot` (✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot` of type `Int!`)
+  """
+  activeFourOfAKindSlot_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `activeFourOfAKindSlot` (✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot` of type `Int!`)
+  """
+  activeFourOfAKindSlot_update: [Int_Update!] @fdc_forbiddenInVariables
   """
   ✨ Generated from Field `MachineLedger`.`capitalIn` of type `Int!`
   """
@@ -1459,6 +1615,30 @@ input MachineLedger_Data {
   """
   jackpotFullHouse_update: [Int_Update!] @fdc_forbiddenInVariables
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank` of type `Int!`
+  """
+  jackpotFullHouseRank: Int
+  """
+  ✨ `_expr` server value variant of `jackpotFullHouseRank` (✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank` of type `Int!`)
+  """
+  jackpotFullHouseRank_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `jackpotFullHouseRank` (✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank` of type `Int!`)
+  """
+  jackpotFullHouseRank_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent` of type `Int!`
+  """
+  jackpotKent: Int
+  """
+  ✨ `_expr` server value variant of `jackpotKent` (✨ Generated from Field `MachineLedger`.`jackpotKent` of type `Int!`)
+  """
+  jackpotKent_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `jackpotKent` (✨ Generated from Field `MachineLedger`.`jackpotKent` of type `Int!`)
+  """
+  jackpotKent_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush` of type `Int!`
   """
   jackpotStraightFlush: Int
@@ -1486,6 +1666,18 @@ input MachineLedger_Data {
   ✨ `_expr` server value variant of `lastWinChannel` (✨ Generated from Field `MachineLedger`.`lastWinChannel` of type `String`)
   """
   lastWinChannel_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose` of type `Int!`
+  """
+  netSinceLastClose: Int
+  """
+  ✨ `_expr` server value variant of `netSinceLastClose` (✨ Generated from Field `MachineLedger`.`netSinceLastClose` of type `Int!`)
+  """
+  netSinceLastClose_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `netSinceLastClose` (✨ Generated from Field `MachineLedger`.`netSinceLastClose` of type `Int!`)
+  """
+  netSinceLastClose_update: [Int_Update!] @fdc_forbiddenInVariables
   """
   ✨ Generated from Field `MachineLedger`.`roundCount` of type `Int!`
   """
@@ -1556,6 +1748,10 @@ input MachineLedger_Filter {
   """
   machine: Machine_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot` of type `Int!`
+  """
+  activeFourOfAKindSlot: Int_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`capitalIn` of type `Int!`
   """
   capitalIn: Int_Filter
@@ -1580,6 +1776,14 @@ input MachineLedger_Filter {
   """
   jackpotFullHouse: Int_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank` of type `Int!`
+  """
+  jackpotFullHouseRank: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent` of type `Int!`
+  """
+  jackpotKent: Int_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush` of type `Int!`
   """
   jackpotStraightFlush: Int_Filter
@@ -1591,6 +1795,10 @@ input MachineLedger_Filter {
   ✨ Generated from Field `MachineLedger`.`lastWinChannel` of type `String`
   """
   lastWinChannel: String_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose` of type `Int!`
+  """
+  netSinceLastClose: Int_Filter
   """
   ✨ Generated from Field `MachineLedger`.`roundCount` of type `Int!`
   """
@@ -1642,6 +1850,10 @@ input MachineLedger_Having {
   """
   _count: Int_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot_count` of type `Int!`
+  """
+  activeFourOfAKindSlot_count: Int_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`capitalIn_count` of type `Int!`
   """
   capitalIn_count: Int_Filter
@@ -1666,9 +1878,17 @@ input MachineLedger_Having {
   """
   jackpotFourOfAKindB_count: Int_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank_count` of type `Int!`
+  """
+  jackpotFullHouseRank_count: Int_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_count` of type `Int!`
   """
   jackpotFullHouse_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent_count` of type `Int!`
+  """
+  jackpotKent_count: Int_Filter
   """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_count` of type `Int!`
   """
@@ -1686,6 +1906,10 @@ input MachineLedger_Having {
   """
   machineId_count: Int_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose_count` of type `Int!`
+  """
+  netSinceLastClose_count: Int_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`roundCount_count` of type `Int!`
   """
   roundCount_count: Int_Filter
@@ -1697,6 +1921,10 @@ input MachineLedger_Having {
   ✨ Generated from Field `MachineLedger`.`snapshotAt_count` of type `Int!`
   """
   snapshotAt_count: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot_sum` of type `Int`
+  """
+  activeFourOfAKindSlot_sum: Int_Filter
   """
   ✨ Generated from Field `MachineLedger`.`capitalIn_sum` of type `Int`
   """
@@ -1718,13 +1946,25 @@ input MachineLedger_Having {
   """
   jackpotFourOfAKindB_sum: Int_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank_sum` of type `Int`
+  """
+  jackpotFullHouseRank_sum: Int_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_sum` of type `Int`
   """
   jackpotFullHouse_sum: Int_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent_sum` of type `Int`
+  """
+  jackpotKent_sum: Int_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_sum` of type `Int`
   """
   jackpotStraightFlush_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose_sum` of type `Int`
+  """
+  netSinceLastClose_sum: Int_Filter
   """
   ✨ Generated from Field `MachineLedger`.`roundCount_sum` of type `Int`
   """
@@ -1733,6 +1973,10 @@ input MachineLedger_Having {
   ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_sum` of type `Int`
   """
   roundsSinceLucky5Hit_sum: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot_avg` of type `Float`
+  """
+  activeFourOfAKindSlot_avg: Float_Filter
   """
   ✨ Generated from Field `MachineLedger`.`capitalIn_avg` of type `Float`
   """
@@ -1754,13 +1998,25 @@ input MachineLedger_Having {
   """
   jackpotFourOfAKindB_avg: Float_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank_avg` of type `Float`
+  """
+  jackpotFullHouseRank_avg: Float_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_avg` of type `Float`
   """
   jackpotFullHouse_avg: Float_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent_avg` of type `Float`
+  """
+  jackpotKent_avg: Float_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_avg` of type `Float`
   """
   jackpotStraightFlush_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose_avg` of type `Float`
+  """
+  netSinceLastClose_avg: Float_Filter
   """
   ✨ Generated from Field `MachineLedger`.`roundCount_avg` of type `Float`
   """
@@ -1769,6 +2025,10 @@ input MachineLedger_Having {
   ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_avg` of type `Float`
   """
   roundsSinceLucky5Hit_avg: Float_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot_min` of type `Int`
+  """
+  activeFourOfAKindSlot_min: Int_Filter
   """
   ✨ Generated from Field `MachineLedger`.`capitalIn_min` of type `Int`
   """
@@ -1790,13 +2050,25 @@ input MachineLedger_Having {
   """
   jackpotFourOfAKindB_min: Int_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank_min` of type `Int`
+  """
+  jackpotFullHouseRank_min: Int_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_min` of type `Int`
   """
   jackpotFullHouse_min: Int_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent_min` of type `Int`
+  """
+  jackpotKent_min: Int_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_min` of type `Int`
   """
   jackpotStraightFlush_min: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose_min` of type `Int`
+  """
+  netSinceLastClose_min: Int_Filter
   """
   ✨ Generated from Field `MachineLedger`.`roundCount_min` of type `Int`
   """
@@ -1809,6 +2081,10 @@ input MachineLedger_Having {
   ✨ Generated from Field `MachineLedger`.`snapshotAt_min` of type `Timestamp`
   """
   snapshotAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot_max` of type `Int`
+  """
+  activeFourOfAKindSlot_max: Int_Filter
   """
   ✨ Generated from Field `MachineLedger`.`capitalIn_max` of type `Int`
   """
@@ -1830,13 +2106,25 @@ input MachineLedger_Having {
   """
   jackpotFourOfAKindB_max: Int_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank_max` of type `Int`
+  """
+  jackpotFullHouseRank_max: Int_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_max` of type `Int`
   """
   jackpotFullHouse_max: Int_Filter
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent_max` of type `Int`
+  """
+  jackpotKent_max: Int_Filter
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_max` of type `Int`
   """
   jackpotStraightFlush_max: Int_Filter
+  """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose_max` of type `Int`
+  """
+  netSinceLastClose_max: Int_Filter
   """
   ✨ Generated from Field `MachineLedger`.`roundCount_max` of type `Int`
   """
@@ -1893,6 +2181,10 @@ input MachineLedger_Order {
   """
   machine: Machine_Order
   """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot` of type `Int!`
+  """
+  activeFourOfAKindSlot: OrderDirection
+  """
   ✨ Generated from Field `MachineLedger`.`capitalIn` of type `Int!`
   """
   capitalIn: OrderDirection
@@ -1917,6 +2209,14 @@ input MachineLedger_Order {
   """
   jackpotFullHouse: OrderDirection
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank` of type `Int!`
+  """
+  jackpotFullHouseRank: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent` of type `Int!`
+  """
+  jackpotKent: OrderDirection
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush` of type `Int!`
   """
   jackpotStraightFlush: OrderDirection
@@ -1928,6 +2228,10 @@ input MachineLedger_Order {
   ✨ Generated from Field `MachineLedger`.`lastWinChannel` of type `String`
   """
   lastWinChannel: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose` of type `Int!`
+  """
+  netSinceLastClose: OrderDirection
   """
   ✨ Generated from Field `MachineLedger`.`roundCount` of type `Int!`
   """
@@ -1944,6 +2248,10 @@ input MachineLedger_Order {
   ✨ Generated from Field `MachineLedger`.`_count` of type `Int!`
   """
   _count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot_count` of type `Int!`
+  """
+  activeFourOfAKindSlot_count: OrderDirection
   """
   ✨ Generated from Field `MachineLedger`.`capitalIn_count` of type `Int!`
   """
@@ -1969,9 +2277,17 @@ input MachineLedger_Order {
   """
   jackpotFourOfAKindB_count: OrderDirection
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank_count` of type `Int!`
+  """
+  jackpotFullHouseRank_count: OrderDirection
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_count` of type `Int!`
   """
   jackpotFullHouse_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent_count` of type `Int!`
+  """
+  jackpotKent_count: OrderDirection
   """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_count` of type `Int!`
   """
@@ -1989,6 +2305,10 @@ input MachineLedger_Order {
   """
   machineId_count: OrderDirection
   """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose_count` of type `Int!`
+  """
+  netSinceLastClose_count: OrderDirection
+  """
   ✨ Generated from Field `MachineLedger`.`roundCount_count` of type `Int!`
   """
   roundCount_count: OrderDirection
@@ -2000,6 +2320,10 @@ input MachineLedger_Order {
   ✨ Generated from Field `MachineLedger`.`snapshotAt_count` of type `Int!`
   """
   snapshotAt_count: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot_sum` of type `Int`
+  """
+  activeFourOfAKindSlot_sum: OrderDirection
   """
   ✨ Generated from Field `MachineLedger`.`capitalIn_sum` of type `Int`
   """
@@ -2021,13 +2345,25 @@ input MachineLedger_Order {
   """
   jackpotFourOfAKindB_sum: OrderDirection
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank_sum` of type `Int`
+  """
+  jackpotFullHouseRank_sum: OrderDirection
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_sum` of type `Int`
   """
   jackpotFullHouse_sum: OrderDirection
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent_sum` of type `Int`
+  """
+  jackpotKent_sum: OrderDirection
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_sum` of type `Int`
   """
   jackpotStraightFlush_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose_sum` of type `Int`
+  """
+  netSinceLastClose_sum: OrderDirection
   """
   ✨ Generated from Field `MachineLedger`.`roundCount_sum` of type `Int`
   """
@@ -2036,6 +2372,10 @@ input MachineLedger_Order {
   ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_sum` of type `Int`
   """
   roundsSinceLucky5Hit_sum: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot_avg` of type `Float`
+  """
+  activeFourOfAKindSlot_avg: OrderDirection
   """
   ✨ Generated from Field `MachineLedger`.`capitalIn_avg` of type `Float`
   """
@@ -2057,13 +2397,25 @@ input MachineLedger_Order {
   """
   jackpotFourOfAKindB_avg: OrderDirection
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank_avg` of type `Float`
+  """
+  jackpotFullHouseRank_avg: OrderDirection
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_avg` of type `Float`
   """
   jackpotFullHouse_avg: OrderDirection
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent_avg` of type `Float`
+  """
+  jackpotKent_avg: OrderDirection
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_avg` of type `Float`
   """
   jackpotStraightFlush_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose_avg` of type `Float`
+  """
+  netSinceLastClose_avg: OrderDirection
   """
   ✨ Generated from Field `MachineLedger`.`roundCount_avg` of type `Float`
   """
@@ -2072,6 +2424,10 @@ input MachineLedger_Order {
   ✨ Generated from Field `MachineLedger`.`roundsSinceLucky5Hit_avg` of type `Float`
   """
   roundsSinceLucky5Hit_avg: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot_min` of type `Int`
+  """
+  activeFourOfAKindSlot_min: OrderDirection
   """
   ✨ Generated from Field `MachineLedger`.`capitalIn_min` of type `Int`
   """
@@ -2093,13 +2449,25 @@ input MachineLedger_Order {
   """
   jackpotFourOfAKindB_min: OrderDirection
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank_min` of type `Int`
+  """
+  jackpotFullHouseRank_min: OrderDirection
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_min` of type `Int`
   """
   jackpotFullHouse_min: OrderDirection
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent_min` of type `Int`
+  """
+  jackpotKent_min: OrderDirection
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_min` of type `Int`
   """
   jackpotStraightFlush_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose_min` of type `Int`
+  """
+  netSinceLastClose_min: OrderDirection
   """
   ✨ Generated from Field `MachineLedger`.`roundCount_min` of type `Int`
   """
@@ -2112,6 +2480,10 @@ input MachineLedger_Order {
   ✨ Generated from Field `MachineLedger`.`snapshotAt_min` of type `Timestamp`
   """
   snapshotAt_min: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`activeFourOfAKindSlot_max` of type `Int`
+  """
+  activeFourOfAKindSlot_max: OrderDirection
   """
   ✨ Generated from Field `MachineLedger`.`capitalIn_max` of type `Int`
   """
@@ -2133,13 +2505,25 @@ input MachineLedger_Order {
   """
   jackpotFourOfAKindB_max: OrderDirection
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotFullHouseRank_max` of type `Int`
+  """
+  jackpotFullHouseRank_max: OrderDirection
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotFullHouse_max` of type `Int`
   """
   jackpotFullHouse_max: OrderDirection
   """
+  ✨ Generated from Field `MachineLedger`.`jackpotKent_max` of type `Int`
+  """
+  jackpotKent_max: OrderDirection
+  """
   ✨ Generated from Field `MachineLedger`.`jackpotStraightFlush_max` of type `Int`
   """
   jackpotStraightFlush_max: OrderDirection
+  """
+  ✨ Generated from Field `MachineLedger`.`netSinceLastClose_max` of type `Int`
+  """
+  netSinceLastClose_max: OrderDirection
   """
   ✨ Generated from Field `MachineLedger`.`roundCount_max` of type `Int`
   """
@@ -2721,6 +3105,34 @@ input Round_Data {
   """
   session: MachineSession_Key @fdc_forbiddenInVariables
   """
+  ✨ Generated from Field `Round`.`aceCard` of type `String`
+  """
+  aceCard: String
+  """
+  ✨ `_expr` server value variant of `aceCard` (✨ Generated from Field `Round`.`aceCard` of type `String`)
+  """
+  aceCard_expr: String_Expr @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`aceMultiplier` of type `Int!`
+  """
+  aceMultiplier: Int
+  """
+  ✨ `_expr` server value variant of `aceMultiplier` (✨ Generated from Field `Round`.`aceMultiplier` of type `Int!`)
+  """
+  aceMultiplier_expr: Int_Expr @fdc_forbiddenInVariables
+  """
+  ✨ `_update` server value variant of `aceMultiplier` (✨ Generated from Field `Round`.`aceMultiplier` of type `Int!`)
+  """
+  aceMultiplier_update: [Int_Update!] @fdc_forbiddenInVariables
+  """
+  ✨ Generated from Field `Round`.`aceMultiplierFired` of type `Boolean!`
+  """
+  aceMultiplierFired: Boolean
+  """
+  ✨ `_expr` server value variant of `aceMultiplierFired` (✨ Generated from Field `Round`.`aceMultiplierFired` of type `Boolean!`)
+  """
+  aceMultiplierFired_expr: Boolean_Expr @fdc_forbiddenInVariables
+  """
   ✨ Generated from Field `Round`.`baseWinAmount` of type `Int!`
   """
   baseWinAmount: Int
@@ -2910,6 +3322,18 @@ input Round_Filter {
   """
   session: MachineSession_Filter
   """
+  ✨ Generated from Field `Round`.`aceCard` of type `String`
+  """
+  aceCard: String_Filter
+  """
+  ✨ Generated from Field `Round`.`aceMultiplier` of type `Int!`
+  """
+  aceMultiplier: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`aceMultiplierFired` of type `Boolean!`
+  """
+  aceMultiplierFired: Boolean_Filter
+  """
   ✨ Generated from Field `Round`.`baseWinAmount` of type `Int!`
   """
   baseWinAmount: Int_Filter
@@ -3012,6 +3436,18 @@ input Round_Having {
   """
   _count: Int_Filter
   """
+  ✨ Generated from Field `Round`.`aceCard_count` of type `Int!`
+  """
+  aceCard_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`aceMultiplierFired_count` of type `Int!`
+  """
+  aceMultiplierFired_count: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`aceMultiplier_count` of type `Int!`
+  """
+  aceMultiplier_count: Int_Filter
+  """
   ✨ Generated from Field `Round`.`baseWinAmount_count` of type `Int!`
   """
   baseWinAmount_count: Int_Filter
@@ -3084,6 +3520,10 @@ input Round_Having {
   """
   totalWinAmount_count: Int_Filter
   """
+  ✨ Generated from Field `Round`.`aceMultiplier_sum` of type `Int`
+  """
+  aceMultiplier_sum: Int_Filter
+  """
   ✨ Generated from Field `Round`.`baseWinAmount_sum` of type `Int`
   """
   baseWinAmount_sum: Int_Filter
@@ -3108,6 +3548,10 @@ input Round_Having {
   """
   totalWinAmount_sum: Int_Filter
   """
+  ✨ Generated from Field `Round`.`aceMultiplier_avg` of type `Float`
+  """
+  aceMultiplier_avg: Float_Filter
+  """
   ✨ Generated from Field `Round`.`baseWinAmount_avg` of type `Float`
   """
   baseWinAmount_avg: Float_Filter
@@ -3131,6 +3575,10 @@ input Round_Having {
   ✨ Generated from Field `Round`.`totalWinAmount_avg` of type `Float`
   """
   totalWinAmount_avg: Float_Filter
+  """
+  ✨ Generated from Field `Round`.`aceMultiplier_min` of type `Int`
+  """
+  aceMultiplier_min: Int_Filter
   """
   ✨ Generated from Field `Round`.`baseWinAmount_min` of type `Int`
   """
@@ -3159,6 +3607,10 @@ input Round_Having {
   ✨ Generated from Field `Round`.`totalWinAmount_min` of type `Int`
   """
   totalWinAmount_min: Int_Filter
+  """
+  ✨ Generated from Field `Round`.`aceMultiplier_max` of type `Int`
+  """
+  aceMultiplier_max: Int_Filter
   """
   ✨ Generated from Field `Round`.`baseWinAmount_max` of type `Int`
   """
@@ -3231,6 +3683,18 @@ input Round_Order {
   """
   session: MachineSession_Order
   """
+  ✨ Generated from Field `Round`.`aceCard` of type `String`
+  """
+  aceCard: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`aceMultiplier` of type `Int!`
+  """
+  aceMultiplier: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`aceMultiplierFired` of type `Boolean!`
+  """
+  aceMultiplierFired: OrderDirection
+  """
   ✨ Generated from Field `Round`.`baseWinAmount` of type `Int!`
   """
   baseWinAmount: OrderDirection
@@ -3298,6 +3762,18 @@ input Round_Order {
   ✨ Generated from Field `Round`.`_count` of type `Int!`
   """
   _count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`aceCard_count` of type `Int!`
+  """
+  aceCard_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`aceMultiplierFired_count` of type `Int!`
+  """
+  aceMultiplierFired_count: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`aceMultiplier_count` of type `Int!`
+  """
+  aceMultiplier_count: OrderDirection
   """
   ✨ Generated from Field `Round`.`baseWinAmount_count` of type `Int!`
   """
@@ -3371,6 +3847,10 @@ input Round_Order {
   """
   totalWinAmount_count: OrderDirection
   """
+  ✨ Generated from Field `Round`.`aceMultiplier_sum` of type `Int`
+  """
+  aceMultiplier_sum: OrderDirection
+  """
   ✨ Generated from Field `Round`.`baseWinAmount_sum` of type `Int`
   """
   baseWinAmount_sum: OrderDirection
@@ -3395,6 +3875,10 @@ input Round_Order {
   """
   totalWinAmount_sum: OrderDirection
   """
+  ✨ Generated from Field `Round`.`aceMultiplier_avg` of type `Float`
+  """
+  aceMultiplier_avg: OrderDirection
+  """
   ✨ Generated from Field `Round`.`baseWinAmount_avg` of type `Float`
   """
   baseWinAmount_avg: OrderDirection
@@ -3418,6 +3902,10 @@ input Round_Order {
   ✨ Generated from Field `Round`.`totalWinAmount_avg` of type `Float`
   """
   totalWinAmount_avg: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`aceMultiplier_min` of type `Int`
+  """
+  aceMultiplier_min: OrderDirection
   """
   ✨ Generated from Field `Round`.`baseWinAmount_min` of type `Int`
   """
@@ -3446,6 +3934,10 @@ input Round_Order {
   ✨ Generated from Field `Round`.`totalWinAmount_min` of type `Int`
   """
   totalWinAmount_min: OrderDirection
+  """
+  ✨ Generated from Field `Round`.`aceMultiplier_max` of type `Int`
+  """
+  aceMultiplier_max: OrderDirection
   """
   ✨ Generated from Field `Round`.`baseWinAmount_max` of type `Int`
   """

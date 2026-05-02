@@ -53,7 +53,7 @@ public class Lucky5DbContext : DbContext
         {
             entity.HasKey(e => e.UserId);
             entity.Property(e => e.WalletBalance).HasPrecision(18, 2);
-            
+
             // One-to-one relationship with User
             entity.HasOne<User>()
                 .WithOne()
@@ -68,7 +68,7 @@ public class Lucky5DbContext : DbContext
             entity.HasIndex(e => new { e.MachineId, e.UserId });
             entity.Property(e => e.MachineCredits).HasPrecision(18, 2);
             entity.Property(e => e.TotalCashIn).HasPrecision(18, 2);
-            
+
             // Concurrency token for optimistic concurrency (protecting concurrent credit updates)
             entity.Property(e => e.LastUpdatedUtc).IsConcurrencyToken();
         });
@@ -78,7 +78,7 @@ public class Lucky5DbContext : DbContext
         {
             entity.HasKey(e => e.MachineId); // One-to-one with Machine conceptually
             entity.Property(e => e.MachineId).ValueGeneratedNever();
-            
+
             entity.Property(e => e.TargetRtp).HasPrecision(18, 4);
             entity.Property(e => e.CapitalIn).HasPrecision(18, 2);
             entity.Property(e => e.CapitalOut).HasPrecision(18, 2);
@@ -101,14 +101,14 @@ public class Lucky5DbContext : DbContext
             entity.HasKey(e => e.RoundId);
             entity.HasIndex(e => new { e.MachineId, e.UserId });
             entity.HasIndex(e => e.CreatedUtc); // Helpful for history queries
-            
+
             entity.Property(e => e.BetAmount).HasPrecision(18, 2);
             entity.Property(e => e.WinAmount).HasPrecision(18, 2);
             entity.Property(e => e.OriginalWinAmount).HasPrecision(18, 2);
             entity.Property(e => e.JackpotWinAmount).HasPrecision(18, 2);
             entity.Property(e => e.SettledAmount).HasPrecision(18, 2);
             entity.Property(e => e.HandRank).HasMaxLength(50);
-            
+
             // Serialize complex state objects to JSONB for flexibility and long-term durability
             // without hard schema coupling to the exact domain types if they change slightly over time.
             var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -165,9 +165,9 @@ public class Lucky5DbContext : DbContext
 
         // Seed Data for Machines
         modelBuilder.Entity<Machine>().HasData(
-            new Machine { Id = 1, Name = "Lucky 5 - Beirut", MinBet = 5000, MaxBet = 10000, IsOpen = true },
-            new Machine { Id = 2, Name = "Lucky 5 - Hamra", MinBet = 5000, MaxBet = 10000, IsOpen = true },
-            new Machine { Id = 3, Name = "Lucky 5 - VIP", MinBet = 5000, MaxBet = 10000, IsOpen = true }
+            new Machine { Id = 1, GameId = 1, Name = "Lucky 5 - Beirut", MinBet = 5000, MaxBet = 10000, IsOpen = true },
+            new Machine { Id = 2, GameId = 1, Name = "Lucky 5 - Hamra", MinBet = 5000, MaxBet = 10000, IsOpen = true },
+            new Machine { Id = 3, GameId = 1, Name = "Lucky 5 - VIP", MinBet = 5000, MaxBet = 10000, IsOpen = true }
         );
 
         // AppSetting Configuration

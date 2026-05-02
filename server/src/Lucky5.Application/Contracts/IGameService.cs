@@ -11,20 +11,21 @@ public interface IGameService
     Task<MachineSessionDto> GetMachineSessionAsync(Guid userId, int machineId, CancellationToken cancellationToken);
     Task<MachineSessionDto> CashInAsync(Guid userId, int machineId, decimal amount, CancellationToken cancellationToken);
     Task<MachineSessionDto> CashOutAsync(Guid userId, int machineId, CancellationToken cancellationToken);
-    
+
     Task<CabinetSnapshotDto> GetCabinetSnapshotAsync(Guid userId, int machineId, CancellationToken cancellationToken);
     Task<ActiveRoundStateDto?> GetActiveRoundAsync(Guid userId, int machineId, CancellationToken cancellationToken);
     Task<object> GetMachineStateAsync(int machineId, CancellationToken cancellationToken);
-    
+
     Task<DealResultDto> DealAsync(Guid userId, DealRequest request, CancellationToken cancellationToken);
     Task<DrawResultDto> DrawAsync(Guid userId, DrawRequest request, CancellationToken cancellationToken);
-    
+
     Task<DoubleUpResultDto> StartDoubleUpAsync(Guid userId, Guid roundId, CancellationToken cancellationToken);
     Task<DoubleUpResultDto> SwitchDealerAsync(Guid userId, Guid roundId, CancellationToken cancellationToken);
+    Task<DoubleUpResultDto> SwapDoubleUpCardAsync(Guid userId, Guid roundId, int swapPosition, CancellationToken cancellationToken);
     Task<DoubleUpResultDto> GuessDoubleUpAsync(Guid userId, Guid roundId, string guess, CancellationToken cancellationToken);
     Task<DoubleUpResultDto> CashoutDoubleUpAsync(Guid userId, Guid roundId, CancellationToken cancellationToken);
     Task<DoubleUpResultDto> TakeHalfAsync(Guid userId, Guid roundId, CancellationToken cancellationToken);
-    
+
     Task<JackpotInfoDto> ChangeJackpotRankAsync(int machineId, int rank, CancellationToken cancellationToken);
     Task<object> ResetMachineAsync(Guid userId, int machineId, CancellationToken cancellationToken);
 }

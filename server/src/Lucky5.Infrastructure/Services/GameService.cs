@@ -103,7 +103,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         session.IsMachineClosed = session.MachineCredits >= MachineCloseCredits;
 
         await store.UpdateMachineSessionAsync(session);
-        
+
         await store.AddWalletLedgerEntryAsync(new WalletLedgerEntry
         {
             UserId = userId,
@@ -182,7 +182,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
     {
         var machine = await RequireMachineAsync(request.MachineId);
         var session = await RequireMachineSessionAsync(userId, request.MachineId, createIfMissing: true);
-        
+
         if (session.IsMachineClosed)
             throw new InvalidOperationException("Machine is closed - cash out to wallet before continuing");
         if (request.BetAmount <= 0 || request.BetAmount < machine.MinBet || request.BetAmount > machine.MaxBet)
@@ -194,19 +194,19 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         int active4kSlot;
         PolicyDistributionMode policyMode;
         MachinePolicyState policyState;
-        
+
         var ledger = await RequireMachineLedgerAsync(machine.Id);
-        
+
         seed = entropyGenerator.CreateSeed(userId, machine.Id, request.BetAmount, ledger);
         policyState = BuildMachinePolicyState(ledger);
-        
+
         var policyResolution = MachinePolicy.ResolvePolicy(policyState, seed);
         policyMode = policyResolution.DistributionMode;
         if (session.CounterplayScore >= 3 && policyMode == PolicyDistributionMode.Cold)
         {
             policyMode = PolicyDistributionMode.Neutral;
         }
-        
+
         ledger.CapitalIn += request.BetAmount;
         ledger.RoundCount++;
         ledger.RoundsSinceMediumWin++;
@@ -272,7 +272,9 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
         stateCache.InvalidateActiveRound(userId, request.MachineId);
         stateCache.InvalidateMachineSession(userId, request.MachineId);
-        return new DealResultDto(round.RoundId, cards.Select(ToDto).ToArray(), request.BetAmount, session.MachineCredits, jackpots, advisedHolds);
+        return new DealResultDto(round.RoundId, cards.Select(ToDto).ToArray(), request.BetAmount, session.MachineCredits, jackpots, advisedHolds,
+            AceCard: false,
+            AceMultiplier: 0);
     }
 
     public async Task<DrawResultDto> DrawAsync(Guid userId, DrawRequest request, CancellationToken cancellationToken)
@@ -306,7 +308,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
 
         await store.UpdateMachineLedgerAsync(ledger);
-        
+
         var profile = await RequireProfileAsync(userId);
         await store.AddWalletLedgerEntryAsync(new WalletLedgerEntry
         {
@@ -331,8 +333,20 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         var evaluation = FiveCardDrawEngine.EvaluateHand(state.Hand);
         var basePayout = FiveCardDrawEngine.ResolvePayout(evaluation, (int)round.BetAmount);
 
+        // Ace multiplier logic: if an Ace is in the winning hand, apply multiplier
+        var aceCard = state.Hand.FirstOrDefault(c => c.Rank == 14);
+        var aceMultiplier = 1;
+        if (basePayout > 0 && aceCard.Rank == 14)
+        {
+            aceMultiplier = 2; // Ace doubles the payout
+            basePayout *= aceMultiplier;
+            round.AceCard = aceCard.ToLegacyPokerCard();
+            round.AceMultiplier = aceMultiplier;
+            round.AceMultiplierFired = true;
+        }
+
         decimal payoutScale;
-        
+
         var scaleState = BuildMachinePolicyState(ledger);
         var policyResolution = MachinePolicy.ResolvePolicy(scaleState, round.RoundEntropySeed);
         payoutScale = policyResolution.ForTier(MachinePolicy.ClassifyHand(evaluation.Category));
@@ -366,6 +380,8 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             {
                 jackpotWon = ledger.JackpotFullHouse;
                 ledger.JackpotFullHouse = EngineCfg.JackpotFullHouseStart;
+                // Rotate Full House rank: 2-14, wrap around
+                ledger.JackpotFullHouseRank = ledger.JackpotFullHouseRank >= 14 ? 2 : ledger.JackpotFullHouseRank + 1;
             }
             else if (evaluation.Category == HandCategory.FourOfAKind && round.ActiveFourOfAKindSlotAtDeal == 0 && ledger.JackpotFourOfAKindA > payout)
             {
@@ -381,6 +397,11 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             {
                 jackpotWon = ledger.JackpotStraightFlush;
                 ledger.JackpotStraightFlush = EngineCfg.JackpotStraightFlushStart;
+            }
+            else if (evaluation.Category == HandCategory.FiveOfAKind && ledger.JackpotKent > payout)
+            {
+                jackpotWon = ledger.JackpotKent;
+                ledger.JackpotKent = EngineCfg.JackpotKentStart;
             }
 
             if (jackpotWon > 0)
@@ -464,7 +485,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         var machineCreditBaseline = (int)Math.Min(sessionBank.MachineCredits, int.MaxValue);
 
         CleanRoomCard[] alteredDeck;
-        
+
         var ledger = await RequireMachineLedgerAsync(round.MachineId);
         alteredDeck = MachinePolicy.BuildDoubleUpDeck(
             FiveCardDrawEngine.BuildStandardDeck(),
@@ -472,19 +493,26 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             ledger.RoundsSinceLucky5Hit,
             ledger.NetSinceLastClose,
             round.PolicyMode);
-        
+
+        // Apply ace multiplier to double-up starting amount if applicable
+        var startingAmount = (int)round.WinAmount;
+        if (round.AceMultiplierFired && round.AceMultiplier > 1)
+        {
+            startingAmount *= round.AceMultiplier;
+        }
+
         var session = Lucky5DoubleUpEngine.CreateSessionFromDeck(
             round.RoundEntropySeed,
             FiveCardDrawEngine.ShuffleDeck(round.RoundEntropySeed, "double-up", alteredDeck),
-            (int)round.WinAmount,
+            startingAmount,
             machineCreditBaseline,
             new Lucky5DoubleUpOptions(MaxCreditLimit: Decimal.ToInt32(EngineCfg.CloseThreshold)));
 
         round.DoubleUpSession = session;
         round.EnteredDoubleUp = true;
-        
+
         await store.SaveRoundAsync(round);
-        
+
         var noise = GenerateNoise(round.RoundEntropySeed, 0);
         InvalidateCaches(userId, round.MachineId);
         return new DoubleUpResultDto(roundId, "Started", session.CurrentAmount, sessionBank.MachineCredits,
@@ -493,7 +521,10 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             IsNoLoseActive: session.IsNoLoseActive,
             Noise: noise,
             CardTrail: BuildCardTrail(session),
-            IsLucky5Active: session.IsNoLoseActive);
+            IsLucky5Active: session.IsNoLoseActive,
+            AceCard: round.AceCard != null,
+            AceMultiplier: round.AceMultiplier,
+            AceMultiplierFired: round.AceMultiplierFired);
     }
 
     public async Task<DoubleUpResultDto> SwitchDealerAsync(Guid userId, Guid roundId, CancellationToken cancellationToken)
@@ -508,21 +539,21 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         round.DoubleUpSession = session;
         var isLucky = session.DealerCard.Rank == 5 && session.DealerCard.Suit == 'S';
         var luckyMult = 0;
-        
+
         var ledger = await RequireMachineLedgerAsync(round.MachineId);
-        
+
         if (isLucky)
         {
             luckyMult = session.LuckyHitCount == 1 ? session.Options.FirstLuckyMultiplier : session.Options.RepeatLuckyMultiplier;
             ledger.RoundsSinceLucky5Hit = 0;
             await store.UpdateMachineLedgerAsync(ledger);
         }
-        
+
         await store.SaveRoundAsync(round);
-        
+
         var sessionBank = await RequireMachineSessionAsync(userId, round.MachineId, createIfMissing: false);
         var noise = GenerateNoise(round.RoundEntropySeed, session.CurrentRoundIndex);
-        
+
         if (session.IsTerminal && session.TerminalOutcome == Lucky5DoubleUpOutcome.MachineClosed)
         {
             await FinalizeDoubleUpAsync(round, sessionBank, session.CashoutCredits);
@@ -536,7 +567,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
                 CardTrail: BuildCardTrail(session),
                 IsLucky5Active: session.IsNoLoseActive);
         }
-        
+
         InvalidateCaches(userId, round.MachineId);
         return new DoubleUpResultDto(roundId, isLucky ? "Lucky5" : "Switched", session.CurrentAmount, sessionBank.MachineCredits,
             DealerCard: ToCleanRoomDto(session.DealerCard),
@@ -546,6 +577,36 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             Noise: noise,
             CardTrail: BuildCardTrail(session),
             IsLucky5Active: session.IsNoLoseActive);
+    }
+
+    public async Task<DoubleUpResultDto> SwapDoubleUpCardAsync(Guid userId, Guid roundId, int swapPosition, CancellationToken cancellationToken)
+    {
+        var round = await store.GetRoundAsync(roundId);
+        if (round == null || round.UserId != userId)
+            throw new KeyNotFoundException("Round not found");
+        if (round.DoubleUpSession is null)
+            throw new InvalidOperationException("Double-up session not started");
+
+        var session = Lucky5DoubleUpEngine.SwapChallenger(round.DoubleUpSession, swapPosition);
+        round.DoubleUpSession = session;
+        await store.SaveRoundAsync(round);
+
+        var sessionBank = await RequireMachineSessionAsync(userId, round.MachineId, createIfMissing: false);
+        var noise = GenerateNoise(round.RoundEntropySeed, session.CurrentRoundIndex);
+
+        return new DoubleUpResultDto(
+            roundId,
+            "SwapCard",
+            session.CurrentAmount,
+            sessionBank.MachineCredits,
+            DealerCard: ToCleanRoomDto(session.DealerCard),
+            ChallengerCard: ToCleanRoomDto(session.Deck[swapPosition]),
+            SwitchesRemaining: session.Options.MaxSwitchesPerRound - session.SwitchCountInRound,
+            IsNoLoseActive: session.IsNoLoseActive,
+            Noise: noise,
+            CardTrail: BuildCardTrail(session),
+            IsLucky5Active: session.IsNoLoseActive,
+            SwapActivePosition: session.SwapActivePosition);
     }
 
     public async Task<DoubleUpResultDto> GuessDoubleUpAsync(Guid userId, Guid roundId, string guess, CancellationToken cancellationToken)
@@ -661,18 +722,18 @@ return guessResult;
             session.LastUpdatedUtc = DateTime.UtcNow;
             round.SettledAmount += cashoutAmount;
             round.IsPayoutSettled = true;
-            
+
             var ledger = await RequireMachineLedgerAsync(round.MachineId);
             var delta = round.SettledAmount - round.OriginalWinAmount;
             if (delta != 0) ledger.CapitalOut += delta;
             ledger.LastWinChannel = round.JackpotWinAmount > 0 ? WinChannel.Jackpot : WinChannel.BaseGame;
             ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
-            
+
             await store.UpdateMachineLedgerAsync(ledger);
-            
+
             session.IsMachineClosed = session.MachineCredits >= MachineCloseCredits;
             await store.UpdateMachineSessionAsync(session);
-            
+
             var profile = await RequireProfileAsync(userId);
             await store.AddWalletLedgerEntryAsync(new WalletLedgerEntry
             {
@@ -683,7 +744,7 @@ return guessResult;
                 ReferenceId = round.RoundId.ToString("N"),
                 CreatedUtc = DateTime.UtcNow
             });
-            
+
             await store.SaveRoundAsync(round);
         }
         var status = session.IsMachineClosed ? "MachineClosed" : "Cashout";
@@ -700,7 +761,7 @@ return guessResult;
             throw new InvalidOperationException("Payout already settled");
         if (round.TakeHalfUsed)
             throw new InvalidOperationException("Take-half already used this round");
-            
+
         var session = await RequireMachineSessionAsync(userId, round.MachineId, createIfMissing: false);
         var currentAmount = round.DoubleUpSession != null ? round.DoubleUpSession.CurrentAmount : (int)round.WinAmount;
         if (currentAmount <= 1) throw new InvalidOperationException("Amount too small to split");
@@ -722,12 +783,12 @@ return guessResult;
         var delta = half;
         if (delta != 0) ledger.CapitalOut += delta;
         ledger.NetSinceLastClose = Math.Max(ledger.CapitalIn - ledger.CapitalOut, 0m);
-        
+
         await store.UpdateMachineLedgerAsync(ledger);
         await store.UpdateMachineSessionAsync(session);
 
         var profile = await RequireProfileAsync(userId);
-        
+
         // Record ledger entry
         await store.AddWalletLedgerEntryAsync(new WalletLedgerEntry
         {
@@ -762,11 +823,11 @@ return guessResult;
     public async Task<JackpotInfoDto> ChangeJackpotRankAsync(int machineId, int rank, CancellationToken cancellationToken)
     {
         if (rank < 2 || rank > 14) throw new ArgumentException("Rank must be between 2 and 14");
-        
+
         var ledger = await RequireMachineLedgerAsync(machineId);
         ledger.JackpotFullHouseRank = rank;
         await store.UpdateMachineLedgerAsync(ledger);
-        
+
         return SnapshotJackpots(ledger);
     }
 
@@ -1070,6 +1131,7 @@ return guessResult;
             ledger.JackpotFourOfAKindB,
             ledger.ActiveFourOfAKindSlot,
             ledger.JackpotStraightFlush,
+            ledger.JackpotKent,
             ledger.MachineSerial,
             ledger.MachineSerie,
             ledger.MachineKent);
@@ -1092,17 +1154,50 @@ return guessResult;
         }
         ledger.JackpotFullHouse = Math.Min(ledger.JackpotFullHouse + cfg.JackpotFullHouseContribution, cfg.JackpotFullHouseCap);
         ledger.JackpotStraightFlush = Math.Min(ledger.JackpotStraightFlush + cfg.JackpotStraightFlushContribution, cfg.JackpotStraightFlushCap);
+        ledger.JackpotKent = Math.Min(ledger.JackpotKent + cfg.JackpotKentContribution, cfg.JackpotKentCap);
     }
 
     private static IReadOnlyList<PokerCardDto> BuildCardTrail(Lucky5DoubleUpSession session)
         => session.Deck.Take(session.DealerIndex + 1).Select(ToCleanRoomDto).ToArray();
 
-    private static PokerCardDto ToDto(PokerCard c) => new(c.Rank, c.Suit, c.Code);
+    private static PokerCardDto ToDto(PokerCard c)
+    {
+        var cardId = ComputeCardId(c.Rank, c.Suit);
+        var title = $"{c.Rank[0]}{c.Suit[0]}";
+        return new PokerCardDto(cardId, title, c.Suit, c.Rank, c.Code);
+    }
+
     private static PokerCardDto ToCleanRoomDto(CleanRoomCard c)
     {
         var rank = CleanRoomCard.GetLegacyRank(c.Rank);
         var suit = c.Suit.ToString();
-        return new PokerCardDto(rank, suit, $"{rank}{suit}");
+        var cardId = ComputeCardId(rank, suit);
+        var title = $"{rank[0]}{suit[0]}";
+        return new PokerCardDto(cardId, title, suit, rank, $"{rank}{suit}");
+    }
+
+    private static int ComputeCardId(string rank, string suit)
+    {
+        // Map rank to 0-12 (2=0, ..., A=12)
+        var rankIndex = rank switch
+        {
+            "2" => 0, "3" => 1, "4" => 2, "5" => 3, "6" => 4,
+            "7" => 5, "8" => 6, "9" => 7, "10" => 8,
+            "J" => 9, "Q" => 10, "K" => 11, "A" => 12,
+            _ => 0
+        };
+
+        // Map suit to base offset: H=0, D=13, C=26, S=39
+        var suitOffset = suit switch
+        {
+            "Hearts" => 0,
+            "Diamonds" => 13,
+            "Clubs" => 26,
+            "Spades" => 39,
+            _ => 0
+        };
+
+        return suitOffset + rankIndex + 1; // CardId is 1-based
     }
 
     private void InvalidateCaches(Guid userId, int machineId)
@@ -1203,7 +1298,7 @@ return guessResult;
     private async Task<Machine> RequireMachineAsync(int machineId)
     {
         var machine = await store.GetMachineAsync(machineId);
-        if (machine is null || !machine.IsOpen) 
+        if (machine is null || !machine.IsOpen)
             throw new KeyNotFoundException("Machine not found or closed");
         return machine;
     }
@@ -1233,9 +1328,9 @@ return guessResult;
 
             return session;
         }
-        
+
         if (!createIfMissing) throw new KeyNotFoundException("Machine session not found");
-        
+
         session = new MachineSessionState { UserId = userId, MachineId = machineId };
         await store.CreateMachineSessionAsync(session);
         return session;
@@ -1311,7 +1406,7 @@ return guessResult;
     private async Task<MachineSessionDto> ToMachineSessionDtoAsync(Guid userId, MachineSessionState session, decimal walletBalance)
     {
         var canCashOut = !await HasRecoverableRoundAsync(userId, session.MachineId) && CanCashOut(session);
-        
+
         // Attach transparency telemetry if available
         MachineTransparencyDto? transparency = null;
         try
@@ -1319,7 +1414,7 @@ return guessResult;
             var ledger = await RequireMachineLedgerAsync(session.MachineId);
             var policyState = BuildMachinePolicyState(ledger);
             var policyResolution = MachinePolicy.ResolvePolicy(policyState, 0UL); // Use zero seed for deterministic telemetry
-            
+
             transparency = new MachineTransparencyDto(
                 IsWarmupActive: policyResolution.Telemetry.IsWarmupActive,
                 IsPityActive: policyResolution.Telemetry.IsPityActive,
@@ -1341,7 +1436,7 @@ return guessResult;
         {
             // If we can't get transparency data, continue without it
         }
-        
+
         return ToMachineSessionDto(session, walletBalance, canCashOut, transparency);
     }
 

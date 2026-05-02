@@ -89,11 +89,36 @@ public static class Lucky5DoubleUpEngine
         return switchedSession;
     }
 
+    public static Lucky5DoubleUpSession SwapChallenger(Lucky5DoubleUpSession session, int swapPosition)
+    {
+        EnsurePlayable(session);
+
+        if (swapPosition < 0 || swapPosition >= session.Deck.Length)
+        {
+            throw new InvalidOperationException("Invalid swap position.");
+        }
+
+        if (swapPosition <= session.DealerIndex)
+        {
+            throw new InvalidOperationException("Cannot swap to a card at or before the dealer position.");
+        }
+
+        var challengerCard = session.Deck[swapPosition];
+        var swappedSession = session with
+        {
+            SwapActivePosition = swapPosition
+        };
+
+        return swappedSession;
+    }
+
     public static Lucky5DoubleUpResolution ResolveGuess(Lucky5DoubleUpSession session, BigSmallGuess guess)
     {
         EnsurePlayable(session);
 
-        var challengerIndex = session.DealerIndex + 1;
+        var challengerIndex = session.SwapActivePosition >= 0
+            ? session.SwapActivePosition
+            : session.DealerIndex + 1;
         if (challengerIndex >= session.Deck.Length)
         {
             throw new InvalidOperationException("No challenger card available for double-up resolution.");
@@ -114,7 +139,8 @@ public static class Lucky5DoubleUpEngine
                 CurrentRoundIndex = session.CurrentRoundIndex + 1,
                 SwitchCountInRound = 0,
                 LuckyHitCount = 0,
-                IsNoLoseActive = session.IsNoLoseActive
+                IsNoLoseActive = session.IsNoLoseActive,
+                SwapActivePosition = -1
             };
 
             var shouldCloseMachine = session.MachineCreditBaseline < session.Options.MaxCreditLimit

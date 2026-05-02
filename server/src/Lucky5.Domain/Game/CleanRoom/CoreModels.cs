@@ -43,7 +43,8 @@ public enum HandCategory
     FullHouse = 6,
     FourOfAKind = 7,
     StraightFlush = 8,
-    RoyalFlush = 9
+    RoyalFlush = 9,
+    FiveOfAKind = 10
 }
 
 public enum Lucky5DoubleUpOutcome
@@ -246,7 +247,8 @@ public sealed record Lucky5DoubleUpSession(
     Lucky5DoubleUpOptions Options,
     bool IsTerminal = false,
     Lucky5DoubleUpOutcome? TerminalOutcome = null,
-    int CashoutCredits = 0);
+    int CashoutCredits = 0,
+    int SwapActivePosition = -1);
 
 public sealed record Lucky5DoubleUpResolution(
     BigSmallGuess Guess,
@@ -345,12 +347,15 @@ public sealed record EngineConfig(
     decimal JackpotFourOfAKindCap = 1_000_000m,
     decimal JackpotFullHouseCap = 650_000m,
     decimal JackpotStraightFlushCap = 7_500_000m,
+    decimal JackpotKentCap = 5_000_000m,
     int JackpotFourOfAKindContribution = 85,
     int JackpotFullHouseContribution = 68,
     int JackpotStraightFlushContribution = 152,
+    int JackpotKentContribution = 200,
     decimal JackpotFourOfAKindStart = 140_000m,
     decimal JackpotFullHouseStart = 90_000m,
-    decimal JackpotStraightFlushStart = 850_000m
+    decimal JackpotStraightFlushStart = 850_000m,
+    decimal JackpotKentStart = 500_000m
 )
 {
     public static EngineConfig Default { get; } = new();

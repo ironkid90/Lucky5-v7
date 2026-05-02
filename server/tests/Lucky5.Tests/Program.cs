@@ -5,6 +5,7 @@ await Lucky5.Tests.GameServiceRegressionTests.RunAsync(failures);
 await Lucky5.Tests.CleanRoomEngineTests.RunAsync(failures);
 await Lucky5.Tests.FrontendRegressionTests.RunAsync(failures);
 await Lucky5.Tests.FilePersistentStateStoreTests.RunAsync(failures);
+await Lucky5.Tests.HubTests.RunAsync(failures);
 
 if (failures.Count > 0)
 {

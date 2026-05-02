@@ -65,15 +65,15 @@ public sealed class InMemoryDataStore
         var defaultRtp = EngineConfig.Default.TargetRtp;
         var defaultScale = EngineConfig.Default.DefaultPayoutScale;
 
-        var machine1 = new Machine { Id = 1, Name = "Beirut 5K", MachineSerial = "105001", MachineSerie = "27", MachineKent = "1", IsOpen = true, MinBet = 5000, MaxBet = 10000 };
+        var machine1 = new Machine { Id = 1, GameId = 1, Name = "Beirut 5K", MachineSerial = "105001", MachineSerie = "27", MachineKent = "1", IsOpen = true, MinBet = 5000, MaxBet = 10000 };
         Machines.TryAdd(1, machine1);
         MachineLedgers.TryAdd(1, CreateSeededLedger(machine1, defaultRtp, defaultScale));
 
-        var machine2 = new Machine { Id = 2, Name = "Hamra 10K", MachineSerial = "105002", MachineSerie = "27", MachineKent = "2", IsOpen = true, MinBet = 10000, MaxBet = 20000 };
+        var machine2 = new Machine { Id = 2, GameId = 1, Name = "Hamra 10K", MachineSerial = "105002", MachineSerie = "27", MachineKent = "2", IsOpen = true, MinBet = 10000, MaxBet = 20000 };
         Machines.TryAdd(2, machine2);
         MachineLedgers.TryAdd(2, CreateSeededLedger(machine2, defaultRtp, defaultScale));
 
-        var machine3 = new Machine { Id = 3, Name = "VIP 50K", MachineSerial = "105003", MachineSerie = "27", MachineKent = "3", IsOpen = false, MinBet = 50000, MaxBet = 100000 };
+        var machine3 = new Machine { Id = 3, GameId = 1, Name = "VIP 50K", MachineSerial = "105003", MachineSerie = "27", MachineKent = "3", IsOpen = false, MinBet = 50000, MaxBet = 100000 };
         Machines.TryAdd(3, machine3);
         MachineLedgers.TryAdd(3, CreateSeededLedger(machine3, defaultRtp, defaultScale));
 
@@ -92,7 +92,7 @@ public sealed class InMemoryDataStore
         };
         Profiles.TryAdd(adminId, adminUser);
         Users[adminId] = adminUser;
-        
+
         MemberProfiles[adminId] = new MemberProfile
         {
             UserId = adminId,
@@ -115,7 +115,7 @@ public sealed class InMemoryDataStore
         };
         Profiles.TryAdd(testId, testUser);
         Users[testId] = testUser;
-        
+
         MemberProfiles[testId] = new MemberProfile
         {
             UserId = testId,

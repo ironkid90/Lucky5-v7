@@ -13,6 +13,9 @@ Godot can bind to stable JSON contracts instead of server internals.
 - `variant-definition-v1.schema.json` defines the versioned variant governance
   model for Lucky5 Classic and future variants.
 - `lucky5-classic.variant.v1.json` is the initial Lucky5 Classic variant record.
+- `ai9poker-comparison-event-matrix.md` compares the AI9Poker browser-export
+  map against current Lucky5 backend/Godot surfaces and defines the
+  presentation-only event matrix/backlog for safe Godot upgrades.
 
 ## Contract Rules
 

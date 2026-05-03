@@ -54,6 +54,7 @@ Thumbs.db
 .worktrees/
 .zencoder/
 .copilot-cli/
+.ai9poker/
 
 # ── Local workspace scratch / agent state ─────────────────────────────────────
 tmp/
@@ -157,3 +158,4 @@ ai9/*.apk
 ai9/*.aab
 *.zip
 .codebuddy
+/ai9poker

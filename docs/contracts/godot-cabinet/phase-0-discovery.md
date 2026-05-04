@@ -1,6 +1,9 @@
 # Lucky5 Godot Cabinet Phase 0 Discovery
 
-Status: complete for contract definition before implementation-heavy Godot work.
+Status: Phase 0 Production Edition complete for documentation and contract
+definition before implementation-heavy Godot work.
+
+Last source audit: 2026-05-04.
 
 Scope: this document catalogs the current web cabinet and defines the JSON-first
 contracts Godot should target. It does not authorize any change to payout tables,
@@ -19,6 +22,8 @@ Evidence:
   and loads the cabinet CSS, JS, image, font, and audio assets.
 - `docs/GAME_FEEL_REFERENCE.md` describes the same Lebanese arcade cabinet target
   and reinforces that the web cabinet is the playable visual reference.
+- The current read-only inventory was reproduced with `tmp/phase0_inventory.py`;
+  captured output for this audit is `tmp/phase0_inventory_output.txt`.
 
 Godot must reproduce the player-facing cabinet feel from this directory first,
 then consume JSON contracts from the backend. It must not couple to DOM IDs,
@@ -28,6 +33,34 @@ The durable Phase 0 contract package is this directory:
 `docs/contracts/godot-cabinet/`. Any older or transitional schema copy outside
 `docs/` is not the source of truth for Godot implementation decisions unless it
 is explicitly reconciled back into this package.
+
+## Frontend Version Catalog
+
+This repository contains several Lucky5 frontend generations and mirrors. Phase 0
+uses them for discovery only; it does not select a new runtime implementation or
+add gameplay.
+
+| Surface | Path | Stack / version evidence | Current role for Godot migration |
+| --- | --- | --- | --- |
+| Web cabinet visual oracle | `server/src/Lucky5.Api/wwwroot` | Static ASP.NET-hosted HTML/CSS/JS served by `Program.cs`; `index.html` loads `game.css?v=17`, vnext cabinet CSS `?v=2`, v8 CSS `?v=3`/`?v=5`, SignalR CDN, `game-config.js?v=5`, and `game.js?v=24`. Asset count from audit: 1 HTML, 8 CSS, 14 JS, 89 PNG, 1 TTF, 1 MP3. | Canonical playable visual reference. Godot must reproduce this cabinet feel first. |
+| Capacitor Android web mirror | `mobile/www` plus `mobile/android` | `mobile/package.json` names `lucky5-mobile` `0.1.0` with Capacitor `^8.2.0`; `mobile/www` is a copied web bundle with 1 HTML, 6 CSS, 6 JS, 89 PNG, 1 MP3. | Packaging/mirror reference only. Not the visual oracle because it can lag `wwwroot` and currently has fewer v8/cabinet JS/CSS files. |
+| Next/React web prototype | `src/web` | `src/web/package.json` names `lucky5-web` `0.1.0`, Next `15.3.0`, React `^19.0.0`; key files include `components/lucky5-cabinet.tsx`, `app/globals.css`, `lib/api.ts`, and `models/DoubleUpViewModel.ts`. | Historical/prototype frontend. Useful for UI ideas and TS API typing only; do not treat as cabinet oracle. |
+| Flutter client | `client` | `client/pubspec.yaml` names `lucky5_client` `0.1.0+1`, Dart SDK `>=3.4.0 <4.0.0`, `http`, `signalr_netcore`, Firebase, notifications, wakelock. | Mobile/client reference for API models and SignalR usage. Not a replacement for the web cabinet oracle. |
+| Active Godot cabinet project | `godot/cabinet` | Godot project `config_version=5`, project name `Lucky5 Cabinet`, feature `4.6`, main scene `res://scenes/CabinetRoot.tscn`, viewport `720x1280`, renderer `mobile`; contains fixture `classic_snapshot.json` and GDScript cabinet scripts. | Target migration project. Current behavior is a presentation slice/fixture path, not authoritative gameplay. |
+| Earlier Godot scratch project | `lucky-5-v-7-godot` | Godot project `Lucky5-v7-Godot`, feature `4.6`, plugin `godot_symbol_search`, minimal files. | Scratch/reference only; do not build new migration work here unless explicitly reassigned. |
+| Double-up remediation artifact | `lucky5-doubleup-remediation` | Contains `double-up-remediation.diff`, memory notes, and a partial `src/web` tree. | Forensic/remediation context only. Do not treat as current frontend. |
+| AI9Poker extracted APK reference | `ai9poker` | Decompiled APK/export with `root/assets/flutter_assets`, Android resources, smali, libapp bundles, and extracted images/fonts/sound. | Asset and protocol reference only. Do not copy gameplay logic, payout, RNG, hand evaluation, or settlement behavior. |
+
+Frontend routing decisions:
+
+- `server/src/Lucky5.Api/wwwroot` is the only Phase 0 visual oracle.
+- `mobile/www` can confirm asset parity and provides a repaired `10C.png`, but
+  it is a mirror rather than the canonical source.
+- `ai9poker/root/assets/flutter_assets/assets` can fill missing asset evidence
+  and inspire presentation affordances, but Lucky5 contract names and backend
+  authority rules win over AI9Poker runtime names.
+- `src/web`, `client`, and both Godot projects are implementation references,
+  not sources of game truth.
 
 ## Player-Facing Surface Catalog
 
@@ -60,6 +93,48 @@ is explicitly reconciled back into this package.
 | Active round recovery | `GET /api/Game/machine/{id}/active-round` restores a dealt, drawn, or double-up round after refresh. | Reconnect must hydrate from snapshot or replay before controls are enabled. |
 | Error | Web writes errors to auth, wallet/admin sections, or `#game-message`; hub `Error` is console-only today. | Godot needs a visible cabinet error/recovery overlay for transport, stale state, and command rejection. |
 | Offline/reconnect | No dedicated blocking offline overlay exists in the web cabinet. SignalR reconnect rejoins the machine; REST commands may still be attempted. | Godot must show a blocking recovery overlay, disable gameplay commands, and reconcile by sequence/state before resuming. |
+
+### Cabinet State Machine Inventory
+
+These states are the required Godot-facing inventory of cabinet states discovered
+from the web oracle, current backend surfaces, and the contract needs above.
+
+| State | Entry evidence | Allowed player input | Exit condition |
+| --- | --- | --- | --- |
+| `boot_loading` | `#asset-loader`, `cabinet-image-cache.js`, static asset preload. | None except app/system back if supported. | Required assets and first runtime config are loaded, or `asset_load_error`. |
+| `asset_load_error` | Loader failure text in `#loader-text`. | Retry/close only. | Retry succeeds or player exits. |
+| `auth_login` | `#auth-screen`, `doLogin`. | Username/password, signup toggle. | Login token/profile accepted, then lobby bootstrap. |
+| `auth_signup` | Auth toggle, `doSignup`, hard-coded web OTP compatibility path. | Username/password/signup flow. | Signup plus OTP verification compatibility completes, then login/lobby; real onboarding should replace hard-coded OTP. |
+| `lobby_loading` | `loadAvailableMachines()`, reward/profile refresh. | Logout/back only; machine cards disabled while stale. | Machine list/profile/reward data rendered or recoverable error shown. |
+| `lobby_ready` | `#lobby-screen` with machine grid and wallet summary. | Select open machine, wallet, admin if role allows, reward claim, logout. | Machine selected, wallet/admin opened, logout, or transport recovery. |
+| `wallet` | `#wallet-screen`, `MemberHistory`. | Back to lobby; deposit/withdraw currently disabled. | Back to lobby or auth/recovery failure. |
+| `admin` | `#admin-screen`, admin users/machines APIs. | Search/refresh/users credit/reset where role allows. | Back to lobby or auth/recovery failure. |
+| `machine_joining` | Web invokes hub `JoinMachine(machineId)` then `initGame`. | Mutating cabinet controls disabled. | Join/snapshot/session fetch succeeds, or join error/recovery. |
+| `idle_no_session` | Web messages like `CASH IN FROM MENU`. | Menu, cash in, bet selector only if backend permits. | Cash-in/session fetch creates machine session. |
+| `idle_ready` | Cards/backing, paytable, credit/stake, `PRESS DEAL` or `PLACE YOUR BET`. | Deal, bet change, jackpot rank change, menu/cash-out if safe. | Deal accepted, cash-out/menu action, disconnect, or error. |
+| `cash_in_pending` | Menu prompt posts `machine/{id}/cash-in`. | No additional mutating command; amount dialog can cancel before submit. | Session response applied or error shown. |
+| `cash_out_pending` | Menu posts `machine/{id}/cash-out`. | No gameplay controls. | Session response applied; if unresolved round exists, command rejected and snapshot/recovery required. |
+| `deal_pending` | `Deal` REST/hub command. | No gameplay controls; cosmetic deal anticipation only. | Deal result/snapshot arrives, or timeout enters recovery. |
+| `dealt_hold_select` | Dealt cards with advised holds, local `holdIndexes`. | Hold/cancel hold/draw/menu only as backend `buttons` allow. | Draw accepted, clear/cancel holds, recovery, or command rejection. |
+| `draw_pending` | `Draw` REST/hub command with held indexes. | No gameplay controls. | Draw result/snapshot arrives. |
+| `draw_result_loss` | `NO WIN` and post-loss idle title delay. | None until backend buttons re-enable idle controls. | Idle snapshot/render delay completes. |
+| `draw_result_win` | Win amount, paytable highlight, double-up availability. | Take score, take half, double-up start, menu if safe. | Double-up starts, win collected, or recovery. |
+| `double_up_start_pending` | `double-up/start`. | No double-up choices yet. | Dealer card/current amount returned. |
+| `double_up_choice` | Dealer card plus Big/Small/Switch/Take controls. | Big, Small, Switch, Take Half, Take Score as backend permits. | Guess/switch/take command accepted. |
+| `double_up_reveal_pending` | Guess sent, reveal pacing active. | No double-up choices while locked. | Result event/snapshot arrives. |
+| `double_up_win` | Status `Win`, current amount, trail update. | Continue choice after backend/presentation delay, take options. | Next choice, take score/half, machine close, or recovery. |
+| `double_up_lucky5_safe` | `Lucky5`, `SafeFail`, `isNoLoseActive`, flash banner. | Continue/take options only after backend state is applied. | Next double-up state or collection. |
+| `double_up_loss` | Status `Lose`, drain/exit delay. | None until backend returns idle buttons. | Idle snapshot/render delay completes. |
+| `take_half_pending` | `double-up/take-half`. | No double-up/game controls. | Remaining win applied; return to win/double-up choice or idle. |
+| `take_score_pending` | `double-up/cashout`. | No gameplay controls. | Credits/session applied; if machine closes, transition through machine closed/cash-out. |
+| `machine_closed` | Status `MachineClosed`, close messages, cash-out attempt. | New gameplay disabled; cash-out/recovery only. | Cash-out/session cleanup completes or recovery. |
+| `menu_overlay` | `#menu-panel`. | Non-mutating close/back; mutating entries gated by state and backend. | Close menu or command submitted. |
+| `notification_notice` | Firebase foreground banner/bonus notices. | Acknowledge/claim depending notice. | Notice dismissed or claim result applied. |
+| `command_rejected` | HTTP bad request or hub `Error`. | Retry only when backend marks retryable; otherwise snapshot recovery. | Snapshot applied, auth restored, or fatal error. |
+| `offline` | Transport unavailable before first connection or after hard loss. | Gameplay disabled; logout/back if non-mutating. | Authenticated reconnect starts. |
+| `reconnecting` | SignalR automatic reconnect or Godot connection state. | Gameplay disabled. | `reconnect_sync` plus replay/snapshot completes, or `recovery_required`. |
+| `recovery_required` | Sequence gap, stale command, heartbeat timeout, lost command result. | Gameplay disabled; blocking overlay. | Full snapshot or replay applied and authoritative buttons available. |
+| `fatal_error` | Unrecoverable auth/config/schema mismatch. | Logout/restart/support only. | New session/app restart. |
 
 ### Overlays, Modals, And Notices
 
@@ -169,6 +244,61 @@ Asset inventory:
 - Card images under `assets/images/cards/` for card codes and `bside.png`.
 - Sound: `assets/sounds/press.mp3`.
 
+### Production Asset Catalog And Decisions
+
+Inventory evidence from the 2026-05-04 audit:
+
+- `server/src/Lucky5.Api/wwwroot/assets`: 1 font, 89 PNG files, 1 MP3.
+- `ai9poker/root/assets/flutter_assets/assets`: exported Flutter asset root with
+  Lucky5-compatible images, card sheets/files, fonts, `press.mp3`, and additional
+  UI artwork. Count: 96 PNG, 30 SVG, 3 GIF, 7 TTF, 1 MP3, and one `.gitkeep`.
+- `mobile/www/assets`: web mirror with 89 PNG files and `press.mp3`; unlike the
+  current `wwwroot` oracle, its card set contains a non-zero `10C.png`.
+- Full APK extraction `ai9poker`: 339 PNG, 30 SVG, 10 WEBP, 3 GIF, 8 TTF, 1 OTF,
+  1 MP3, plus Android framework resources and compiled bundles. Android system
+  drawables/resources are not Lucky5 cabinet assets.
+- Only zero-byte Lucky5 cabinet asset found in the visual oracle is
+  `server/src/Lucky5.Api/wwwroot/assets/images/cards/10C.png`. The full APK
+  extraction also has zero-byte `ai9poker.gpr` and the Flutter asset `.gitkeep`,
+  which are not cabinet runtime assets.
+
+Preferred asset decisions:
+
+| Asset group | Preferred source | Preferred files | Decision and rationale |
+| --- | --- | --- | --- |
+| Card fronts | `server/src/Lucky5.Api/wwwroot/assets/images/cards` except `10C.png` | 52 current non-zero card fronts, dimensions `313x528`. | Use current web oracle card art for parity. Repair `10C.png` from `mobile/www/assets/images/cards/10C.png` or `ai9poker/root/assets/flutter_assets/assets/images/cards/10C.png`, both non-zero `313x528`, before Godot import validation. |
+| Card back | `server/src/Lucky5.Api/wwwroot/assets/images/cards/bside.png` | `bside.png`, `313x528`, 280967 bytes. | Canonical current card back. APK and mobile copies match; keep web oracle as source path. |
+| Optional hold card back | `ai9poker/root/assets/flutter_assets/assets/images/holdbside.png` | `holdbside.png`, 661817 bytes. | Useful reference for an explicit held-card presentation, but not preferred for Phase 0 because the web oracle uses badges/button state over a separate held card back. |
+| Button deck | `server/src/Lucky5.Api/wwwroot/assets/images` | `hold_off/on`, `cancel_hold/_on`, `deal_draw/_on`, `bet/_on`, `big/_on`, `small/_on`, `take_half/_on`, `take_score/_on`, all `1024x1536`. | Preferred. These are the large retro cabinet buttons visible in the web oracle. Duplicate `assets/images/buttons/*` copies are byte/dimension matches and may be used for organized import if the manifest points back to the oracle. |
+| Menu button | Web CSS plus optional APK icon reference | CSS dark circular menu button; APK `images/menu.png` is 1890 bytes. | Prefer reproducing the CSS dark utility button in Godot. APK `menu.png` is a small icon reference, not the oracle control. |
+| Cabinet board/background | `server/src/Lucky5.Api/wwwroot/assets/images/board.png` plus CSS chrome | `board.png`, `1024x1024`; cabinet frame/CRT/shine from CSS. | Preferred for board texture. Godot must also port CSS chrome/wood/black frame, CRT glow, scanlines, reflections, and v8 quality effects as presentation materials/shaders. |
+| Splash/logo | `server/src/Lucky5.Api/wwwroot/assets/images` | `splash.png` `390x844`, `lucky5.png` `313x528`, `coin.png` `1024x1024`. | Preferred for loader, lobby, favicon/coin, and cabinet branding. APK/mobile copies can verify parity but are not authoritative. |
+| Lobby/support wallet artwork | `ai9poker/root/assets/flutter_assets/assets/images` | `machine2.png`, `machine21.png`, `treasurecoins.gif`, `treasureempty.gif`, `img_wallet.png`, `img_currency_bag*.png`, `img_support*.svg`, `whatsapp.svg`. | Reference only. These can inspire future lobby/wallet polish, but Phase 0 keeps the web cabinet and existing lobby shell as oracle. Do not import as required Godot gameplay assets yet. |
+| Suit vector icons | `ai9poker/root/assets/flutter_assets/assets/images` | `club.svg`, `diamond.svg`, `heart.svg`, `spade.svg`. | Reference only. Current card fronts are raster PNG and should remain preferred. Vectors may help debug/placeholders but are not a source of card truth. |
+| Fonts | `server/src/Lucky5.Api/wwwroot/assets/fonts/ARCADE.ttf`; optional browser font from Google `Press Start 2P`; APK reference fonts | `ARCADE.ttf` 27700 bytes; APK also has `Impact.ttf`, Inter family, Material Icons, LineAwesome. | Preferred cabinet font is `ARCADE.ttf` plus web CSS fallback behavior. Inter/Impact/Material icons are UI/reference fonts only and should not replace the retro cabinet identity. |
+| Sound | `server/src/Lucky5.Api/wwwroot/assets/sounds/press.mp3` | `press.mp3`, 6144 bytes. | Preferred and only approved sound today. APK copy matches path/content role. Missing named event sounds remain a gap; do not synthesize or invent them. |
+
+Card set audit:
+
+| Source | Card PNG count | Zero-byte files | Missing expected files | Decision |
+| --- | ---: | --- | --- | --- |
+| `server/src/Lucky5.Api/wwwroot/assets/images/cards` | 53 | `10C.png` | none | Preferred set after repairing `10C.png`. |
+| `ai9poker/root/assets/flutter_assets/assets/images/cards` | 53 | none | none | Approved candidate source for the `10C.png` repair and parity comparison. |
+| `mobile/www/assets/images/cards` | 53 | none | none | Also approved candidate source for the `10C.png` repair because it mirrors Lucky5 assets and has the non-zero file. |
+
+APK asset notes:
+
+- The exported Flutter root includes top-level `images/ACX.png`, `ADX.png`,
+  `AHX.png`, and `ASX.png` plus `bonus.png`/`free.png`. These appear to be
+  presentation or special-card variants, not replacements for the canonical
+  `cards/` deck.
+- Android `resources/package_1/res/drawable-*` contains framework icons,
+  notification backgrounds, Google sign-in images, and app shell drawables. Do
+  not treat these as Lucky5 cabinet assets unless a later task proves a direct
+  cabinet use.
+- `ai9poker` compiled bundles and smali are reference/forensic material only;
+  no game logic or math should be ported from them.
+
 Card asset catalog:
 
 - Back: `bside.png`.
@@ -197,6 +327,22 @@ Known asset risks:
 All web cabinet API calls use `GAME_CONFIG.api.baseUrl`, bearer auth from local
 storage when available, and an `ApiResponse<T>` envelope from the backend unless
 the endpoint is static content.
+
+Auth model from `server/src/Lucky5.Api/Program.cs` and controller helpers:
+
+- Bearer tokens are accepted from the `Authorization: Bearer <token>` header or
+  `access_token` query string.
+- Token validation sets `ClaimTypes.NameIdentifier` and `ClaimTypes.Role` on
+  `HttpContext.User`; there is no ASP.NET `[Authorize]` attribute gate in these
+  controllers today.
+- User-protected endpoints call `HttpContext.RequireUserId()`; admin endpoints
+  call `HttpContext.RequireAdminRole()`.
+- `POST /api/Auth/login`, `POST /api/Auth/signup`, `POST /api/Auth/verify-otp`,
+  `POST /api/Auth/resend-otp`, `GET /api/config/firebase`, and public general
+  read endpoints do not call those helpers.
+- `GET /api/config/firebase` returns a plain object, not `ApiResponse<T>`.
+
+### Cabinet And Web-Used Endpoint Catalog
 
 | Surface | Method and path | Request body used by web | Response data shape | Godot contract decision |
 | --- | --- | --- | --- | --- |
@@ -232,6 +378,82 @@ the endpoint is static content.
 | Admin credit | `POST /api/Admin/users/credit` | `{ targetUserId, amount, reason }` | user/credit result | Admin-only. |
 | Admin machines | `GET /api/Admin/machines` | none | `AdminMachineDto[]` | Admin-only. |
 | Admin reset | `POST /api/Admin/machines/{machineId}/reset` | none | message/envelope | Admin-only. |
+
+### Full Current Backend API Surface
+
+This table includes endpoints beyond the current web cabinet calls so Godot can
+avoid accidental shadow dependencies.
+
+| Area | Method and path | Auth requirement in code | Response/envelope | Godot migration decision |
+| --- | --- | --- | --- | --- |
+| Auth | `POST /api/Auth/login` | Public | `ApiResponse<object>` with `{ tokens, profile }` | Keep for session bootstrap. |
+| Auth | `POST /api/Auth/signup` | Public | `ApiResponse<MemberProfileDto>` | Optional onboarding; do not preserve hard-coded web phone/OTP behavior. |
+| Auth | `POST /api/Auth/verify-otp` | Public | `ApiResponse<object>` with `{ verified: true }` | Optional onboarding. |
+| Auth | `POST /api/Auth/resend-otp` | Public | `ApiResponse<object>` with `{ resent: true }` | Optional onboarding. |
+| Auth/profile | `GET /api/Auth/GetUserById` | User token | `ApiResponse<MemberProfileDto>` | Keep until cabinet snapshot includes all profile/balance fields. |
+| Auth/history | `GET /api/Auth/MemberHistory` | User token | `ApiResponse<WalletLedgerEntryDto[]>` | Wallet/history only. |
+| Wallet/admin | `POST /api/Auth/TransferBalance` | Admin token | `ApiResponse<WalletLedgerEntryDto>` | Admin/back-office only; not Godot cabinet play. |
+| Wallet | `POST /api/Auth/MoveWinToBalance` | User token | `ApiResponse<WalletLedgerEntryDto>` | Legacy wallet movement; cabinet should prefer authoritative game/session command results. |
+| Wallet/admin | `POST /api/Auth/UpdateCredit` | Admin token | `ApiResponse<WalletLedgerEntryDto>` | Admin/back-office only. |
+| Wallet | `POST /api/Auth/Deposit` | User token | `ApiResponse<WalletLedgerEntryDto>` | Current wallet shell has disabled deposit; do not expose as cabinet gameplay. |
+| Wallet | `POST /api/Auth/Withdraw` | User token | `ApiResponse<WalletLedgerEntryDto>` | Current wallet shell has disabled withdraw; do not expose as cabinet gameplay. |
+| Auth | `POST /api/Auth/logout` | Token optional in code; uses `access_token` item if present | `ApiResponse<object>` | Godot should call when token exists, then clear local session. |
+| Config | `GET /api/config/firebase` | Public | Plain `{ configured, config? }` | Web push setup only; optional/no-op for Godot. |
+| Game/lobby | `GET /api/Game/machines` and `GET /api/Game/games/machines` | Public in code | `ApiResponse<MachineListingDto[]>` | Keep for lobby/machine selection; auth may still be enforced later. |
+| Game/rules | `GET /api/Game/rules` and `GET /api/Game/defaultRules` | Public in code | `ApiResponse<DefaultRulesDto>` | Display/reference only; variant definition is stronger for Godot presentation metadata. |
+| Machine/session | `GET /api/Game/machine/{machineId}/session` | User token | `ApiResponse<MachineSessionDto>` | Keep as compatibility session seed until snapshot covers it. |
+| Machine/session | `POST /api/Game/machine/{machineId}/cash-in` | User token | `ApiResponse<MachineSessionDto>` | Map to `CabinetCommand` `cash_in`. |
+| Machine/session | `POST /api/Game/machine/{machineId}/cash-out` | User token | `ApiResponse<MachineSessionDto>` | Map to `cash_out`; backend blocks unsafe unresolved rounds. |
+| Round recovery | `GET /api/Game/active-round/{machineId}` and `GET /api/Game/machine/{machineId}/active-round` | User token | `ApiResponse<ActiveRoundStateDto?>` | Compatibility refresh only; Godot should prefer snapshot/replay. |
+| Cabinet snapshot | `GET /api/Game/machine/{machineId}/cabinet-snapshot` | User token | `ApiResponse<CabinetSnapshotDto>` | Existing seed; must be promoted to schema-defined `CabinetSnapshot`. |
+| Gameplay | `POST /api/Game/deal` and `POST /api/Game/cards/deal` | User token | `ApiResponse<DealResultDto>` | Map to `CabinetCommand` `deal`; no optimistic client math. |
+| Gameplay | `POST /api/Game/draw` and `POST /api/Game/cards/draw` | User token | `ApiResponse<DrawResultDto>` | Map to `draw`; holds submitted in payload. |
+| Double-up | `POST /api/Game/double-up/start` | User token | `ApiResponse<DoubleUpResultDto>` | Map to `double_up_start`. |
+| Double-up | `POST /api/Game/double-up/guess` | User token | `ApiResponse<DoubleUpResultDto>` | Map to `double_up_guess`. |
+| Double-up | `POST /api/Game/double-up/switch` | User token | `ApiResponse<DoubleUpResultDto>` | Map to `double_up_switch`. |
+| Double-up | `POST /api/Game/double-up/take-half` | User token | `ApiResponse<DoubleUpResultDto>` | Map to `take_half`. |
+| Double-up | `POST /api/Game/double-up/cashout` | User token | `ApiResponse<DoubleUpResultDto>` | Map to `take_score`, distinct from machine `cash_out`. |
+| Machine/debug | `GET /api/Game/machine/{id}/state` | Public in code | Plain object | Debug/legacy state; Godot should prefer snapshot and treat this as compatibility only. |
+| Jackpot | `POST /api/Game/jackpot/rank` | Public in code today | `ApiResponse<JackpotInfoDto>` | Must become an ordered, backend-authorized command before Godot relies on it. |
+| Machine/admin-ish | `POST /api/Game/machine/{machineId}/reset` | User token; service may apply role/session checks | `ApiResponse<object>` | Maintenance/admin command only; normal Godot cabinet should not expose to players. |
+| Admin/users | `GET /api/Admin/users` | Admin token | `ApiResponse<AdminUserDto[]>` | Admin-only. |
+| Admin/users | `GET /api/Admin/users/search?q=...` | Admin token | `ApiResponse<AdminUserDto[]>` | Admin-only. |
+| Admin/users | `GET /api/Admin/users/{userId}` | Admin token | `ApiResponse<AdminUserDto>` | Admin-only. |
+| Admin/users | `POST /api/Admin/users/credit` | Admin token | `ApiResponse<WalletLedgerEntryDto>` | Admin-only credit adjustment. |
+| Admin/machines | `GET /api/Admin/machines` | Admin token | `ApiResponse<AdminMachineDto[]>` | Admin-only operations console. |
+| Admin/machines | `GET /api/Admin/machines/{machineId}` | Admin token | `ApiResponse<AdminMachineDto>` | Admin-only operations console. |
+| Admin/machines | `POST /api/Admin/machines/{machineId}/reset` | Admin token | `ApiResponse<AdminMachineDto>` | Admin-only maintenance command. |
+| Admin/machines | `POST /api/Admin/machines/{machineId}/door-state` | Admin token | `ApiResponse<DoorState>` | Admin-only cabinet operations; can inform future operator UI, not player Godot. |
+| Admin/reward | `POST /api/Admin/users/recharge-bonus` | Admin token | `ApiResponse<WalletLedgerEntryDto>` | Admin-only. |
+| Agent/admin | `GET /api/Agent` | Admin token | `ApiResponse<AgentDto[]>` | Back-office only; no route suffix on `[HttpGet]`. |
+| Agent/admin | `POST /api/Agent` | Admin token | `ApiResponse<AgentDto>` | Back-office only; no route suffix on `[HttpPost]`. |
+| Agent/admin | `POST /api/Agent/{agentId}/load-credit` | Admin token | `ApiResponse<AgentDto>` | Back-office only. |
+| Agent/admin | `POST /api/Agent/{agentId}/assign-user/{userId}` | Admin token | `ApiResponse<object>` | Back-office only. |
+| General | `GET /api/General/app-settings` | Public | `ApiResponse<IReadOnlyDictionary<string,string>>` | Optional shell/config display. |
+| General | `GET /api/General/contact-info` | Public | `ApiResponse<IReadOnlyDictionary<string,string>>` | Optional support screen. |
+| General | `GET /api/General/contact-types` | Public | `ApiResponse<ContactTypeDto[]>` | Optional support screen. |
+| General | `POST /api/General/contact-report` | User token | `ApiResponse<object>` | Optional support flow; not gameplay. |
+| General | `GET /api/General/terms` | Public | `ApiResponse<TermsResponseDto>` | Legal/info display only. |
+| Reward | `GET /api/Reward/status` | User token | `ApiResponse<BonusStatusDto>` | Optional lobby banner. |
+| Reward | `POST /api/Reward/claim` | User token | `ApiResponse<BonusClaimResultDto>` | Optional lobby command; never gameplay settlement. |
+| Notification | `POST /api/Notification/register-device` | User token | `ApiResponse<object>` | Web/mobile push only; Godot platform-specific decision later. |
+
+API gaps found by this audit:
+
+- `GAME_CONFIG.api.wallet` points at `/api/Auth/wallet`, but no matching
+  controller route exists in this checkout.
+- Current API extraction must include no-route attributes such as
+  `[HttpGet]`/`[HttpPost]` on `AgentController`; otherwise `/api/Agent` can be
+  missed by route audits.
+- Several routes are public in controller code because they do not call
+  `RequireUserId()`/`RequireAdminRole()` (`Game/machines`, `Game/rules`,
+  `Game/machine/{id}/state`, `Game/jackpot/rank`). Godot must not rely on that
+  remaining public in production; contract docs should mark authority separately
+  from current helper placement.
+- There is no unified REST endpoint or hub method accepting the schema-defined
+  `CabinetCommand` envelope.
+- `GET /api/Game/machine/{machineId}/cabinet-snapshot` exists, but its DTO is a
+  legacy seed shape rather than `cabinet.v1` schema output.
 
 Current local-only actions that need server-visible equivalents or snapshot
 reflection for Godot:
@@ -689,17 +911,18 @@ Production activation rules:
 
 ## Phase 0 Open Gaps
 
-- Add a JSON-only command endpoint or hub envelope that accepts
-  `CabinetCommand`.
-- Promote `GET /api/Game/machine/{machineId}/cabinet-snapshot` from its legacy
-  seed DTO to the schema-defined `CabinetSnapshot` shape.
-- Make cabinet `state_version` monotonic or otherwise document its ordering
-  guarantees separately from `sequence_number`.
-- Add a replay buffer or explicitly standardize snapshot-only reconnect.
-- Replace web prompts/confirms with structured command payloads for Godot.
-- Repair the zero-byte `10C.png` card asset before Godot import validation.
-- Add the missing jackpot sound or remove the stale reference.
-- Expose visible hub error/recovery state to clients.
+| Gap | Current evidence | Required follow-up | Owner area |
+| --- | --- | --- | --- |
+| Unified command transport | REST uses method-specific endpoints and hub uses method-specific methods; no surface accepts schema `CabinetCommand`. | Add a JSON-only REST endpoint or hub envelope that accepts and validates `CabinetCommand`, returns `CabinetCommandResult`, and preserves idempotency. | Backend contracts/realtime |
+| Snapshot schema mismatch | `GET /api/Game/machine/{machineId}/cabinet-snapshot` returns legacy `CabinetSnapshotDto` with flat `session_id`, `ui_hints`, `timestamp`, and `schema_version: "v1"`. | Promote the endpoint to schema-defined `CabinetSnapshot` or add a named compatibility adapter until promotion lands. | Backend contracts + Godot adapter |
+| Version/sequence authority | Current snapshot derives `sequence_number` from `state_version`; hub events do not carry monotonic sequence numbers. | Make `state_version` and `sequence_number` backend-owned monotonic fields with documented ordering semantics. | Backend authority/realtime |
+| Replay buffer | `ReconnectSync(int machineId)` only emits current `MachineStateUpdated`; no replay store exists. | Add replay buffer or formally standardize snapshot-only reconnect for `cabinet.v1`; until then Godot must always fetch/apply a full snapshot after reconnect. | Backend realtime/recovery |
+| Prompt/confirm flows | Web uses browser prompt/confirm/alert for cash-in, reset, logout, and admin credit. | Replace with structured Godot dialog states and command payloads. | Godot presentation |
+| Asset integrity | Oracle card set has zero-byte `assets/images/cards/10C.png`; mobile and APK copies are non-zero. | Repair `10C.png` from `mobile/www` or `ai9poker/root/assets/flutter_assets/assets` before Godot import validation. | Assets/build |
+| Sound pack completeness | Only approved sound is `press.mp3`; any jackpot/win sound references are not backed by approved files in the oracle. | Add governed sound assets or remove stale references; do not synthesize gameplay sounds in Phase 0. | Assets/presentation |
+| Visible hub recovery | Web logs hub `Error` to console and has no blocking offline/reconnect overlay. | Expose visible recovery/error overlay and command-disable behavior in Godot. | Godot presentation/realtime adapter |
+| Public helper placement | Some game routes are public in code because they do not call `RequireUserId()`/`RequireAdminRole()`. | Centralize or explicitly document auth requirements before production Godot relies on those routes. | Backend auth/API |
+| API audit tooling | Simple route extraction can miss `[HttpGet]`/`[HttpPost]` without route suffixes, as on `AgentController`. | Keep route catalog generation aware of no-route HTTP attributes and aliases. | Tooling/docs |
 
 ## Non-Goals
 

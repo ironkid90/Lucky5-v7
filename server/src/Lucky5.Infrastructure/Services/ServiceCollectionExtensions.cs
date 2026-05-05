@@ -108,6 +108,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IGameService, GameService>();
         services.AddScoped<IAdminService, AdminService>();
+        services.AddSingleton<IAdminAuditService, AdminAuditService>();
+        services.AddSingleton<ICabinetDeviceAuthService, CabinetDeviceAuthService>();
         services.AddScoped<IGeneralService, GeneralService>();
         services.AddScoped<IRewardService, RewardService>();
         services.AddSingleton<INotificationService, FirebaseNotificationService>();

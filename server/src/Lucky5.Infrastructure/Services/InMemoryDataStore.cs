@@ -18,8 +18,13 @@ public sealed class InMemoryDataStore
     public readonly ConcurrentDictionary<Guid, GameRound> ActiveRounds = new();
     public readonly ConcurrentDictionary<string, CabinetCommandRecord> CabinetCommandRecords = new(StringComparer.OrdinalIgnoreCase);
     public readonly ConcurrentDictionary<string, CabinetStateCursor> CabinetStateCursors = new(StringComparer.OrdinalIgnoreCase);
+    public readonly ConcurrentDictionary<Guid, CabinetDevice> CabinetDevices = new();
+    public readonly ConcurrentDictionary<Guid, CabinetDeviceSession> CabinetDeviceSessions = new();
     public readonly ConcurrentBag<WalletLedgerEntry> Ledger = new();
+    public readonly ConcurrentQueue<AdminAuditRecord> AdminAuditRecords = new();
     public readonly object LedgerSync = new();
+    public readonly object AdminAuditSync = new();
+    public long AdminAuditSequence;
 
     // Legacy properties for compatibility
     public ConcurrentDictionary<Guid, User> Users { get; } = new();

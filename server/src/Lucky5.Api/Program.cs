@@ -125,6 +125,16 @@ app.Use(async (context, next) =>
             context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Lucky5Bearer"));
             context.Items["access_token"] = accessToken;
         }
+        else
+        {
+            var cabinetAuthService = context.RequestServices.GetRequiredService<ICabinetDeviceAuthService>();
+            var cabinetDevice = await cabinetAuthService.ValidateAccessTokenAsync(accessToken, context.RequestAborted);
+            if (cabinetDevice is not null)
+            {
+                context.Items["access_token"] = accessToken;
+                context.Items["cabinet_device"] = cabinetDevice;
+            }
+        }
     }
 
     await next();

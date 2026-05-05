@@ -1,6 +1,7 @@
 namespace Lucky5.Api.Models;
 
 using System.Security.Claims;
+using Lucky5.Application.Contracts;
 
 public static class HttpContextExtensions
 {
@@ -25,5 +26,15 @@ public static class HttpContextExtensions
         }
 
         return userId;
+    }
+
+    public static CabinetDeviceAuthContext RequireCabinetDevice(this HttpContext context)
+    {
+        if (context.Items.TryGetValue("cabinet_device", out var value) && value is CabinetDeviceAuthContext device)
+        {
+            return device;
+        }
+
+        throw new UnauthorizedAccessException("Cabinet device authentication required");
     }
 }

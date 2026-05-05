@@ -2,6 +2,7 @@ var failures = new List<string>();
 
 await Lucky5.Tests.ReplayTests.RunAsync(failures);
 await Lucky5.Tests.CabinetCommandIntegrityTests.RunAsync(failures);
+await Lucky5.Tests.AdminAuditAndCabinetDeviceTests.RunAsync(failures);
 await Lucky5.Tests.GameServiceRegressionTests.RunAsync(failures);
 await Lucky5.Tests.CleanRoomEngineTests.RunAsync(failures);
 await Lucky5.Tests.FrontendRegressionTests.RunAsync(failures);

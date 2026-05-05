@@ -179,4 +179,68 @@ public class InMemoryDataStoreAdapter : IDataStore
 
         return Task.CompletedTask;
     }
+
+    public Task<CabinetCommandRecord?> GetCabinetCommandRecordAsync(Guid userId, Guid commandId, string idempotencyKey)
+    {
+        var commandKey = BuildCommandKey(userId, commandId, idempotencyKey);
+        if (!_store.CabinetCommandRecords.TryGetValue(commandKey, out var record))
+        {
+            record = _store.CabinetCommandRecords.Values.FirstOrDefault(candidate =>
+                candidate.UserId == userId
+                && (candidate.CommandId == commandId || string.Equals(candidate.IdempotencyKey, idempotencyKey, StringComparison.Ordinal)));
+        }
+
+        return Task.FromResult(record);
+    }
+
+    public Task SaveCabinetCommandRecordAsync(CabinetCommandRecord record)
+    {
+        lock (_store.LedgerSync)
+        {
+            _store.CabinetCommandRecords[BuildCommandKey(record.UserId, record.CommandId, record.IdempotencyKey)] = record;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<CabinetStateCursor> GetOrInitializeCabinetStateCursorAsync(Guid userId, int machineId)
+    {
+        var cursorKey = BuildCursorKey(userId, machineId);
+        var cursor = _store.CabinetStateCursors.GetOrAdd(cursorKey, _ => new CabinetStateCursor
+        {
+            UserId = userId,
+            MachineId = machineId
+        });
+
+        return Task.FromResult(cursor);
+    }
+
+    public Task<CabinetStateCursor> AdvanceCabinetStateCursorAsync(Guid userId, int machineId)
+    {
+        lock (_store.LedgerSync)
+        {
+            var cursorKey = BuildCursorKey(userId, machineId);
+            if (!_store.CabinetStateCursors.TryGetValue(cursorKey, out var cursor))
+            {
+                cursor = new CabinetStateCursor
+                {
+                    UserId = userId,
+                    MachineId = machineId
+                };
+                _store.CabinetStateCursors[cursorKey] = cursor;
+            }
+
+            cursor.StateVersion++;
+            cursor.SequenceNumber++;
+            cursor.UpdatedUtc = DateTime.UtcNow;
+
+            return Task.FromResult(cursor);
+        }
+    }
+
+    private static string BuildCommandKey(Guid userId, Guid commandId, string idempotencyKey)
+        => $"{userId:N}:{commandId:N}:{idempotencyKey}";
+
+    private static string BuildCursorKey(Guid userId, int machineId)
+        => $"{userId:N}:{machineId}";
 }

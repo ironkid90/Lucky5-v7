@@ -171,4 +171,55 @@ public class EfCoreDataStore : IDataStore
         _context.WalletLedgers.Add(entry);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<CabinetCommandRecord?> GetCabinetCommandRecordAsync(Guid userId, Guid commandId, string idempotencyKey)
+    {
+        return await _context.CabinetCommandRecords
+            .FirstOrDefaultAsync(record => record.UserId == userId
+                && (record.CommandId == commandId || record.IdempotencyKey == idempotencyKey));
+    }
+
+    public async Task SaveCabinetCommandRecordAsync(CabinetCommandRecord record)
+    {
+        var existing = await GetCabinetCommandRecordAsync(record.UserId, record.CommandId, record.IdempotencyKey);
+        if (existing is null)
+        {
+            _context.CabinetCommandRecords.Add(record);
+        }
+        else
+        {
+            _context.Entry(existing).CurrentValues.SetValues(record);
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<CabinetStateCursor> GetOrInitializeCabinetStateCursorAsync(Guid userId, int machineId)
+    {
+        var cursor = await _context.CabinetStateCursors.FindAsync(userId, machineId);
+        if (cursor is not null)
+        {
+            return cursor;
+        }
+
+        cursor = new CabinetStateCursor
+        {
+            UserId = userId,
+            MachineId = machineId
+        };
+        _context.CabinetStateCursors.Add(cursor);
+        await _context.SaveChangesAsync();
+        return cursor;
+    }
+
+    public async Task<CabinetStateCursor> AdvanceCabinetStateCursorAsync(Guid userId, int machineId)
+    {
+        var cursor = await GetOrInitializeCabinetStateCursorAsync(userId, machineId);
+        cursor.StateVersion++;
+        cursor.SequenceNumber++;
+        cursor.UpdatedUtc = DateTime.UtcNow;
+        _context.CabinetStateCursors.Update(cursor);
+        await _context.SaveChangesAsync();
+        return cursor;
+    }
 }

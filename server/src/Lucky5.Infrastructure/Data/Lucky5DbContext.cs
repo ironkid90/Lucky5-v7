@@ -19,6 +19,8 @@ public class Lucky5DbContext : DbContext
     public DbSet<MachineLedgerState> MachineLedgers => Set<MachineLedgerState>();
     public DbSet<GameRound> GameRounds => Set<GameRound>();
     public DbSet<WalletLedgerEntry> WalletLedgers => Set<WalletLedgerEntry>();
+    public DbSet<CabinetCommandRecord> CabinetCommandRecords => Set<CabinetCommandRecord>();
+    public DbSet<CabinetStateCursor> CabinetStateCursors => Set<CabinetStateCursor>();
     public DbSet<Offer> Offers => Set<Offer>();
     public DbSet<ContactType> ContactTypes => Set<ContactType>();
     public DbSet<ContactReport> ContactReports => Set<ContactReport>();
@@ -161,6 +163,23 @@ public class Lucky5DbContext : DbContext
             entity.Property(e => e.BalanceAfter).HasPrecision(18, 2);
             entity.Property(e => e.TransactionType).HasMaxLength(50).IsRequired();
             entity.Property(e => e.ReferenceId).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<CabinetCommandRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.UserId, e.CommandId, e.IdempotencyKey }).IsUnique();
+            entity.Property(e => e.IdempotencyKey).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.RequestHash).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.CommandType).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ResultJson).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<CabinetStateCursor>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.MachineId });
+            entity.Property(e => e.UpdatedUtc).IsConcurrencyToken();
         });
 
         // Seed Data for Machines

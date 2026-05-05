@@ -80,6 +80,20 @@ public class GameController(IGameService gameService) : ControllerBase
         return Ok(ApiResponse<CabinetSnapshotDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
     }
 
+    [HttpPost("cabinet/command")]
+    public async Task<ActionResult<ApiResponse<CabinetCommandResultDto>>> SubmitCabinetCommand([FromBody] CabinetCommandDto command, CancellationToken cancellationToken)
+    {
+        var result = await gameService.SubmitCabinetCommandAsync(UserId, command, cancellationToken);
+        var response = ApiResponse<CabinetCommandResultDto>.Ok(result, traceId: HttpContext.TraceIdentifier);
+
+        return result.Status switch
+        {
+            "stale_state" => Conflict(response),
+            "invalid" or "rejected" or "requires_snapshot" => BadRequest(response),
+            _ => Ok(response)
+        };
+    }
+
     [HttpPost("deal")]
     [HttpPost("cards/deal")]
     public async Task<ActionResult<ApiResponse<DealResultDto>>> Deal([FromBody] DealRequest request, CancellationToken cancellationToken)

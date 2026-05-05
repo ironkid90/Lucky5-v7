@@ -31,4 +31,9 @@ public interface IDataStore
     Task SaveRoundAsync(GameRound round);
 
     Task AddWalletLedgerEntryAsync(WalletLedgerEntry entry);
+
+    Task<CabinetCommandRecord?> GetCabinetCommandRecordAsync(Guid userId, Guid commandId, string idempotencyKey);
+    Task SaveCabinetCommandRecordAsync(CabinetCommandRecord record);
+    Task<CabinetStateCursor> GetOrInitializeCabinetStateCursorAsync(Guid userId, int machineId);
+    Task<CabinetStateCursor> AdvanceCabinetStateCursorAsync(Guid userId, int machineId);
 }

@@ -16,6 +16,8 @@ public sealed class InMemoryDataStore
     public readonly ConcurrentDictionary<Guid, MachineSessionState> MachineSessions = new();
     public readonly ConcurrentDictionary<int, MachineLedgerState> MachineLedgers = new();
     public readonly ConcurrentDictionary<Guid, GameRound> ActiveRounds = new();
+    public readonly ConcurrentDictionary<string, CabinetCommandRecord> CabinetCommandRecords = new(StringComparer.OrdinalIgnoreCase);
+    public readonly ConcurrentDictionary<string, CabinetStateCursor> CabinetStateCursors = new(StringComparer.OrdinalIgnoreCase);
     public readonly ConcurrentBag<WalletLedgerEntry> Ledger = new();
     public readonly object LedgerSync = new();
 

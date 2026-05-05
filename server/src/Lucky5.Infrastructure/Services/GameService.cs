@@ -1,5 +1,10 @@
 namespace Lucky5.Infrastructure.Services;
 
+using System.Collections.Concurrent;
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Lucky5.Application.Contracts;
 using Lucky5.Application.Dtos;
 using Lucky5.Application.Requests;
@@ -13,6 +18,11 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
     private const decimal MaxSessionCashIn = 1_000_000m;
     private static readonly EngineConfig EngineCfg = EngineConfig.Default;
     private static readonly decimal MachineCloseCredits = EngineCfg.CloseThreshold;
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> CabinetCommandLocks = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly JsonSerializerOptions CabinetJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = true
+    };
     private static readonly IReadOnlyList<OfferDto> DefaultOffers =
     [
         new(1, "Welcome Bonus", "First deposit bonus", 10),
@@ -867,7 +877,8 @@ return guessResult;
             CardTrail: doubleUpSession?.CardTrail ?? []);
 
         var enabledButtons = BuildCabinetEnabledButtons(gameState, cards.Count, session);
-        var stateVersion = BuildCabinetStateVersion(session, ledger, activeRound);
+        var cursor = await store.GetOrInitializeCabinetStateCursorAsync(userId, machineId);
+        var stateVersion = cursor.StateVersion;
         var jackpot = SnapshotJackpots(ledger);
 
         return new CabinetSnapshotDto(
@@ -902,8 +913,590 @@ return guessResult;
                 BonusMessage: string.Empty,
                 IdleTitleVisible: gameState == "idle"),
             Timestamp: DateTime.UtcNow,
-            SequenceNumber: stateVersion);
+            SequenceNumber: cursor.SequenceNumber);
     }
+
+    public async Task<CabinetCommandResultDto> SubmitCabinetCommandAsync(Guid userId, CabinetCommandDto command, CancellationToken cancellationToken)
+    {
+        if (command is null)
+            throw new ArgumentNullException(nameof(command));
+
+        var lockKey = BuildCabinetCommandLockKey(userId, command.MachineId);
+        var commandLock = CabinetCommandLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+        await commandLock.WaitAsync(cancellationToken);
+
+        try
+        {
+            if (!TryValidateCabinetCommand(command, out var validationError))
+            {
+                return await BuildCabinetCommandRejectionAsync(userId, command, "invalid", validationError!, includeSnapshot: false, cancellationToken);
+            }
+
+            var requestHash = ComputeCabinetCommandHash(command);
+            var existing = await store.GetCabinetCommandRecordAsync(userId, command.CommandId, command.IdempotencyKey);
+            if (existing is not null)
+            {
+                if (!string.Equals(existing.RequestHash, requestHash, StringComparison.Ordinal))
+                {
+                    return await BuildCabinetCommandRejectionAsync(
+                        userId,
+                        command,
+                        "rejected",
+                        new CabinetCommandErrorDto("IDEMPOTENCY_CONFLICT", "The command id or idempotency key was already used with different command content.", false),
+                        includeSnapshot: true,
+                        cancellationToken);
+                }
+
+                var cached = JsonSerializer.Deserialize<CabinetCommandResultDto>(existing.ResultJson, CabinetJsonOptions);
+                if (cached is null)
+                {
+                    return await BuildCabinetCommandRejectionAsync(
+                        userId,
+                        command,
+                        "requires_snapshot",
+                        new CabinetCommandErrorDto("COMMAND_REPLAY_UNAVAILABLE", "The cached command result could not be replayed; apply the returned snapshot before retrying with a new command.", false),
+                        includeSnapshot: true,
+                        cancellationToken);
+                }
+
+                return cached with
+                {
+                    Status = "duplicate",
+                    ServerTimeUtc = DateTime.UtcNow
+                };
+            }
+
+            var currentCursor = await store.GetOrInitializeCabinetStateCursorAsync(userId, command.MachineId);
+            if (RequiresExpectedStateVersion(command.CommandType) && command.ExpectedStateVersion != currentCursor.StateVersion)
+            {
+                var stale = await BuildCabinetCommandRejectionAsync(
+                    userId,
+                    command,
+                    "stale_state",
+                    new CabinetCommandErrorDto("STALE_STATE", "Command expected a stale cabinet state version. Apply the returned snapshot and issue a new command.", false),
+                    includeSnapshot: true,
+                    cancellationToken);
+
+                await SaveCabinetCommandRecordAsync(userId, command, requestHash, stale);
+                return stale;
+            }
+
+            var sessionMismatch = await HasCabinetSessionMismatchAsync(userId, command);
+            if (sessionMismatch)
+            {
+                var rejected = await BuildCabinetCommandRejectionAsync(
+                    userId,
+                    command,
+                    "requires_snapshot",
+                    new CabinetCommandErrorDto("SESSION_MISMATCH", "Command session does not match the authoritative machine session. Apply the returned snapshot before issuing a new command.", false),
+                    includeSnapshot: true,
+                    cancellationToken);
+
+                await SaveCabinetCommandRecordAsync(userId, command, requestHash, rejected);
+                return rejected;
+            }
+
+            try
+            {
+                await ExecuteCabinetCommandAsync(userId, command, cancellationToken);
+                CabinetStateCursor cursor;
+                if (MutatesCabinetState(command.CommandType))
+                {
+                    cursor = await store.AdvanceCabinetStateCursorAsync(userId, command.MachineId);
+                }
+                else
+                {
+                    cursor = await store.GetOrInitializeCabinetStateCursorAsync(userId, command.MachineId);
+                }
+
+                var snapshot = await GetCabinetSnapshotAsync(userId, command.MachineId, cancellationToken);
+                var accepted = new CabinetCommandResultDto(
+                    MessageType: "cabinet_command_result",
+                    SchemaVersion: "cabinet.v1",
+                    CommandId: command.CommandId,
+                    IdempotencyKey: command.IdempotencyKey,
+                    Accepted: true,
+                    Status: "accepted",
+                    StateVersion: cursor.StateVersion,
+                    SequenceNumber: cursor.SequenceNumber,
+                    ServerTimeUtc: DateTime.UtcNow,
+                    Snapshot: snapshot,
+                    Event: null,
+                    Error: null);
+
+                await SaveCabinetCommandRecordAsync(userId, command, requestHash, accepted);
+                return accepted;
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or KeyNotFoundException)
+            {
+                var rejected = await BuildCabinetCommandRejectionAsync(
+                    userId,
+                    command,
+                    "rejected",
+                    new CabinetCommandErrorDto("COMMAND_REJECTED", ex.Message, false),
+                    includeSnapshot: true,
+                    cancellationToken);
+
+                await SaveCabinetCommandRecordAsync(userId, command, requestHash, rejected);
+                return rejected;
+            }
+        }
+        finally
+        {
+            commandLock.Release();
+        }
+    }
+
+    private static bool TryValidateCabinetCommand(CabinetCommandDto command, out CabinetCommandErrorDto? error)
+    {
+        error = null;
+
+        if (!string.IsNullOrWhiteSpace(command.MessageType)
+            && !string.Equals(command.MessageType, "cabinet_command", StringComparison.OrdinalIgnoreCase))
+        {
+            error = new CabinetCommandErrorDto("INVALID_MESSAGE_TYPE", "Cabinet commands must use message_type 'cabinet_command'.", false);
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(command.SchemaVersion) || !IsSupportedCabinetSchemaVersion(command.SchemaVersion))
+        {
+            error = new CabinetCommandErrorDto("INVALID_SCHEMA_VERSION", "Cabinet command schema_version must be 'cabinet.v1'.", false);
+            return false;
+        }
+
+        if (command.CommandId == Guid.Empty)
+        {
+            error = new CabinetCommandErrorDto("INVALID_COMMAND_ID", "Cabinet command_id must be a non-empty UUID.", false);
+            return false;
+        }
+
+        if (command.MachineId <= 0)
+        {
+            error = new CabinetCommandErrorDto("INVALID_MACHINE", "Cabinet command machine_id must be greater than zero.", false);
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(command.IdempotencyKey)
+            || command.IdempotencyKey.Length < 8
+            || command.IdempotencyKey.Length > 128)
+        {
+            error = new CabinetCommandErrorDto("INVALID_IDEMPOTENCY_KEY", "Cabinet command idempotency_key must be 8 to 128 characters.", false);
+            return false;
+        }
+
+        if (command.ExpectedStateVersion < 0)
+        {
+            error = new CabinetCommandErrorDto("INVALID_STATE_VERSION", "Cabinet command expected_state_version must be zero or greater.", false);
+            return false;
+        }
+
+        if (command.ClientSequenceNumber < 0)
+        {
+            error = new CabinetCommandErrorDto("INVALID_CLIENT_SEQUENCE", "Cabinet command client_sequence_number must be zero or greater.", false);
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(command.CommandType) || !IsKnownCabinetCommandType(command.CommandType))
+        {
+            error = new CabinetCommandErrorDto("INVALID_COMMAND_TYPE", $"Unsupported cabinet command_type '{command.CommandType}'.", false);
+            return false;
+        }
+
+        if (command.Payload is null)
+        {
+            error = new CabinetCommandErrorDto("INVALID_PAYLOAD", "Cabinet command payload is required.", false);
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task<bool> HasCabinetSessionMismatchAsync(Guid userId, CabinetCommandDto command)
+    {
+        if (command.SessionId is null)
+        {
+            return false;
+        }
+
+        var session = await store.GetMachineSessionAsync(userId, command.MachineId);
+        return session is not null && session.SessionId != command.SessionId.Value;
+    }
+
+    private async Task ExecuteCabinetCommandAsync(Guid userId, CabinetCommandDto command, CancellationToken cancellationToken)
+    {
+        var type = NormalizeCabinetCommandType(command.CommandType);
+        switch (type)
+        {
+            case "cash_in":
+                await CashInAsync(userId, command.MachineId, GetRequiredDecimalPayload(command.Payload, "amount"), cancellationToken);
+                return;
+
+            case "cash_out":
+                await CashOutAsync(userId, command.MachineId, cancellationToken);
+                return;
+
+            case "deal":
+                await DealAsync(userId, new DealRequest(command.MachineId, GetRequiredDecimalPayload(command.Payload, "bet_amount")), cancellationToken);
+                return;
+
+            case "draw":
+                await DrawAsync(userId, new DrawRequest(GetRequiredGuidPayload(command.Payload, "round_id"), GetRequiredIntArrayPayload(command.Payload, "hold_indexes")), cancellationToken);
+                return;
+
+            case "double_up_start":
+                await StartDoubleUpAsync(userId, GetRequiredGuidPayload(command.Payload, "round_id"), cancellationToken);
+                return;
+
+            case "double_up_guess":
+                await GuessDoubleUpAsync(userId, GetRequiredGuidPayload(command.Payload, "round_id"), GetRequiredStringPayload(command.Payload, "guess"), cancellationToken);
+                return;
+
+            case "double_up_switch":
+                await SwitchDealerAsync(userId, GetRequiredGuidPayload(command.Payload, "round_id"), cancellationToken);
+                return;
+
+            case "take_half":
+                await TakeHalfAsync(userId, GetRequiredGuidPayload(command.Payload, "round_id"), cancellationToken);
+                return;
+
+            case "take_score":
+                await CashoutDoubleUpAsync(userId, GetRequiredGuidPayload(command.Payload, "round_id"), cancellationToken);
+                return;
+
+            case "jackpot_rank_change":
+                await ChangeJackpotRankAsync(command.MachineId, GetRequiredIntPayload(command.Payload, "rank"), cancellationToken);
+                return;
+
+            case "reset_machine":
+                await ResetMachineAsync(userId, command.MachineId, cancellationToken);
+                return;
+
+            case "join_machine":
+                await GetMachineSessionAsync(userId, command.MachineId, cancellationToken);
+                return;
+
+            case "leave_machine":
+            case "heartbeat":
+            case "reconnect_sync":
+                await RequireMachineAsync(command.MachineId);
+                return;
+
+            default:
+                throw new InvalidOperationException($"Cabinet command '{command.CommandType}' is not yet backed by an authoritative server action.");
+        }
+    }
+
+    private async Task<CabinetCommandResultDto> BuildCabinetCommandRejectionAsync(
+        Guid userId,
+        CabinetCommandDto command,
+        string status,
+        CabinetCommandErrorDto error,
+        bool includeSnapshot,
+        CancellationToken cancellationToken)
+    {
+        var cursor = await GetCabinetCursorOrDefaultAsync(userId, command.MachineId);
+        CabinetSnapshotDto? snapshot = null;
+        if (includeSnapshot && command.MachineId > 0)
+        {
+            try
+            {
+                snapshot = await GetCabinetSnapshotAsync(userId, command.MachineId, cancellationToken);
+                cursor = new CabinetStateCursor
+                {
+                    UserId = userId,
+                    MachineId = command.MachineId,
+                    StateVersion = snapshot.StateVersion,
+                    SequenceNumber = snapshot.SequenceNumber
+                };
+            }
+            catch
+            {
+                snapshot = null;
+            }
+        }
+
+        return new CabinetCommandResultDto(
+            MessageType: "cabinet_command_result",
+            SchemaVersion: "cabinet.v1",
+            CommandId: command.CommandId,
+            IdempotencyKey: command.IdempotencyKey ?? string.Empty,
+            Accepted: false,
+            Status: status,
+            StateVersion: cursor.StateVersion,
+            SequenceNumber: cursor.SequenceNumber,
+            ServerTimeUtc: DateTime.UtcNow,
+            Snapshot: snapshot,
+            Event: null,
+            Error: error);
+    }
+
+    private async Task SaveCabinetCommandRecordAsync(Guid userId, CabinetCommandDto command, string requestHash, CabinetCommandResultDto result)
+    {
+        await store.SaveCabinetCommandRecordAsync(new CabinetCommandRecord
+        {
+            UserId = userId,
+            CommandId = command.CommandId,
+            IdempotencyKey = command.IdempotencyKey,
+            RequestHash = requestHash,
+            CommandType = NormalizeCabinetCommandType(command.CommandType),
+            MachineId = command.MachineId,
+            SessionId = command.SessionId,
+            ExpectedStateVersion = command.ExpectedStateVersion,
+            Accepted = result.Accepted,
+            Status = result.Status,
+            StateVersion = result.StateVersion,
+            SequenceNumber = result.SequenceNumber,
+            ResultJson = JsonSerializer.Serialize(result, CabinetJsonOptions),
+            CreatedUtc = DateTime.UtcNow,
+            CompletedUtc = DateTime.UtcNow
+        });
+    }
+
+    private async Task<CabinetStateCursor> GetCabinetCursorOrDefaultAsync(Guid userId, int machineId)
+    {
+        if (machineId <= 0)
+        {
+            return new CabinetStateCursor { UserId = userId, MachineId = machineId };
+        }
+
+        return await store.GetOrInitializeCabinetStateCursorAsync(userId, machineId);
+    }
+
+    private static string ComputeCabinetCommandHash(CabinetCommandDto command)
+    {
+        var canonical = new SortedDictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["schema_version"] = NormalizeCabinetSchemaVersion(command.SchemaVersion),
+            ["command_id"] = command.CommandId.ToString("D"),
+            ["command_type"] = NormalizeCabinetCommandType(command.CommandType),
+            ["session_id"] = command.SessionId?.ToString("D"),
+            ["machine_id"] = command.MachineId,
+            ["expected_state_version"] = command.ExpectedStateVersion,
+            ["idempotency_key"] = command.IdempotencyKey,
+            ["client_sequence_number"] = command.ClientSequenceNumber,
+            ["payload"] = NormalizePayload(command.Payload)
+        };
+
+        var json = JsonSerializer.Serialize(canonical, CabinetJsonOptions);
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(json));
+        return Convert.ToHexString(bytes);
+    }
+
+    private static IReadOnlyDictionary<string, object?> NormalizePayload(IReadOnlyDictionary<string, object?> payload)
+    {
+        var normalized = new SortedDictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var (key, value) in payload)
+        {
+            normalized[key] = NormalizePayloadValue(value);
+        }
+
+        return normalized;
+    }
+
+    private static object? NormalizePayloadValue(object? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (value is JsonElement element)
+        {
+            return NormalizeJsonElement(element);
+        }
+
+        if (value is decimal dec)
+        {
+            return dec.ToString(CultureInfo.InvariantCulture);
+        }
+
+        if (value is double dbl)
+        {
+            return dbl.ToString("R", CultureInfo.InvariantCulture);
+        }
+
+        if (value is float flt)
+        {
+            return flt.ToString("R", CultureInfo.InvariantCulture);
+        }
+
+        if (value is int or long or short or byte or bool or string or Guid)
+        {
+            return value is Guid guid ? guid.ToString("D") : value;
+        }
+
+        if (value is IEnumerable<int> ints)
+        {
+            return ints.ToArray();
+        }
+
+        if (value is IEnumerable<object?> objects && value is not string)
+        {
+            return objects.Select(NormalizePayloadValue).ToArray();
+        }
+
+        return value.ToString();
+    }
+
+    private static object? NormalizeJsonElement(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.Object => element.EnumerateObject()
+                .OrderBy(property => property.Name, StringComparer.Ordinal)
+                .ToDictionary(property => property.Name, property => NormalizeJsonElement(property.Value), StringComparer.Ordinal),
+            JsonValueKind.Array => element.EnumerateArray().Select(NormalizeJsonElement).ToArray(),
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number => element.TryGetDecimal(out var dec) ? dec.ToString(CultureInfo.InvariantCulture) : element.GetRawText(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            _ => element.GetRawText()
+        };
+    }
+
+    private static decimal GetRequiredDecimalPayload(IReadOnlyDictionary<string, object?> payload, string key)
+    {
+        var value = GetRequiredPayloadValue(payload, key);
+        return value switch
+        {
+            decimal dec => dec,
+            int i => i,
+            long l => l,
+            double dbl => Convert.ToDecimal(dbl, CultureInfo.InvariantCulture),
+            float flt => Convert.ToDecimal(flt, CultureInfo.InvariantCulture),
+            string s when decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) => parsed,
+            JsonElement element when element.ValueKind == JsonValueKind.Number && element.TryGetDecimal(out var parsed) => parsed,
+            JsonElement element when element.ValueKind == JsonValueKind.String && decimal.TryParse(element.GetString(), NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) => parsed,
+            _ => throw new InvalidOperationException($"Cabinet command payload '{key}' must be a decimal value.")
+        };
+    }
+
+    private static int GetRequiredIntPayload(IReadOnlyDictionary<string, object?> payload, string key)
+    {
+        var value = GetRequiredPayloadValue(payload, key);
+        return value switch
+        {
+            int i => i,
+            long l when l >= int.MinValue && l <= int.MaxValue => (int)l,
+            decimal dec => Decimal.ToInt32(dec),
+            string s when int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) => parsed,
+            JsonElement element when element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var parsed) => parsed,
+            JsonElement element when element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) => parsed,
+            _ => throw new InvalidOperationException($"Cabinet command payload '{key}' must be an integer value.")
+        };
+    }
+
+    private static Guid GetRequiredGuidPayload(IReadOnlyDictionary<string, object?> payload, string key)
+    {
+        var value = GetRequiredPayloadValue(payload, key);
+        return value switch
+        {
+            Guid guid => guid,
+            string s when Guid.TryParse(s, out var parsed) => parsed,
+            JsonElement element when element.ValueKind == JsonValueKind.String && Guid.TryParse(element.GetString(), out var parsed) => parsed,
+            _ => throw new InvalidOperationException($"Cabinet command payload '{key}' must be a UUID value.")
+        };
+    }
+
+    private static string GetRequiredStringPayload(IReadOnlyDictionary<string, object?> payload, string key)
+    {
+        var value = GetRequiredPayloadValue(payload, key);
+        return value switch
+        {
+            string s when !string.IsNullOrWhiteSpace(s) => s,
+            JsonElement element when element.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(element.GetString()) => element.GetString()!,
+            _ => throw new InvalidOperationException($"Cabinet command payload '{key}' must be a non-empty string value.")
+        };
+    }
+
+    private static int[] GetRequiredIntArrayPayload(IReadOnlyDictionary<string, object?> payload, string key)
+    {
+        var value = GetRequiredPayloadValue(payload, key);
+        return value switch
+        {
+            int[] ints => ints,
+            IEnumerable<int> ints => ints.ToArray(),
+            JsonElement element when element.ValueKind == JsonValueKind.Array => element.EnumerateArray().Select(ReadJsonInt).ToArray(),
+            IEnumerable<object?> objects => objects.Select(ToPayloadInt).ToArray(),
+            _ => throw new InvalidOperationException($"Cabinet command payload '{key}' must be an integer array.")
+        };
+    }
+
+    private static object GetRequiredPayloadValue(IReadOnlyDictionary<string, object?> payload, string key)
+    {
+        if (!payload.TryGetValue(key, out var value) || value is null)
+        {
+            throw new InvalidOperationException($"Cabinet command payload is missing required field '{key}'.");
+        }
+
+        return value;
+    }
+
+    private static int ReadJsonInt(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var parsed))
+        {
+            return parsed;
+        }
+
+        throw new InvalidOperationException("Cabinet command integer array contains a non-integer value.");
+    }
+
+    private static int ToPayloadInt(object? value)
+    {
+        return value switch
+        {
+            int i => i,
+            long l when l >= int.MinValue && l <= int.MaxValue => (int)l,
+            JsonElement element => ReadJsonInt(element),
+            _ => throw new InvalidOperationException("Cabinet command integer array contains a non-integer value.")
+        };
+    }
+
+    private static bool IsSupportedCabinetSchemaVersion(string schemaVersion)
+        => string.Equals(NormalizeCabinetSchemaVersion(schemaVersion), "cabinet.v1", StringComparison.Ordinal);
+
+    private static string NormalizeCabinetSchemaVersion(string schemaVersion)
+    {
+        if (string.IsNullOrWhiteSpace(schemaVersion))
+        {
+            return string.Empty;
+        }
+
+        return string.Equals(schemaVersion, "v1", StringComparison.OrdinalIgnoreCase)
+            ? "cabinet.v1"
+            : schemaVersion.Trim().ToLowerInvariant();
+    }
+
+    private static string NormalizeCabinetCommandType(string commandType)
+        => commandType.Trim().ToLowerInvariant();
+
+    private static bool RequiresExpectedStateVersion(string commandType)
+        => NormalizeCabinetCommandType(commandType) is not ("heartbeat" or "reconnect_sync");
+
+    private static bool MutatesCabinetState(string commandType)
+        => NormalizeCabinetCommandType(commandType) is not ("leave_machine" or "heartbeat" or "reconnect_sync");
+
+    private static bool IsKnownCabinetCommandType(string commandType)
+        => NormalizeCabinetCommandType(commandType) is "cash_in"
+            or "cash_out"
+            or "deal"
+            or "draw"
+            or "double_up_start"
+            or "double_up_guess"
+            or "double_up_switch"
+            or "take_half"
+            or "take_score"
+            or "jackpot_rank_change"
+            or "reset_machine"
+            or "join_machine"
+            or "leave_machine"
+            or "heartbeat"
+            or "reconnect_sync";
+
+    private static string BuildCabinetCommandLockKey(Guid userId, int machineId)
+        => $"{userId:N}:{machineId}";
 
     public async Task<ActiveRoundStateDto?> GetActiveRoundAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
@@ -1266,23 +1859,6 @@ return guessResult;
             UserId = userId,
             MachineId = machineId
         };
-
-    private static long BuildCabinetStateVersion(MachineSessionState session, MachineLedgerState ledger, ActiveRoundStateDto? round)
-    {
-        var sourceTicks = session.LastUpdatedUtc.Ticks ^ ledger.LastRoundUtc.Ticks;
-        if (round is not null)
-        {
-            sourceTicks ^= RoundIdVersionComponent(round.RoundId);
-        }
-
-        return sourceTicks & long.MaxValue;
-    }
-
-    private static long RoundIdVersionComponent(Guid roundId)
-    {
-        var bytes = roundId.ToByteArray();
-        return BitConverter.ToInt64(bytes, 0) ^ BitConverter.ToInt64(bytes, 8);
-    }
 
     private static string BuildCabinetVariantId(Machine machine)
         => machine.MinBet switch

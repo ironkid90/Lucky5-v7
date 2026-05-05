@@ -102,6 +102,8 @@ public sealed record CabinetEventDto(
     DateTime Timestamp);
 
 public sealed record CabinetCommandDto(
+    [property: JsonPropertyName("message_type")]
+    string MessageType,
     [property: JsonPropertyName("schema_version")]
     string SchemaVersion,
     [property: JsonPropertyName("command_id")]
@@ -116,8 +118,38 @@ public sealed record CabinetCommandDto(
     long ExpectedStateVersion,
     [property: JsonPropertyName("idempotency_key")]
     string IdempotencyKey,
+    [property: JsonPropertyName("client_sequence_number")]
+    long ClientSequenceNumber,
+    [property: JsonPropertyName("sent_at_utc")]
+    DateTime SentAtUtc,
     IReadOnlyDictionary<string, object?> Payload,
-    DateTime Timestamp);
+    DateTime? Timestamp = null);
+
+public sealed record CabinetCommandResultDto(
+    [property: JsonPropertyName("message_type")]
+    string MessageType,
+    [property: JsonPropertyName("schema_version")]
+    string SchemaVersion,
+    [property: JsonPropertyName("command_id")]
+    Guid CommandId,
+    [property: JsonPropertyName("idempotency_key")]
+    string IdempotencyKey,
+    bool Accepted,
+    string Status,
+    [property: JsonPropertyName("state_version")]
+    long StateVersion,
+    [property: JsonPropertyName("sequence_number")]
+    long SequenceNumber,
+    [property: JsonPropertyName("server_time_utc")]
+    DateTime ServerTimeUtc,
+    CabinetSnapshotDto? Snapshot = null,
+    CabinetEventDto? Event = null,
+    CabinetCommandErrorDto? Error = null);
+
+public sealed record CabinetCommandErrorDto(
+    string Code,
+    string Message,
+    bool Retryable);
 
 public sealed record VariantDefinitionDto(
     [property: JsonPropertyName("schema_version")]

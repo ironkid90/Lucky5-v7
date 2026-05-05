@@ -2,6 +2,14 @@
 
 This slice starts the Lucky5 cabinet migration without changing backend game authority.
 
+## Reset after verification review
+
+The current post-verification reset and dependency order lives in
+`docs/GODOT_MIGRATION_RESET_DEPENDENCY_MAP_2026-05-05.md`. Use current `main` as
+the implementation baseline. Trashed patches and dirty worktrees are reference
+evidence only; downstream Godot/backend product work must be reimplemented in the
+dependency order defined there.
+
 ## What is in this slice
 
 - `docs/contracts/godot-cabinet/`

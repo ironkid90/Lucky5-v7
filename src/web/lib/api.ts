@@ -3,8 +3,10 @@ import type {
   DefaultRules,
   DoubleUpResult,
   DrawResult,
+  JackpotInfo,
   LoginResult,
   MachineListing,
+  MachineSession,
   MachineState,
   MemberProfile,
   WalletLedgerEntry,
@@ -72,6 +74,22 @@ export async function getDefaultRules(): Promise<DefaultRules> {
 
 export async function getMachineState(machineId: number, token: string): Promise<MachineState> {
   return apiFetch<MachineState>("GET", `/api/Game/machine/${machineId}/state`, token);
+}
+
+export async function getMachineSession(machineId: number, token: string): Promise<MachineSession> {
+  return apiFetch<MachineSession>("GET", `/api/Game/machine/${machineId}/session`, token);
+}
+
+// ── Player-initiated FH-rank switch (cabinet HOLD[0] picker) ──
+// Calls the existing ChangeJackpotRank backend handler. The cabinet gates this
+// client-side on hasPressedBetThisSession + idle phase per the authoritative
+// gameplay reference §4.1.
+export async function switchFhRank(
+  machineId: number,
+  rank: number,
+  token: string,
+): Promise<JackpotInfo> {
+  return apiFetch<JackpotInfo>("POST", "/api/Game/jackpot/rank", token, { machineId, rank });
 }
 
 // ── Core game actions ─────────────────────────────────────────────────────────

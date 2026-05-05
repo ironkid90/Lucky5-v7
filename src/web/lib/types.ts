@@ -11,6 +11,25 @@ export interface JackpotInfo {
   fourOfAKindB: number;
   activeFourOfAKindSlot: number;
   straightFlush: number;
+  // Cabinet-banner identity strings populated by JackpotInfoDto.
+  // Optional on the wire (older builds may omit them).
+  machineSerial?: string | null;
+  machineSerie?: string | null;
+  machineKent?: string | null;
+  // Live KENT counter (0..3). Optional until the Kent detection
+  // backend lands; cabinet falls back to 0 when missing.
+  kentStreak?: number | null;
+}
+
+export interface MachineSession {
+  sessionId: string;
+  machineId: number;
+  machineCredits: number;
+  totalCashIn: number;
+  cashOutThreshold: number;
+  canCashOut: boolean;
+  isMachineClosed: boolean;
+  walletBalance: number;
 }
 
 export interface DealResult {

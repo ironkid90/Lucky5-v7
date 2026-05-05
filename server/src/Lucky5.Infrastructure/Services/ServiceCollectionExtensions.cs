@@ -88,9 +88,9 @@ public static class ServiceCollectionExtensions
         }
 
         services.AddSingleton<PersistenceCoordinator, InMemoryPersistentStateCoordinator>();
+        services.AddHostedService<PersistentStateRecoveryService>();
         services.AddSingleton<PersistentStateCheckpointService>();
         services.AddHostedService(sp => sp.GetRequiredService<PersistentStateCheckpointService>());
-        services.AddHostedService<PersistentStateRecoveryService>();
         
         // Add health checks
         services.AddHealthChecks()

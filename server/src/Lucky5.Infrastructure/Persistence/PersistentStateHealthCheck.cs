@@ -25,6 +25,7 @@ public sealed class PersistentStateHealthCheck : IHealthCheck
         var data = new Dictionary<string, object>
         {
             ["gracefulDegradationEnabled"] = options.Value.GracefulDegradationEnabled,
+            ["checkpointEnabled"] = options.Value.Enabled,
             ["checkpointIntervalSeconds"] = options.Value.CheckpointInterval.TotalSeconds,
             ["lastSuccessfulCheckpointUtc"] = checkpointService.LastSuccessfulCheckpointUtc?.ToString() ?? string.Empty,
             ["lastError"] = checkpointService.LastError ?? string.Empty,

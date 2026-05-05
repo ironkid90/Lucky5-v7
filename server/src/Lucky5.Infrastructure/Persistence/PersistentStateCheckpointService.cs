@@ -34,6 +34,12 @@ public sealed class PersistentStateCheckpointService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!options.Value.Enabled)
+        {
+            logger.LogInformation("Persistent state checkpoint service is disabled by configuration.");
+            return;
+        }
+
         using var timer = new PeriodicTimer(options.Value.CheckpointInterval);
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
@@ -59,5 +65,37 @@ public sealed class PersistentStateCheckpointService : BackgroundService
                 }
             }
         }
+    }
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        if (!options.Value.Enabled)
+        {
+            await base.StopAsync(cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        try
+        {
+            var snapshot = await coordinator.CaptureAsync(cancellationToken).ConfigureAwait(false);
+            await store.SaveAsync(snapshot with { SchemaVersion = PersistentStateSnapshot.CurrentSchemaVersion }, cancellationToken).ConfigureAwait(false);
+            lastSuccessfulCheckpointUtc = DateTimeOffset.UtcNow;
+            lastError = null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            lastError = ex.Message;
+            logger.LogWarning(ex, "Final persistent checkpoint during shutdown failed.");
+
+            if (!options.Value.GracefulDegradationEnabled)
+            {
+                throw;
+            }
+        }
+
+        await base.StopAsync(cancellationToken).ConfigureAwait(false);
     }
 }

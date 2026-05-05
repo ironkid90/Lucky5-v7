@@ -41,8 +41,12 @@ public sealed class RedisPersistentStateStore(
         var snapshot = JsonSerializer.Deserialize<PersistentStateSnapshot>(payload, jsonOptions);
         if (snapshot?.SchemaVersion != PersistentStateSnapshot.CurrentSchemaVersion)
         {
-            logger.LogWarning("Discarding incompatible Redis state snapshot.");
-            return null;
+            logger.LogError(
+                "Schema mismatch in Redis state snapshot: expected {Expected}, found {Found}.",
+                PersistentStateSnapshot.CurrentSchemaVersion,
+                snapshot?.SchemaVersion);
+            throw new InvalidOperationException(
+                $"Schema mismatch: expected {PersistentStateSnapshot.CurrentSchemaVersion}, found {snapshot?.SchemaVersion}.");
         }
 
         return snapshot;
@@ -101,10 +105,7 @@ public sealed class RedisPersistentStateStore(
     }
 
     private DistributedCacheEntryOptions CacheOptions()
-    {
-        var ttl = options.Value.CheckpointInterval * 12;
-        return new DistributedCacheEntryOptions { SlidingExpiration = ttl };
-    }
+        => new();
 
     private string BuildDisplaySnapshotKey(int machineId)
         => $"{options.Value.DisplaySnapshotKeyPrefix}{machineId}";

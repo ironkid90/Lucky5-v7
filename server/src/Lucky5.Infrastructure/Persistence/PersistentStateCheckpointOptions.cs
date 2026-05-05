@@ -7,6 +7,7 @@ public sealed class PersistentStateCheckpointOptions
 
     public TimeSpan CheckpointInterval { get; set; } = DefaultCheckpointInterval;
     public bool GracefulDegradationEnabled { get; set; } = true;
+    public bool Enabled { get; set; } = true;
     public string SnapshotKey { get; set; } = "lucky5:persistent-state:v2";
     public string DisplaySnapshotKeyPrefix { get; set; } = DefaultDisplaySnapshotKeyPrefix;
 }

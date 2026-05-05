@@ -26,8 +26,8 @@ public static class HubTests
     private static async Task GetAvailableMachinesReturnsMachineListAsync(List<string> failures)
     {
         var gameServiceMock = new Mock<IGameService>();
-        var registryMock = new Mock<ConnectionRegistry>();
-        var hub = new CarrePokerGameHub(gameServiceMock.Object, registryMock.Object);
+        var registry = new ConnectionRegistry();
+        var hub = new CarrePokerGameHub(gameServiceMock.Object, registry);
 
         var hubClientsMock = new Mock<IHubCallerClients>();
         var callerMock = new Mock<ISingleClientProxy>();
@@ -35,6 +35,7 @@ public static class HubTests
 
         var hubContextMock = new Mock<HubCallerContext>();
         hubContextMock.Setup(x => x.ConnectionAborted).Returns(CancellationToken.None);
+        hubContextMock.Setup(x => x.Items).Returns(new Dictionary<object, object?> { ["current-machine-id"] = 1 });
 
         var contextProperty = typeof(Hub).GetProperty("Context");
         contextProperty?.SetValue(hub, hubContextMock.Object);
@@ -55,7 +56,7 @@ public static class HubTests
         await hub.GetAvailableMachines(0);
 
         callerMock.Verify(
-            x => x.SendAsync("AvailableMachines", expectedMachines, It.IsAny<CancellationToken>()),
+            x => x.SendCoreAsync("AvailableMachines", It.Is<object[]>(args => args.Length == 1 && ReferenceEquals(args[0], expectedMachines)), It.IsAny<CancellationToken>()),
             Times.Once);
 
         Assert(failures, "GetAvailableMachines should emit AvailableMachines event with machine list", true);
@@ -64,8 +65,8 @@ public static class HubTests
     private static async Task MachineStatusChangedEmittedOnJoinMachineAsync(List<string> failures)
     {
         var gameServiceMock = new Mock<IGameService>();
-        var registryMock = new Mock<ConnectionRegistry>();
-        var hub = new CarrePokerGameHub(gameServiceMock.Object, registryMock.Object);
+        var registry = new ConnectionRegistry();
+        var hub = new CarrePokerGameHub(gameServiceMock.Object, registry);
 
         var hubClientsMock = new Mock<IHubCallerClients>();
         var allMock = new Mock<IClientProxy>();
@@ -85,6 +86,7 @@ public static class HubTests
         }));
         hubContextMock.Setup(x => x.User).Returns(user);
         hubContextMock.Setup(x => x.ConnectionAborted).Returns(CancellationToken.None);
+        hubContextMock.Setup(x => x.Items).Returns(new Dictionary<object, object?> { ["current-machine-id"] = 1 });
 
         var contextProperty = typeof(Hub).GetProperty("Context");
         contextProperty?.SetValue(hub, hubContextMock.Object);
@@ -92,10 +94,13 @@ public static class HubTests
         var clientsProperty = typeof(Hub).GetProperty("Clients");
         clientsProperty?.SetValue(hub, hubClientsMock.Object);
 
+        var groupsProperty = typeof(Hub).GetProperty("Groups");
+        groupsProperty?.SetValue(hub, groupManagerMock.Object);
+
         await hub.JoinMachine(1);
 
         allMock.Verify(
-            x => x.SendAsync("MachineStatusChanged", It.IsAny<object>(), It.IsAny<CancellationToken>()),
+            x => x.SendCoreAsync("MachineStatusChanged", It.Is<object[]>(args => args.Length == 1), It.IsAny<CancellationToken>()),
             Times.Once);
 
         Assert(failures, "JoinMachine should emit MachineStatusChanged event", true);
@@ -104,8 +109,8 @@ public static class HubTests
     private static async Task MachineStatusChangedEmittedOnLeaveMachineAsync(List<string> failures)
     {
         var gameServiceMock = new Mock<IGameService>();
-        var registryMock = new Mock<ConnectionRegistry>();
-        var hub = new CarrePokerGameHub(gameServiceMock.Object, registryMock.Object);
+        var registry = new ConnectionRegistry();
+        var hub = new CarrePokerGameHub(gameServiceMock.Object, registry);
 
         var hubClientsMock = new Mock<IHubCallerClients>();
         var allMock = new Mock<IClientProxy>();
@@ -117,6 +122,7 @@ public static class HubTests
 
         var hubContextMock = new Mock<HubCallerContext>();
         hubContextMock.Setup(x => x.ConnectionAborted).Returns(CancellationToken.None);
+        hubContextMock.Setup(x => x.Items).Returns(new Dictionary<object, object?> { ["machine-id"] = 1 });
 
         var contextProperty = typeof(Hub).GetProperty("Context");
         contextProperty?.SetValue(hub, hubContextMock.Object);
@@ -124,10 +130,13 @@ public static class HubTests
         var clientsProperty = typeof(Hub).GetProperty("Clients");
         clientsProperty?.SetValue(hub, hubClientsMock.Object);
 
+        var groupsProperty = typeof(Hub).GetProperty("Groups");
+        groupsProperty?.SetValue(hub, groupManagerMock.Object);
+
         await hub.LeaveMachine(1);
 
         allMock.Verify(
-            x => x.SendAsync("MachineStatusChanged", It.IsAny<object>(), It.IsAny<CancellationToken>()),
+            x => x.SendCoreAsync("MachineStatusChanged", It.Is<object[]>(args => args.Length == 1), It.IsAny<CancellationToken>()),
             Times.Once);
 
         Assert(failures, "LeaveMachine should emit MachineStatusChanged event", true);
@@ -136,8 +145,8 @@ public static class HubTests
     private static async Task UserStatusChangedEmittedOnConnectAsync(List<string> failures)
     {
         var gameServiceMock = new Mock<IGameService>();
-        var registryMock = new Mock<ConnectionRegistry>();
-        var hub = new CarrePokerGameHub(gameServiceMock.Object, registryMock.Object);
+        var registry = new ConnectionRegistry();
+        var hub = new CarrePokerGameHub(gameServiceMock.Object, registry);
 
         var hubClientsMock = new Mock<IHubCallerClients>();
         var allMock = new Mock<IClientProxy>();
@@ -152,6 +161,7 @@ public static class HubTests
         }));
         hubContextMock.Setup(x => x.User).Returns(user);
         hubContextMock.Setup(x => x.ConnectionAborted).Returns(CancellationToken.None);
+        hubContextMock.Setup(x => x.Items).Returns(new Dictionary<object, object?> { ["machine-id"] = 1 });
         hubContextMock.Setup(x => x.ConnectionId).Returns("test-connection");
 
         var contextProperty = typeof(Hub).GetProperty("Context");
@@ -163,7 +173,7 @@ public static class HubTests
         await hub.OnConnectedAsync();
 
         allMock.Verify(
-            x => x.SendAsync("UserStatusChanged", It.IsAny<object>(), It.IsAny<CancellationToken>()),
+            x => x.SendCoreAsync("UserStatusChanged", It.Is<object[]>(args => args.Length == 1), It.IsAny<CancellationToken>()),
             Times.Once);
 
         Assert(failures, "OnConnectedAsync should emit UserStatusChanged event", true);
@@ -172,8 +182,8 @@ public static class HubTests
     private static async Task UserStatusChangedEmittedOnDisconnectAsync(List<string> failures)
     {
         var gameServiceMock = new Mock<IGameService>();
-        var registryMock = new Mock<ConnectionRegistry>();
-        var hub = new CarrePokerGameHub(gameServiceMock.Object, registryMock.Object);
+        var registry = new ConnectionRegistry();
+        var hub = new CarrePokerGameHub(gameServiceMock.Object, registry);
 
         var hubClientsMock = new Mock<IHubCallerClients>();
         var allMock = new Mock<IClientProxy>();
@@ -188,6 +198,7 @@ public static class HubTests
         }));
         hubContextMock.Setup(x => x.User).Returns(user);
         hubContextMock.Setup(x => x.ConnectionAborted).Returns(CancellationToken.None);
+        hubContextMock.Setup(x => x.Items).Returns(new Dictionary<object, object?>());
         hubContextMock.Setup(x => x.ConnectionId).Returns("test-connection");
 
         var contextProperty = typeof(Hub).GetProperty("Context");
@@ -199,7 +210,7 @@ public static class HubTests
         await hub.OnDisconnectedAsync(null);
 
         allMock.Verify(
-            x => x.SendAsync("UserStatusChanged", It.IsAny<object>(), It.IsAny<CancellationToken>()),
+            x => x.SendCoreAsync("UserStatusChanged", It.Is<object[]>(args => args.Length == 1), It.IsAny<CancellationToken>()),
             Times.Once);
 
         Assert(failures, "OnDisconnectedAsync should emit UserStatusChanged event", true);
@@ -208,8 +219,8 @@ public static class HubTests
     private static async Task BetPlacedEmittedOnDealAsync(List<string> failures)
     {
         var gameServiceMock = new Mock<IGameService>();
-        var registryMock = new Mock<ConnectionRegistry>();
-        var hub = new CarrePokerGameHub(gameServiceMock.Object, registryMock.Object);
+        var registry = new ConnectionRegistry();
+        var hub = new CarrePokerGameHub(gameServiceMock.Object, registry);
 
         var hubClientsMock = new Mock<IHubCallerClients>();
         var callerMock = new Mock<ISingleClientProxy>();
@@ -226,6 +237,7 @@ public static class HubTests
         }));
         hubContextMock.Setup(x => x.User).Returns(user);
         hubContextMock.Setup(x => x.ConnectionAborted).Returns(CancellationToken.None);
+        hubContextMock.Setup(x => x.Items).Returns(new Dictionary<object, object?>());
 
         var contextProperty = typeof(Hub).GetProperty("Context");
         contextProperty?.SetValue(hub, hubContextMock.Object);
@@ -241,7 +253,7 @@ public static class HubTests
         await hub.Deal(1, 1000);
 
         groupClientMock.Verify(
-            x => x.SendAsync("BetPlaced", It.IsAny<object>(), It.IsAny<CancellationToken>()),
+            x => x.SendCoreAsync("BetPlaced", It.Is<object[]>(args => args.Length == 1), It.IsAny<CancellationToken>()),
             Times.Once);
 
         Assert(failures, "Deal should emit BetPlaced event", true);
@@ -250,8 +262,8 @@ public static class HubTests
     private static async Task HoldCardUpdatedEmittedOnDrawAsync(List<string> failures)
     {
         var gameServiceMock = new Mock<IGameService>();
-        var registryMock = new Mock<ConnectionRegistry>();
-        var hub = new CarrePokerGameHub(gameServiceMock.Object, registryMock.Object);
+        var registry = new ConnectionRegistry();
+        var hub = new CarrePokerGameHub(gameServiceMock.Object, registry);
 
         var hubClientsMock = new Mock<IHubCallerClients>();
         var callerMock = new Mock<ISingleClientProxy>();
@@ -268,6 +280,7 @@ public static class HubTests
         }));
         hubContextMock.Setup(x => x.User).Returns(user);
         hubContextMock.Setup(x => x.ConnectionAborted).Returns(CancellationToken.None);
+        hubContextMock.Setup(x => x.Items).Returns(new Dictionary<object, object?> { ["machine-id"] = 1 });
 
         var contextProperty = typeof(Hub).GetProperty("Context");
         contextProperty?.SetValue(hub, hubContextMock.Object);
@@ -283,7 +296,7 @@ public static class HubTests
         await hub.Draw(Guid.NewGuid(), [0, 2]);
 
         groupClientMock.Verify(
-            x => x.SendAsync("HoldCardUpdated", It.IsAny<object>(), It.IsAny<CancellationToken>()),
+            x => x.SendCoreAsync("HoldCardUpdated", It.Is<object[]>(args => args.Length == 1), It.IsAny<CancellationToken>()),
             Times.Once);
 
         Assert(failures, "Draw should emit HoldCardUpdated event", true);
@@ -292,8 +305,8 @@ public static class HubTests
     private static async Task DoubleUpWinEmittedOnDoubleUpAsync(List<string> failures)
     {
         var gameServiceMock = new Mock<IGameService>();
-        var registryMock = new Mock<ConnectionRegistry>();
-        var hub = new CarrePokerGameHub(gameServiceMock.Object, registryMock.Object);
+        var registry = new ConnectionRegistry();
+        var hub = new CarrePokerGameHub(gameServiceMock.Object, registry);
 
         var hubClientsMock = new Mock<IHubCallerClients>();
         var callerMock = new Mock<ISingleClientProxy>();
@@ -308,6 +321,7 @@ public static class HubTests
         }));
         hubContextMock.Setup(x => x.User).Returns(user);
         hubContextMock.Setup(x => x.ConnectionAborted).Returns(CancellationToken.None);
+        hubContextMock.Setup(x => x.Items).Returns(new Dictionary<object, object?>());
 
         var contextProperty = typeof(Hub).GetProperty("Context");
         contextProperty?.SetValue(hub, hubContextMock.Object);
@@ -323,9 +337,9 @@ public static class HubTests
         await hub.DoubleUp(Guid.NewGuid(), "big");
 
         callerMock.Verify(
-            x => x.SendAsync(
+            x => x.SendCoreAsync(
                 "DoubleUpWin",
-                It.Is<DoubleUpResultDto>(dto => dto != null),
+                It.Is<object[]>(args => args.Length == 1 && args[0] is DoubleUpResultDto),
                 It.IsAny<CancellationToken>()),
             Times.Once);
 

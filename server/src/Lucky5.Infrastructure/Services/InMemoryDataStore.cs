@@ -20,10 +20,10 @@ public sealed class InMemoryDataStore
     public readonly object LedgerSync = new();
 
     // Legacy properties for compatibility
-    public Dictionary<Guid, User> Users { get; } = new();
-    public Dictionary<Guid, MemberProfile> MemberProfiles { get; } = new();
-    public List<WalletLedgerEntry> WalletLedger { get; } = new();
-    public Dictionary<string, MachineSessionState> MachineSessionStates { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public ConcurrentDictionary<Guid, User> Users { get; } = new();
+    public ConcurrentDictionary<Guid, MemberProfile> MemberProfiles { get; } = new();
+    public List<WalletLedgerEntry> WalletLedger { get; } = [];
+    public ConcurrentDictionary<string, MachineSessionState> MachineSessionStates { get; } = new(StringComparer.OrdinalIgnoreCase);
     public List<Machine> MachinesList { get; set; } = [];
     public List<Offer> Offers { get; } =
     [

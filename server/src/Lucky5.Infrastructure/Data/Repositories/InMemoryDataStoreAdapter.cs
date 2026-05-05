@@ -37,6 +37,7 @@ public class InMemoryDataStoreAdapter : IDataStore
     public Task UpdateUserAsync(User user)
     {
         _store.Users[user.Id] = user;
+        _store.Profiles[user.Id] = user;
         return Task.CompletedTask;
     }
 
@@ -85,19 +86,32 @@ public class InMemoryDataStoreAdapter : IDataStore
     public Task CreateMachineSessionAsync(MachineSessionState session)
     {
         _store.MachineSessions[session.SessionId] = session;
+        _store.MachineSessionStates[$"{session.UserId:N}:{session.MachineId}"] = session;
         return Task.CompletedTask;
     }
 
     public Task UpdateMachineSessionAsync(MachineSessionState session)
     {
-        session.LastUpdatedUtc = DateTime.UtcNow;
-        _store.MachineSessions[session.SessionId] = session;
+        lock (_store.LedgerSync)
+        {
+            session.LastUpdatedUtc = DateTime.UtcNow;
+            _store.MachineSessions[session.SessionId] = session;
+            _store.MachineSessionStates[$"{session.UserId:N}:{session.MachineId}"] = session;
+        }
+
         return Task.CompletedTask;
     }
 
     public Task DeleteMachineSessionAsync(Guid sessionId)
     {
-        _store.MachineSessions.TryRemove(sessionId, out _);
+        lock (_store.LedgerSync)
+        {
+            if (_store.MachineSessions.TryRemove(sessionId, out var session))
+            {
+                _store.MachineSessionStates.TryRemove($"{session.UserId:N}:{session.MachineId}", out _);
+            }
+        }
+
         return Task.CompletedTask;
     }
 
@@ -111,7 +125,9 @@ public class InMemoryDataStoreAdapter : IDataStore
                 MachineId = machineId,
                 MachineSerial = machine?.MachineSerial ?? string.Empty,
                 MachineSerie = machine?.MachineSerie ?? string.Empty,
-                MachineKent = machine?.MachineKent ?? string.Empty
+                MachineKent = machine?.MachineKent ?? string.Empty,
+                TargetRtp = Lucky5.Domain.Game.CleanRoom.EngineConfig.Default.TargetRtp,
+                LastPayoutScale = Lucky5.Domain.Game.CleanRoom.EngineConfig.Default.DefaultPayoutScale
             };
             _store.MachineLedgers[machineId] = ledger;
         }
@@ -120,7 +136,11 @@ public class InMemoryDataStoreAdapter : IDataStore
 
     public Task UpdateMachineLedgerAsync(MachineLedgerState ledger)
     {
-        _store.MachineLedgers[ledger.MachineId] = ledger;
+        lock (_store.LedgerSync)
+        {
+            _store.MachineLedgers[ledger.MachineId] = ledger;
+        }
+
         return Task.CompletedTask;
     }
 
@@ -141,7 +161,11 @@ public class InMemoryDataStoreAdapter : IDataStore
 
     public Task SaveRoundAsync(GameRound round)
     {
-        _store.ActiveRounds[round.RoundId] = round;
+        lock (_store.LedgerSync)
+        {
+            _store.ActiveRounds[round.RoundId] = round;
+        }
+
         return Task.CompletedTask;
     }
 
@@ -150,7 +174,9 @@ public class InMemoryDataStoreAdapter : IDataStore
         lock (_store.LedgerSync)
         {
             _store.Ledger.Add(entry);
+            _store.WalletLedger.Add(entry);
         }
+
         return Task.CompletedTask;
     }
 }

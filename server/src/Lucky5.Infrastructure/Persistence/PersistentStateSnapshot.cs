@@ -12,6 +12,7 @@ public sealed record PersistentStateSnapshot
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     public DateTimeOffset CapturedUtc { get; init; } = DateTimeOffset.UtcNow;
+    public IReadOnlyList<Machine> Machines { get; init; } = Array.Empty<Machine>();
     public IReadOnlyList<User> Users { get; init; } = Array.Empty<User>();
     public IReadOnlyList<MemberProfile> Profiles { get; init; } = Array.Empty<MemberProfile>();
     public IReadOnlyList<MachineSessionState> MachineSessions { get; init; } = Array.Empty<MachineSessionState>();

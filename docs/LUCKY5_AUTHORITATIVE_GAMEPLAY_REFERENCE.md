@@ -121,28 +121,58 @@ This file is the canonical reference for:
 
 **Transition on DEAL:** the middle FH card is *replaced* by the dealt card; it does **not** persist or stack.
 
+### 4.1 Player-initiated FH-rank switch (top-left HOLD button)
+
+The player may **rotate the armed Full House rank to any rank 2..A at the start of a round**, subject to the following gate:
+
+- The player must have pressed `BET` **at least once** in the current session (so the machine has taken the first round of credits and is no longer in a "fresh" lockout state).
+- Once that gate is open, pressing the **top-left HOLD button (HOLD[0])** while the cabinet is `idle` (no active dealt board) opens an FH-rank picker.
+- Selecting a rank updates `MachineLedgerState.JackpotFullHouseRank`, the rotating middle-slot card, and the `[FULL HOUSE]` paytable highlight.
+- The switch is free (no credit cost). It only works pre-deal; once cards are dealt for the round, HOLD[0] reverts to its normal hold-card-1 function.
+
+**Rationale:** the player can target a Full House rank they think they are about to hit (e.g., the player has been seeing lots of Kings on draws) without waiting for the machine's automatic rotation (which only happens after an FH jackpot is paid out).
+
+**Backend mapping:** reuse the existing `ChangeJackpotRankAsync(machineId, rank)` (currently exposed admin-side in `GameService.cs`). Add a player-callable endpoint `POST /api/Game/switch-fh-rank { machineId, rank }` that:
+
+- requires the player's session for that machine,
+- requires `MachineSession.HasPressedBetThisSession == true`,
+- forbids switching while an active dealt round exists,
+- delegates to the same ledger-mutation path.
+
 ---
 
 ## 5. Kent Counter — Sequentially-Ordered Straights
 
-**This is a unique Lucky5 mechanic that earlier specs got wrong.**
+**This is a unique Lucky5 mechanic. Earlier specs (and this doc, before 2026-05-05) got the reset and direction rules wrong. The rules below are authoritative and supersede any earlier description.**
 
 A normal straight (e.g., `5♥ 7♣ 4♠ 6♦ 3♣`) pays the standard `STRAIGHT` row.
 
-A **Kent** is a straight where the cards are dealt in **sequential positional order on the board**, e.g., slot 1 = 2, slot 2 = 3, slot 3 = 4, slot 4 = 5, slot 5 = 6 (ascending) — the cards must already be in order in their slots without any rearrangement.
+A **Kent** is a straight where the **5 cards in the slots are in sequential positional order** — either **ascending** (`2,3,4,5,6` left→right) **or descending** (`6,5,4,3,2` left→right). Either direction qualifies. The cards must be in order in their slots **without any rearrangement**.
 
-- Each Kent increments `KENT /3` counter.
-- 3 Kents in a row → **Kent jackpot** (`MachineLedgerState.JackpotKent`, currently shown as `35,000,000` at the time of capture, but value rotates with rank-tagging).
-- The counter **resets if a non-Kent round breaks the streak** (exact reset rule must be confirmed against current `Lucky5.Domain` Kent logic — but the visual shows `/3` denominator, meaning 3 in a row = jackpot).
+### 5.1 Detection rules
 
-**Backend mapping required:**
+- Evaluated on the **initial dealt 5 cards** (`GameRound.InitialCards`), before any HOLD/DRAW cycle. Draw replacements do not retro-actively trigger Kent.
+- **Direction:** ascending OR descending — both qualify.
+- The hand must also be a valid `Straight` (handles wheel `A,2,3,4,5` only when slots present them in that exact order; the high-Ace wheel `5,4,3,2,A` is **not** a Kent because A is positionally out of sequence).
+- The FH-rank switch (§4.1) is a pre-deal action and does not affect Kent evaluation either way; Kent is detected on whatever cards land on the dealt board, regardless of whether the player used the switch on that round.
+
+### 5.2 Counter and progressive rules (CRITICAL — corrects prior spec)
+
+- The **`KENT /3` counter is progressive and never resets on a non-Kent round.** A player can play hundreds of non-Kent rounds in between; the counter holds its value.
+- Each Kent round increments the counter by 1.
+- The counter resets to **0 only when** the **3rd Kent triggers the Kent jackpot payout** (`MachineLedgerState.JackpotKent`).
+- A `Straight Flush` whose cards are also positionally sequential pays the **Straight Flush jackpot** (§7.4), not the Kent jackpot — Kent is reserved for non-flush straights in sequence. The Kent counter is **not** incremented by a Straight-Flush hit (confirm: separate jackpot pool).
+
+### 5.3 Backend mapping (required fields)
 
 ```
-GameRound.IsKent : bool          // straight + cards in sorted order in slots
-MachineLedgerState.KentStreak : int  // current /3 progress
+GameRound.IsKent           : bool   // true iff straight + slot-sequential (asc OR desc)
+MachineLedgerState.KentStreak : int // current /3 progress, never decremented on non-Kent
 ```
 
-If these fields are not yet present, add them. The rule logic (sequential check) must remain in `Lucky5.Domain.Game.CleanRoom`.
+The rule logic (sequential check, asc/desc detection) lives in `Lucky5.Domain.Game.CleanRoom` (e.g., `FiveCardDrawEngine.IsSequentialBoard`).
+
+The cabinet renders `KENT /3 _ N` where N = `KentStreak`. When `N == 3`, the next round starts at 0 after the jackpot pays.
 
 ---
 
@@ -300,14 +330,30 @@ The defining feel of the double-up:
 
 ### 7.4 Win celebration
 
+**Note: 1-Pair (and Jacks-or-Better) does not pay in Lucky5.** The minimum paying hand is **2 Pair**. The paytable rows below 2 Pair never light up.
+
 | Hand rank                     | Visual                                                                                            |
 | ----------------------------- | ------------------------------------------------------------------------------------------------- |
-| Pair / 2 Pair / 3 of a Kind   | Paytable row inverts color, win amount counter ticks up                                           |
+| 2 Pair / 3 of a Kind          | Paytable row inverts color, win amount counter ticks up                                           |
 | Straight / Flush / Full House | Row inverts + cards glow gold + 3-tone chime                                                      |
 | 4 of a Kind                   | `4 OF A KIND WINS BONUS` banner pulses yellow→white, cards shake, win amount roll-up over 1.5s |
 | Straight Flush                | Cards glow rainbow, banner pulses, fanfare                                                        |
 | Royal Flush                   | Full screen flash, all jackpots illuminate, extended fanfare 3s                                   |
 | Kent (3rd in row)             | Kent counter flashes, jackpot value rolls into win                                                |
+
+### 7.5 Settlement-drain animations (TAKE SCORE / TAKE HALF / Jackpot)
+
+The defining "feel" of the cabinet at settlement is that the win value visibly **drains out of the paytable row** (the row that lit up at evaluation) directly **into the `CREDIT` counter** — there is **no separate score counter**. Three speeds:
+
+| Settlement                                  | Animation                                                                                                               | Approx duration |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `TAKE HALF`                                | **Instant snap.** Half the win is added to `CREDIT` immediately; the remainder enters double-up with no drain animation. | ~0 ms (instant) |
+| `TAKE SCORE` (regular paytable win)        | The paytable amount counts down from full → 0 while `CREDIT` simultaneously counts up by the same amount. Linear/eased. | ~1.5–2.5 s     |
+| `TAKE SCORE` of a **jackpot win**          | Same drain, but **slower and louder** — the jackpot pool counter (FH / 4OAK / SF / Kent) drains into `CREDIT` with held audio cue and paytable-row pulsing throughout. | ~4–6 s          |
+
+**Implementation rule:** the drain is a single coupled animation — `paytableValue -= dx` and `creditCounter += dx` per frame, locked. Do **not** use a hidden score buffer or a separate counter widget.
+
+**Audio:** `press.mp3` per ~10 cents tick during regular drain; sustained tone during jackpot drain; fanfare layers on top for `StraightFlush` / `RoyalFlush` / ranked `FullHouse` / Kent.
 
 ---
 
@@ -475,20 +521,6 @@ Every label/sprite reads from `CabinetStateStore.current_snapshot` via signals. 
 | `complete`                   | Settlement summary                        | ""                         | none                                              |
 | `closed`                     | Machine closed overlay                    | "MACHINE CLOSED"           | `MENU` only                                     |
 
-## 5. Kent Counter — Sequentially-Ordered Straights
-
-**This is a unique Lucky5 mechanic that earlier specs got wrong.**
-
-A normal straight (e.g., `5♥ 7♣ 4♠ 6♦ 3♣`) pays the standard `STRAIGHT` row.
-
-A **Kent** is a straight where the cards are dealt in **sequential positional order on the board**, e.g., slot 1 = 2, slot 2 = 3, slot 3 = 4, slot 4 = 5, slot 5 = 6 (ascending) — the cards must already be in order in their slots without any rearrangement.
-
-- Each Kent increments `KENT /3` counter.
-- 3 Kents in a row → **Kent jackpot** (`MachineLedgerState.JackpotKent`, currently shown as `35,000,000` at the time of capture, but value rotates with rank-tagging).
-- The counter **resets if a non-Kent round breaks the streak** (exact reset rule must be confirmed against current `Lucky5.Domain` Kent logic — but the visual shows `/3` denominator, meaning 3 in a row = jackpot).
-
----
-
 ## 12. Common Misunderstandings (FAQ)
 
 **Q: Is the double-up just a Hi-Lo guess?**
@@ -574,3 +606,42 @@ Update this file when:
 - A previously-incorrect understanding is corrected.
 
 **Do not delete sections without leaving a redirection note.** Other agents rely on this as the authoritative reference.
+
+---
+
+## 16. Machine Close, Serial Number, and Win-Floor Invariants
+
+Three operational invariants the cabinet must enforce, captured here so they don't get lost across context changes:
+
+### 16.1 40M credit machine-close cap
+
+- A machine **stops accepting play once `MachineSession.MachineCredits >= 40_000_000`** (`EngineConfig.CloseThreshold`).
+- The cabinet must show a **MACHINE CLOSED** overlay; only `MENU` (lobby return) and `CASH OUT` are enabled.
+- The two highest-leverage paths to hitting the cap are:
+  1. **Straight Flush jackpot** — biggest single payout event in the game (currently `JackpotStraightFlushCap = 7,500,000`, but the live capture showed `S/N: 10,000,000` aligned with this pool; values rotate per machine).
+  2. **Ranked Full House jackpot** — the rank-armed Full House (`JackpotFullHouse`, e.g., 35M at capture).
+- Both jackpot drains take the slow `~4–6 s` settlement animation (§7.5). Hitting either typically pushes a near-cap session over the 40M close threshold without needing chained double-up wins.
+- The Web cabinet currently mis-keys close detection on `profile.walletBalance` (`lucky5-cabinet.tsx:258`); the correct axis is `MachineCredits` (chips currently on the machine), not the player's overall wallet. Fix at next pass.
+
+### 16.2 S/N — Serial Number row
+
+- `S/N` is the **machine's iconic serial number**, rendered as a numeric label in the bonus banner row (e.g., `S/N: 10,000,000`).
+- Source field: `MachineLedgerState.MachineSerial` (already present, already wired through `JackpotInfoDto.MachineSerial`).
+- The cabinet's `MachineInfoBlock` (`src/web/components/lucky5-cabinet.tsx`) **does not currently render S/N**. Add a row beneath the SERIE / KENT identity row.
+- This is presentation-only; it has no gameplay effect — it preserves the cabinet's classic identity feel.
+
+### 16.3 Win floor — 2 Pair and above (no 1-Pair, no Jacks-or-Better)
+
+- The Lucky5 paytable starts at **2 Pair** and goes up to **Royal Flush**. There is **no `1-Pair` row** and **no `Jacks-or-Better` row**.
+- Already enforced in code: `PaytableProfile.Lebanese` excludes `OnePair` from its `Payouts` dict and sets `MinimumPairRankForPayout = int.MaxValue` (`server/src/Lucky5.Domain/Game/CleanRoom/CoreModels.cs`).
+- Web cabinet `PAYTABLE_ROWS` (`src/web/components/lucky5-cabinet.tsx:43-52`) correctly omits 1-Pair and JoB.
+- **Do not regress this.** Any future "make double-up easier" idea must not lower the base-game win floor.
+
+---
+
+## 17. Revision Log
+
+| Date       | Change                                                                                                                                                                                                                                  |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-05 | Initial authoritative capture from `ai9poker.com/install`.                                                                                                                                                                            |
+| 2026-05-05 | Corrected §5 Kent: progressive (no reset on non-Kent, only resets on jackpot payout); ascending **or** descending qualifies. Added §4.1 player-initiated FH-rank switch (HOLD[0]). Added §7.5 settlement-drain animation tiers. Added §16 (40M cap, S/N, win floor). Removed duplicate §5. |

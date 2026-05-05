@@ -94,6 +94,13 @@ public class GameController(IGameService gameService) : ControllerBase
         };
     }
 
+    [HttpPost("machine/{machineId}/cabinet-replay")]
+    public async Task<ActionResult<ApiResponse<CabinetReplayDto>>> GetCabinetReplay(int machineId, [FromBody] CabinetReconnectRequest request, CancellationToken cancellationToken)
+    {
+        var result = await gameService.GetCabinetReplayAsync(UserId, machineId, request.LastStateVersion, request.LastSequenceNumber, cancellationToken);
+        return Ok(ApiResponse<CabinetReplayDto>.Ok(result, traceId: HttpContext.TraceIdentifier));
+    }
+
     [HttpPost("deal")]
     [HttpPost("cards/deal")]
     public async Task<ActionResult<ApiResponse<DealResultDto>>> Deal([FromBody] DealRequest request, CancellationToken cancellationToken)

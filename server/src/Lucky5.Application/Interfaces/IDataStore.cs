@@ -36,4 +36,6 @@ public interface IDataStore
     Task SaveCabinetCommandRecordAsync(CabinetCommandRecord record);
     Task<CabinetStateCursor> GetOrInitializeCabinetStateCursorAsync(Guid userId, int machineId);
     Task<CabinetStateCursor> AdvanceCabinetStateCursorAsync(Guid userId, int machineId);
+    Task SaveCabinetEventRecordAsync(CabinetEventRecord record);
+    Task<IReadOnlyList<CabinetEventRecord>> GetCabinetEventRecordsAfterAsync(Guid userId, int machineId, long sequenceNumber, int maxCount);
 }

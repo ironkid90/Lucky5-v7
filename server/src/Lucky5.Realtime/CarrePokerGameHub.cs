@@ -22,6 +22,8 @@ public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegist
     private const string HoldCardUpdatedEvent = "HoldCardUpdated";
     private const string MachineStatusChangedEvent = "MachineStatusChanged";
     private const string UserStatusChangedEvent = "UserStatusChanged";
+    private const string CabinetReplayEvent = "CabinetReplay";
+    private const string CabinetSnapshotEvent = "CabinetSnapshot";
     private const string ErrorEvent = "Error";
     private const string CurrentMachineContextKey = "machine-id";
 
@@ -236,10 +238,21 @@ public sealed class CarrePokerGameHub(IGameService gameService, ConnectionRegist
         await Clients.Caller.SendAsync("AvailableMachines", machines, Context.ConnectionAborted);
     }
 
-    public async Task ReconnectSync(int machineId)
+    public async Task ReconnectSync(int machineId, long lastStateVersion = 0, long lastSequenceNumber = 0)
     {
         Context.Items[CurrentMachineContextKey] = machineId;
         registry.Touch(Context.ConnectionId);
+
+        if (TryGetUserId(out var userId))
+        {
+            var replay = await gameService.GetCabinetReplayAsync(userId, machineId, lastStateVersion, lastSequenceNumber, Context.ConnectionAborted);
+            await Clients.Caller.SendAsync(CabinetReplayEvent, replay, Context.ConnectionAborted);
+            if (replay.Snapshot is not null)
+            {
+                await Clients.Caller.SendAsync(CabinetSnapshotEvent, replay.Snapshot, Context.ConnectionAborted);
+            }
+        }
+
         await BroadcastMachineStateAsync(machineId, Clients.Caller, Context.ConnectionAborted);
     }
 

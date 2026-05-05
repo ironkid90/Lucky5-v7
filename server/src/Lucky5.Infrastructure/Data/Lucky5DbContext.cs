@@ -21,6 +21,7 @@ public class Lucky5DbContext : DbContext
     public DbSet<WalletLedgerEntry> WalletLedgers => Set<WalletLedgerEntry>();
     public DbSet<CabinetCommandRecord> CabinetCommandRecords => Set<CabinetCommandRecord>();
     public DbSet<CabinetStateCursor> CabinetStateCursors => Set<CabinetStateCursor>();
+    public DbSet<CabinetEventRecord> CabinetEventRecords => Set<CabinetEventRecord>();
     public DbSet<Offer> Offers => Set<Offer>();
     public DbSet<ContactType> ContactTypes => Set<ContactType>();
     public DbSet<ContactReport> ContactReports => Set<ContactReport>();
@@ -180,6 +181,14 @@ public class Lucky5DbContext : DbContext
         {
             entity.HasKey(e => new { e.UserId, e.MachineId });
             entity.Property(e => e.UpdatedUtc).IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<CabinetEventRecord>(entity =>
+        {
+            entity.HasKey(e => e.EventId);
+            entity.HasIndex(e => new { e.UserId, e.MachineId, e.SequenceNumber });
+            entity.Property(e => e.EventType).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.PayloadJson).HasColumnType("jsonb");
         });
 
         // Seed Data for Machines

@@ -238,6 +238,34 @@ public class InMemoryDataStoreAdapter : IDataStore
         }
     }
 
+    public Task SaveCabinetEventRecordAsync(CabinetEventRecord record)
+    {
+        lock (_store.LedgerSync)
+        {
+            _store.CabinetEventRecords.Enqueue(record);
+
+            while (_store.CabinetEventRecords.Count > 512 && _store.CabinetEventRecords.TryDequeue(out _))
+            {
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<CabinetEventRecord>> GetCabinetEventRecordsAfterAsync(Guid userId, int machineId, long sequenceNumber, int maxCount)
+    {
+        var records = _store.CabinetEventRecords
+            .Where(record => record.UserId == userId
+                && record.MachineId == machineId
+                && record.SequenceNumber > sequenceNumber)
+            .OrderBy(record => record.SequenceNumber)
+            .ThenBy(record => record.CreatedUtc)
+            .Take(Math.Max(0, maxCount))
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<CabinetEventRecord>>(records);
+    }
+
     private static string BuildCommandKey(Guid userId, Guid commandId, string idempotencyKey)
         => $"{userId:N}:{commandId:N}:{idempotencyKey}";
 

@@ -16,6 +16,11 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 {
     private const decimal CashInUnit = 200_000m;
     private const decimal MaxSessionCashIn = 1_000_000m;
+    private const string CabinetSchemaVersion = "cabinet.v1";
+    private const string CabinetVariantId = "lucky5.classic";
+    private const string CabinetVariantSchemaVersion = "variant.v1";
+    private const string CabinetPaytableHash = "sha256:cbe816c3eaa3d13cf0a55850ffb27140b856a35015a8fd44d41bd507babdb196";
+    private const int CabinetReplayMaxEvents = 128;
     private static readonly EngineConfig EngineCfg = EngineConfig.Default;
     private static readonly decimal MachineCloseCredits = EngineCfg.CloseThreshold;
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> CabinetCommandLocks = new(StringComparer.OrdinalIgnoreCase);
@@ -844,76 +849,121 @@ return guessResult;
     public async Task<CabinetSnapshotDto> GetCabinetSnapshotAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
         var machine = await RequireMachineAsync(machineId);
-
         var profile = await RequireProfileAsync(userId);
-        var session = await store.GetMachineSessionAsync(userId, machineId) ?? CreateEmptyCabinetSession(userId, machineId);
+        var session = await RequireMachineSessionAsync(userId, machineId, createIfMissing: true);
         var ledger = await RequireMachineLedgerAsync(machineId);
         var activeRound = await GetActiveRoundAsync(userId, machineId, cancellationToken);
-
-        var cards = activeRound?.Cards ?? [];
-        var held = activeRound?.HeldIndexes ?? [];
-        var handRank = string.IsNullOrWhiteSpace(activeRound?.HandRank) ? "Nothing" : activeRound.HandRank;
-        var pendingWin = activeRound?.PendingWinAmount ?? 0m;
-        var roundBet = activeRound?.BetAmount ?? 0m;
-
-        var gameState = activeRound?.Phase switch
-        {
-            "Dealt" => "dealing",
-            "Drawn" => activeRound.DoubleUpAvailable ? "drawn" : "complete",
-            "DoubleUp" => "double_up",
-            _ when session.IsMachineClosed => "closed",
-            _ => "idle"
-        };
-
-        var doubleUpSession = activeRound?.DoubleUpSession;
-        var doubleUp = new CabinetDoubleUpDto(
-            Active: gameState == "double_up",
-            CardRevealed: doubleUpSession is not null,
-            Outcome: doubleUpSession is null ? "idle" : activeRound?.Phase ?? "DoubleUp",
-            DealerCard: doubleUpSession?.DealerCard,
-            ChallengerCard: null,
-            SwitchesRemaining: doubleUpSession?.SwitchesRemaining ?? 0,
-            IsNoLoseActive: doubleUpSession?.IsNoLoseActive ?? false,
-            CardTrail: doubleUpSession?.CardTrail ?? []);
-
-        var enabledButtons = BuildCabinetEnabledButtons(gameState, cards.Count, session);
         var cursor = await store.GetOrInitializeCabinetStateCursorAsync(userId, machineId);
-        var stateVersion = cursor.StateVersion;
-        var jackpot = SnapshotJackpots(ledger);
+        var serverTimeUtc = DateTime.UtcNow;
 
-        return new CabinetSnapshotDto(
-            SchemaVersion: "v1",
-            StateVersion: stateVersion,
-            SessionId: session.SessionId,
-            MachineId: machineId,
-            VariantId: BuildCabinetVariantId(machine),
-            GameState: gameState,
-            Hand: new CabinetHandDto(cards, held, activeRound?.ResultCards ?? cards),
-            Evaluation: new CabinetEvaluationDto(handRank, Rules.GetValueOrDefault(handRank), pendingWin),
-            DoubleUp: doubleUp,
-            Credits: new CabinetCreditsDto(session.MachineCredits, roundBet, pendingWin, BuildCabinetDenomination(machine, roundBet)),
-            Jackpot: new CabinetJackpotDto(
-                CurrentValues: new Dictionary<string, decimal>
-                {
-                    ["full_house"] = jackpot.FullHouse,
-                    ["four_of_a_kind_a"] = jackpot.FourOfAKindA,
-                    ["four_of_a_kind_b"] = jackpot.FourOfAKindB,
-                    ["straight_flush"] = jackpot.StraightFlush
-                },
-                LastHit: ledger.LastWinChannel.ToString(),
-                FullHouseRank: jackpot.FullHouseRank,
-                ActiveFourOfAKindSlot: jackpot.ActiveFourOfAKindSlot,
-                MachineSerial: jackpot.MachineSerial,
-                MachineSerie: jackpot.MachineSerie,
-                MachineKent: jackpot.MachineKent),
-            UiHints: new CabinetUiHintsDto(
-                EnabledButtons: enabledButtons,
-                AnimationCue: gameState,
-                Message: BuildCabinetMessage(gameState, pendingWin, session),
-                BonusMessage: string.Empty,
-                IdleTitleVisible: gameState == "idle"),
-            Timestamp: DateTime.UtcNow,
-            SequenceNumber: cursor.SequenceNumber);
+        return BuildCabinetSnapshot(userId, machine, profile, session, ledger, activeRound, cursor, serverTimeUtc, requiresFullSnapshot: false, recoveryReason: string.Empty);
+    }
+
+    public async Task<CabinetReplayDto> GetCabinetReplayAsync(Guid userId, int machineId, long lastStateVersion, long lastSequenceNumber, CancellationToken cancellationToken)
+    {
+        if (lastStateVersion < 0 || lastSequenceNumber < 0)
+        {
+            var snapshot = await BuildRecoverySnapshotAsync(userId, machineId, "invalid_reconnect_cursor", cancellationToken);
+            return new CabinetReplayDto(
+                ReplayAvailable: false,
+                RequiresFullSnapshot: true,
+                FromSequenceNumber: Math.Max(0, lastSequenceNumber),
+                ToSequenceNumber: snapshot.SequenceNumber,
+                Events: [],
+                Snapshot: snapshot,
+                Error: new CabinetCommandErrorDto("INVALID_RECONNECT_CURSOR", "Reconnect cursors must be zero or greater.", false));
+        }
+
+        await RequireMachineAsync(machineId);
+        var cursor = await store.GetOrInitializeCabinetStateCursorAsync(userId, machineId);
+        if (lastSequenceNumber == cursor.SequenceNumber && lastStateVersion == cursor.StateVersion)
+        {
+            return new CabinetReplayDto(true, false, lastSequenceNumber, cursor.SequenceNumber, []);
+        }
+
+        if (lastSequenceNumber > cursor.SequenceNumber || lastStateVersion > cursor.StateVersion)
+        {
+            var snapshot = await BuildRecoverySnapshotAsync(userId, machineId, "client_cursor_ahead_of_server", cancellationToken);
+            return new CabinetReplayDto(
+                ReplayAvailable: false,
+                RequiresFullSnapshot: true,
+                FromSequenceNumber: lastSequenceNumber,
+                ToSequenceNumber: cursor.SequenceNumber,
+                Events: [],
+                Snapshot: snapshot,
+                Error: new CabinetCommandErrorDto("REPLAY_GAP", "Client reconnect cursor is ahead of the authoritative server cursor. Apply the returned snapshot.", false));
+        }
+
+        var records = await store.GetCabinetEventRecordsAfterAsync(userId, machineId, lastSequenceNumber, CabinetReplayMaxEvents);
+        var ordered = records.OrderBy(record => record.SequenceNumber).ToArray();
+        if (!IsContiguousReplay(ordered, lastSequenceNumber, cursor.SequenceNumber))
+        {
+            var snapshot = await BuildRecoverySnapshotAsync(userId, machineId, "replay_gap", cancellationToken);
+            return new CabinetReplayDto(
+                ReplayAvailable: false,
+                RequiresFullSnapshot: true,
+                FromSequenceNumber: lastSequenceNumber,
+                ToSequenceNumber: cursor.SequenceNumber,
+                Events: [],
+                Snapshot: snapshot,
+                Error: new CabinetCommandErrorDto("REPLAY_GAP", "A contiguous replay range is not available. Apply the returned snapshot before enabling cabinet commands.", false));
+        }
+
+        var events = ordered.Select(ToCabinetEventDto).ToArray();
+        return new CabinetReplayDto(true, false, lastSequenceNumber, cursor.SequenceNumber, events);
+    }
+
+    private async Task<CabinetSnapshotDto> BuildRecoverySnapshotAsync(Guid userId, int machineId, string reason, CancellationToken cancellationToken)
+    {
+        var machine = await RequireMachineAsync(machineId);
+        var profile = await RequireProfileAsync(userId);
+        var session = await RequireMachineSessionAsync(userId, machineId, createIfMissing: true);
+        var ledger = await RequireMachineLedgerAsync(machineId);
+        var activeRound = await GetActiveRoundAsync(userId, machineId, cancellationToken);
+        var cursor = await store.GetOrInitializeCabinetStateCursorAsync(userId, machineId);
+        return BuildCabinetSnapshot(userId, machine, profile, session, ledger, activeRound, cursor, DateTime.UtcNow, requiresFullSnapshot: true, recoveryReason: reason);
+    }
+
+    private static bool IsContiguousReplay(IReadOnlyList<CabinetEventRecord> records, long lastSequenceNumber, long currentSequenceNumber)
+    {
+        if (currentSequenceNumber == lastSequenceNumber)
+        {
+            return true;
+        }
+
+        if (records.Count == 0 || records[0].SequenceNumber != lastSequenceNumber + 1)
+        {
+            return false;
+        }
+
+        var expected = lastSequenceNumber + 1;
+        foreach (var record in records)
+        {
+            if (record.SequenceNumber != expected)
+            {
+                return false;
+            }
+
+            expected++;
+        }
+
+        return records[^1].SequenceNumber == currentSequenceNumber;
+    }
+
+    private static CabinetEventDto ToCabinetEventDto(CabinetEventRecord record)
+    {
+        var payload = JsonSerializer.Deserialize<Dictionary<string, object?>>(record.PayloadJson, CabinetJsonOptions)
+            ?? new Dictionary<string, object?>();
+
+        return new CabinetEventDto(
+            MessageType: "cabinet_event",
+            SchemaVersion: CabinetSchemaVersion,
+            EventId: record.EventId,
+            EventType: record.EventType,
+            StateVersion: record.StateVersion,
+            Payload: payload,
+            SequenceNumber: record.SequenceNumber,
+            ServerTimeUtc: record.CreatedUtc);
     }
 
     public async Task<CabinetCommandResultDto> SubmitCabinetCommandAsync(Guid userId, CabinetCommandDto command, CancellationToken cancellationToken)
@@ -999,8 +1049,9 @@ return guessResult;
             try
             {
                 await ExecuteCabinetCommandAsync(userId, command, cancellationToken);
+                var mutatesCabinetState = MutatesCabinetState(command.CommandType);
                 CabinetStateCursor cursor;
-                if (MutatesCabinetState(command.CommandType))
+                if (mutatesCabinetState)
                 {
                     cursor = await store.AdvanceCabinetStateCursorAsync(userId, command.MachineId);
                 }
@@ -1010,9 +1061,10 @@ return guessResult;
                 }
 
                 var snapshot = await GetCabinetSnapshotAsync(userId, command.MachineId, cancellationToken);
+                var cabinetEvent = mutatesCabinetState ? await SaveCabinetEventAsync(userId, command, snapshot) : null;
                 var accepted = new CabinetCommandResultDto(
                     MessageType: "cabinet_command_result",
-                    SchemaVersion: "cabinet.v1",
+                    SchemaVersion: CabinetSchemaVersion,
                     CommandId: command.CommandId,
                     IdempotencyKey: command.IdempotencyKey,
                     Accepted: true,
@@ -1021,7 +1073,7 @@ return guessResult;
                     SequenceNumber: cursor.SequenceNumber,
                     ServerTimeUtc: DateTime.UtcNow,
                     Snapshot: snapshot,
-                    Event: null,
+                    Event: cabinetEvent,
                     Error: null);
 
                 await SaveCabinetCommandRecordAsync(userId, command, requestHash, accepted);
@@ -1175,6 +1227,12 @@ return guessResult;
                 await GetMachineSessionAsync(userId, command.MachineId, cancellationToken);
                 return;
 
+            case "hold":
+            case "clear_holds":
+            case "bet_change":
+                await RequireMachineAsync(command.MachineId);
+                return;
+
             case "leave_machine":
             case "heartbeat":
             case "reconnect_sync":
@@ -1217,7 +1275,7 @@ return guessResult;
 
         return new CabinetCommandResultDto(
             MessageType: "cabinet_command_result",
-            SchemaVersion: "cabinet.v1",
+            SchemaVersion: CabinetSchemaVersion,
             CommandId: command.CommandId,
             IdempotencyKey: command.IdempotencyKey ?? string.Empty,
             Accepted: false,
@@ -1250,6 +1308,25 @@ return guessResult;
             CreatedUtc = DateTime.UtcNow,
             CompletedUtc = DateTime.UtcNow
         });
+    }
+
+    private async Task<CabinetEventDto> SaveCabinetEventAsync(Guid userId, CabinetCommandDto command, CabinetSnapshotDto snapshot)
+    {
+        var payload = BuildCabinetEventPayload(command.CommandType, snapshot);
+        var payloadJson = JsonSerializer.Serialize(payload, CabinetJsonOptions);
+        var record = new CabinetEventRecord
+        {
+            UserId = userId,
+            MachineId = command.MachineId,
+            EventType = ResolveCabinetEventType(command.CommandType),
+            StateVersion = snapshot.StateVersion,
+            SequenceNumber = snapshot.SequenceNumber,
+            PayloadJson = payloadJson,
+            CreatedUtc = snapshot.ServerTimeUtc
+        };
+
+        await store.SaveCabinetEventRecordAsync(record);
+        return ToCabinetEventDto(record);
     }
 
     private async Task<CabinetStateCursor> GetCabinetCursorOrDefaultAsync(Guid userId, int machineId)
@@ -1455,7 +1532,7 @@ return guessResult;
     }
 
     private static bool IsSupportedCabinetSchemaVersion(string schemaVersion)
-        => string.Equals(NormalizeCabinetSchemaVersion(schemaVersion), "cabinet.v1", StringComparison.Ordinal);
+        => string.Equals(NormalizeCabinetSchemaVersion(schemaVersion), CabinetSchemaVersion, StringComparison.Ordinal);
 
     private static string NormalizeCabinetSchemaVersion(string schemaVersion)
     {
@@ -1465,7 +1542,7 @@ return guessResult;
         }
 
         return string.Equals(schemaVersion, "v1", StringComparison.OrdinalIgnoreCase)
-            ? "cabinet.v1"
+            ? CabinetSchemaVersion
             : schemaVersion.Trim().ToLowerInvariant();
     }
 
@@ -1476,18 +1553,21 @@ return guessResult;
         => NormalizeCabinetCommandType(commandType) is not ("heartbeat" or "reconnect_sync");
 
     private static bool MutatesCabinetState(string commandType)
-        => NormalizeCabinetCommandType(commandType) is not ("leave_machine" or "heartbeat" or "reconnect_sync");
+        => NormalizeCabinetCommandType(commandType) is not ("leave_machine" or "heartbeat" or "reconnect_sync" or "hold" or "clear_holds" or "bet_change");
 
     private static bool IsKnownCabinetCommandType(string commandType)
         => NormalizeCabinetCommandType(commandType) is "cash_in"
             or "cash_out"
             or "deal"
             or "draw"
+            or "hold"
+            or "clear_holds"
             or "double_up_start"
             or "double_up_guess"
             or "double_up_switch"
             or "take_half"
             or "take_score"
+            or "bet_change"
             or "jackpot_rank_change"
             or "reset_machine"
             or "join_machine"
@@ -1729,6 +1809,321 @@ return guessResult;
             ledger.MachineSerie,
             ledger.MachineKent);
 
+    private static CabinetSnapshotDto BuildCabinetSnapshot(
+        Guid userId,
+        Machine machine,
+        MemberProfile profile,
+        MachineSessionState session,
+        MachineLedgerState ledger,
+        ActiveRoundStateDto? activeRound,
+        CabinetStateCursor cursor,
+        DateTime serverTimeUtc,
+        bool requiresFullSnapshot,
+        string recoveryReason)
+    {
+        var gameState = BuildCabinetGameState(activeRound, session);
+        var heldIndexes = activeRound?.HeldIndexes ?? [];
+        var heldSet = heldIndexes.ToHashSet();
+        var handCards = (activeRound?.Cards ?? [])
+            .Select((card, index) => ToCabinetCard(card, faceUp: true, held: heldSet.Contains(index)))
+            .ToArray();
+        var resultCards = (activeRound?.ResultCards ?? activeRound?.Cards ?? [])
+            .Select((card, index) => ToCabinetCard(card, faceUp: true, held: heldSet.Contains(index)))
+            .ToArray();
+        var pendingWin = activeRound?.PendingWinAmount ?? 0m;
+        var roundBet = activeRound?.BetAmount ?? 0m;
+        var jackpot = SnapshotJackpots(ledger);
+        var message = BuildCabinetMessage(gameState, pendingWin, session);
+        var doubleUpSession = activeRound?.DoubleUpSession;
+
+        return new CabinetSnapshotDto(
+            SchemaVersion: CabinetSchemaVersion,
+            StateVersion: cursor.StateVersion,
+            SequenceNumber: cursor.SequenceNumber,
+            ServerTimeUtc: serverTimeUtc,
+            Session: new CabinetSessionStateDto(
+                SessionId: session.SessionId,
+                AuthenticatedUserId: userId.ToString("D"),
+                MachineId: machine.Id,
+                IsMachineClosed: session.IsMachineClosed,
+                CanCashOut: CanCashOut(session) && activeRound is null,
+                Visibility: "foreground",
+                StartedAtUtc: session.CreatedUtc,
+                LastSeenUtc: serverTimeUtc),
+            Machine: new CabinetMachineStateDto(
+                MachineId: machine.Id,
+                Name: machine.Name,
+                IsOpen: machine.IsOpen,
+                MinBet: ToDecimalString(machine.MinBet),
+                MaxBet: ToDecimalString(machine.MaxBet),
+                MachineSerial: FirstNonEmpty(jackpot.MachineSerial, machine.MachineSerial),
+                MachineSerie: FirstNonEmpty(jackpot.MachineSerie, machine.MachineSerie),
+                MachineKent: FirstNonEmpty(jackpot.MachineKent, machine.MachineKent)),
+            Variant: new CabinetVariantRefDto(
+                VariantId: CabinetVariantId,
+                VariantSchemaVersion: CabinetVariantSchemaVersion,
+                PaytableHash: CabinetPaytableHash,
+                DisplayName: "Lucky5 Classic",
+                CabinetSkinId: "lebanese_retro_v1",
+                PresentationProfileId: "retro_cabinet_v1"),
+            GameState: gameState,
+            Credits: new CabinetCreditsDto(
+                MachineCredits: ToDecimalString(session.MachineCredits),
+                WalletBalance: ToDecimalString(profile.WalletBalance),
+                CreditBalance: ToDecimalString(profile.Credit),
+                Stake: ToDecimalString(roundBet > 0m ? roundBet : machine.MinBet),
+                TotalCashIn: ToDecimalString(session.TotalCashIn),
+                CashOutThreshold: ToDecimalString(session.TotalCashIn * 2m),
+                PendingWinAmount: ToDecimalString(pendingWin)),
+            Hand: new CabinetHandDto(
+                Cards: handCards,
+                ResultCards: resultCards,
+                HeldIndexes: heldIndexes,
+                RoundId: activeRound?.RoundId,
+                AdvisedHolds: gameState == "hold" ? heldIndexes : null),
+            Evaluation: new CabinetEvaluationDto(
+                HandRank: NormalizeCabinetHandRank(activeRound?.HandRank),
+                WinAmount: ToDecimalString(pendingWin),
+                JackpotWon: "0",
+                DoubleUpAvailable: activeRound?.DoubleUpAvailable ?? false,
+                Message: message),
+            DoubleUp: new CabinetDoubleUpDto(
+                Active: gameState == "double_up",
+                CurrentAmount: ToDecimalString(doubleUpSession?.CurrentAmount ?? pendingWin),
+                SwitchesRemaining: doubleUpSession?.SwitchesRemaining ?? 0,
+                IsNoLoseActive: doubleUpSession?.IsNoLoseActive ?? false,
+                IsLucky5Active: doubleUpSession?.IsLucky5Active ?? false,
+                Status: BuildCabinetDoubleUpStatus(activeRound),
+                RoundId: gameState == "double_up" ? activeRound?.RoundId : null,
+                DealerCard: doubleUpSession?.DealerCard is null ? null : ToCabinetCard(doubleUpSession.DealerCard, faceUp: true, held: false),
+                ChallengerCard: null,
+                CardTrail: doubleUpSession?.CardTrail?.Select(card => ToCabinetCard(card, faceUp: true, held: false)).ToArray(),
+                LuckyMultiplier: Math.Max(1, doubleUpSession?.LuckyMultiplier ?? 1)),
+            Jackpot: new CabinetJackpotDto(
+                FullHouse: ToDecimalString(jackpot.FullHouse),
+                FullHouseRank: jackpot.FullHouseRank,
+                FourOfAKindA: ToDecimalString(jackpot.FourOfAKindA),
+                FourOfAKindB: ToDecimalString(jackpot.FourOfAKindB),
+                ActiveFourOfAKindSlot: jackpot.ActiveFourOfAKindSlot == 0 ? "A" : "B",
+                StraightFlush: ToDecimalString(jackpot.StraightFlush)),
+            Buttons: BuildCabinetButtons(gameState, handCards.Length, session, activeRound, requiresFullSnapshot),
+            Presentation: new CabinetPresentationStateDto(
+                LayoutProfile: "portrait_720x1280",
+                SkinId: "lebanese_retro_v1",
+                Message: message,
+                MessageTone: BuildCabinetMessageTone(gameState, pendingWin, requiresFullSnapshot),
+                PacingProfile: "classic_arcade",
+                Effects: BuildCabinetEffects(gameState, pendingWin, requiresFullSnapshot)),
+            Recovery: new CabinetRecoveryStateDto(
+                Connected: true,
+                CommandsAllowed: !requiresFullSnapshot,
+                RequiresFullSnapshot: requiresFullSnapshot,
+                LastAppliedStateVersion: cursor.StateVersion,
+                LastAppliedSequenceNumber: cursor.SequenceNumber,
+                Reason: recoveryReason));
+    }
+
+    private static CabinetCardDto ToCabinetCard(PokerCardDto card, bool faceUp, bool held)
+    {
+        var rank = NormalizeCardRank(card.Rank, card.Code);
+        var suit = NormalizeCardSuit(card.Suit, card.Code);
+        var code = $"{rank}{suit}";
+        return new CabinetCardDto(code, rank, suit, faceUp, held, $"cards/{code}");
+    }
+
+    private static string BuildCabinetGameState(ActiveRoundStateDto? activeRound, MachineSessionState session)
+        => activeRound?.Phase switch
+        {
+            "Dealt" => "hold",
+            "Drawn" when activeRound.PendingWinAmount > 0m => "win",
+            "Drawn" => "drawn",
+            "DoubleUp" => "double_up",
+            _ when session.IsMachineClosed => "closed",
+            _ => "idle"
+        };
+
+    private static string BuildCabinetDoubleUpStatus(ActiveRoundStateDto? activeRound)
+        => activeRound?.Phase == "DoubleUp" ? "started" : "none";
+
+    private static string NormalizeCabinetHandRank(string? handRank)
+    {
+        if (string.IsNullOrWhiteSpace(handRank))
+        {
+            return "None";
+        }
+
+        return handRank.Trim().Replace(" ", string.Empty, StringComparison.Ordinal) switch
+        {
+            "Nothing" or "NoWin" or "HighCard" or "OnePair" => "None",
+            "TwoPair" => "TwoPair",
+            "ThreeOfAKind" => "ThreeOfAKind",
+            "Straight" => "Straight",
+            "Flush" => "Flush",
+            "FullHouse" => "FullHouse",
+            "FourOfAKind" => "FourOfAKind",
+            "StraightFlush" => "StraightFlush",
+            "RoyalFlush" => "RoyalFlush",
+            _ => "None"
+        };
+    }
+
+    private static IReadOnlyList<CabinetButtonStateDto> BuildCabinetButtons(string gameState, int cardCount, MachineSessionState session, ActiveRoundStateDto? activeRound, bool recoveryRequired)
+    {
+        var enabled = BuildCabinetEnabledButtonSet(gameState, cardCount, session, activeRound, recoveryRequired);
+        string[] buttonIds =
+        [
+            "menu", "bet", "deal_draw", "cancel_hold", "hold_0", "hold_1", "hold_2", "hold_3", "hold_4",
+            "big", "small", "take_half", "take_score", "cash_in", "cash_out", "reset_machine", "back_to_lobby", "logout"
+        ];
+
+        return buttonIds
+            .Select(id => new CabinetButtonStateDto(id, enabled.Contains(id), true, false, enabled.Contains(id) ? string.Empty : BuildButtonDisabledReason(id, gameState, recoveryRequired)))
+            .ToArray();
+    }
+
+    private static HashSet<string> BuildCabinetEnabledButtonSet(string gameState, int cardCount, MachineSessionState session, ActiveRoundStateDto? activeRound, bool recoveryRequired)
+    {
+        var buttons = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "menu", "back_to_lobby", "logout" };
+        if (recoveryRequired)
+        {
+            return buttons;
+        }
+
+        if (gameState == "hold")
+        {
+            for (var index = 0; index < Math.Min(5, cardCount); index++)
+            {
+                buttons.Add($"hold_{index}");
+            }
+
+            buttons.Add("cancel_hold");
+            buttons.Add("deal_draw");
+        }
+        else if (gameState is "win" or "double_up")
+        {
+            buttons.Add("big");
+            buttons.Add("small");
+            buttons.Add("take_score");
+            if ((activeRound?.PendingWinAmount ?? 0m) > 1m && activeRound?.TakeHalfUsed != true)
+            {
+                buttons.Add("take_half");
+            }
+        }
+        else if (gameState == "idle")
+        {
+            buttons.Add("bet");
+            buttons.Add("cash_in");
+            if (!session.IsMachineClosed && session.MachineCredits > 0m)
+            {
+                buttons.Add("deal_draw");
+            }
+        }
+        else if (gameState == "closed")
+        {
+            buttons.Add("take_score");
+        }
+
+        if (CanCashOut(session) && activeRound is null)
+        {
+            buttons.Add("cash_out");
+            buttons.Add("take_score");
+        }
+
+        return buttons;
+    }
+
+    private static string BuildButtonDisabledReason(string buttonId, string gameState, bool recoveryRequired)
+    {
+        if (recoveryRequired && buttonId is not ("menu" or "back_to_lobby" or "logout"))
+        {
+            return "recovery_required";
+        }
+
+        return $"disabled_in_{gameState}";
+    }
+
+    private static string BuildCabinetMessageTone(string gameState, decimal pendingWin, bool recoveryRequired)
+    {
+        if (recoveryRequired)
+        {
+            return "recovery";
+        }
+
+        if (pendingWin > 0m || gameState is "win" or "double_up")
+        {
+            return "win";
+        }
+
+        return gameState == "closed" ? "warning" : "normal";
+    }
+
+    private static IReadOnlyList<string> BuildCabinetEffects(string gameState, decimal pendingWin, bool recoveryRequired)
+    {
+        var effects = new List<string>();
+        if (recoveryRequired) effects.Add("recovery_overlay");
+        if (pendingWin > 0m) effects.Add("win_lamps");
+        if (gameState == "closed") effects.Add("machine_closed");
+        return effects;
+    }
+
+    private static IReadOnlyDictionary<string, object?> BuildCabinetEventPayload(string commandType, CabinetSnapshotDto snapshot)
+        => new Dictionary<string, object?>
+        {
+            ["command_type"] = NormalizeCabinetCommandType(commandType),
+            ["state_version"] = snapshot.StateVersion,
+            ["sequence_number"] = snapshot.SequenceNumber,
+            ["snapshot"] = snapshot
+        };
+
+    private static string ResolveCabinetEventType(string commandType)
+        => NormalizeCabinetCommandType(commandType) switch
+        {
+            "cash_in" or "cash_out" => "credits_updated",
+            "deal" or "draw" or "take_score" => "round_updated",
+            "double_up_start" or "double_up_guess" or "double_up_switch" or "take_half" => "double_up_updated",
+            "jackpot_rank_change" => "jackpot_updated",
+            "join_machine" or "leave_machine" => "session_visibility_changed",
+            "heartbeat" => "heartbeat_ack",
+            "reconnect_sync" => "recovery_required",
+            _ => "state_changed"
+        };
+
+    private static string ToDecimalString(decimal value)
+        => value.ToString("0.################", CultureInfo.InvariantCulture);
+
+    private static string FirstNonEmpty(string primary, string fallback)
+        => string.IsNullOrWhiteSpace(primary) ? fallback : primary;
+
+    private static string NormalizeCardRank(string rank, string? code)
+    {
+        var candidate = string.IsNullOrWhiteSpace(rank) && !string.IsNullOrWhiteSpace(code)
+            ? code![..^1]
+            : rank;
+        candidate = candidate.Trim().ToUpperInvariant();
+        return candidate == "T" ? "10" : candidate;
+    }
+
+    private static string NormalizeCardSuit(string suit, string? code)
+    {
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            var fromCode = char.ToUpperInvariant(code![^1]);
+            if ("HDCS".Contains(fromCode, StringComparison.Ordinal))
+            {
+                return fromCode.ToString();
+            }
+        }
+
+        return suit.Trim().ToUpperInvariant() switch
+        {
+            "HEARTS" or "H" => "H",
+            "DIAMONDS" or "D" => "D",
+            "CLUBS" or "C" => "C",
+            "SPADES" or "S" => "S",
+            _ => "S"
+        };
+    }
+
     /// <summary>
     /// Applies per-round jackpot contributions. Only the currently-starred
     /// Four-of-a-Kind jackpot (slot 0 -> A, slot 1 -> B) accrues this round;
@@ -1852,24 +2247,6 @@ return guessResult;
             _ => "READY"
         };
     }
-
-    private static MachineSessionState CreateEmptyCabinetSession(Guid userId, int machineId)
-        => new()
-        {
-            UserId = userId,
-            MachineId = machineId
-        };
-
-    private static string BuildCabinetVariantId(Machine machine)
-        => machine.MinBet switch
-        {
-            >= 50_000m => "vip",
-            >= 10_000m => "hamra",
-            _ => "classic"
-        };
-
-    private static decimal BuildCabinetDenomination(Machine machine, decimal roundBet)
-        => roundBet > 0m ? roundBet : machine.MinBet;
 
     private async Task<Machine> RequireMachineAsync(int machineId)
     {

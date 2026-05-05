@@ -222,4 +222,22 @@ public class EfCoreDataStore : IDataStore
         await _context.SaveChangesAsync();
         return cursor;
     }
+
+    public async Task SaveCabinetEventRecordAsync(CabinetEventRecord record)
+    {
+        _context.CabinetEventRecords.Add(record);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<IReadOnlyList<CabinetEventRecord>> GetCabinetEventRecordsAfterAsync(Guid userId, int machineId, long sequenceNumber, int maxCount)
+    {
+        return await _context.CabinetEventRecords
+            .Where(record => record.UserId == userId
+                && record.MachineId == machineId
+                && record.SequenceNumber > sequenceNumber)
+            .OrderBy(record => record.SequenceNumber)
+            .ThenBy(record => record.CreatedUtc)
+            .Take(Math.Max(0, maxCount))
+            .ToListAsync();
+    }
 }

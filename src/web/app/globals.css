@@ -1,3 +1,13 @@
+/* Lucky5 cabinet display font. Sourced from the .NET API at
+   /assets/fonts/ARCADE.ttf, proxied through next.config.mjs in dev. */
+@font-face {
+  font-family: "Lucky5Arcade";
+  src: url("/assets/fonts/ARCADE.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 400;
+  font-style: normal;
+}
+
 :root {
   --bg-0: #060606;
   --panel-soft: rgba(30, 27, 21, 0.92);
@@ -12,8 +22,10 @@
   --grid: rgba(255, 212, 71, 0.08);
   --line: rgba(255, 212, 71, 0.18);
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
-  --display-font: var(--font-display), monospace;
-  --body-font: var(--font-body), sans-serif;
+  --font-display: "Lucky5Arcade", "Press Start 2P", "Courier New", monospace;
+  --font-body: "Lucky5Arcade", "Courier New", ui-monospace, monospace;
+  --display-font: var(--font-display);
+  --body-font: var(--font-body);
 }
 
 * {

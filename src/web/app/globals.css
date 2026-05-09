@@ -28,45 +28,6 @@
   --body-font: var(--font-body);
 }
 
-/* ═══════════════════════════════════════════════════════════════ */
-/* HD/Retina display support and high-quality rendering */
-/* ═══════════════════════════════════════════════════════════════ */
-
-html, body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  image-rendering: pixelated;
-}
-
-.page-shell {
-  min-height: 100vh;
-  background: var(--bg-0);
-  padding: 24px 32px 40px;
-}
-
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-  .page-shell {
-    padding: 24px 32px 40px;
-  }
-
-  /* Sharper text rendering on retina displays */
-  html, body {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-}
-
-.cabinet-shell {
-  max-width: 1400px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 20px;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -116,8 +77,6 @@ input {
   gap: 18px;
   grid-template-columns: minmax(0, 700px) minmax(180px, 260px);
   align-items: start;
-  transform: translateZ(0); /* Force GPU acceleration */
-  will-change: transform;
 }
 
 .cabinet {
@@ -129,8 +88,6 @@ input {
     inset 0 2px 0 rgba(255, 255, 255, 0.2),
     inset 0 -18px 36px rgba(0, 0, 0, 0.5),
     var(--shadow);
-  transform: translateZ(0); /* Force GPU acceleration */
-  backface-visibility: hidden; /* Improve rendering performance */
 }
 
 .cabinet::before {
@@ -152,20 +109,6 @@ input {
   min-height: 820px;
   display: grid;
   gap: 12px;
-  transform: translateZ(0); /* Force GPU acceleration */
-  backface-visibility: hidden; /* Improve rendering performance */
-  position: relative;
-}
-
-/* High-quality screen rendering for sharp text and graphics */
-.screen::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.5);
-  z-index: 1;
 }
 
 /* Sprint 1 visual checkpoints:
@@ -1219,200 +1162,6 @@ input {
 .apk-message-danger  { border-color: rgba(255,80,60,0.5); color: #ff8070; }
 .apk-message-warning { border-color: rgba(255,200,40,0.4); color: #ffe090; }
 .apk-message-ready   { border-color: rgba(80,255,100,0.25); }
-
-/* ═══════════════════════════════════════════════════════════════ */
-/* New UI pieces: FH picker, machine-closed overlay, drain animation */
-/* ═══════════════════════════════════════════════════════════════ */
-
-/* Machine-closed overlay */
-.apk-machine-closed-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-}
-
-.apk-machine-closed-content {
-  font-family: var(--display-font);
-  text-align: center;
-  padding: 32px 48px;
-  background: linear-gradient(180deg, #2a1a08 0%, #120a04 100%);
-  border: 2px solid rgba(255, 80, 60, 0.6);
-  border-radius: 16px;
-  box-shadow: 0 0 60px rgba(255, 80, 60, 0.4);
-}
-
-.apk-machine-closed-title {
-  font-size: 1.4rem;
-  color: #ff5e47;
-  margin-bottom: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.apk-machine-closed-subtitle {
-  font-size: 0.85rem;
-  color: #ffd447;
-  letter-spacing: 0.05em;
-}
-
-/* FH-rank picker modal */
-.apk-fh-picker-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 900;
-  backdrop-filter: blur(3px);
-}
-
-.apk-fh-picker-modal {
-  font-family: var(--display-font);
-  background: linear-gradient(180deg, #1a1208 0%, #0d0904 100%);
-  border: 2px solid rgba(255, 212, 71, 0.4);
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
-  max-width: 400px;
-  width: 90%;
-}
-
-.apk-fh-picker-title {
-  font-size: 0.9rem;
-  color: #ffd447;
-  text-align: center;
-  margin-bottom: 20px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.apk-fh-picker-ranks {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.apk-fh-rank-btn {
-  font-family: var(--display-font);
-  font-size: 0.75rem;
-  aspect-ratio: 1;
-  background: linear-gradient(180deg, #3a2a14 0%, #1a1208 100%);
-  border: 1px solid rgba(255, 212, 71, 0.3);
-  border-radius: 8px;
-  color: #ffd447;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.apk-fh-rank-btn:hover:not(:disabled) {
-  background: linear-gradient(180deg, #5a3a24 0%, #2a1a14 100%);
-  border-color: rgba(255, 212, 71, 0.6);
-  transform: scale(1.05);
-}
-
-.apk-fh-rank-btn.active {
-  background: linear-gradient(180deg, #ffd447 0%, #b87200 100%);
-  color: #2a1500;
-  border-color: #ffd447;
-  box-shadow: 0 0 12px rgba(255, 212, 71, 0.5);
-}
-
-.apk-fh-rank-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.apk-fh-picker-close {
-  font-family: var(--display-font);
-  font-size: 0.7rem;
-  width: 100%;
-  padding: 10px;
-  background: linear-gradient(180deg, #444 0%, #222 100%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  letter-spacing: 0.05em;
-}
-
-.apk-fh-picker-close:hover:not(:disabled) {
-  background: linear-gradient(180deg, #666 0%, #333 100%);
-}
-
-.apk-fh-picker-close:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Idle FH face-up card styling */
-.playing-card-apk {
-  transition: transform 0.3s ease;
-  position: relative;
-}
-
-/* Custom Lucky5 cabinet card styling to differentiate from ai9poker */
-.playing-card-apk img.card-img {
-  filter: contrast(1.05) saturate(1.1);
-  border-radius: 12px;
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
-}
-
-.playing-card-apk:hover img.card-img {
-  transform: translateY(-2px);
-  box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  filter: contrast(1.08) saturate(1.15);
-}
-
-.playing-card-apk.held img.card-img {
-  filter: contrast(1.1) saturate(1.2) brightness(1.05);
-  box-shadow:
-    0 0 20px rgba(255, 212, 71, 0.6),
-    0 6px 16px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  transform: scale(1.02);
-}
-
-.playing-card-apk.clickable:hover {
-  cursor: pointer;
-}
-
-.playing-card-apk.clickable:hover img.card-img {
-  transform: scale(1.03) translateY(-4px);
-}
-
-/* Drain animation pulse */
-.apk-win-amount {
-  transition: color 0.2s ease;
-}
-
-.apk-win-amount:not(:empty) {
-  animation: drain-pulse 0.5s ease-in-out infinite alternate;
-}
-
-@keyframes drain-pulse {
-  from {
-    text-shadow: 0 0 8px rgba(255, 212, 71, 0.4);
-  }
-  to {
-    text-shadow: 0 0 20px rgba(255, 212, 71, 0.8), 0 0 30px rgba(255, 212, 71, 0.4);
-  }
-}
 
 /* ═══════════════════════════════════════════════════════════════ */
 

@@ -55,6 +55,8 @@ Thumbs.db
 .zencoder/
 .copilot-cli/
 .ai9poker/
+.lucky5_godot_deck_v1/
+lucky5_godot_deck_v1/
 
 # ── Local workspace scratch / agent state ─────────────────────────────────────
 tmp/

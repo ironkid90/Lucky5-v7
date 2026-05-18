@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "assets:generate": "node scripts/generate-lucky5-assets.mjs",
+    "assets:smoke": "npm run assets:generate && node scripts/smoke-lucky5-assets.mjs"
   },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",

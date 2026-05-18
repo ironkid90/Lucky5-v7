@@ -925,13 +925,11 @@ input {
   height: 100%;
   object-fit: contain;
   display: block;
+  image-rendering: auto;
 }
 
 .card-back-apk {
-  width: 100%;
-  height: 100%;
-  background:
-    repeating-linear-gradient(45deg, #1a3a6e 0px, #1a3a6e 4px, #122b52 4px, #122b52 8px);
+  background: #071331;
 }
 
 .hold-badge-apk {
@@ -1061,8 +1059,14 @@ input {
 }
 
 .apk-hold-btn {
+  --btn-top: #ffd64d;
+  --btn-bottom: #b87200;
+  --btn-pressed-top: #c88000;
+  --btn-pressed-bottom: #6f3c00;
   border: 1px solid rgba(80, 40, 0, 0.5);
-  background: linear-gradient(180deg, #ffd64d 0%, #b87200 100%);
+  background:
+    radial-gradient(circle at 50% 10%, rgba(255,255,255,0.36), transparent 18%),
+    linear-gradient(180deg, var(--btn-top) 0%, var(--btn-bottom) 100%);
   color: #2a1500;
   border-radius: 10px;
   min-height: 56px;
@@ -1071,18 +1075,26 @@ input {
   letter-spacing: 0.04em;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 4px 8px rgba(0,0,0,0.4);
   cursor: pointer;
-  transition: transform 80ms ease;
+  transition: transform 80ms ease, box-shadow 80ms ease, background 80ms ease;
 }
 
 .apk-hold-btn:hover:not(:disabled) { transform: translateY(-1px); }
 .apk-hold-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .apk-hold-btn.active {
-  background: linear-gradient(180deg, #ffe07a 0%, #c88000 100%);
+  background:
+    radial-gradient(circle at 50% 10%, rgba(255,255,255,0.42), transparent 18%),
+    linear-gradient(180deg, #ffe07a 0%, #c88000 100%);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.25),
     0 0 10px rgba(255,215,0,0.35),
     0 4px 8px rgba(0,0,0,0.4);
+}
+
+.apk-hold-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  background: linear-gradient(180deg, var(--btn-pressed-top) 0%, var(--btn-pressed-bottom) 100%);
+  box-shadow: inset 0 3px 8px rgba(0,0,0,0.42), 0 1px 3px rgba(0,0,0,0.5);
 }
 
 /* Row 2 — Action row: BIG | SMALL | CANCEL HOLD | DEAL/DRAW | BET */
@@ -1102,6 +1114,10 @@ input {
 
 /* Generic APK button base */
 .apk-btn {
+  --btn-top: #999;
+  --btn-bottom: #444;
+  --btn-pressed-top: #555;
+  --btn-pressed-bottom: #222;
   border-radius: 10px;
   min-height: 56px;
   font-family: var(--display-font);
@@ -1109,23 +1125,31 @@ input {
   letter-spacing: 0.03em;
   border: 1px solid rgba(0,0,0,0.3);
   color: #fff9e8;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(255,255,255,0.32), transparent 18%),
+    linear-gradient(180deg, var(--btn-top) 0%, var(--btn-bottom) 100%);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 6px 12px rgba(0,0,0,0.3);
   cursor: pointer;
-  transition: transform 80ms ease, opacity 80ms ease;
+  transition: transform 80ms ease, opacity 80ms ease, box-shadow 80ms ease, background 80ms ease;
   line-height: 1.3;
 }
 
 .apk-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.apk-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  background: linear-gradient(180deg, var(--btn-pressed-top) 0%, var(--btn-pressed-bottom) 100%);
+  box-shadow: inset 0 3px 8px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.5);
+}
 .apk-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
-.apk-btn-big   { background: linear-gradient(180deg, #ffd64d 0%, #b87200 100%); color: #2a1500; }
-.apk-btn-small { background: linear-gradient(180deg, #53e8ff 0%, #0d6e9e 100%); }
-.apk-btn-cancel { background: linear-gradient(180deg, #f5ead2 0%, #b09560 100%); color: #1e1005; }
-.apk-btn-deal  { background: linear-gradient(180deg, #ff5c45 0%, #a81e0e 100%); }
-.apk-btn-bet   { background: linear-gradient(180deg, #44cc44 0%, #1a6e1a 100%); }
+.apk-btn-big   { --btn-top: #ffd64d; --btn-bottom: #b87200; --btn-pressed-top: #c88000; --btn-pressed-bottom: #6f3c00; color: #2a1500; }
+.apk-btn-small { --btn-top: #ffb03d; --btn-bottom: #b85f00; --btn-pressed-top: #a65200; --btn-pressed-bottom: #5f2e00; color: #2a1500; }
+.apk-btn-cancel { --btn-top: #f5ead2; --btn-bottom: #b09560; --btn-pressed-top: #aa905d; --btn-pressed-bottom: #665336; color: #1e1005; }
+.apk-btn-deal  { --btn-top: #ff5c45; --btn-bottom: #a81e0e; --btn-pressed-top: #b02212; --btn-pressed-bottom: #5d1008; }
+.apk-btn-bet   { --btn-top: #44cc44; --btn-bottom: #1a6e1a; --btn-pressed-top: #1f7b1f; --btn-pressed-bottom: #0b3d0b; }
 
-.apk-btn-take-half  { background: linear-gradient(180deg, #ff5c45 0%, #a81e0e 100%); min-height: 64px; }
-.apk-btn-take-score { background: linear-gradient(180deg, #ffd64d 0%, #b87200 100%); color: #2a1500; min-height: 64px; }
+.apk-btn-take-half  { --btn-top: #ff5c45; --btn-bottom: #a81e0e; --btn-pressed-top: #b02212; --btn-pressed-bottom: #5d1008; min-height: 64px; }
+.apk-btn-take-score { --btn-top: #ffd64d; --btn-bottom: #b87200; --btn-pressed-top: #c88000; --btn-pressed-bottom: #6f3c00; color: #2a1500; min-height: 64px; }
 
 /* MENU widget */
 .apk-menu-wrap {
@@ -1137,10 +1161,16 @@ input {
 }
 
 .apk-menu-btn-label {
+  --btn-top: #555;
+  --btn-bottom: #111;
+  --btn-pressed-top: #222;
+  --btn-pressed-bottom: #050505;
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(180deg, #555 0%, #111 100%);
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255,255,255,0.24), transparent 22%),
+    linear-gradient(180deg, var(--btn-top) 0%, var(--btn-bottom) 100%);
   border: 2px solid rgba(255,255,255,0.22);
   display: flex;
   align-items: center;
@@ -1151,6 +1181,12 @@ input {
   letter-spacing: 0.06em;
   box-shadow: 0 4px 10px rgba(0,0,0,0.5);
   user-select: none;
+}
+
+.apk-menu-wrap:active .apk-menu-btn-label {
+  transform: translateY(2px);
+  background: linear-gradient(180deg, var(--btn-pressed-top) 0%, var(--btn-pressed-bottom) 100%);
+  box-shadow: inset 0 3px 8px rgba(0,0,0,0.55), 0 1px 3px rgba(0,0,0,0.55);
 }
 
 .apk-menu-popup {
@@ -1185,8 +1221,8 @@ input {
   border-top: 1px solid rgba(255,255,255,0.08);
 }
 
-.apk-btn-switch     { background: linear-gradient(180deg, #999 0%, #444 100%); }
-.apk-btn-double-up  { background: linear-gradient(180deg, #ffd64d 0%, #b87200 100%); color: #2a1500; }
+.apk-btn-switch     { --btn-top: #999; --btn-bottom: #444; --btn-pressed-top: #555; --btn-pressed-bottom: #222; }
+.apk-btn-double-up  { --btn-top: #ffd64d; --btn-bottom: #b87200; --btn-pressed-top: #c88000; --btn-pressed-bottom: #6f3c00; color: #2a1500; }
 
 .apk-du-info {
   font-family: var(--display-font);

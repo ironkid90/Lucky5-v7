@@ -104,10 +104,18 @@ function toneForStatus(status: string): MessageTone {
     return "ready";
 }
 
-// Card image path - placeholder for custom design
+const LUCKY5_CARD_ASSET_ROOT = "/assets/lucky5/cards";
+const LUCKY5_CARD_BACK_SRC = `${LUCKY5_CARD_ASSET_ROOT}/bside.svg`;
+
+function normalizeCardCode(card: PokerCard): string {
+    const rawCode = typeof card.code === "string" ? card.code : `${card.rank}${card.suit}`;
+    return rawCode.trim().toUpperCase().replace(/[^0-9AJQKSHDC]/g, "");
+}
+
+// Custom Lucky5 cabinet deck assets: 52 faces plus bside/hold back.
 function cardImgSrc(card: PokerCard): string {
-    // Return empty placeholder until custom card design is ready
-    return "";
+    const code = normalizeCardCode(card);
+    return `${LUCKY5_CARD_ASSET_ROOT}/${code}.svg`;
 }
 
 function PlayingCard({ card, label, held, onClick }: {
@@ -127,7 +135,7 @@ function PlayingCard({ card, label, held, onClick }: {
             {held && <div className="hold-badge-apk">HOLD</div>}
             {card
                 ? <img src={cardImgSrc(card)} alt={`${card.rank}${card.suit}`} className="card-img" />
-                : <div className="card-back-apk" />
+                : <img src={LUCKY5_CARD_BACK_SRC} alt="Lucky5 card back" className="card-img card-back-apk" />
             }
             {label && <div className="card-label-apk">{label}</div>}
         </div>
@@ -604,7 +612,7 @@ export function Lucky5Cabinet() {
         ? `${drawResult.handRank.toUpperCase().replace(/([A-Z])/g, " $1").trim()} WINS BONUS`
         : null;
 
-    // Rotating idle FH face-up card in slot 2 (index 1) when not in a round
+    // Rotating idle FH face-up card in the middle slot (zero-based index 2) when not in a round.
     useEffect(() => {
         if (dealResult || drawResult || isInDoubleUp) {
             setIdleFhCard(null);
@@ -663,8 +671,8 @@ export function Lucky5Cabinet() {
                             /* Normal 5-card row with hold-click */
                             <div className="apk-card-row">
                                 {Array.from({ length: 5 }, (_, index) => {
-                                    // Idle FH face-up card in slot 2 (index 1) when not in a round
-                                    const isIdleSlot = index === 1 && !dealResult && !drawResult && !isInDoubleUp;
+                                    // Idle FH face-up card in the middle slot (zero-based index 2) when not in a round.
+                                    const isIdleSlot = index === 2 && !dealResult && !drawResult && !isInDoubleUp;
                                     const cardToDisplay = isIdleSlot ? idleFhCard : (activeCards[index] ?? null);
                                     return (
                                         <PlayingCard

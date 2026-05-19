@@ -13,3 +13,9 @@
 - Recorded that the previous 85% direction became hard to balance cleanly because double-up variance is strong under the clean-room ruleset.
 - Recorded the current product direction: aim for an 80% middle ground that preserves fun, tension, excitement, deterministic pre-shuffled outcomes, and avoids obviously scripted gameplay.
 - Recorded the key simulation/live mismatch: simulation still uses policy-driven double-up offers while live code currently offers double-up on every paying hand.
+## 2026-05-19 — Godot Migration Readiness Gate
+
+- Added `scripts/run-godot-migration-readiness-gate.ps1` to produce JSON/Markdown pass-fail artifacts for contract, backend replay/recovery, ledger/idempotency, Godot headless, parity smoke, and rollback/burn-in readiness.
+- Latest gate artifact: `tmp/godot-migration-readiness-gate-20260519-041927.md` with overall **FAIL**.
+- Automated passes: backend regression suite (`dotnet run --project server/tests/Lucky5.Tests/Lucky5.Tests.csproj`) and web cabinet asset parity smoke (`npm run assets:smoke`).
+- Blockers: Godot fixture/command schema drift (`v1`/`classic` vs `cabinet.v1`/`lucky5.classic`), missing Godot executable on PATH, no Godot client sequence-gap recovery implementation, and variant governance/RTP/production activation not approved.

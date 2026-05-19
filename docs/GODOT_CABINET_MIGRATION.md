@@ -51,3 +51,10 @@ dependency order defined there.
 2. Add reconnect overlay and sequence-gap recovery.
 3. Map live button enablement to authoritative backend state.
 4. Add sound, card flip timing, and jackpot highlight polish using the existing pacing docs.
+
+## Release lane
+
+Kiosk export, signed asset manifest, deployment, and rollback policy lives in
+`docs/GODOT_KIOSK_RELEASE.md`. That lane is blocked until the production
+readiness gate in `docs/GODOT_MIGRATION_RESET_DEPENDENCY_MAP_2026-05-05.md`
+passes.

@@ -95,6 +95,8 @@ $APPDATA/
 *.db
 *.db-shm
 *.db-wal
+artifacts/
+*.sig
 
 # ── Secrets / env overrides ───────────────────────────────────────────────────
 .env
@@ -102,6 +104,9 @@ $APPDATA/
 *.env.*.local
 appsettings.Production.json
 appsettings.Staging.json
+*.pem
+*.pfx
+*.key
 
 # ── Reverse-engineering / analysis captures (local only) ─────────────────────
 *.7z

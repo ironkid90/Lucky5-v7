@@ -1,28 +1,38 @@
-<img width="1672" height="941" alt="ChatGPT Image 2026年4月22日 06_27_35" src="https://github.com/user-attachments/assets/501fa074-759c-41fa-966c-e3ea2377f468" />
+# Lucky5 Godot Cabinet
 
-Cover art inspired by Agent 47.
+This is the playable Godot 4 portrait cabinet for Lucky5. It is intentionally a client shell: cards, wins, double-up outcomes, jackpot movement, machine closure, cash-in, and cash-out are all applied only from backend snapshots or command results.
 
-# Agent Godette
+## Runtime contract
 
-v0.3.1
+Set these environment variables before running `res://scenes/CabinetRoot.tscn`:
 
-**Per-session model, mode, and reasoning** — switch model, reasoning effort, and permission mode per thread, right from the composer bar.
+```bash
+LUCKY5_API_BASE_URL=http://127.0.0.1:8080
+LUCKY5_ACCESS_TOKEN=<player bearer token>
+LUCKY5_MACHINE_ID=1
+```
 
-<img width="3840" height="2076" alt="Snipaste_2026-04-24_22-18-27" src="https://github.com/user-attachments/assets/832df8ad-b280-4d42-8f54-8d170a200d58" />
+The scene boots `res://data/fixture_snapshot.json` immediately, then hydrates from:
 
-**Plan · Queue · SceneTree focus** — the agent's TodoWrite plan collapses above the composer, queued follow-up prompts stack underneath it, and any node you've selected in the SceneTree auto-attaches as implicit context on send.
+- `GET /api/Game/machine/{machineId}/cabinet-snapshot`
+- `POST /api/Game/cabinet/command`
+- `POST /api/Game/machine/{machineId}/cabinet-replay`
 
-<img width="3840" height="2076" alt="Snipaste_2026-04-24_22-19-50" src="https://github.com/user-attachments/assets/1e804118-7a33-496e-bdf9-7094b0407733" />
+## Playable controls
 
+- CASH IN sends `cash_in` with an amount from the input box.
+- BET cycles locally between backend min and max bet, then sends a non-mutating `bet_change` telemetry command.
+- DEAL sends `deal` with the selected bet.
+- Card taps toggle a local hold preview; DRAW sends those `hold_indexes` to the backend.
+- BIG/SMALL send `double_up_guess`; the backend starts double-up automatically when allowed.
+- TAKE HALF sends `take_half`.
+- TAKE SCORE sends `take_score` while a round is active, or `cash_out` when only cash-out is available.
+- RECONNECT requests replay from the last applied state/sequence cursor.
 
-## What it is
+## Flutter parity notes
 
-A Godot 4 editor plugin that talks to local ACP (Agent Client Protocol) adapters — Claude and Codex run as stdio subprocesses, the editor is the client. No HTTP bridge.
+The uploaded Flutter web artifact is compiled/minified JavaScript, so this client ports behavior patterns rather than copying generated code: backend event vocabulary, foreground/background heartbeat, reconnect replay, cash controls, local hold preview, double-up controls, and server-driven button enablement.
 
-## What it solves
+## Authority rules
 
-Godot had no in-editor agent. This plugin makes the editor itself the chat surface: attach scene nodes, FileSystem files, or pasted screenshots as context; the agent edits your project in place. No copy-paste between a separate chat app and the editor.
-
-## Credits
-
-Standing on [Zed](https://github.com/zed-industries/zed)'s shoulders — the ACP transport and most of the UX (plan / queue drawers, composer chips, transcript persistence, tool-call rendering) are modeled directly on Zed's external-agent implementation.
+Godot does not create cards, resolve hands, mutate wallet balances, advance jackpots, decide double-up, or settle payouts. Every visible state change is driven by a `cabinet.v1` snapshot returned from the server.

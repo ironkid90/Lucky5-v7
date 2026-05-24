@@ -1,397 +1,422 @@
 extends Control
 
-const CabinetStateStoreScript = preload("res://scripts/cabinet_state_store.gd")
-const CabinetApiClientScript = preload("res://scripts/cabinet_api_client.gd")
-const CabinetControlsScript = preload("res://scripts/cabinet_controls.gd")
+const CabinetApiScript = preload("res://scripts/cabinet_api.gd")
+const CabinetStoreScript = preload("res://scripts/cabinet_store.gd")
 
-var _paytable_rows := [
-	{"key": "RoyalFlush", "label": "ROYAL FLUSH", "mult": 1000, "color": Color8(245, 72, 72)},
-	{"key": "StraightFlush", "label": "STRAIGHT FLUSH", "mult": 75, "color": Color8(235, 66, 78)},
-	{"key": "FourOfAKind", "label": "4 OF A KIND", "mult": 15, "color": Color8(42, 224, 226)},
-	{"key": "FullHouse", "label": "FULL HOUSE", "mult": 12, "color": Color8(250, 250, 250)},
-	{"key": "Flush", "label": "FLUSH", "mult": 10, "color": Color8(255, 200, 62)},
-	{"key": "Straight", "label": "STRAIGHT", "mult": 8, "color": Color8(49, 194, 255)},
-	{"key": "ThreeOfAKind", "label": "3 OF A KIND", "mult": 3, "color": Color8(255, 186, 38)},
-	{"key": "TwoPair", "label": "2 PAIR", "mult": 2, "color": Color8(49, 208, 255)}
-]
+var api: CabinetApi
+var store: CabinetStore = CabinetStoreScript.new()
 
-var _button_layout := [
-	[
-		{"id": "hold_0", "label": "HOLD", "color": Color8(250, 206, 55), "text": Color.BLACK},
-		{"id": "hold_1", "label": "HOLD", "color": Color8(250, 206, 55), "text": Color.BLACK},
-		{"id": "hold_2", "label": "HOLD", "color": Color8(250, 206, 55), "text": Color.BLACK},
-		{"id": "hold_3", "label": "HOLD", "color": Color8(250, 206, 55), "text": Color.BLACK},
-		{"id": "hold_4", "label": "HOLD", "color": Color8(250, 206, 55), "text": Color.BLACK}
-	],
-	[
-		{"id": "big", "label": "BIG", "color": Color8(245, 151, 32), "text": Color.BLACK},
-		{"id": "small", "label": "SMALL", "color": Color8(245, 151, 32), "text": Color.BLACK},
-		{"id": "cancel", "label": "CANCEL\nHOLD", "color": Color8(243, 231, 214), "text": Color8(42, 42, 42)},
-		{"id": "deal", "label": "DEAL\nDRAW", "color": Color8(236, 54, 42), "text": Color.WHITE},
-		{"id": "bet", "label": "BET", "color": Color8(44, 210, 62), "text": Color.BLACK}
-	],
-	[
-		{"id": "take_half", "label": "TAKE\nHALF", "color": Color8(236, 54, 42), "text": Color.WHITE},
-		{"id": "menu", "label": "MENU", "color": Color8(38, 35, 33), "text": Color8(220, 220, 220)},
-		{"id": "take_score", "label": "TAKE\nSCORE", "color": Color8(245, 168, 42), "text": Color.BLACK}
-	]
-]
+var api_base_url := "http://127.0.0.1:8080"
+var access_token := ""
+var configured_machine_id := 1
+var selected_bet := 200000
+var cash_in_amount := 200000
+var client_sequence := 0
+var local_hold_indexes: Array = []
+var last_game_state := ""
 
-var _store
-var _api
-var _controls
-
-var _paytable_amounts: Dictionary = {}
-var _paytable_panels: Dictionary = {}
-var _card_nodes: Array = []
-var _button_nodes: Dictionary = {}
-
-var _credits_value: Label
-var _stake_value: Label
-var _win_value: Label
-var _machine_serie: Label
-var _machine_kent: Label
-var _machine_serial: Label
-var _jp_a: Label
-var _jp_sf: Label
-var _jp_b: Label
-var _jp_fh: Label
-var _bonus_text: Label
-var _message_label: Label
-var _idle_overlay: Control
+var title_label: Label
+var paytable_label: Label
+var credit_label: Label
+var jackpot_label: Label
+var message_label: Label
+var recovery_label: Label
+var cash_in_edit: LineEdit
+var bet_label: Label
+var card_buttons: Array = []
+var action_buttons: Dictionary = {}
+var heartbeat_timer: Timer
+var replay_timer: Timer
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(720, 1280)
-	_store = CabinetStateStoreScript.new()
-	_api = CabinetApiClientScript.new()
-	_controls = CabinetControlsScript.new()
-	_controls.command_requested.connect(_on_command_requested)
-	_store.snapshot_applied.connect(_render_snapshot)
-	_build_scene()
-	_store.apply_snapshot(_api.load_classic_snapshot())
+    _load_environment()
+    _build_ui()
+    _load_fixture_snapshot()
 
-func _build_scene() -> void:
-	var background := ColorRect.new()
-	background.color = Color8(3, 3, 3)
-	background.position = Vector2.ZERO
-	background.size = Vector2(720, 1280)
-	add_child(background)
+    api = CabinetApiScript.new()
+    add_child(api)
+    api.configure(api_base_url, access_token)
+    api.request_completed.connect(_on_api_response)
 
-	var paytable := Panel.new()
-	paytable.position = Vector2(16, 14)
-	paytable.size = Vector2(400, 236)
-	paytable.add_theme_stylebox_override("panel", _style_box(Color.TRANSPARENT))
-	add_child(paytable)
+    heartbeat_timer = Timer.new()
+    heartbeat_timer.wait_time = 20.0
+    heartbeat_timer.autostart = true
+    heartbeat_timer.timeout.connect(_send_heartbeat)
+    add_child(heartbeat_timer)
 
-	var paytable_box := VBoxContainer.new()
-	paytable_box.position = Vector2.ZERO
-	paytable_box.size = paytable.size
-	paytable_box.add_theme_constant_override("separation", 4)
-	paytable.add_child(paytable_box)
+    replay_timer = Timer.new()
+    replay_timer.wait_time = 3.0
+    replay_timer.one_shot = true
+    replay_timer.timeout.connect(_request_replay)
+    add_child(replay_timer)
 
-	for row in _paytable_rows:
-		var row_panel := Panel.new()
-		row_panel.custom_minimum_size = Vector2(paytable.size.x, 24)
-		row_panel.add_theme_stylebox_override("panel", _style_box(Color.TRANSPARENT))
-		var line := HBoxContainer.new()
-		line.position = Vector2.ZERO
-		line.size = Vector2(paytable.size.x, 24)
-		line.add_theme_constant_override("separation", 12)
-		row_panel.add_child(line)
+    _request_snapshot()
 
-		var hand_name := _pixel_label(row["label"], 18, row["color"], 1, Color.BLACK)
-		hand_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		line.add_child(hand_name)
+func _load_environment() -> void:
+    var env_base := OS.get_environment("LUCKY5_API_BASE_URL")
+    if not env_base.is_empty():
+        api_base_url = env_base
 
-		var amount := _pixel_label("0", 18, row["color"], 1, Color.BLACK)
-		amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		line.add_child(amount)
+    access_token = OS.get_environment("LUCKY5_ACCESS_TOKEN")
 
-		paytable_box.add_child(row_panel)
-		_paytable_amounts[row["key"]] = amount
-		_paytable_panels[row["key"]] = row_panel
+    var env_machine := OS.get_environment("LUCKY5_MACHINE_ID")
+    if not env_machine.is_empty() and env_machine.is_valid_int():
+        configured_machine_id = int(env_machine)
 
-	var counters := Panel.new()
-	counters.position = Vector2(500, 16)
-	counters.size = Vector2(200, 180)
-	counters.add_theme_stylebox_override("panel", _style_box(Color.TRANSPARENT))
-	add_child(counters)
+func _build_ui() -> void:
+    var background := ColorRect.new()
+    background.color = Color(0.04, 0.025, 0.018, 1.0)
+    background.set_anchors_preset(Control.PRESET_FULL_RECT)
+    add_child(background)
 
-	var credits_label := _pixel_label("CREDIT", 18, Color8(80, 220, 115), 1, Color.BLACK)
-	credits_label.position = Vector2(24, 0)
-	counters.add_child(credits_label)
-	_credits_value = _pixel_label("0", 24, Color.WHITE, 2, Color.BLACK)
-	_credits_value.position = Vector2(24, 28)
-	counters.add_child(_credits_value)
+    var root := VBoxContainer.new()
+    root.set_anchors_preset(Control.PRESET_FULL_RECT)
+    root.add_theme_constant_override("separation", 10)
+    root.offset_left = 18
+    root.offset_top = 18
+    root.offset_right = -18
+    root.offset_bottom = -18
+    add_child(root)
 
-	var stake_label := _pixel_label("STAKE", 18, Color8(255, 185, 56), 1, Color.BLACK)
-	stake_label.position = Vector2(56, 90)
-	counters.add_child(stake_label)
-	_stake_value = _pixel_label("0", 24, Color.WHITE, 2, Color.BLACK)
-	_stake_value.position = Vector2(62, 118)
-	counters.add_child(_stake_value)
+    title_label = Label.new()
+    title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    title_label.text = "LUCKY 5"
+    title_label.add_theme_font_size_override("font_size", 38)
+    root.add_child(title_label)
 
-	var card_row := HBoxContainer.new()
-	card_row.position = Vector2(20, 250)
-	card_row.size = Vector2(680, 240)
-	card_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	card_row.add_theme_constant_override("separation", 12)
-	add_child(card_row)
+    var top := HBoxContainer.new()
+    top.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    root.add_child(top)
 
-	for _i in range(5):
-		var card_panel := _create_card_panel()
-		card_row.add_child(card_panel["panel"])
-		_card_nodes.append(card_panel)
+    paytable_label = Label.new()
+    paytable_label.text = _paytable_text()
+    paytable_label.add_theme_font_size_override("font_size", 18)
+    paytable_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    top.add_child(paytable_label)
 
-	_win_value = _pixel_label("0", 30, Color8(255, 214, 73), 3, Color8(90, 24, 0))
-	_win_value.position = Vector2(220, 510)
-	_win_value.size = Vector2(280, 40)
-	_win_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_child(_win_value)
+    credit_label = Label.new()
+    credit_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    credit_label.add_theme_font_size_override("font_size", 20)
+    credit_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    top.add_child(credit_label)
 
-	var machine_block := Panel.new()
-	machine_block.position = Vector2(8, 572)
-	machine_block.size = Vector2(704, 145)
-	machine_block.add_theme_stylebox_override("panel", _style_box(Color.TRANSPARENT))
-	add_child(machine_block)
+    var card_row := HBoxContainer.new()
+    card_row.alignment = BoxContainer.ALIGNMENT_CENTER
+    card_row.add_theme_constant_override("separation", 8)
+    card_row.custom_minimum_size = Vector2(0, 190)
+    root.add_child(card_row)
 
-	_machine_serie = _pixel_label("SERIE - 0", 16, Color8(75, 211, 95), 1, Color.BLACK)
-	_machine_serie.position = Vector2(0, 6)
-	machine_block.add_child(_machine_serie)
-	_machine_kent = _pixel_label("KENT /3 : 0", 16, Color8(75, 211, 95), 1, Color.BLACK)
-	_machine_kent.position = Vector2(0, 32)
-	machine_block.add_child(_machine_kent)
-	_machine_serial = _pixel_label("S/N: 0", 16, Color8(55, 193, 255), 1, Color.BLACK)
-	_machine_serial.position = Vector2(0, 64)
-	machine_block.add_child(_machine_serial)
+    for index in range(5):
+        var button := Button.new()
+        button.custom_minimum_size = Vector2(126, 176)
+        button.text = "--"
+        button.focus_mode = Control.FOCUS_NONE
+        button.pressed.connect(_on_card_pressed.bind(index))
+        card_buttons.append(button)
+        card_row.add_child(button)
 
-	_jp_a = _pixel_label("0", 20, Color8(60, 240, 110), 1, Color.BLACK)
-	_jp_a.position = Vector2(76, 16)
-	machine_block.add_child(_jp_a)
-	_jp_sf = _pixel_label("0", 20, Color8(255, 72, 72), 1, Color.BLACK)
-	_jp_sf.position = Vector2(292, 16)
-	machine_block.add_child(_jp_sf)
-	_jp_b = _pixel_label("0", 20, Color8(60, 240, 110), 1, Color.BLACK)
-	_jp_b.position = Vector2(556, 16)
-	machine_block.add_child(_jp_b)
-	_jp_fh = _pixel_label("0", 20, Color8(55, 193, 255), 1, Color.BLACK)
-	_jp_fh.position = Vector2(76, 52)
-	machine_block.add_child(_jp_fh)
+    jackpot_label = Label.new()
+    jackpot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    jackpot_label.add_theme_font_size_override("font_size", 19)
+    root.add_child(jackpot_label)
 
-	_bonus_text = _pixel_label("4 OF A KIND WINS BONUS", 24, Color.WHITE, 2, Color.BLACK)
-	_bonus_text.position = Vector2(30, 94)
-	machine_block.add_child(_bonus_text)
+    message_label = Label.new()
+    message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    message_label.add_theme_font_size_override("font_size", 24)
+    message_label.custom_minimum_size = Vector2(0, 70)
+    root.add_child(message_label)
 
-	_message_label = _pixel_label("INSERT COIN", 18, Color8(255, 255, 255), 1, Color.BLACK)
-	_message_label.position = Vector2(210, 712)
-	_message_label.size = Vector2(300, 24)
-	_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_child(_message_label)
+    recovery_label = Label.new()
+    recovery_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    recovery_label.add_theme_font_size_override("font_size", 15)
+    root.add_child(recovery_label)
 
-	var controls_panel := Panel.new()
-	controls_panel.position = Vector2(8, 760)
-	controls_panel.size = Vector2(704, 500)
-	controls_panel.add_theme_stylebox_override("panel", _style_box(Color8(66, 31, 10), Color8(48, 19, 5), 4, 4))
-	add_child(controls_panel)
+    var inputs := HBoxContainer.new()
+    inputs.add_theme_constant_override("separation", 8)
+    root.add_child(inputs)
 
-	var y_offset := 22.0
-	for row in _button_layout:
-		var x_offset := 18.0
-		var button_width := 0.0
-		if row.size() == 5:
-			button_width = 118.0
-		else:
-			button_width = 170.0
-			x_offset = 28.0
-		for button_def in row:
-			var button_height := 118.0 if row.size() == 5 else 126.0
-			var button := _create_button(button_def["label"], button_def["color"], button_def["text"], button_width, button_height)
-			button.position = Vector2(x_offset, y_offset)
-			controls_panel.add_child(button)
-			var button_id := String(button_def["id"])
-			button.pressed.connect(func(): _controls.emit_command(button_id, {}))
-			_button_nodes[button_def["id"]] = button
-			x_offset += button_width + 18.0
-		y_offset += 154.0 if row.size() == 5 else 166.0
+    var cash_label := Label.new()
+    cash_label.text = "CASH IN"
+    inputs.add_child(cash_label)
 
-	_idle_overlay = Control.new()
-	_idle_overlay.position = Vector2(46, 300)
-	_idle_overlay.size = Vector2(628, 180)
-	add_child(_idle_overlay)
+    cash_in_edit = LineEdit.new()
+    cash_in_edit.text = str(cash_in_amount)
+    cash_in_edit.custom_minimum_size = Vector2(160, 42)
+    inputs.add_child(cash_in_edit)
 
-	var idle_lucky := _pixel_label("LUCKY5", 54, Color8(35, 220, 255), 2, Color8(0, 55, 72))
-	idle_lucky.position = Vector2(0, 0)
-	idle_lucky.rotation_degrees = -3.0
-	_idle_overlay.add_child(idle_lucky)
+    bet_label = Label.new()
+    bet_label.text = "BET %s" % selected_bet
+    bet_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    bet_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    inputs.add_child(bet_label)
 
-	var idle_poker := _pixel_label("POKER", 58, Color8(35, 220, 255), 2, Color8(0, 55, 72))
-	idle_poker.position = Vector2(204, 74)
-	idle_poker.rotation_degrees = -3.0
-	_idle_overlay.add_child(idle_poker)
-	_idle_overlay.visible = false
+    var grid := GridContainer.new()
+    grid.columns = 3
+    grid.add_theme_constant_override("h_separation", 8)
+    grid.add_theme_constant_override("v_separation", 8)
+    root.add_child(grid)
 
-func _render_snapshot(snapshot: Dictionary) -> void:
-	var bet := _to_float(snapshot.get("credits", {}).get("bet", 0))
-	for row in _paytable_rows:
-		var key := String(row["key"])
-		if _paytable_amounts.has(key):
-			_paytable_amounts[key].text = _format_num(int(row["mult"] * bet))
-		if _paytable_panels.has(key):
-			var is_active: bool = snapshot.get("evaluation", {}).get("hand_rank", "") == key
-			var bg := Color8(238, 238, 238, 240) if is_active else Color.TRANSPARENT
-			var border := Color8(255, 255, 255) if is_active else Color.TRANSPARENT
-			var border_width := 2 if is_active else 0
-			_paytable_panels[key].add_theme_stylebox_override("panel", _style_box(bg, border, border_width))
+    _add_action_button(grid, "cash_in", "CASH IN")
+    _add_action_button(grid, "bet", "BET")
+    _add_action_button(grid, "deal_draw", "DEAL\nDRAW")
+    _add_action_button(grid, "cancel_hold", "CANCEL\nHOLD")
+    _add_action_button(grid, "big", "BIG")
+    _add_action_button(grid, "small", "SMALL")
+    _add_action_button(grid, "take_half", "TAKE\nHALF")
+    _add_action_button(grid, "take_score", "TAKE\nSCORE")
+    _add_action_button(grid, "cash_out", "CASH OUT")
+    _add_action_button(grid, "reconnect_sync", "RECONNECT")
+    _add_action_button(grid, "back_to_lobby", "LOBBY")
+    _add_action_button(grid, "logout", "LOGOUT")
 
-	_credits_value.text = _format_num(int(_to_float(snapshot.get("credits", {}).get("balance", 0))))
-	_stake_value.text = _format_num(int(bet))
-	_win_value.text = _format_num(int(_to_float(snapshot.get("evaluation", {}).get("win_amount", 0))))
+func _add_action_button(parent: Node, id: String, label: String) -> void:
+    var button := Button.new()
+    button.text = label
+    button.custom_minimum_size = Vector2(0, 62)
+    button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    button.focus_mode = Control.FOCUS_NONE
+    button.pressed.connect(_on_action_pressed.bind(id))
+    action_buttons[id] = button
+    parent.add_child(button)
 
-	var jackpot: Dictionary = snapshot.get("jackpot", {})
-	var current_values: Dictionary = jackpot.get("current_values", {})
-	_machine_serie.text = "SERIE - %s" % jackpot.get("machine_serie", "0")
-	_machine_kent.text = "KENT /3 : %s" % jackpot.get("machine_kent", "0")
-	_machine_serial.text = "S/N: %s" % jackpot.get("machine_serial", "0")
-	_jp_a.text = _format_num(int(_to_float(current_values.get("four_of_a_kind_a", 0))))
-	_jp_sf.text = _format_num(int(_to_float(current_values.get("straight_flush", 0))))
-	_jp_b.text = _format_num(int(_to_float(current_values.get("four_of_a_kind_b", 0))))
-	_jp_fh.text = _format_num(int(_to_float(current_values.get("full_house", 0))))
+func _load_fixture_snapshot() -> void:
+    var file := FileAccess.open("res://data/fixture_snapshot.json", FileAccess.READ)
+    if file == null:
+        return
+    var parsed = JSON.parse_string(file.get_as_text())
+    if typeof(parsed) == TYPE_DICTIONARY:
+        store.apply_snapshot(parsed, true)
+        selected_bet = max(store.min_bet(), store.stake())
+        cash_in_amount = max(200000, store.min_bet())
+        _refresh_ui()
 
-	var cards: Array = snapshot.get("hand", {}).get("result_cards", [])
-	for index in range(min(cards.size(), _card_nodes.size())):
-		_render_card(_card_nodes[index], cards[index])
+func _request_snapshot() -> void:
+    api.get_snapshot(configured_machine_id)
 
-	var enabled: Array = snapshot.get("ui_hints", {}).get("enabled_buttons", [])
-	for key in _button_nodes.keys():
-		_button_nodes[key].disabled = not enabled.has(key)
+func _request_replay() -> void:
+    api.post_replay(configured_machine_id, store.state_version(), store.sequence_number())
 
-	_message_label.text = String(snapshot.get("ui_hints", {}).get("message", "READY"))
-	_bonus_text.text = String(snapshot.get("ui_hints", {}).get("bonus_message", ""))
-	_idle_overlay.visible = bool(snapshot.get("ui_hints", {}).get("idle_title_visible", false))
+func _send_heartbeat() -> void:
+    if access_token.is_empty() or store.snapshot.is_empty():
+        return
+    _send_command("heartbeat", {}, false)
 
-func _render_card(card_node: Dictionary, card: Dictionary) -> void:
-	var suit := String(card.get("suit", ""))
-	var is_red := suit == "H" or suit == "D"
-	var suit_symbol: String = {"S": "S", "H": "H", "D": "D", "C": "C"}.get(suit, "?")
-	var color := Color8(220, 40, 40) if is_red else Color8(20, 20, 20)
-	card_node["rank_top"].text = String(card.get("rank", ""))
-	card_node["rank_top"].modulate = color
-	card_node["rank_bottom"].text = String(card.get("rank", ""))
-	card_node["rank_bottom"].modulate = color
-	card_node["suit"].text = suit_symbol
-	card_node["suit"].modulate = color
+func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_message: String) -> void:
+    if not ok:
+        store.apply_transport_error(error_message)
+        _refresh_ui()
+        if kind != "replay":
+            replay_timer.start()
+        return
 
-func _on_command_requested(command_type: String, payload: Dictionary) -> void:
-	var snapshot: Dictionary = _store.snapshot
-	var command: Dictionary = _api.emit_command(
-		command_type,
-		int(snapshot.get("machine_id", 1)),
-		snapshot.get("session_id", null),
-		int(snapshot.get("state_version", 0)),
-		payload
-	)
-	_message_label.text = "CMD %s" % String(command.get("command_type", "")).to_upper()
+    var data = _unwrap_response_data(body)
+    if kind == "snapshot" and typeof(data) == TYPE_DICTIONARY:
+        _apply_snapshot(data)
+    elif kind == "command" and typeof(data) == TYPE_DICTIONARY:
+        if data.has("snapshot") and typeof(data["snapshot"]) == TYPE_DICTIONARY:
+            _apply_snapshot(data["snapshot"])
+        elif data.has("error"):
+            store.apply_transport_error(str(data["error"].get("message", "Command rejected")))
+            _refresh_ui()
+    elif kind == "replay" and typeof(data) == TYPE_DICTIONARY:
+        if data.get("requires_full_snapshot", false) and data.has("snapshot"):
+            _apply_snapshot(data["snapshot"])
+        elif data.has("events"):
+            _apply_replay_events(data["events"])
+        else:
+            _request_snapshot()
 
-func _create_card_panel() -> Dictionary:
-	var panel := Panel.new()
-	panel.custom_minimum_size = Vector2(120, 172)
-	panel.size = Vector2(120, 172)
-	panel.add_theme_stylebox_override("panel", _style_box(Color.WHITE, Color8(205, 205, 205), 2, 8))
+func _unwrap_response_data(body):
+    if typeof(body) == TYPE_DICTIONARY and body.has("data"):
+        return body["data"]
+    return body
 
-	var rank_top := _pixel_label("A", 24, Color.BLACK, 0)
-	rank_top.position = Vector2(10, 6)
-	panel.add_child(rank_top)
+func _apply_replay_events(events: Array) -> void:
+    var applied := false
+    for event in events:
+        if typeof(event) != TYPE_DICTIONARY:
+            continue
+        var payload := event.get("payload", {})
+        if typeof(payload) == TYPE_DICTIONARY and payload.has("snapshot"):
+            if store.apply_snapshot(payload["snapshot"]):
+                applied = true
+    if not applied:
+        _request_snapshot()
+    else:
+        _refresh_ui()
 
-	var suit_label := _pixel_label("S", 56, Color.BLACK, 0)
-	suit_label.position = Vector2(36, 48)
-	panel.add_child(suit_label)
+func _apply_snapshot(next_snapshot: Dictionary) -> void:
+    var previous_state := store.game_state()
+    if store.apply_snapshot(next_snapshot):
+        if previous_state != store.game_state() or store.game_state() != "hold":
+            local_hold_indexes.clear()
+        configured_machine_id = store.machine_id(configured_machine_id)
+        selected_bet = clampi(selected_bet, max(1, store.min_bet()), max(store.min_bet(), store.max_bet()))
+        if selected_bet == 0:
+            selected_bet = max(1, store.stake())
+        _refresh_ui()
 
-	var rank_bottom := _pixel_label("A", 24, Color.BLACK, 0)
-	rank_bottom.position = Vector2(82, 132)
-	rank_bottom.rotation_degrees = 180.0
-	panel.add_child(rank_bottom)
+func _refresh_ui() -> void:
+    title_label.text = "%s\n%s" % [store.machine_name(), str(store.snapshot.get("variant", {}).get("display_name", "Lucky5 Classic"))]
+    credit_label.text = store.credit_line()
+    jackpot_label.text = store.jackpot_line()
+    message_label.text = store.message()
+    recovery_label.text = "" if store.commands_allowed() else "RECOVERY: %s" % store.recovery_message()
+    bet_label.text = "BET %s" % _format_amount(selected_bet)
 
-	return {
-		"panel": panel,
-		"rank_top": rank_top,
-		"rank_bottom": rank_bottom,
-		"suit": suit_label
-	}
+    var game_state := store.game_state()
+    if last_game_state != game_state and game_state != "hold":
+        local_hold_indexes.clear()
+    last_game_state = game_state
 
-func _create_button(text: String, bg: Color, fg: Color, width: float, height: float) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.size = Vector2(width, height)
-	button.custom_minimum_size = button.size
-	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_stylebox_override("normal", _button_style(bg))
-	button.add_theme_stylebox_override("hover", _button_style(bg.lightened(0.08)))
-	button.add_theme_stylebox_override("pressed", _button_style(bg.darkened(0.12)))
-	button.add_theme_stylebox_override("disabled", _button_style(bg.darkened(0.32)))
-	button.add_theme_color_override("font_color", fg)
-	button.add_theme_color_override("font_hover_color", fg)
-	button.add_theme_color_override("font_pressed_color", fg)
-	button.add_theme_color_override("font_disabled_color", fg.darkened(0.35))
-	button.add_theme_font_size_override("font_size", 46 if text == "MENU" else 24)
-	return button
+    var cards := store.cards()
+    if game_state == "drawn" or game_state == "win":
+        cards = store.result_cards()
+    for index in range(5):
+        var button: Button = card_buttons[index]
+        if index < cards.size() and typeof(cards[index]) == TYPE_DICTIONARY:
+            var card: Dictionary = cards[index]
+            var held := local_hold_indexes.has(index) or bool(card.get("held", false))
+            button.text = "%s\n%s" % [str(card.get("code", "??")), "HELD" if held else ""]
+        else:
+            button.text = "--"
+        button.disabled = not store.can_press("hold_%d" % index)
 
-func _pixel_label(text: String, font_size: int, color: Color, outline_size: int, outline_color: Color = Color.BLACK) -> Label:
-	var label := Label.new()
-	label.text = text
-	var settings := LabelSettings.new()
-	settings.font_size = font_size
-	settings.font_color = color
-	settings.outline_size = outline_size
-	settings.outline_color = outline_color
-	label.label_settings = settings
-	return label
+    for id in action_buttons.keys():
+        var button: Button = action_buttons[id]
+        button.disabled = not _is_action_enabled(id)
+        if id == "deal_draw":
+            button.text = "DRAW" if store.game_state() == "hold" else "DEAL"
 
-func _button_style(bg: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = bg
-	style.corner_radius_top_left = 12
-	style.corner_radius_top_right = 12
-	style.corner_radius_bottom_right = 12
-	style.corner_radius_bottom_left = 12
-	style.border_width_left = 4
-	style.border_width_top = 4
-	style.border_width_right = 4
-	style.border_width_bottom = 12
-	style.border_color = bg.darkened(0.38)
-	style.shadow_color = Color(0, 0, 0, 0.4)
-	style.shadow_size = 6
-	style.shadow_offset = Vector2(0, 6)
-	return style
+func _is_action_enabled(id: String) -> bool:
+    if id == "reconnect_sync":
+        return true
+    if id in ["back_to_lobby", "logout"]:
+        return true
+    if id == "take_score" and store.can_press("cash_out"):
+        return true
+    return store.can_press(id)
 
-func _style_box(fill: Color, border: Color = Color.TRANSPARENT, border_width: int = 0, radius: int = 0) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = fill
-	style.corner_radius_top_left = radius
-	style.corner_radius_top_right = radius
-	style.corner_radius_bottom_right = radius
-	style.corner_radius_bottom_left = radius
-	style.border_color = border
-	style.border_width_left = border_width
-	style.border_width_top = border_width
-	style.border_width_right = border_width
-	style.border_width_bottom = border_width
-	return style
+func _on_card_pressed(index: int) -> void:
+    if not store.can_press("hold_%d" % index):
+        return
+    if local_hold_indexes.has(index):
+        local_hold_indexes.erase(index)
+    else:
+        local_hold_indexes.append(index)
+        local_hold_indexes.sort()
+    _refresh_ui()
 
-func _format_num(value: int) -> String:
-	var digits := str(abs(value))
-	var groups: Array[String] = []
-	while digits.length() > 3:
-		groups.push_front(digits.substr(digits.length() - 3, 3))
-		digits = digits.substr(0, digits.length() - 3)
-	groups.push_front(digits)
-	var result := ",".join(groups)
-	return "-%s" % result if value < 0 else result
+func _on_action_pressed(id: String) -> void:
+    match id:
+        "cash_in":
+            cash_in_amount = _sanitize_cash_amount(cash_in_edit.text)
+            cash_in_edit.text = str(cash_in_amount)
+            _send_command("cash_in", {"amount": str(cash_in_amount)})
+        "cash_out":
+            _send_command("cash_out", {})
+        "deal_draw":
+            if store.game_state() == "hold":
+                var round_id := store.current_round_id()
+                if not round_id.is_empty():
+                    _send_command("draw", {"round_id": round_id, "hold_indexes": local_hold_indexes.duplicate()})
+            else:
+                _send_command("deal", {"bet_amount": str(selected_bet)})
+        "bet":
+            _cycle_bet()
+        "cancel_hold":
+            local_hold_indexes.clear()
+            _send_command("clear_holds", {})
+            _refresh_ui()
+        "big":
+            _send_double_up_guess("big")
+        "small":
+            _send_double_up_guess("small")
+        "take_half":
+            var round_id := store.current_round_id()
+            if not round_id.is_empty():
+                _send_command("take_half", {"round_id": round_id})
+        "take_score":
+            var round_id := store.current_round_id()
+            if not round_id.is_empty():
+                _send_command("take_score", {"round_id": round_id})
+            elif store.can_press("cash_out"):
+                _send_command("cash_out", {})
+        "reconnect_sync":
+            _request_replay()
+        "back_to_lobby":
+            _send_command("leave_machine", {}, false)
+        "logout":
+            get_tree().quit()
 
-func _to_float(value) -> float:
-	match typeof(value):
-		TYPE_FLOAT, TYPE_INT:
-			return float(value)
-		TYPE_STRING:
-			return String(value).to_float()
-		_:
-			return 0.0
+func _send_double_up_guess(guess: String) -> void:
+    var round_id := store.current_round_id()
+    if round_id.is_empty():
+        return
+    _send_command("double_up_guess", {"round_id": round_id, "guess": guess})
+
+func _cycle_bet() -> void:
+    var min_value := max(1, store.min_bet())
+    var max_value := max(min_value, store.max_bet())
+    var step := min_value
+    selected_bet += step
+    if selected_bet > max_value:
+        selected_bet = min_value
+    _send_command("bet_change", {"bet_amount": str(selected_bet)}, false)
+    _refresh_ui()
+
+func _send_command(command_type: String, payload: Dictionary, expected_state: bool = true) -> void:
+    if access_token.is_empty():
+        store.apply_transport_error("Missing LUCKY5_ACCESS_TOKEN. Fixture remains view-only.")
+        _refresh_ui()
+        return
+
+    client_sequence += 1
+    var command_id := _uuid_v4()
+    var state_version := store.state_version() if expected_state else 0
+    var session_id := store.session_id()
+    var command := {
+        "message_type": "cabinet_command",
+        "schema_version": "cabinet.v1",
+        "command_id": command_id,
+        "command_type": command_type,
+        "session_id": null if session_id.is_empty() else session_id,
+        "machine_id": configured_machine_id,
+        "expected_state_version": state_version,
+        "idempotency_key": "%s:%d:%s" % [command_type, client_sequence, command_id],
+        "client_sequence_number": client_sequence,
+        "sent_at_utc": _utc_now_string(),
+        "payload": payload
+    }
+    api.post_command(command)
+
+func _sanitize_cash_amount(text: String) -> int:
+    var value := int(float(text)) if not text.strip_edges().is_empty() else 200000
+    var unit := max(1, store.min_bet())
+    value = max(unit, value)
+    value = int(round(float(value) / float(unit))) * unit
+    return value
+
+func _uuid_v4() -> String:
+    var rng := RandomNumberGenerator.new()
+    rng.randomize()
+    var bytes := []
+    for _i in range(16):
+        bytes.append(rng.randi_range(0, 255))
+    bytes[6] = (bytes[6] & 0x0f) | 0x40
+    bytes[8] = (bytes[8] & 0x3f) | 0x80
+    var hex_parts := []
+    for value in bytes:
+        hex_parts.append("%02x" % value)
+    var s := PackedStringArray(hex_parts).join("")
+    return "%s-%s-%s-%s-%s" % [s.substr(0, 8), s.substr(8, 4), s.substr(12, 4), s.substr(16, 4), s.substr(20, 12)]
+
+func _utc_now_string() -> String:
+    return Time.get_datetime_string_from_system(true) + "Z"
+
+func _paytable_text() -> String:
+    return "ROYAL FLUSH     1000\nSTRAIGHT FLUSH    75\nFOUR OF A KIND    15\nFULL HOUSE        12\nFLUSH             10\nSTRAIGHT           8\nTHREE OF A KIND    3\nTWO PAIR           2"
+
+func _format_amount(value: int) -> String:
+    return store._format_amount(value)

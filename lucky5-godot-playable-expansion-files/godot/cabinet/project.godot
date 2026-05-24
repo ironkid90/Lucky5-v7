@@ -1,0 +1,20 @@
+; Godot 4 project file for the Lucky5 backend-authoritative portrait cabinet.
+; The game logic, credit accounting, RNG, payouts, jackpots, and double-up
+; resolution remain owned by the ASP.NET Core backend.
+
+config_version=5
+
+[application]
+config/name="Lucky5 Cabinet"
+run/main_scene="res://scenes/CabinetRoot.tscn"
+config/features=PackedStringArray("4.2", "Forward Plus")
+
+[display]
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/size/resizable=true
+window/handheld/orientation=1
+
+[rendering]
+renderer/rendering_method="mobile"
+textures/canvas_textures/default_texture_filter=0

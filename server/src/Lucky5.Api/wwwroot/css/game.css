@@ -1062,14 +1062,49 @@ body {
 }
 
 #du-ace-info {
-    color: #44ff44;
+    color: #44ddff;
+    font-size: 7px;
+}
+
+#du-guess-info {
+    color: #44ddff;
     font-size: 7px;
 }
 
 #du-lucky-info {
-    color: #FFD700;
+    color: #44ddff;
     font-size: 7px;
     letter-spacing: 0.5px;
+}
+
+#du-buying-info {
+    color: #44ddff;
+    font-size: 7px;
+    letter-spacing: 0.5px;
+}
+
+#du-info-panel.lucky5-active #du-ace-info,
+#du-info-panel.lucky5-active #du-guess-info,
+#du-info-panel.lucky5-active #du-lucky-info,
+#du-info-panel.lucky5-active #du-buying-info {
+    color: #9bfaff;
+    text-shadow: 0 0 8px rgba(68, 221, 255, 0.85);
+}
+
+#du-lucky-info.is-active {
+    animation: du-lucky-rule-pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes du-lucky-rule-pulse {
+    from {
+        opacity: 0.7;
+        transform: scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 #info-bar {

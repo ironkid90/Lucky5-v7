@@ -61,6 +61,7 @@ let paytable = {};
 let pressSound = null;
 let duSwitchesRemaining = 0;
 let duIsNoLoseActive = false;
+let duLuckyMultiplier = 1;
 let duSessionStarted = false;
 let duDealerCard = null;
 let duCardTrail = [];
@@ -97,6 +98,15 @@ const JACKPOT_HANDS        = GAME_CONFIG.rules.jackpotHands;
 const JACKPOT_RESET        = GAME_CONFIG.rules.jackpotReset;
 const HAND_DISPLAY         = GAME_CONFIG.paytableMap;
 const CARD_BACK_SRC        = GAME_CONFIG.assets.cardBack;
+const VARIANT_NAME         = String(GAME_CONFIG.meta.variantName || 'Lucky 5');
+const DU_COPY              = GAME_CONFIG.doubleUp.copy || {};
+const DU_LABEL_TEXT        = String(DU_COPY.label || 'HI LO GAMBLE');
+const DU_ACE_RULE_TEXT     = String(DU_COPY.aceRule || 'ACE COUNTS');
+const DU_GUESS_RULE_TEXT   = String(DU_COPY.guessRule || 'HI OR LO');
+const DU_LUCKY_RULE_TEXT   = String(DU_COPY.luckyRule || '5 \u2660 NEVER LOSE');
+const DU_BUYING_RULE_TEXT  = String(DU_COPY.buyingRule || 'WHEN BUYING');
+const DU_PROMPT_TEXT       = String(DU_COPY.prompt || 'BIG / SMALL ?');
+const DU_ACTIVE_SUFFIX     = String(DU_COPY.activeSuffix || 'ACTIVE');
 
 // T = short timing alias; use T.propMs throughout instead of magic numbers.
 const T = GAME_CONFIG.timing;
@@ -340,6 +350,7 @@ window.render_game_to_text = function renderGameToText() {
             dealer: duDealerCard?.code || null,
             switchesRemaining: duSwitchesRemaining,
             noLose: duIsNoLoseActive,
+            luckyMultiplier: duLuckyMultiplier,
             trail: getCabinetDoubleUpTrailEntries().map(entry => ({
                 card: entry.card?.code || null,
                 label: entry.label || ''
@@ -434,7 +445,7 @@ function resetGameRuntimeState({ clearSelection = false } = {}) {
     duCardTrail = [];
     duLastRenderedTrailLength = 0;
     duSessionStarted = false;
-    duIsNoLoseActive = false;
+    resetDoubleUpPanelState();
     duDealerCard = null;
     roundDoubleUpAvailable = false;
     takeHalfUsedThisRound = false;
@@ -519,7 +530,7 @@ function refreshIdleMachineState(messageText = null, type = 'win') {
     clearLucky5Effects();
     holdIndexes.clear();
     duSessionStarted = false;
-    duIsNoLoseActive = false;
+    resetDoubleUpPanelState();
     duDealerCard = null;
     duCardTrail = [];
     duLastRenderedTrailLength = 0;
@@ -576,6 +587,79 @@ function showMessage(text, type) {
     const msg = $('#game-message');
     msg.textContent = text;
     msg.className = type || '';
+}
+
+function normalizeLuckyMultiplier(value, fallback = 1) {
+    const next = Number(value);
+    if (Number.isFinite(next) && next > 1) {
+        return Math.floor(next);
+    }
+    return fallback;
+}
+
+function applyDoubleUpInfoCopy() {
+    const labelEl = document.getElementById('du-label');
+    const aceEl = document.getElementById('du-ace-info');
+    const guessEl = document.getElementById('du-guess-info');
+    const luckyEl = document.getElementById('du-lucky-info');
+
+    if (labelEl) labelEl.textContent = DU_LABEL_TEXT;
+    if (aceEl) aceEl.textContent = DU_ACE_RULE_TEXT;
+    if (guessEl) guessEl.textContent = DU_GUESS_RULE_TEXT;
+    if (luckyEl) luckyEl.textContent = DU_LUCKY_RULE_TEXT;
+}
+
+function updateDoubleUpInfoPanel() {
+    applyDoubleUpInfoCopy();
+
+    const panel = document.getElementById('du-info-panel');
+    const luckyEl = document.getElementById('du-lucky-info');
+    const buyingEl = document.getElementById('du-buying-info');
+    const isLuckyActive = Boolean(duIsNoLoseActive);
+
+    if (panel) {
+        panel.classList.toggle('lucky5-active', isLuckyActive);
+    }
+
+    if (luckyEl) {
+        luckyEl.classList.toggle('is-active', isLuckyActive);
+    }
+
+    if (buyingEl) {
+        const luckySuffix = isLuckyActive
+            ? duLuckyMultiplier > 1
+                ? ` • x${duLuckyMultiplier} ${DU_ACTIVE_SUFFIX}`
+                : ` • ${DU_ACTIVE_SUFFIX}`
+            : '';
+        buyingEl.textContent = `${DU_BUYING_RULE_TEXT}${luckySuffix}`;
+    }
+}
+
+function syncDoubleUpPanelState(source, { preserveMultiplier = false } = {}) {
+    duSwitchesRemaining = Number(source?.switchesRemaining || 0);
+    duIsNoLoseActive = Boolean(source?.isLucky5Active || source?.isNoLoseActive);
+
+    if (duIsNoLoseActive) {
+        const fallbackMultiplier = preserveMultiplier ? duLuckyMultiplier : 1;
+        duLuckyMultiplier = normalizeLuckyMultiplier(source?.luckyMultiplier, fallbackMultiplier);
+    } else {
+        duLuckyMultiplier = 1;
+    }
+
+    updateDoubleUpInfoPanel();
+}
+
+function resetDoubleUpPanelState() {
+    duSwitchesRemaining = 0;
+    duIsNoLoseActive = false;
+    duLuckyMultiplier = 1;
+    updateDoubleUpInfoPanel();
+}
+
+function getLuckyActiveBannerText() {
+    const variant = VARIANT_NAME.toUpperCase();
+    const multiplierSuffix = duLuckyMultiplier > 1 ? ` X${duLuckyMultiplier}` : '';
+    return `5\u2660 ${variant}${multiplierSuffix} ${DU_ACTIVE_SUFFIX}`;
 }
 
 function canStartDoubleUpFromWin() {
@@ -1058,8 +1142,7 @@ async function doSwitchDealer() {
 
     try {
         const result = await apiCall('POST', GAME_CONFIG.api.duSwitch, { roundId });
-        duSwitchesRemaining = result.switchesRemaining;
-        duIsNoLoseActive = Boolean(result.isLucky5Active || result.isNoLoseActive);
+        syncDoubleUpPanelState(result);
         winAmount = result.currentAmount;
         duDealerCard = result.dealerCard;
 
@@ -1075,7 +1158,7 @@ async function doSwitchDealer() {
 
         renderDoubleUpCards(duDealerCard, true, null, { pending: true });
         if (isLucky5) {
-            showMessage(`5\u2660 LUCKY 5 ACTIVE! WIN: ${formatNum(result.currentAmount)}`, 'win');
+            showMessage(`${getLuckyActiveBannerText()}! WIN: ${formatNum(result.currentAmount)}`, 'win');
         } else {
             showMessage(`SWITCHED - WIN: ${formatNum(result.currentAmount)} (${duSwitchesRemaining} left)`, 'win');
         }
@@ -1289,7 +1372,7 @@ function restoreRoundFromSnapshot(snapshot) {
     if (phase === 'Dealt') {
         winAmount = 0;
         duSessionStarted = false;
-        duIsNoLoseActive = false;
+        resetDoubleUpPanelState();
         duDealerCard = null;
         duCardTrail = [];
         duLastRenderedTrailLength = 0;
@@ -1308,8 +1391,7 @@ function restoreRoundFromSnapshot(snapshot) {
         winAmount = Number(duSnapshot.currentAmount || snapshot.pendingWinAmount || 0);
         duSessionStarted = true;
         duDealerCard = duSnapshot.dealerCard;
-        duSwitchesRemaining = Number(duSnapshot.switchesRemaining || 0);
-        duIsNoLoseActive = Boolean(duSnapshot.isLucky5Active || duSnapshot.isNoLoseActive);
+        syncDoubleUpPanelState(duSnapshot);
         duCardTrail = syncDoubleUpTrailFromServer(duSnapshot.cardTrail, duDealerCard, duCardTrail);
         if ((!Array.isArray(duCardTrail) || duCardTrail.length === 0) && duDealerCard) {
             duCardTrail = [{ card: duDealerCard, label: 'DEALER' }];
@@ -1323,7 +1405,7 @@ function restoreRoundFromSnapshot(snapshot) {
         updateWinAmountDisplay(winAmount, getFourOfAKindSlotTag(currentHandRank));
         if (duIsNoLoseActive) {
             triggerLucky5Flash();
-            showMessage(`5\u2660 LUCKY 5 ACTIVE! DOUBLE UP: ${formatNum(winAmount)}`, 'win');
+            showMessage(`${getLuckyActiveBannerText()}! DOUBLE UP: ${formatNum(winAmount)}`, 'win');
         } else {
             showMessage(`DOUBLE UP RESTORED - WIN: ${formatNum(winAmount)}`, 'win');
         }
@@ -1333,7 +1415,7 @@ function restoreRoundFromSnapshot(snapshot) {
 
     winAmount = Number(snapshot.pendingWinAmount || 0);
     duSessionStarted = false;
-    duIsNoLoseActive = false;
+    resetDoubleUpPanelState();
     duDealerCard = null;
     duCardTrail = [];
     duLastRenderedTrailLength = 0;
@@ -1374,7 +1456,7 @@ async function doDeal() {
         roundDoubleUpAvailable = false;
         takeHalfUsedThisRound = false;
         duSessionStarted = false;
-        duIsNoLoseActive = false;
+        resetDoubleUpPanelState();
         duDealerCard = null;
 
         try {
@@ -1524,11 +1606,18 @@ function cancelHold() {
 }
 
 function showDuInfo() {
+    updateDoubleUpInfoPanel();
     $('#du-info-panel').classList.add('visible');
 }
 
 function hideDuInfo() {
-    $('#du-info-panel').classList.remove('visible');
+    const panel = $('#du-info-panel');
+    if (!panel) return;
+    panel.classList.remove('visible');
+    panel.classList.remove('lucky5-active');
+
+    const luckyEl = document.getElementById('du-lucky-info');
+    if (luckyEl) luckyEl.classList.remove('is-active');
 }
 
 function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
@@ -1628,7 +1717,7 @@ function renderDoubleUpCards(dealerCard, showShuffle, challengerCard) {
         challSlot.id = 'du-shuffle-slot';
         const challLabel = document.createElement('div');
         challLabel.className = 'du-card-label';
-        challLabel.textContent = 'BIG / SMALL ?';
+        challLabel.textContent = DU_PROMPT_TEXT;
         const challFrame = document.createElement('div');
         challFrame.className = 'du-card-frame';
         challFrame.id = 'du-shuffle-frame';
@@ -1694,8 +1783,7 @@ async function startDoubleUpFlow() {
     try {
         const result = await apiCall('POST', GAME_CONFIG.api.duStart, { roundId });
         duSessionStarted = true;
-        duSwitchesRemaining = result.switchesRemaining;
-        duIsNoLoseActive = Boolean(result.isLucky5Active || result.isNoLoseActive);
+        syncDoubleUpPanelState(result);
         duDealerCard = result.dealerCard;
         duCardTrail = syncDoubleUpTrailFromServer(result.cardTrail, duDealerCard, duCardTrail);
         if ((!Array.isArray(duCardTrail) || duCardTrail.length === 0) && duDealerCard) {
@@ -1707,7 +1795,7 @@ async function startDoubleUpFlow() {
         showDuInfo();
         if (duIsNoLoseActive) {
             triggerLucky5Flash();
-            showMessage(`5\u2660 LUCKY 5 ACTIVE! DOUBLE UP: ${formatNum(result.currentAmount)}`, 'win');
+            showMessage(`${getLuckyActiveBannerText()}! DOUBLE UP: ${formatNum(result.currentAmount)}`, 'win');
         } else {
             showMessage(`DOUBLE UP - WIN: ${formatNum(result.currentAmount)}`, 'win');
         }
@@ -1768,8 +1856,7 @@ async function doDoubleUp(guess) {
                         duDealerCard = result.dealerCard;
                         duCardTrail = syncDoubleUpTrailFromServer(result.cardTrail, duDealerCard, duCardTrail);
                         renderDoubleUpCards(duDealerCard, true, null, { pending: true });
-                        duSwitchesRemaining = result.switchesRemaining;
-                        duIsNoLoseActive = Boolean(result.isLucky5Active || result.isNoLoseActive);
+                        syncDoubleUpPanelState(result, { preserveMultiplier: true });
                         setButtonStates();
                     }
                 }, T.duWinHoldMs);
@@ -1788,6 +1875,7 @@ async function doDoubleUp(guess) {
                 stopShuffle();
                 hideDuInfo();
                 duSessionStarted = false;
+                resetDoubleUpPanelState();
                 clearLucky5Effects();
                 setTimeout(async () => {
                     await animateDrainToCredits(safeAmount, balance);
@@ -1807,6 +1895,7 @@ async function doDoubleUp(guess) {
                 stopShuffle();
                 hideDuInfo();
                 duSessionStarted = false;
+                resetDoubleUpPanelState();
                 clearLucky5Effects();
                 setTimeout(async () => {
                     await animateDrainToCredits(closedAmount, balance);
@@ -1842,7 +1931,7 @@ function exitDoubleUp() {
     hideDuInfo();
     if (hasCabinetStage()) CabinetStage.exitDoubleUp();
     duSessionStarted = false;
-    duIsNoLoseActive = false;
+    resetDoubleUpPanelState();
     duDealerCard = null;
     duCardTrail = [];
     duLastRenderedTrailLength = 0;
@@ -1991,6 +2080,7 @@ async function mainTakeScore() {
     duSessionStarted = false;
     roundDoubleUpAvailable = false;
     takeHalfUsedThisRound = false;
+    resetDoubleUpPanelState();
     clearLucky5Effects();
 
     const amount = winAmount;
@@ -2053,6 +2143,7 @@ async function mainTakeHalf() {
             stopShuffle();
             hideDuInfo();
             duSessionStarted = false;
+            resetDoubleUpPanelState();
             clearLucky5Effects();
             currentHandRank = null;
             gameState = 'idle';
@@ -2680,6 +2771,8 @@ async function initGame(options = {}) {
 
 // ── 11. DOM BOOTSTRAP ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    applyDoubleUpInfoCopy();
+    updateDoubleUpInfoPanel();
     updateViewportUnit();
     window.addEventListener('resize', updateViewportUnit);
     window.addEventListener('orientationchange', updateViewportUnit);

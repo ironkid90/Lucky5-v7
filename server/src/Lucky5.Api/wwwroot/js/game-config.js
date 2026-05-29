@@ -197,6 +197,15 @@ const GAME_CONFIG = Object.freeze({
     doubleUp: Object.freeze({
         maxTrailPerPage: 4,    // trail cards visible per page (+ 1 active slot = 5 total)
         // carryStep = maxTrailPerPage - 1; last card of page N is first card of page N+1
+        copy: Object.freeze({
+            label:        'HI LO GAMBLE',
+            aceRule:      'ACE COUNTS',
+            guessRule:    'HI OR LO',
+            luckyRule:    '5 \u2660 NEVER LOSE',
+            buyingRule:   'WHEN BUYING',
+            prompt:       'BIG / SMALL ?',
+            activeSuffix: 'ACTIVE',
+        }),
     }),
 
     // ── 6. ASSETS ────────────────────────────────────────────────────────────

@@ -141,6 +141,13 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
+            "game.css should brighten and pulse the double-up never-lose rule when Lucky5 no-lose mode is active",
+            gameCss.Contains("#du-info-panel.lucky5-active #du-lucky-info", StringComparison.Ordinal)
+                && gameCss.Contains("#du-lucky-info.is-active", StringComparison.Ordinal)
+                && gameCss.Contains("@keyframes du-lucky-rule-pulse", StringComparison.Ordinal));
+
+        Assert(
+            failures,
             "paytable colors should map royal flush to yellow and full house to light blue for screenshot parity",
             gameCss.Contains(".pay-row.rf { color: #ffd84d; }", StringComparison.Ordinal)
                 && gameCss.Contains(".pay-row.fh { color: #7fd7ff; }", StringComparison.Ordinal));
@@ -150,6 +157,34 @@ public static class FrontendRegressionTests
             "paytable jackpot-selected row should continue to highlight the Full House row for the selected jackpot rank",
             gameJs.Contains("const fhRow = document.querySelector('.pay-row.fh');", StringComparison.Ordinal)
                 && gameJs.Contains("if (fhRow) fhRow.classList.add('jackpot-selected');", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "double-up copy should live in game-config.js so near-variants can swap cabinet rule text without editing game.js",
+            gameConfigJs.Contains("copy: Object.freeze({", StringComparison.Ordinal)
+                && gameConfigJs.Contains("buyingRule:   'WHEN BUYING'", StringComparison.Ordinal)
+                && gameConfigJs.Contains("prompt:       'BIG / SMALL ?'", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "double-up rule panel should expose separate clone-faithful ACE, HI OR LO, and WHEN BUYING lines",
+            indexHtml.Contains("id=\"du-guess-info\">HI OR LO</div>", StringComparison.Ordinal)
+                && indexHtml.Contains("id=\"du-buying-info\">WHEN BUYING</div>", StringComparison.Ordinal)
+                && indexHtml.Contains("id=\"du-lucky-info\">5 &spades; NEVER LOSE</div>", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "game.js should sync the double-up rule panel from payload lucky-state metadata and expose the lucky multiplier in render_game_to_text",
+            gameJs.Contains("function syncDoubleUpPanelState(source, { preserveMultiplier = false } = {})", StringComparison.Ordinal)
+                && gameJs.Contains("luckyMultiplier: duLuckyMultiplier,", StringComparison.Ordinal)
+                && gameJs.Contains("buyingEl.textContent = `${DU_BUYING_RULE_TEXT}${luckySuffix}`;", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "game.js should restore and update double-up lucky-state visuals from snapshot, start, switch, and continued win payloads",
+            gameJs.Contains("syncDoubleUpPanelState(duSnapshot);", StringComparison.Ordinal)
+                && gameJs.Contains("syncDoubleUpPanelState(result);", StringComparison.Ordinal)
+                && gameJs.Contains("syncDoubleUpPanelState(result, { preserveMultiplier: true });", StringComparison.Ordinal));
 
         Assert(
             failures,

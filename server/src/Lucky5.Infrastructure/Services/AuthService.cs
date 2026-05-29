@@ -1,5 +1,6 @@
 namespace Lucky5.Infrastructure.Services;
 
+using System.Security.Cryptography;
 using Lucky5.Application.Contracts;
 using Lucky5.Application.Dtos;
 using Lucky5.Application.Requests;
@@ -10,7 +11,7 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
     public Task<(AuthTokens Tokens, MemberProfileDto Profile)> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
         var user = store.Users.Values.FirstOrDefault(x => x.Username.Equals(request.Username, StringComparison.OrdinalIgnoreCase));
-        var passwordMatches = user is not null && (user.PasswordHash == request.Password || BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash));
+        var passwordMatches = user is not null && VerifyPassword(user, request.Password);
         if (user is null || !passwordMatches)
         {
             throw new InvalidOperationException("Invalid credentials");
@@ -29,24 +30,25 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
         return Task.FromResult((new AuthTokens(access, refresh, DateTime.UtcNow.AddHours(8)), ToDto(memberProfile)));
     }
 
-    public Task<MemberProfileDto> SignupAsync(SignupRequest request, CancellationToken cancellationToken)
+    public Task<(MemberProfileDto Profile, PendingOtpChallengeDto Challenge)> SignupAsync(SignupRequest request, CancellationToken cancellationToken)
     {
         if (store.Users.Values.Any(x => x.Username.Equals(request.Username, StringComparison.OrdinalIgnoreCase)))
         {
             throw new InvalidOperationException("Username already exists");
         }
 
+        var challenge = CreateOtpChallenge();
         var user = new User
         {
             Username = request.Username,
-            PasswordHash = request.Password,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             PhoneNumber = request.PhoneNumber,
             Email = request.Email ?? string.Empty,
             FullName = request.FullName ?? request.Username,
             DateOfBirth = request.DateOfBirth,
             IsOtpVerified = false,
-            PendingOtp = "123456",
-            PendingOtpExpiresUtc = DateTime.UtcNow.AddMinutes(10),
+            PendingOtp = challenge.OtpCode,
+            PendingOtpExpiresUtc = challenge.ExpiresAtUtc,
             Role = "player",
             AgentId = request.AgentId
         };
@@ -73,7 +75,7 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
             LastSeenUtc = DateTime.UtcNow
         };
 
-        return Task.FromResult(ToDto(store.MemberProfiles[user.Id]));
+        return Task.FromResult((ToDto(store.MemberProfiles[user.Id]), challenge));
     }
 
     public Task<bool> VerifyOtpAsync(VerifyOtpRequest request, CancellationToken cancellationToken)
@@ -83,6 +85,12 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
         {
             return Task.FromResult(false);
         }
+        if (user.PendingOtpExpiresUtc <= DateTime.UtcNow)
+        {
+            user.PendingOtp = null;
+            user.PendingOtpExpiresUtc = null;
+            return Task.FromResult(false);
+        }
 
         user.IsOtpVerified = true;
         user.PendingOtp = null;
@@ -90,17 +98,18 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
         return Task.FromResult(true);
     }
 
-    public Task<bool> ResendOtpAsync(ResendOtpRequest request, CancellationToken cancellationToken)
+    public Task<PendingOtpChallengeDto?> ResendOtpAsync(ResendOtpRequest request, CancellationToken cancellationToken)
     {
         var user = store.Users.Values.FirstOrDefault(x => x.Username.Equals(request.Username, StringComparison.OrdinalIgnoreCase));
         if (user is null)
         {
-            return Task.FromResult(false);
+            return Task.FromResult<PendingOtpChallengeDto?>(null);
         }
 
-        user.PendingOtp = "123456";
-        user.PendingOtpExpiresUtc = DateTime.UtcNow.AddMinutes(10);
-        return Task.FromResult(true);
+        var challenge = CreateOtpChallenge();
+        user.PendingOtp = challenge.OtpCode;
+        user.PendingOtpExpiresUtc = challenge.ExpiresAtUtc;
+        return Task.FromResult<PendingOtpChallengeDto?>(challenge);
     }
 
     public Task<MemberProfileDto> GetUserByIdAsync(Guid userId, CancellationToken cancellationToken)
@@ -182,6 +191,38 @@ public sealed class AuthService(InMemoryDataStore store, ITokenService tokenServ
         tokenService.Revoke(accessToken);
         return Task.CompletedTask;
     }
+
+    private static PendingOtpChallengeDto CreateOtpChallenge()
+        => new(GenerateOtpCode(), DateTime.UtcNow.AddMinutes(10));
+
+    private static string GenerateOtpCode()
+        => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+
+    private static bool VerifyPassword(User user, string password)
+    {
+        if (string.IsNullOrWhiteSpace(user.PasswordHash))
+        {
+            return false;
+        }
+
+        if (LooksLikeBcryptHash(user.PasswordHash))
+        {
+            return BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+        }
+
+        if (!string.Equals(user.PasswordHash, password, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+        return true;
+    }
+
+    private static bool LooksLikeBcryptHash(string value)
+        => value.StartsWith("$2a$", StringComparison.Ordinal)
+            || value.StartsWith("$2b$", StringComparison.Ordinal)
+            || value.StartsWith("$2y$", StringComparison.Ordinal);
 
     private WalletLedgerEntryDto AdjustBalance(Guid userId, decimal amount, string type, string reference)
     {

@@ -121,7 +121,17 @@ export interface AuthTokens {
   refreshToken?: string;
 }
 
+export interface OtpChallengeInfo {
+  expiresAtUtc: string;
+  previewCode?: string | null;
+}
+
 export interface LoginResult {
   tokens: AuthTokens;
   profile: MemberProfile;
+}
+
+export interface SignupResult {
+  profile: MemberProfile;
+  otp: OtpChallengeInfo;
 }

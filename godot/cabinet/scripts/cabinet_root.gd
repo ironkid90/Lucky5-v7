@@ -8,6 +8,8 @@ var store: CabinetStore = CabinetStoreScript.new()
 
 var api_base_url := "http://127.0.0.1:8080"
 var access_token := ""
+var auth_username := ""
+var auth_password := ""
 var configured_machine_id := 1
 var selected_bet := 200000
 var cash_in_amount := 200000
@@ -27,6 +29,7 @@ var card_buttons: Array = []
 var action_buttons: Dictionary = {}
 var heartbeat_timer: Timer
 var replay_timer: Timer
+var authenticating := false
 
 func _ready() -> void:
 	_load_environment()
@@ -50,7 +53,10 @@ func _ready() -> void:
 	replay_timer.timeout.connect(_request_replay)
 	add_child(replay_timer)
 
-	_request_snapshot()
+	if access_token.is_empty():
+		_authenticate_and_sync("Authenticating cabinet session…")
+	else:
+		_request_snapshot()
 
 func _load_environment() -> void:
 	var env_base := OS.get_environment("LUCKY5_API_BASE_URL")
@@ -58,6 +64,12 @@ func _load_environment() -> void:
 		api_base_url = env_base
 
 	access_token = OS.get_environment("LUCKY5_ACCESS_TOKEN")
+	auth_username = OS.get_environment("LUCKY5_AUTH_USERNAME")
+	if auth_username.is_empty():
+		auth_username = OS.get_environment("LUCKY5_USERNAME")
+	auth_password = OS.get_environment("LUCKY5_AUTH_PASSWORD")
+	if auth_password.is_empty():
+		auth_password = OS.get_environment("LUCKY5_PASSWORD")
 
 	var env_machine := OS.get_environment("LUCKY5_MACHINE_ID")
 	if not env_machine.is_empty() and env_machine.is_valid_int():
@@ -194,6 +206,21 @@ func _load_fixture_snapshot() -> void:
 func _request_snapshot() -> void:
 	api.get_snapshot(configured_machine_id)
 
+func _has_auth_credentials() -> bool:
+	return not auth_username.is_empty() and not auth_password.is_empty()
+
+func _authenticate_and_sync(reason: String) -> void:
+	if authenticating:
+		return
+	if not _has_auth_credentials():
+		store.apply_transport_error("Missing kiosk credentials. Configure LUCKY5_ACCESS_TOKEN or LUCKY5_AUTH_USERNAME and LUCKY5_AUTH_PASSWORD.")
+		_refresh_ui()
+		return
+	authenticating = true
+	store.apply_transport_error(reason)
+	_refresh_ui()
+	api.post_login(auth_username, auth_password)
+
 func _request_replay() -> void:
 	api.post_replay(configured_machine_id, store.state_version(), store.sequence_number())
 
@@ -204,6 +231,10 @@ func _send_heartbeat() -> void:
 
 func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_message: String) -> void:
 	if not ok:
+		if _status_code == 401 and _has_auth_credentials():
+			authenticating = false
+			_authenticate_and_sync("Session lost. Re-authenticating cabinet…")
+			return
 		store.apply_transport_error(error_message)
 		_refresh_ui()
 		if kind != "replay":
@@ -211,7 +242,20 @@ func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_mes
 		return
 
 	var data = _unwrap_response_data(body)
-	if kind == "snapshot" and typeof(data) == TYPE_DICTIONARY:
+	if kind == "login" and typeof(data) == TYPE_DICTIONARY:
+		authenticating = false
+		var tokens = data.get("tokens", {})
+		var next_token = ""
+		if typeof(tokens) == TYPE_DICTIONARY:
+			next_token = str(tokens.get("accessToken", ""))
+		if next_token.is_empty():
+			store.apply_transport_error("Cabinet login returned no access token.")
+			_refresh_ui()
+			return
+		access_token = next_token
+		api.set_access_token(access_token)
+		_request_snapshot()
+	elif kind == "snapshot" and typeof(data) == TYPE_DICTIONARY:
 		_apply_snapshot(data)
 	elif kind == "command" and typeof(data) == TYPE_DICTIONARY:
 		if data.has("snapshot") and typeof(data["snapshot"]) == TYPE_DICTIONARY:
@@ -344,7 +388,10 @@ func _on_action_pressed(id: String) -> void:
 			elif store.can_press("cash_out"):
 				_send_command("cash_out", {})
 		"reconnect_sync":
-			_request_replay()
+			if access_token.is_empty():
+				_authenticate_and_sync("Reconnecting cabinet session…")
+			else:
+				_request_replay()
 		"back_to_lobby":
 			_send_command("leave_machine", {}, false)
 		"logout":
@@ -368,8 +415,7 @@ func _cycle_bet() -> void:
 
 func _send_command(command_type: String, payload: Dictionary, expected_state: bool = true) -> void:
 	if access_token.is_empty():
-		store.apply_transport_error("Missing LUCKY5_ACCESS_TOKEN. Fixture remains view-only.")
-		_refresh_ui()
+		_authenticate_and_sync("No session token. Re-authenticating cabinet…")
 		return
 
 	client_sequence += 1

@@ -41,7 +41,7 @@ import {
 
 const DEFAULT_USERNAME = "tester";
 const DEFAULT_PASSWORD = "password";
-const DEFAULT_OTP = "123456";
+const DEFAULT_OTP = "";
 
 // APK clone rainbow colors — hand order matches APK paytable top-to-bottom.
 const PAYTABLE_ROWS: Array<{ key: string; label: string; color: string }> = [
@@ -381,7 +381,11 @@ export function Lucky5Cabinet() {
     async function handleBoot() {
         await runAction(async () => {
             try {
-                await signup(username, password, "+96101000000");
+                const signupResult = await signup(username, password, "+96101000000");
+                const previewCode = signupResult.otp?.previewCode?.trim();
+                if (previewCode) {
+                    setOtpCode(previewCode);
+                }
             } catch {
                 // Existing user is acceptable.
             }
@@ -712,7 +716,7 @@ export function Lucky5Cabinet() {
                             <div className="auth-panel">
                                 <div className="section-title">Boot the cabinet</div>
                                 <div className="auth-hint">
-                                    Sign up if needed, verify OTP 123456, then log in.
+                                    Sign up if needed, verify the issued OTP, then log in.
                                 </div>
                                 <div className="auth-grid">
                                     <label>

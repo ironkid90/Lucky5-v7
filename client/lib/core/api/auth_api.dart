@@ -31,7 +31,7 @@ class AuthApi {
     );
   }
 
-  Future<void> signup({
+  Future<String?> signup({
     required String username,
     required String password,
     required String phoneNumber,
@@ -44,10 +44,16 @@ class AuthApi {
         "phoneNumber": phoneNumber,
       },
     );
-    final envelope = ApiResponse.fromJson(json, (raw) => raw);
+    final envelope =
+        ApiResponse.fromJson(json, (raw) => raw as Map<String, dynamic>?);
     if (!envelope.success) {
       throw StateError(envelope.message);
     }
+
+    final payload = envelope.data ?? const <String, dynamic>{};
+    final otp = payload["otp"] as Map<String, dynamic>?;
+    final preview = otp?["previewCode"];
+    return preview is String && preview.isNotEmpty ? preview : null;
   }
 
   Future<void> verifyOtp({

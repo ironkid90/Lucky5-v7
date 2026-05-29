@@ -1,0 +1,255 @@
+namespace Lucky5.Tests;
+
+using System.Text.RegularExpressions;
+using Lucky5.Application.Requests;
+using Lucky5.Domain.Entities;
+using Lucky5.Infrastructure.Services;
+using Microsoft.Extensions.Configuration;
+
+public static class AuthSecurityRegressionTests
+{
+    public static async Task RunAsync(List<string> failures)
+    {
+        await SignupShouldHashPasswordsAndIssueExpiringOtpAsync(failures);
+        await LoginShouldMigrateLegacyPlaintextPasswordsAsync(failures);
+        await VerifyOtpShouldRejectExpiredCodesAsync(failures);
+        await ResendOtpShouldRefreshThePendingChallengeAsync(failures);
+        await CabinetClientsShouldUseIssuedOtpAndSupportCredentialBootstrapAsync(failures);
+    }
+
+    private static async Task SignupShouldHashPasswordsAndIssueExpiringOtpAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = CreateAuthService(store);
+        var request = new SignupRequest(
+            "security-signup",
+            "s3cr3t-password",
+            "+96170000001",
+            "security-signup@lucky5.local");
+        var beforeSignup = DateTime.UtcNow;
+
+        var (_, challenge) = await service.SignupAsync(request, CancellationToken.None);
+
+        store.Users.Values.Single(user => user.Username == request.Username).PasswordHash
+            .ShouldNotBePlaintext(
+                failures,
+                "Signup should not persist the raw password for new members.",
+                request.Password);
+
+        var signedUpUser = store.Users.Values.Single(user => user.Username == request.Username);
+
+        Assert(
+            failures,
+            "Signup should persist a BCrypt password hash that still verifies the user's password.",
+            BCrypt.Net.BCrypt.Verify(request.Password, signedUpUser.PasswordHash));
+        Assert(
+            failures,
+            "Signup should issue a six-digit OTP challenge instead of reusing a fixed code.",
+            Regex.IsMatch(challenge.OtpCode, @"^\d{6}$", RegexOptions.CultureInvariant));
+        Assert(
+            failures,
+            "Signup should store the same OTP challenge that it returns to the caller.",
+            string.Equals(signedUpUser.PendingOtp, challenge.OtpCode, StringComparison.Ordinal)
+                && signedUpUser.PendingOtpExpiresUtc == challenge.ExpiresAtUtc);
+        Assert(
+            failures,
+            "Signup OTP expiry should remain close to the intended 10-minute window.",
+            challenge.ExpiresAtUtc >= beforeSignup.AddMinutes(9)
+                && challenge.ExpiresAtUtc <= DateTime.UtcNow.AddMinutes(11));
+    }
+
+    private static async Task LoginShouldMigrateLegacyPlaintextPasswordsAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = CreateAuthService(store);
+        var userId = Guid.NewGuid();
+        var legacyPassword = "legacy-password";
+        SeedUser(store, userId, "legacy-player", legacyPassword, isOtpVerified: true);
+
+        _ = await service.LoginAsync(new LoginRequest("legacy-player", legacyPassword), CancellationToken.None);
+
+        var migratedUser = store.Users[userId];
+        migratedUser.PasswordHash.ShouldNotBePlaintext(
+            failures,
+            "Legacy plaintext passwords should be replaced with a BCrypt hash after a successful login.",
+            legacyPassword);
+        Assert(
+            failures,
+            "Legacy plaintext password migration should preserve successful login verification.",
+            BCrypt.Net.BCrypt.Verify(legacyPassword, migratedUser.PasswordHash));
+    }
+
+    private static async Task VerifyOtpShouldRejectExpiredCodesAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = CreateAuthService(store);
+        var request = new SignupRequest(
+            "expired-otp-player",
+            "otp-password",
+            "+96170000002",
+            "expired-otp-player@lucky5.local");
+
+        var (_, challenge) = await service.SignupAsync(request, CancellationToken.None);
+        var user = store.Users.Values.Single(candidate => candidate.Username == request.Username);
+        user.PendingOtpExpiresUtc = DateTime.UtcNow.AddMinutes(-1);
+
+        var verified = await service.VerifyOtpAsync(new VerifyOtpRequest(request.Username, challenge.OtpCode), CancellationToken.None);
+
+        Assert(
+            failures,
+            "Expired OTP challenges should fail verification.",
+            !verified);
+        Assert(
+            failures,
+            "Expired OTP verification should clear the stale pending challenge.",
+            user.PendingOtp is null && user.PendingOtpExpiresUtc is null && !user.IsOtpVerified);
+    }
+
+    private static async Task ResendOtpShouldRefreshThePendingChallengeAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = CreateAuthService(store);
+        var request = new SignupRequest(
+            "resend-otp-player",
+            "resend-password",
+            "+96170000003",
+            "resend-otp-player@lucky5.local");
+
+        var (_, firstChallenge) = await service.SignupAsync(request, CancellationToken.None);
+        var user = store.Users.Values.Single(candidate => candidate.Username == request.Username);
+        user.PendingOtpExpiresUtc = DateTime.UtcNow.AddMinutes(1);
+
+        var resentChallenge = await service.ResendOtpAsync(new ResendOtpRequest(request.Username), CancellationToken.None);
+
+        Assert(
+            failures,
+            "Resend OTP should return a fresh active challenge for an existing user.",
+            resentChallenge is not null
+                && Regex.IsMatch(resentChallenge.OtpCode, @"^\d{6}$", RegexOptions.CultureInvariant)
+                && resentChallenge.ExpiresAtUtc > firstChallenge.ExpiresAtUtc.AddMinutes(-8));
+        Assert(
+            failures,
+            "Resend OTP should update the stored pending challenge details.",
+            resentChallenge is not null
+                && string.Equals(user.PendingOtp, resentChallenge.OtpCode, StringComparison.Ordinal)
+                && user.PendingOtpExpiresUtc == resentChallenge.ExpiresAtUtc);
+    }
+
+    private static async Task CabinetClientsShouldUseIssuedOtpAndSupportCredentialBootstrapAsync(List<string> failures)
+    {
+        var webApi = await File.ReadAllTextAsync(ResolveRepoFilePath("src", "web", "lib", "api.ts"));
+        var webCabinet = await File.ReadAllTextAsync(ResolveRepoFilePath("src", "web", "components", "lucky5-cabinet.tsx"));
+        var flutterAuthApi = await File.ReadAllTextAsync(ResolveRepoFilePath("client", "lib", "core", "api", "auth_api.dart"));
+        var flutterLoginScreen = await File.ReadAllTextAsync(ResolveRepoFilePath("client", "lib", "presentation", "login", "login_screen.dart"));
+        var gameJs = await File.ReadAllTextAsync(ResolveRepoFilePath("server", "src", "Lucky5.Api", "wwwroot", "js", "game.js"));
+        var cabinetRoot = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_root.gd"));
+        var cabinetReadme = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "README.md"));
+
+        Assert(
+            failures,
+            "Web signup/verify helpers should send the issued OTP code through the backend's otpCode contract.",
+            webApi.Contains("Promise<SignupResult>", StringComparison.Ordinal)
+                && webApi.Contains("{ username, otpCode: otp }", StringComparison.Ordinal));
+        Assert(
+            failures,
+            "Web cabinet bootstrap should not seed a fixed OTP and should consume preview codes when available.",
+            !webCabinet.Contains("DEFAULT_OTP = \"123456\"", StringComparison.Ordinal)
+                && webCabinet.Contains("const previewCode = signupResult.otp?.previewCode?.trim();", StringComparison.Ordinal));
+        Assert(
+            failures,
+            "Flutter login bootstrap should stop defaulting the OTP field to 123456 and should consume preview codes when available.",
+            !flutterLoginScreen.Contains("TextEditingController(text: \"123456\")", StringComparison.Ordinal)
+                && flutterLoginScreen.Contains("_otpController.text = otpPreview;", StringComparison.Ordinal)
+                && flutterAuthApi.Contains("Future<String?> signup(", StringComparison.Ordinal));
+        Assert(
+            failures,
+            "The cabinet web runtime should verify the issued OTP instead of hardcoding 123456.",
+            gameJs.Contains("async function doVerifyOtp(username, otpCode)", StringComparison.Ordinal)
+                && !gameJs.Contains("otpCode: '123456'", StringComparison.Ordinal)
+                && gameJs.Contains("const previewCode = signup?.otp?.previewCode;", StringComparison.Ordinal));
+        Assert(
+            failures,
+            "The Godot cabinet should support username/password bootstrap and 401 re-auth recovery instead of staying token-only.",
+            cabinetRoot.Contains("LUCKY5_AUTH_USERNAME", StringComparison.Ordinal)
+                && cabinetRoot.Contains("LUCKY5_AUTH_PASSWORD", StringComparison.Ordinal)
+                && cabinetRoot.Contains("_authenticate_and_sync(\"Session lost. Re-authenticating cabinet", StringComparison.Ordinal)
+                && !cabinetRoot.Contains("Fixture remains view-only.", StringComparison.Ordinal));
+        Assert(
+            failures,
+            "Godot cabinet README should document credential bootstrap alongside the optional preloaded token path.",
+            cabinetReadme.Contains("LUCKY5_ACCESS_TOKEN=<optional preloaded player bearer token>", StringComparison.Ordinal)
+                && cabinetReadme.Contains("LUCKY5_AUTH_USERNAME=<player username>", StringComparison.Ordinal)
+                && cabinetReadme.Contains("LUCKY5_AUTH_PASSWORD=<player password>", StringComparison.Ordinal));
+    }
+
+    private static AuthService CreateAuthService(InMemoryDataStore store)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["JWT:SIGNING_KEY"] = "test-signing-key" })
+            .Build();
+
+        return new AuthService(store, new SimpleTokenService(configuration));
+    }
+
+    private static void SeedUser(InMemoryDataStore store, Guid userId, string username, string passwordHash, bool isOtpVerified)
+    {
+        var user = new User
+        {
+            Id = userId,
+            Username = username,
+            PasswordHash = passwordHash,
+            PhoneNumber = $"+961{Math.Abs(username.GetHashCode()):0000000}",
+            Role = "player",
+            IsOtpVerified = isOtpVerified
+        };
+
+        store.Profiles[userId] = user;
+        store.Users[userId] = user;
+        store.MemberProfiles[userId] = new MemberProfile
+        {
+            UserId = userId,
+            Username = username,
+            DisplayName = username,
+            Email = $"{username}@lucky5.local",
+            PhoneNumber = user.PhoneNumber,
+            WalletBalance = 500_000m,
+            LastSeenUtc = DateTime.UtcNow
+        };
+    }
+
+    private static string ResolveRepoFilePath(params string[] segments)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(new[] { dir.FullName }.Concat(segments).ToArray());
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            dir = dir.Parent;
+        }
+
+        throw new FileNotFoundException($"Could not locate repo file '{Path.Combine(segments)}' from base directory '{AppContext.BaseDirectory}'");
+    }
+
+    private static void Assert(List<string> failures, string message, bool condition)
+    {
+        if (!condition)
+        {
+            failures.Add(message);
+        }
+    }
+}
+
+file static class AuthSecurityRegressionTestExtensions
+{
+    public static void ShouldNotBePlaintext(this string actual, List<string> failures, string message, string expectedPlaintext)
+    {
+        if (string.Equals(actual, expectedPlaintext, StringComparison.Ordinal))
+        {
+            failures.Add(message);
+        }
+    }
+}

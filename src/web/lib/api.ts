@@ -9,6 +9,7 @@ import type {
   MachineSession,
   MachineState,
   MemberProfile,
+  SignupResult,
   WalletLedgerEntry,
 } from "@/lib/types";
 
@@ -42,12 +43,12 @@ async function apiFetch<T>(
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
-export async function signup(username: string, password: string, phoneNumber: string): Promise<void> {
-  await apiFetch("POST", "/api/auth/signup", null, { username, password, phoneNumber, email: `${username}@lucky5.local` });
+export async function signup(username: string, password: string, phoneNumber: string): Promise<SignupResult> {
+  return apiFetch<SignupResult>("POST", "/api/auth/signup", null, { username, password, phoneNumber, email: `${username}@lucky5.local` });
 }
 
 export async function verifyOtp(username: string, otp: string): Promise<void> {
-  await apiFetch("POST", "/api/auth/verify-otp", null, { username, otp });
+  await apiFetch("POST", "/api/auth/verify-otp", null, { username, otpCode: otp });
 }
 
 export async function login(username: string, password: string): Promise<LoginResult> {

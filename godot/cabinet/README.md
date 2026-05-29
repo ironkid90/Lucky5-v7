@@ -8,7 +8,9 @@ Set these environment variables before running `res://scenes/CabinetRoot.tscn`:
 
 ```bash
 LUCKY5_API_BASE_URL=http://127.0.0.1:8080
-LUCKY5_ACCESS_TOKEN=<player bearer token>
+LUCKY5_ACCESS_TOKEN=<optional preloaded player bearer token>
+LUCKY5_AUTH_USERNAME=<player username>
+LUCKY5_AUTH_PASSWORD=<player password>
 LUCKY5_MACHINE_ID=1
 ```
 
@@ -17,6 +19,11 @@ The scene boots `res://data/fixture_snapshot.json` immediately, then hydrates fr
 - `GET /api/Game/machine/{machineId}/cabinet-snapshot`
 - `POST /api/Game/cabinet/command`
 - `POST /api/Game/machine/{machineId}/cabinet-replay`
+
+When `LUCKY5_ACCESS_TOKEN` is absent, the cabinet authenticates with
+`LUCKY5_AUTH_USERNAME` and `LUCKY5_AUTH_PASSWORD`, stores the returned bearer
+token in memory, and re-authenticates on `401` recovery paths before requesting
+another authoritative snapshot.
 
 ## Playable controls
 

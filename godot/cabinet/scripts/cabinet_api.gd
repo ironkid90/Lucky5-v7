@@ -22,8 +22,17 @@ func configure(base_url: String, token: String) -> void:
         api_base_url = "http://127.0.0.1:8080"
     access_token = token.strip_edges()
 
+func set_access_token(token: String) -> void:
+    access_token = token.strip_edges()
+
 func get_snapshot(machine_id: int) -> bool:
     return _request("snapshot", HTTPClient.METHOD_GET, "/api/Game/machine/%d/cabinet-snapshot" % machine_id, {})
+
+func post_login(username: String, password: String) -> bool:
+    return _request("login", HTTPClient.METHOD_POST, "/api/Auth/login", {
+        "username": username,
+        "password": password
+    })
 
 func post_replay(machine_id: int, last_state_version: int, last_sequence_number: int) -> bool:
     return _request("replay", HTTPClient.METHOD_POST, "/api/Game/machine/%d/cabinet-replay" % machine_id, {

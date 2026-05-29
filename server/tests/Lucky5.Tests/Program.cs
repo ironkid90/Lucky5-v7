@@ -6,6 +6,7 @@ await Lucky5.Tests.AdminAuditAndCabinetDeviceTests.RunAsync(failures);
 await Lucky5.Tests.GameServiceRegressionTests.RunAsync(failures);
 await Lucky5.Tests.CleanRoomEngineTests.RunAsync(failures);
 await Lucky5.Tests.FrontendRegressionTests.RunAsync(failures);
+await Lucky5.Tests.AuthSecurityRegressionTests.RunAsync(failures);
 await Lucky5.Tests.FilePersistentStateStoreTests.RunAsync(failures);
 await Lucky5.Tests.PersistentStateRecoveryTests.RunAsync(failures);
 await Lucky5.Tests.HubTests.RunAsync(failures);

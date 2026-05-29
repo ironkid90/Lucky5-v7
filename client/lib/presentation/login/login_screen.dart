@@ -15,7 +15,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController(text: "tester");
   final _passwordController = TextEditingController(text: "password");
-  final _otpController = TextEditingController(text: "123456");
+  final _otpController = TextEditingController();
   bool _loading = false;
   String _message = "";
 
@@ -37,11 +37,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text;
 
     try {
-      await widget.authApi.signup(
+      final otpPreview = await widget.authApi.signup(
         username: username,
         password: password,
         phoneNumber: "+96101000000",
       );
+      if (otpPreview != null && otpPreview.isNotEmpty) {
+        _otpController.text = otpPreview;
+      }
     } catch (_) {
       // Existing user is acceptable for local bootstrap.
     }

@@ -2124,12 +2124,16 @@ async function doSignup(username, password) {
     return json.data;
 }
 
-async function doVerifyOtp(username) {
-    await fetch(`${API}/api/Auth/verify-otp`, {
+async function doVerifyOtp(username, otpCode) {
+    const res = await fetch(`${API}/api/Auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, otpCode: '123456' })
+        body: JSON.stringify({ username, otpCode })
     });
+    const json = await res.json();
+    if (!res.ok || json?.success === false) {
+        throw new Error(json?.message || 'OTP verification failed');
+    }
 }
 
 function storeToken(t) {
@@ -2733,8 +2737,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 storeToken(data.tokens.accessToken);
                 profileData = data.profile;
             } else {
-                await doSignup(username, password);
-                await doVerifyOtp(username);
+                const signup = await doSignup(username, password);
+                const previewCode = signup?.otp?.previewCode;
+                if (!previewCode) {
+                    throw new Error('OTP preview unavailable. Verify the account before cabinet login.');
+                }
+                await doVerifyOtp(username, previewCode);
                 const data = await doLogin(username, password);
                 storeToken(data.tokens.accessToken);
                 profileData = data.profile;

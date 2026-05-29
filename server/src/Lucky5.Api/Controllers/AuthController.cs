@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/[controller]")]
-public sealed class AuthController(IAuthService authService) : ControllerBase
+public sealed class AuthController(IAuthService authService, IHostEnvironment environment, IConfiguration configuration) : ControllerBase
 {
     [HttpPost("login")]
     public async Task<ActionResult<ApiResponse<object>>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
@@ -18,10 +18,17 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
     }
 
     [HttpPost("signup")]
-    public async Task<ActionResult<ApiResponse<MemberProfileDto>>> Signup([FromBody] SignupRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<object>>> Signup([FromBody] SignupRequest request, CancellationToken cancellationToken)
     {
-        var profile = await authService.SignupAsync(request, cancellationToken);
-        return Ok(ApiResponse<MemberProfileDto>.Ok(profile, "Signup successful, verify OTP", HttpContext.TraceIdentifier));
+        var (profile, challenge) = await authService.SignupAsync(request, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(
+            new
+            {
+                profile,
+                otp = BuildOtpPayload(challenge)
+            },
+            "Signup successful, verify OTP",
+            HttpContext.TraceIdentifier));
     }
 
     [HttpPost("verify-otp")]
@@ -35,9 +42,16 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
     [HttpPost("resend-otp")]
     public async Task<ActionResult<ApiResponse<object>>> ResendOtp([FromBody] ResendOtpRequest request, CancellationToken cancellationToken)
     {
-        var ok = await authService.ResendOtpAsync(request, cancellationToken);
-        if (!ok) return NotFound(ApiResponse<object>.Fail("User not found", traceId: HttpContext.TraceIdentifier));
-        return Ok(ApiResponse<object>.Ok(new { resent = true }, "OTP resent", HttpContext.TraceIdentifier));
+        var challenge = await authService.ResendOtpAsync(request, cancellationToken);
+        if (challenge is null) return NotFound(ApiResponse<object>.Fail("User not found", traceId: HttpContext.TraceIdentifier));
+        return Ok(ApiResponse<object>.Ok(
+            new
+            {
+                resent = true,
+                otp = BuildOtpPayload(challenge)
+            },
+            "OTP resent",
+            HttpContext.TraceIdentifier));
     }
 
     [HttpGet("GetUserById")]
@@ -102,5 +116,32 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         var token = HttpContext.Items["access_token"]?.ToString() ?? string.Empty;
         await authService.LogoutAsync(token, cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { loggedOut = true }, traceId: HttpContext.TraceIdentifier));
+    }
+
+    private object BuildOtpPayload(PendingOtpChallengeDto challenge)
+        => new
+        {
+            expiresAtUtc = challenge.ExpiresAtUtc,
+            previewCode = ShouldExposeOtpPreview() ? challenge.OtpCode : null
+        };
+
+    private bool ShouldExposeOtpPreview()
+    {
+        if (environment.IsDevelopment())
+        {
+            return true;
+        }
+
+        var rawValue = configuration["Auth:ExposeOtpPreview"]
+            ?? configuration["Auth__ExposeOtpPreview"]
+            ?? Environment.GetEnvironmentVariable("LUCKY5_EXPOSE_OTP_PREVIEW");
+
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return false;
+        }
+
+        return string.Equals(rawValue, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(rawValue, "true", StringComparison.OrdinalIgnoreCase);
     }
 }

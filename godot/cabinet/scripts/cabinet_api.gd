@@ -25,6 +25,31 @@ func configure(base_url: String, token: String) -> void:
 func set_access_token(token: String) -> void:
     access_token = token.strip_edges()
 
+<<<<<<< Updated upstream
+=======
+func login(username: String, password: String) -> bool:
+    return _request("login", HTTPClient.METHOD_POST, "/api/Auth/login", {
+        "username": username.strip_edges(),
+        "password": password
+    })
+
+func signup(username: String, password: String, phone_number: String) -> bool:
+    return _request("signup", HTTPClient.METHOD_POST, "/api/Auth/signup", {
+        "username": username.strip_edges(),
+        "password": password,
+        "phoneNumber": phone_number.strip_edges()
+    })
+
+func verify_otp(username: String, otp_code: String) -> bool:
+    return _request("verify_otp", HTTPClient.METHOD_POST, "/api/Auth/verify-otp", {
+        "username": username.strip_edges(),
+        "otpCode": otp_code.strip_edges()
+    })
+
+func logout() -> bool:
+    return _request("logout", HTTPClient.METHOD_POST, "/api/Auth/logout", {})
+
+>>>>>>> Stashed changes
 func get_snapshot(machine_id: int) -> bool:
     return _request("snapshot", HTTPClient.METHOD_GET, "/api/Game/machine/%d/cabinet-snapshot" % machine_id, {})
 

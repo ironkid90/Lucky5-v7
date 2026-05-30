@@ -85,6 +85,7 @@ let machineCanCashOut = false;
 let machineSessionClosed = false;
 let machineCashOutThreshold = 0;
 let adminUsers = [];
+let adminAgents = [];
 let adminMachines = [];
 let lucky5FlashResetTimer = null;
 
@@ -2564,6 +2565,7 @@ function showAdmin() {
     if (currentRole !== 'admin') return;
     activateShellScreen('admin', 'admin');
     loadAdminUsers();
+    loadAdminAgents();
     loadAdminMachines();
 }
 
@@ -2619,6 +2621,87 @@ async function adminAdjustWallet(userId, isDebit) {
         const profile = await apiCall('GET', GAME_CONFIG.api.profile);
         walletBalance = profile.walletBalance;
         updateLobbyBalance();
+    } catch (e) {
+        alert('Failed: ' + e.message);
+    }
+}
+
+async function loadAdminAgents() {
+    const wrap = document.getElementById('admin-agents-list');
+    if (!wrap) return;
+    wrap.innerHTML = '<div class="wallet-history-empty">LOADING AGENTS...</div>';
+    try {
+        adminAgents = await apiCall('GET', GAME_CONFIG.api.agents);
+        if (!adminAgents.length) {
+            wrap.innerHTML = '<div class="wallet-history-empty">NO AGENTS FOUND</div>';
+            return;
+        }
+        wrap.innerHTML = '';
+        adminAgents.forEach(agent => {
+            const row = document.createElement('div');
+            row.className = 'wallet-history-row';
+            row.innerHTML = `
+                <div class="wallet-history-info">
+                    <div class="wallet-history-type">${(agent.name || 'AGENT').toUpperCase()} • ${String(agent.code || '').toUpperCase()}</div>
+                    <div class="wallet-history-date">${agent.phoneNumber || 'NO PHONE'} • POOL ${formatNum(agent.creditPool || 0)}</div>
+                    <div class="wallet-history-date">${agent.isActive ? 'ACTIVE' : 'INACTIVE'} • CREATED ${formatTransactionDate(agent.createdUtc)}</div>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+                    <button class="lobby-btn lobby-btn-sm" data-agent-credit="${agent.id}">LOAD</button>
+                    <button class="lobby-btn lobby-btn-sm" data-agent-assign="${agent.id}">ASSIGN USER</button>
+                </div>
+            `;
+            wrap.appendChild(row);
+        });
+        wrap.querySelectorAll('[data-agent-credit]').forEach(btn => btn.addEventListener('click', () => loadCreditForAgent(btn.dataset.agentCredit)));
+        wrap.querySelectorAll('[data-agent-assign]').forEach(btn => btn.addEventListener('click', () => assignUserToAgent(btn.dataset.agentAssign)));
+    } catch (e) {
+        wrap.innerHTML = `<div class="wallet-history-empty">${e.message}</div>`;
+    }
+}
+
+async function createAdminAgent() {
+    const nameInput = document.getElementById('admin-agent-name');
+    const codeInput = document.getElementById('admin-agent-code');
+    const phoneInput = document.getElementById('admin-agent-phone');
+    const name = nameInput?.value.trim();
+    const code = codeInput?.value.trim();
+    const phoneNumber = phoneInput?.value.trim();
+    if (!name || !code || !phoneNumber) {
+        alert('Agent name, code, and phone are required.');
+        return;
+    }
+    try {
+        await apiCall('POST', GAME_CONFIG.api.agents, { name, code, phoneNumber });
+        if (nameInput) nameInput.value = '';
+        if (codeInput) codeInput.value = '';
+        if (phoneInput) phoneInput.value = '';
+        await loadAdminAgents();
+    } catch (e) {
+        alert('Failed: ' + e.message);
+    }
+}
+
+async function loadCreditForAgent(agentId) {
+    const amountRaw = prompt('Agent credit amount:', '200000');
+    if (!amountRaw) return;
+    const amount = Number(amountRaw);
+    if (!amount || amount <= 0) return;
+    try {
+        await apiCall('POST', GAME_CONFIG.api.agentLoadCredit(agentId), { amount });
+        await loadAdminAgents();
+    } catch (e) {
+        alert('Failed: ' + e.message);
+    }
+}
+
+async function assignUserToAgent(agentId) {
+    const userId = prompt('User ID to assign to this agent:');
+    if (!userId) return;
+    try {
+        await apiCall('POST', GAME_CONFIG.api.agentAssignUser(agentId, userId.trim()));
+        await loadAdminAgents();
+        await loadAdminUsers(document.getElementById('admin-user-search')?.value || '');
     } catch (e) {
         alert('Failed: ' + e.message);
     }
@@ -2981,6 +3064,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     const adminMachineRefreshBtn = document.getElementById('admin-machine-refresh-btn');
     if (adminMachineRefreshBtn) adminMachineRefreshBtn.addEventListener('click', loadAdminMachines);
+    const adminAgentCreateBtn = document.getElementById('admin-agent-create-btn');
+    if (adminAgentCreateBtn) adminAgentCreateBtn.addEventListener('click', createAdminAgent);
+    const adminAgentRefreshBtn = document.getElementById('admin-agent-refresh-btn');
+    if (adminAgentRefreshBtn) adminAgentRefreshBtn.addEventListener('click', loadAdminAgents);
 
     const navLobby = document.getElementById('nav-lobby');
     const navWallet = document.getElementById('nav-wallet');

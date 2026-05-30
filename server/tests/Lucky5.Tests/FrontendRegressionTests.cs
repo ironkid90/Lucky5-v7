@@ -261,6 +261,26 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
+            "admin panel should expose the Agent back-office surface documented for v7: list/create/load-credit/assign-user.",
+            indexHtml.Contains("id=\"admin-agents-list\"", StringComparison.Ordinal)
+                && indexHtml.Contains("id=\"admin-agent-name\"", StringComparison.Ordinal)
+                && indexHtml.Contains("id=\"admin-agent-code\"", StringComparison.Ordinal)
+                && indexHtml.Contains("id=\"admin-agent-phone\"", StringComparison.Ordinal)
+                && indexHtml.Contains("id=\"admin-agent-create-btn\"", StringComparison.Ordinal)
+                && gameConfigJs.Contains("agents:           '/api/Agent'", StringComparison.Ordinal)
+                && gameConfigJs.Contains("agentLoadCredit:  (agentId) => `/api/Agent/${agentId}/load-credit`", StringComparison.Ordinal)
+                && gameConfigJs.Contains("agentAssignUser:  (agentId, userId) => `/api/Agent/${agentId}/assign-user/${userId}`", StringComparison.Ordinal)
+                && gameJs.Contains("let adminAgents = [];", StringComparison.Ordinal)
+                && gameJs.Contains("loadAdminAgents();", StringComparison.Ordinal)
+                && gameJs.Contains("async function loadAdminAgents()", StringComparison.Ordinal)
+                && gameJs.Contains("async function createAdminAgent()", StringComparison.Ordinal)
+                && gameJs.Contains("async function loadCreditForAgent(agentId)", StringComparison.Ordinal)
+                && gameJs.Contains("async function assignUserToAgent(agentId)", StringComparison.Ordinal)
+                && gameJs.Contains("adminAgentCreateBtn.addEventListener('click', createAdminAgent);", StringComparison.Ordinal)
+                && gameJs.Contains("adminAgentRefreshBtn.addEventListener('click', loadAdminAgents);", StringComparison.Ordinal));
+
+        Assert(
+            failures,
             "game.js should define a dedicated helper for the active-round hydration endpoint",
             Regex.IsMatch(
                 gameJs,

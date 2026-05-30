@@ -327,7 +327,7 @@ window.CabinetOrchestrator = (function () {
                 // Sync runtime globals updated by legacy, then overlay DU trail from snapshot
                 // because duCardTrail is rebuilt by legacy from snapshot.doubleUpSession
                 // which may not yet be reflected in the global at the point syncFromRuntime runs.
-                const syncResult = CabinetState.syncFromRuntime();
+                CabinetState.syncFromRuntime();
                 if (snapshot && snapshot.phase === 'DoubleUp' && snapshot.doubleUpSession) {
                     const duSnap = snapshot.doubleUpSession;
                     const trailSeed = duSnap.dealerCard

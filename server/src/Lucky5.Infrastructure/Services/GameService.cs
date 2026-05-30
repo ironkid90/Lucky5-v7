@@ -1619,9 +1619,11 @@ return guessResult;
         if (duSession is not null && !duSession.IsTerminal)
         {
             var switchesRemaining = duSession.Options.MaxSwitchesPerRound - duSession.SwitchCountInRound;
-            var multiplier = duSession.LuckyHitCount == 0
-                ? duSession.Options.FirstLuckyMultiplier
-                : duSession.Options.RepeatLuckyMultiplier;
+            var multiplier = !duSession.IsNoLoseActive
+                ? 1
+                : duSession.LuckyHitCount <= 1
+                    ? duSession.Options.FirstLuckyMultiplier
+                    : duSession.Options.RepeatLuckyMultiplier;
             duDto = new DoubleUpStateDto(
                 DealerCard: ToCleanRoomDto(duSession.DealerCard),
                 CurrentAmount: duSession.CurrentAmount,

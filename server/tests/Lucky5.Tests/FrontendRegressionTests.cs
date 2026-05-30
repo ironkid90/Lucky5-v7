@@ -568,6 +568,12 @@ public static class FrontendRegressionTests
             "cabinet-state-vnext.js _uniqueSortedInts must use !isNaN guard (parseInt returns NaN, not non-finite)",
             stateJs.Contains("!isNaN(n) && Number.isFinite(n)", StringComparison.Ordinal));
 
+        Assert(
+            failures,
+            "cabinet-state-vnext.js should snapshot the active double-up lucky multiplier so the vnext render_game_to_text hook reflects the live shield state",
+            stateJs.Contains("duLuckyMultiplier: 1,", StringComparison.Ordinal)
+                && stateJs.Contains("duLuckyMultiplier: typeof duLuckyMultiplier !== 'undefined' ? _safeNumber(duLuckyMultiplier, 1) : 1,", StringComparison.Ordinal));
+
         // Fix: setButtonStates patch must syncFromRuntime so selectors see live gameState,
         // preventing game-loop termination after a hand completes.
         Assert(

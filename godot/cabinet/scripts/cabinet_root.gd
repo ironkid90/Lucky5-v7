@@ -35,13 +35,10 @@ var card_buttons: Array = []
 var action_buttons: Dictionary = {}
 var heartbeat_timer: Timer
 var replay_timer: Timer
-<<<<<<< Updated upstream
 var authenticating := false
-=======
 var pending_signup_username := ""
 var pending_signup_password := ""
 var auth_status := "LOGIN REQUIRED - SIGN IN TO PLAY"
->>>>>>> Stashed changes
 
 func _ready() -> void:
 	_load_environment()
@@ -66,15 +63,10 @@ func _ready() -> void:
 	add_child(replay_timer)
 
 	if access_token.is_empty():
-<<<<<<< Updated upstream
-		_authenticate_and_sync("Authenticating cabinet session…")
-	else:
-=======
 		store.apply_transport_error("Log in to play against the local Lucky5 API.")
 		_refresh_ui()
 	else:
 		auth_status = "SIGNED IN - LOADING CABINET"
->>>>>>> Stashed changes
 		_request_snapshot()
 
 func _load_environment() -> void:
@@ -322,15 +314,13 @@ func _send_heartbeat() -> void:
 
 func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_message: String) -> void:
 	if not ok:
-<<<<<<< Updated upstream
 		if _status_code == 401 and _has_auth_credentials():
 			authenticating = false
-			_authenticate_and_sync("Session lost. Re-authenticating cabinet…")
-=======
+			_authenticate_and_sync("Session lost. Re-authenticating cabinet\u2026")
+			return
 		if kind in ["login", "signup", "verify_otp"]:
 			auth_status = _response_message(body, error_message)
 			_refresh_ui()
->>>>>>> Stashed changes
 			return
 		store.apply_transport_error(error_message)
 		_refresh_ui()
@@ -339,21 +329,6 @@ func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_mes
 		return
 
 	var data = _unwrap_response_data(body)
-<<<<<<< Updated upstream
-	if kind == "login" and typeof(data) == TYPE_DICTIONARY:
-		authenticating = false
-		var tokens = data.get("tokens", {})
-		var next_token = ""
-		if typeof(tokens) == TYPE_DICTIONARY:
-			next_token = str(tokens.get("accessToken", ""))
-		if next_token.is_empty():
-			store.apply_transport_error("Cabinet login returned no access token.")
-			_refresh_ui()
-			return
-		access_token = next_token
-		api.set_access_token(access_token)
-		_request_snapshot()
-=======
 	if kind == "login":
 		_apply_login_response(body)
 	elif kind == "signup":
@@ -363,7 +338,6 @@ func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_mes
 		auth_status = "OTP VERIFIED - LOGGING IN"
 		_refresh_ui()
 		api.login(pending_signup_username, pending_signup_password)
->>>>>>> Stashed changes
 	elif kind == "snapshot" and typeof(data) == TYPE_DICTIONARY:
 		_apply_snapshot(data)
 	elif kind == "command" and typeof(data) == TYPE_DICTIONARY:

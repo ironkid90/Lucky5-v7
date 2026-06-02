@@ -2,21 +2,32 @@
 
 A clean-room recreation of a Lebanese amusement video poker machine (1990–2010 era).
 
-ASP.NET Core 9 backend · Vanilla JS/CSS web cabinet · Flutter mobile client · Firebase push notifications
+ASP.NET Core 9 backend · Godot 4 portrait cabinet · Vanilla JS/CSS web cabinet · Flutter mobile client · Firebase push notifications
 
 Features authentic Lebanese arcade aesthetics, machine-credit vs wallet-credit economy, progressive jackpots, inline double-up Hi-Lo mechanic, switch-only Lucky 5 protection, admin telemetry, daily reward bonuses, agent-based user tracking, and deterministic policy logic targeting ~85% RTP while smoothing online variance.
 
 ## Quick Start
 
 ```bash
-# .NET backend + web cabinet (port 8080)
+# One-command local dev (Godot cabinet + API)
+.\dev.ps1
+
+# .NET backend only (port 8080, serves web cabinet from wwwroot)
 dotnet run --project server/src/Lucky5.Api/Lucky5.Api.csproj
+
+# Godot portrait cabinet (backend-authoritative)
+$env:LUCKY5_API_BASE_URL="http://127.0.0.1:8080"
+$env:LUCKY5_ACCESS_TOKEN="<player bearer token>"
+godot4 --path godot/cabinet
 
 # Flutter mobile client
 cd client && flutter run
+
+# Web cabinet (Next.js dev server)
+cd src/web && pnpm dev
 ```
 
-The backend serves the web cabinet as static files from the same process.
+The backend serves the web cabinet as static files from the same process. The Godot cabinet is the default playable client.
 
 ## Deployment
 
@@ -48,6 +59,7 @@ server/src/
 
 client/                    Flutter mobile client (Android / iOS / Web / Windows)
 └── lib/core/              ApiService, FirebaseService, keep-alive
+godot/cabinet/             Godot 4 playable portrait cabinet client (default)
 
 docs/                      Developer documentation
 sources/                   Decompiled reference material (read-only)

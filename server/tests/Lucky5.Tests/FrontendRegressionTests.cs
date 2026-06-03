@@ -211,10 +211,10 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
-            "safe saved-machine fallback should clear the stale machine selection and route the player back through the shared lobby shell path.",
+            "safe saved-machine fallback should clear the stale machine selection and route the player back through the shared lobby shell path only when the remembered cabinet session is no longer recoverable.",
             Regex.IsMatch(
                 gameJs,
-                @"if\s*\(allowLobbyFallback\)\s*\{[\s\S]{0,200}?resetGameRuntimeState\(\{\s*clearSelection:\s*true\s*\}\);[\s\S]{0,120}?await\s+showLobby\(\);[\s\S]{0,40}?return;",
+                @"if\s*\(allowLobbyFallback\s*&&\s*!hasRecoverableMachineSession\(session,\s*cabinetSnapshot\)\)\s*\{[\s\S]{0,200}?resetGameRuntimeState\(\{\s*clearSelection:\s*true\s*\}\);[\s\S]{0,120}?await\s+showLobby\(\);[\s\S]{0,40}?return;",
                 RegexOptions.CultureInvariant));
 
         Assert(
@@ -325,10 +325,10 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
-            "initGame should restore active rounds before falling back to idle cabinet state",
+            "initGame should restore either the active round or a recoverable cabinet snapshot before falling back to idle cabinet state",
             Regex.IsMatch(
                 gameJs,
-                @"const\s+activeRound\s*=\s*await\s+fetchActiveRoundState\(\);[\s\S]{0,500}?if\s*\(activeRound\)\s*\{[\s\S]{0,500}?restoreRoundFromSnapshot\(activeRound\);",
+                @"const\s+activeRound\s*=\s*await\s+fetchActiveRoundState\(\);[\s\S]{0,200}?const\s+cabinetRoundSnapshot\s*=\s*buildRoundSnapshotFromCabinetSnapshot\(cabinetSnapshot\);[\s\S]{0,200}?const\s+roundSnapshot\s*=\s*activeRound\s*\|\|\s*cabinetRoundSnapshot;[\s\S]{0,200}?if\s*\(roundSnapshot\)\s*\{[\s\S]{0,200}?restoreRoundFromSnapshot\(roundSnapshot\);",
                 RegexOptions.CultureInvariant));
 
         Assert(
@@ -338,10 +338,10 @@ public static class FrontendRegressionTests
 
         Assert(
             failures,
-            "allowLobbyFallback should clear remembered machine selection and return safely to the lobby when no active round exists",
+            "allowLobbyFallback should clear remembered machine selection and return safely to the lobby only when neither the live round nor the cabinet snapshot can resume play",
             Regex.IsMatch(
                 gameJs,
-                @"if\s*\(allowLobbyFallback\)\s*\{[\s\S]{0,180}?resetGameRuntimeState\(\{\s*clearSelection:\s*true\s*\}\);[\s\S]{0,120}?await\s+showLobby\(\);[\s\S]{0,80}?return;",
+                @"const\s+roundSnapshot\s*=\s*activeRound\s*\|\|\s*cabinetRoundSnapshot;[\s\S]{0,220}?if\s*\(allowLobbyFallback\s*&&\s*!hasRecoverableMachineSession\(session,\s*cabinetSnapshot\)\)\s*\{[\s\S]{0,180}?resetGameRuntimeState\(\{\s*clearSelection:\s*true\s*\}\);[\s\S]{0,120}?await\s+showLobby\(\);[\s\S]{0,80}?return;",
                 RegexOptions.CultureInvariant));
 
         Assert(
@@ -451,9 +451,45 @@ public static class FrontendRegressionTests
             gameConfigJs.Contains("cabinet: Object.freeze(", StringComparison.Ordinal)
                 && gameConfigJs.Contains("features: Object.freeze(", StringComparison.Ordinal)
                 && gameConfigJs.Contains("adapterVNext: false", StringComparison.Ordinal)
-                && gameConfigJs.Contains("enableDisplaySnapshot: false", StringComparison.Ordinal)
+                && gameConfigJs.Contains("enableDisplaySnapshot: true", StringComparison.Ordinal)
                 && gameConfigJs.Contains("enableCabinetStage: true", StringComparison.Ordinal)
+                && gameConfigJs.Contains("machineCabinetSnapshot: (id) => `/api/Game/machine/${id}/cabinet-snapshot`", StringComparison.Ordinal)
+                && gameConfigJs.Contains("doubleup:     Object.freeze({ src: '/assets/sounds/press.mp3'", StringComparison.Ordinal)
                 && gameConfigJs.Contains("audio: Object.freeze(", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "game.js should expose cabinet snapshot path and restore helpers for reconnect recovery",
+            gameJs.Contains("function getMachineCabinetSnapshotPath(targetMachineId = machineId)", StringComparison.Ordinal)
+                && gameJs.Contains("async function fetchCabinetSnapshot()", StringComparison.Ordinal)
+                && gameJs.Contains("function buildRoundSnapshotFromCabinetSnapshot(snapshot)", StringComparison.Ordinal)
+                && gameJs.Contains("function hasRecoverableMachineSession(session, cabinetSnapshot)", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "saved machine restore should stay in the cabinet when machine credits or snapshot state are recoverable instead of always falling back to the lobby",
+            Regex.IsMatch(
+                gameJs,
+                @"if\s*\(allowLobbyFallback\s*&&\s*!hasRecoverableMachineSession\(session,\s*cabinetSnapshot\)\)\s*\{[\s\S]{0,180}?await\s+showLobby\(\);",
+                RegexOptions.CultureInvariant));
+
+        Assert(
+            failures,
+            "game.js should preload cabinet button art from the dedicated buttons asset directory",
+            gameJs.Contains("buttonFiles.forEach(f => allPaths.push(`/assets/images/buttons/${f}`));", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "cabinet-stage-vnext.js should resolve button faces from the dedicated buttons asset directory",
+            stageJs.Contains("const BUTTON_ASSET_BASE = '/assets/images/buttons';", StringComparison.Ordinal)
+                && stageJs.Contains("function _buttonAsset(fileName)", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "wwwroot should ship the Lucky5 card deck assets required by the cabinet renderer",
+            File.Exists(ResolveWwwrootFilePath("assets", "images", "cards", "bside.png"))
+                && File.Exists(ResolveWwwrootFilePath("assets", "images", "cards", "AS.png"))
+                && File.Exists(ResolveWwwrootFilePath("assets", "images", "cards", "KH.png")));
 
         Assert(
             failures,

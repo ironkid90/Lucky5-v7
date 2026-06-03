@@ -25,7 +25,7 @@ window.CabinetPace = (function () {
             jackpotFillMinMs: _cfg ? _cfg.jackpotFillMinMs : 10000,
             jackpotFillMaxMs: _cfg ? _cfg.jackpotFillMaxMs : 15000,
             lucky5ActiveMs: _cfg ? _cfg.lucky5ActiveScreenMs : 1400,
-            collectDelayMs: 400
+            collectDelayMs: 180
         };
         if (overrides && typeof overrides === 'object') {
             Object.assign(next, overrides);
@@ -54,6 +54,10 @@ window.CabinetPace = (function () {
     function _safeNumber(value) {
         const n = Number(value);
         return Number.isFinite(n) ? n : 0;
+    }
+
+    function _clamp01(value) {
+        return Math.max(0, Math.min(1, Number(value) || 0));
     }
 
     function _setTimer(fn, ms) {
@@ -147,9 +151,8 @@ window.CabinetPace = (function () {
         // Scale duration from config min/max based on amount tiers
         const minMs = Math.max(200, _safeNumber(_config.countUpMinMs));
         const maxMs = Math.max(minMs, _safeNumber(_config.countUpMaxMs));
-        const duration = Math.min(
-            maxMs,
-            minMs + Math.floor(amount / 50000) * 200
+        const duration = Math.round(
+            minMs + (maxMs - minMs) * _clamp01(amount / 5_000_000)
         );
 
         // Brief pause then count credits up
@@ -178,7 +181,9 @@ window.CabinetPace = (function () {
         const minMs = Math.max(500, _safeNumber(_config.jackpotFillMinMs));
         const maxMs = Math.max(minMs, _safeNumber(_config.jackpotFillMaxMs));
         // Scale jackpot fill from config min/max based on delta.
-        const duration = Math.min(minMs + Math.floor(delta / 500000) * 1000, maxMs);
+        const duration = Math.round(
+            minMs + (maxMs - minMs) * _clamp01(delta / 5_000_000)
+        );
         countUp(jpCvalElement, fromNum, toNum, duration, onComplete);
     }
 

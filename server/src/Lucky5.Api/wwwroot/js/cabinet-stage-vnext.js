@@ -10,6 +10,7 @@
 
 window.CabinetStage = (function () {
     const DEFAULT_MAX_TRAIL_PER_PAGE = 4;
+    const BUTTON_ASSET_BASE = '/assets/images/buttons';
 
     function _resolveConfig(overrides) {
         const cfg = (typeof GAME_CONFIG !== 'undefined') ? GAME_CONFIG : null;
@@ -226,6 +227,10 @@ window.CabinetStage = (function () {
         btn.style.setProperty('background-repeat', 'no-repeat', 'important');
         btn.style.setProperty('background-position', 'center center', 'important');
         btn.style.setProperty('background-size', 'contain', 'important');
+    }
+
+    function _buttonAsset(fileName) {
+        return `${BUTTON_ASSET_BASE}/${fileName}`;
     }
 
     function _stopShuffle() {
@@ -626,8 +631,8 @@ window.CabinetStage = (function () {
         if (btn) {
             btn.classList.toggle('active', isHeld);
             _setButtonBackground(btn, isHeld
-                ? '/assets/images/hold_on.png'
-                : '/assets/images/hold_off.png');
+                ? _buttonAsset('hold_on.png')
+                : _buttonAsset('hold_off.png'));
             btn.setAttribute('aria-label', isHeld ? 'HOLD ON' : 'HOLD OFF');
             btn.title = isHeld ? 'HOLD' : '';
         }
@@ -654,8 +659,8 @@ window.CabinetStage = (function () {
             const btn = document.getElementById(id);
             if (!btn || btn.dataset.assetsBound === '1') return;
 
-            const offPath = `/assets/images/${off}`;
-            const onPath = `/assets/images/${on}`;
+            const offPath = _buttonAsset(off);
+            const onPath = _buttonAsset(on);
             _setButtonBackground(btn, offPath);
 
             const press = () => { _setButtonBackground(btn, onPath); };
@@ -676,19 +681,19 @@ window.CabinetStage = (function () {
             const syncVisual = () => {
                 const held = btn.classList.contains('active');
                 _setButtonBackground(btn, held
-                    ? '/assets/images/hold_on.png'
-                    : '/assets/images/hold_off.png');
+                    ? _buttonAsset('hold_on.png')
+                    : _buttonAsset('hold_off.png'));
                 btn.setAttribute('aria-label', held ? 'HOLD ON' : 'HOLD OFF');
                 btn.title = held ? 'HOLD' : '';
             };
 
             btn.addEventListener('mousedown', () => {
-                _setButtonBackground(btn, '/assets/images/hold_on.png');
+                _setButtonBackground(btn, _buttonAsset('hold_on.png'));
             });
             btn.addEventListener('mouseup', syncVisual);
             btn.addEventListener('mouseleave', syncVisual);
             btn.addEventListener('touchstart', () => {
-                _setButtonBackground(btn, '/assets/images/hold_on.png');
+                _setButtonBackground(btn, _buttonAsset('hold_on.png'));
             }, { passive: true });
             btn.addEventListener('touchend', syncVisual, { passive: true });
             btn.addEventListener('touchcancel', syncVisual, { passive: true });

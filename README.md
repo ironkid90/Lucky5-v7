@@ -2,27 +2,30 @@
 
 A clean-room recreation of a Lebanese amusement video poker machine (1990-2010 era).
 
-**Godot 4.6 portrait cabinet** + **.NET 9 API server**
+**Full graphics web cabinet** + **Godot 4.6 portrait cabinet** + **.NET 9 API server**
 
-Features authentic Lebanese arcade aesthetics, machine-credit vs wallet-credit economy, progressive jackpots, inline double-up Hi-Lo mechanic, switch-only Lucky 5 protection, admin telemetry, daily reward bonuses, agent-based user tracking, and deterministic policy logic targeting ~85% RTP.
+Features authentic Lebanese arcade aesthetics, machine-credit vs wallet-credit economy, progressive jackpots, inline double-up Hi-Lo mechanic, switch-only Lucky 5 protection, admin telemetry, agent lobby, daily reward bonuses, agent-based user tracking, and deterministic policy logic targeting ~85% RTP.
 
 ## Prerequisites
 
 - **.NET 9 SDK** (or later) — https://dotnet.microsoft.com
-- **Godot 4.6** (or later) — https://godotengine.org
+- **Godot 4.6** (or later, optional) — https://godotengine.org
 - PowerShell 7+ (Windows) or bash (Linux/macOS)
 
-## Quick Start
+## 1-Click Quick Start
 
 ```powershell
-# Full: starts API server + launches Godot cabinet
+# Starts server + opens full graphics web cabinet in browser
 .\dev.ps1
 
-# API only (headless, for testing/debugging)
-.\dev.ps1 -Headless
+# Server + web cabinet + Godot cabinet
+.\dev.ps1 -Godot
 
-# Godot only (API already running)
-.\dev.ps1 -SkipServer
+# API only (headless, for testing/debugging)
+.\dev.ps1 -Headless -Port 8080
+```
+
+The API starts on `http://localhost:5051`. The web cabinet opens automatically in your browser with all graphics, lobby, agent system, and admin tools.
 ```
 
 The API starts on `http://localhost:5051`. The Godot cabinet connects to the API automatically.

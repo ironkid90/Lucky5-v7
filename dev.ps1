@@ -1,30 +1,33 @@
 <#
 .SYNOPSIS
-  Lucky5 v7 dev launcher — Godot + .NET API.
-  Starts the in-memory .NET API server, then launches the Godot cabinet client.
+  Lucky5 v7 — 1-Click Launcher.
+  Starts the .NET API server with the full graphics web cabinet and Godot client.
 
-.PARAMETER SkipServer
-  Skip starting the .NET API (if already running on :5051).
+.PARAMETER Godot
+  Also launch the Godot cabinet client (requires Godot 4.6+).
 
 .PARAMETER Headless
-  Start API only without launching the Godot client.
+  API only — no browser, no Godot.
+
+.PARAMETER Port
+  API port (default: 5051).
 
 .EXAMPLE
-  .\dev.ps1                      # Full: API + Godot cabinet
-  .\dev.ps1 -SkipServer          # Godot only (API already running)
-  .\dev.ps1 -Headless            # API only, no client
+  .\dev.ps1                 # Server + open web cabinet in browser
+  .\dev.ps1 -Godot          # Server + web + Godot cabinet
+  .\dev.ps1 -Headless -Port 8080  # API only
 
 Admin login: admin / admin123
 Test login:  tester / password
 #>
 param(
-    [switch]$SkipServer,
-    [switch]$Headless
+    [switch]$Godot,
+    [switch]$Headless,
+    [int]$Port = 5051
 )
 
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
-$port = 5051
 
 function Assert-Command([string]$name) {
     if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
@@ -51,53 +54,53 @@ function Wait-Port([int]$port, [int]$timeoutSec = 90) {
 
 Assert-Command "dotnet"
 
-$godotBin = if ($env:GODOT_BIN) { $env:GODOT_BIN } else { "godot" }
-if (-not $Headless) {
-    $foundGodot = Assert-Command $godotBin 2>$null -or (Get-Command $godotBin -ErrorAction SilentlyContinue)
-    if (-not $foundGodot) {
-        $godotBin = "godot4"
-        Assert-Command $godotBin
-    }
-}
-
 Write-Host ""
-Write-Host "=== Lucky5 v7 — Godot Cabinet ===" -ForegroundColor Cyan
-Write-Host "  API: http://localhost:$port"
-Write-Host "  Credentials: admin / admin123"
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  Lucky5 v7 — Full Graphics Cabinet" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  URL:  http://localhost:$Port"
+Write-Host "  Admin: admin / admin123"
+Write-Host "  Test:  tester / password"
 Write-Host ""
 
 $apiProcess = $null
 
-if (-not $SkipServer) {
-    Write-Host "[1/2] Starting Lucky5.Api on http://localhost:$port ..." -ForegroundColor Yellow
-    $env:PORT = "$port"
-    $env:ASPNETCORE_ENVIRONMENT = "Development"
-    $apiProject = "$root\server\src\Lucky5.Api\Lucky5.Api.csproj"
+Write-Host "[1/3] Starting Lucky5.Api on http://localhost:$Port ..." -ForegroundColor Yellow
+$env:PORT = "$Port"
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+$apiProject = "$root\server\src\Lucky5.Api\Lucky5.Api.csproj"
 
-    $apiProcess = Start-Process -PassThru -NoNewWindow `
-        -FilePath "dotnet" `
-        -ArgumentList "run", "--project", $apiProject, "--no-launch-profile" `
-        -WorkingDirectory "$root\server\src\Lucky5.Api"
+$apiProcess = Start-Process -PassThru -NoNewWindow `
+    -FilePath "dotnet" `
+    -ArgumentList "run", "--project", $apiProject, "--no-launch-profile" `
+    -WorkingDirectory "$root\server\src\Lucky5.Api"
 
-    Write-Host "  API PID: $($apiProcess.Id)"
-    $ready = Wait-Port $port 90
-    if (-not $ready) {
-        Write-Warning "Server may still be starting. Check http://localhost:$port/health/live"
-    }
-} else {
-    Write-Host "[1/2] Skipping server (flag set)." -ForegroundColor DarkGray
+Write-Host "  API PID: $($apiProcess.Id)"
+$ready = Wait-Port $Port 90
+
+if (-not $ready) {
+    Write-Warning "Server may still be starting. Check http://localhost:$Port/health/live"
 }
 
 if (-not $Headless) {
-    Write-Host "[2/2] Launching Godot cabinet..." -ForegroundColor Yellow
-    $env:LUCKY5_API_BASE_URL = "http://127.0.0.1:$port"
+    Write-Host "[2/3] Opening web cabinet in browser..." -ForegroundColor Yellow
+    Start-Process "http://localhost:$Port"
+    Write-Host "  Full graphics cabinet loaded in browser." -ForegroundColor Green
+} else {
+    Write-Host "[2/3] Headless mode — API only." -ForegroundColor DarkGray
+}
+
+if ($Godot) {
+    Write-Host "[3/3] Launching Godot cabinet..." -ForegroundColor Yellow
+    $godotBin = if ($env:GODOT_BIN) { $env:GODOT_BIN } elseif (Get-Command godot -ErrorAction SilentlyContinue) { "godot" } else { "godot4" }
+    Assert-Command $godotBin
+    $env:LUCKY5_API_BASE_URL = "http://127.0.0.1:$Port"
     if (-not $env:LUCKY5_ACCESS_TOKEN) {
         Write-Warning "LUCKY5_ACCESS_TOKEN not set. Godot will use fixture/auth mode."
     }
     & $godotBin --path "$root\godot\cabinet"
 } else {
-    Write-Host "[2/2] Headless mode. API running at http://localhost:$port" -ForegroundColor Green
-    Write-Host "  Press Ctrl+C to stop."
+    Write-Host "[3/3] Server running. Press Ctrl+C to stop." -ForegroundColor Green
     if ($apiProcess) { Wait-Process -Id $apiProcess.Id }
 }
 

@@ -20,6 +20,61 @@
 'use strict';
 
 window.CabinetShell = (function () {
+    function _createPreviewCard(suit, isRed) {
+        const card = document.createElement('div');
+        card.className = 'lobby-machine-preview-card';
+        card.dataset.suit = suit;
+        if (isRed) {
+            card.dataset.red = '1';
+        }
+        return card;
+    }
+
+    function _buildMachinePreview() {
+        const cabinet = document.createElement('div');
+        cabinet.className = 'lobby-machine-cabinet';
+
+        const marquee = document.createElement('div');
+        marquee.className = 'lobby-machine-marquee';
+        marquee.textContent = 'LUCKY 5';
+
+        const screen = document.createElement('div');
+        screen.className = 'lobby-machine-screen';
+
+        const payout = document.createElement('div');
+        payout.className = 'lobby-machine-preview-payout';
+        payout.textContent = 'VIDEO POKER';
+
+        const cards = document.createElement('div');
+        cards.className = 'lobby-machine-preview-cards';
+        cards.appendChild(_createPreviewCard('♠', false));
+        cards.appendChild(_createPreviewCard('♥', true));
+        cards.appendChild(_createPreviewCard('♣', false));
+        cards.appendChild(_createPreviewCard('♦', true));
+        cards.appendChild(_createPreviewCard('♠', false));
+
+        const credits = document.createElement('div');
+        credits.className = 'lobby-machine-preview-credits';
+        credits.textContent = 'CREDIT READY';
+
+        const controls = document.createElement('div');
+        controls.className = 'lobby-machine-controls';
+        for (let i = 0; i < 5; i++) {
+            const lamp = document.createElement('span');
+            lamp.className = 'lobby-machine-control';
+            controls.appendChild(lamp);
+        }
+
+        screen.appendChild(payout);
+        screen.appendChild(cards);
+        screen.appendChild(credits);
+
+        cabinet.appendChild(marquee);
+        cabinet.appendChild(screen);
+        cabinet.appendChild(controls);
+
+        return cabinet;
+    }
 
     /* ── renderLobbyMachineCards ─────────────────────────────────────────── */
     /**
@@ -47,22 +102,48 @@ window.CabinetShell = (function () {
             const card = document.createElement('div');
             card.className = 'lobby-machine-card' + (machine.isOpen ? '' : ' unavailable');
 
+            const preview = _buildMachinePreview();
+
+            const meta = document.createElement('div');
+            meta.className = 'lobby-machine-meta';
+
+            const statusRow = document.createElement('div');
+            statusRow.className = 'lobby-machine-status-row';
+
+            const statusEl = document.createElement('div');
+            statusEl.className = `lobby-machine-status ${machine.isOpen ? 'is-open' : 'is-closed'}`;
+            statusEl.textContent = machine.isOpen ? 'OPEN' : 'CLOSED';
+
+            const idEl = document.createElement('div');
+            idEl.className = 'lobby-machine-id';
+            idEl.textContent = `CAB #${machine.id}`;
+
             const nameEl = document.createElement('div');
             nameEl.className = 'lobby-machine-name';
             nameEl.textContent = machine.name;
+
+            const betLabel = document.createElement('div');
+            betLabel.className = 'lobby-machine-bet-label';
+            betLabel.textContent = 'BET RANGE';
 
             const betEl = document.createElement('div');
             betEl.className = 'lobby-machine-bet';
             betEl.textContent = `${fmt.format(machine.minBet)} - ${fmt.format(machine.maxBet)}`;
 
-            const statusEl = document.createElement('div');
-            statusEl.style.cssText = 'font-size:6px;letter-spacing:1px;';
-            statusEl.style.color = machine.isOpen ? '#44ff44' : '#ff4444';
-            statusEl.textContent = machine.isOpen ? 'OPEN' : 'CLOSED';
+            const cta = document.createElement('div');
+            cta.className = 'lobby-machine-cta';
+            cta.textContent = machine.isOpen ? 'ENTER CABINET' : 'UNAVAILABLE';
 
-            card.appendChild(nameEl);
-            card.appendChild(betEl);
-            card.appendChild(statusEl);
+            statusRow.appendChild(statusEl);
+            statusRow.appendChild(idEl);
+            meta.appendChild(statusRow);
+            meta.appendChild(nameEl);
+            meta.appendChild(betLabel);
+            meta.appendChild(betEl);
+            meta.appendChild(cta);
+
+            card.appendChild(preview);
+            card.appendChild(meta);
 
             if (machine.isOpen) {
                 card.addEventListener('click', () => onSelect(machine));

@@ -44,7 +44,7 @@ const GAME_CONFIG = Object.freeze({
     // ── 1c. FEATURE FLAGS ──────────────────────────────────────────────────
     features: Object.freeze({
         adapterVNext: false,       // planned clone-parity adapter gate
-        enableDisplaySnapshot: false, // non-authoritative cabinet display snapshot restore remains opt-in
+        enableDisplaySnapshot: true, // cabinet snapshot restore is active for reconnect/session recovery
         enableCabinetStage: true,  // cabinet stage is the active render path for this parity slice
     }),
 
@@ -138,6 +138,7 @@ const GAME_CONFIG = Object.freeze({
         machineSession:   (id) => `/api/Game/machine/${id}/session`,
         machineState:     (id) => `/api/Game/machine/${id}/state`,
         machineRound:     (id) => `/api/Game/machine/${id}/active-round`,
+        machineCabinetSnapshot: (id) => `/api/Game/machine/${id}/cabinet-snapshot`,
         machineCashIn:    (id) => `/api/Game/machine/${id}/cash-in`,
         machineCashOut:   (id) => `/api/Game/machine/${id}/cash-out`,
         machineReset:     (id) => `/api/Game/machine/${id}/reset`,
@@ -225,6 +226,7 @@ const GAME_CONFIG = Object.freeze({
             invalid:      Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.18, priority: 'high' }),
             deal:         Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.24, priority: 'normal' }),
             draw:         Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.24, priority: 'normal' }),
+            doubleup:     Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.22, priority: 'normal' }),
             collect:      Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.20, priority: 'low' }),
             lucky5:       Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.40, priority: 'high' }),
             machineClose: Object.freeze({ src: '/assets/sounds/press.mp3', volume: 0.40, priority: 'high' })

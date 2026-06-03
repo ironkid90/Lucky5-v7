@@ -142,7 +142,7 @@ function preloadAllAssets() {
             'cancel_hold.png', 'cancel_hold_on.png', 'hold_off.png', 'hold_on.png',
             'take_half.png', 'take_half_on.png', 'take_score.png', 'take_score_on.png'
         ];
-        buttonFiles.forEach(f => allPaths.push(`/assets/images/${f}`));
+        buttonFiles.forEach(f => allPaths.push(`/assets/images/buttons/${f}`));
 
         allPaths.push('/assets/images/board.png');
         allPaths.push('/assets/images/lucky5.png');
@@ -412,6 +412,10 @@ function getMachineActiveRoundPath(targetMachineId = machineId) {
     return `/api/Game/machine/${targetMachineId}/active-round`;
 }
 
+function getMachineCabinetSnapshotPath(targetMachineId = machineId) {
+    return GAME_CONFIG.api.machineCabinetSnapshot(targetMachineId);
+}
+
 function getPlayerMachineResetPath(targetMachineId = machineId) {
     return `/api/Game/machine/${targetMachineId}/reset`;
 }
@@ -474,6 +478,226 @@ function syncMachineSessionState(session) {
     }
 }
 
+function readCabinetField(source, ...keys) {
+    if (!source || typeof source !== 'object') {
+        return undefined;
+    }
+
+    for (const key of keys) {
+        if (Object.prototype.hasOwnProperty.call(source, key) && source[key] != null) {
+            return source[key];
+        }
+    }
+
+    return undefined;
+}
+
+function parseCabinetNumber(value, fallback = 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeCabinetHandRank(handRank) {
+    switch (String(handRank || '').trim()) {
+        case 'RoyalFlush': return 'RoyalFlush';
+        case 'StraightFlush': return 'StraightFlush';
+        case 'FourOfAKind': return 'FourOfAKind';
+        case 'FullHouse': return 'FullHouse';
+        case 'Flush': return 'Flush';
+        case 'Straight': return 'Straight';
+        case 'ThreeOfAKind': return 'ThreeOfAKind';
+        case 'TwoPair': return 'TwoPair';
+        default: return 'Nothing';
+    }
+}
+
+function parseCabinetCard(cardLike) {
+    if (!cardLike) return null;
+
+    const code = String(readCabinetField(cardLike, 'code', 'Code') || '').toUpperCase();
+    if (!code) return null;
+
+    return {
+        code,
+        rank: String(readCabinetField(cardLike, 'rank', 'Rank') || code.slice(0, -1)).toUpperCase(),
+        suit: String(readCabinetField(cardLike, 'suit', 'Suit') || code.slice(-1)).toUpperCase()
+    };
+}
+
+function normalizeCabinetJackpots(snapshotJackpot) {
+    if (!snapshotJackpot) return null;
+
+    const activeSlot = String(readCabinetField(snapshotJackpot, 'activeFourOfAKindSlot', 'active_four_of_a_kind_slot') || 'A').toUpperCase();
+    return {
+        fullHouse: parseCabinetNumber(readCabinetField(snapshotJackpot, 'fullHouse', 'full_house')),
+        fullHouseRank: parseCabinetNumber(readCabinetField(snapshotJackpot, 'fullHouseRank', 'full_house_rank'), jackpotRank),
+        fourOfAKindA: parseCabinetNumber(readCabinetField(snapshotJackpot, 'fourOfAKindA', 'four_of_a_kind_a')),
+        fourOfAKindB: parseCabinetNumber(readCabinetField(snapshotJackpot, 'fourOfAKindB', 'four_of_a_kind_b')),
+        activeFourOfAKindSlot: activeSlot === 'B' ? 1 : 0,
+        straightFlush: parseCabinetNumber(readCabinetField(snapshotJackpot, 'straightFlush', 'straight_flush')),
+        machineSerial: String(readCabinetField(snapshotJackpot, 'machineSerial', 'machine_serial') || machineSerial || ''),
+        machineSerie: String(readCabinetField(snapshotJackpot, 'machineSerie', 'machine_serie') || machineSerie || ''),
+        machineKent: String(readCabinetField(snapshotJackpot, 'machineKent', 'machine_kent') || machineKent || '')
+    };
+}
+
+function isCabinetButtonEnabled(snapshot, buttonId) {
+    const buttons = readCabinetField(snapshot, 'buttons');
+    if (!Array.isArray(buttons)) return false;
+
+    return buttons.some((button) => {
+        const id = String(readCabinetField(button, 'id', 'Id') || '').toLowerCase();
+        const enabled = readCabinetField(button, 'enabled', 'Enabled');
+        return id === String(buttonId).toLowerCase() && Boolean(enabled);
+    });
+}
+
+function applyCabinetSnapshot(snapshot) {
+    if (!snapshot) return null;
+
+    const credits = readCabinetField(snapshot, 'credits') || {};
+    const presentation = readCabinetField(snapshot, 'presentation') || {};
+    const evaluation = readCabinetField(snapshot, 'evaluation') || {};
+    const sessionState = readCabinetField(snapshot, 'session') || {};
+    const normalizedJackpots = normalizeCabinetJackpots(readCabinetField(snapshot, 'jackpot'));
+
+    const nextStake = parseCabinetNumber(readCabinetField(credits, 'stake'), currentBet);
+    if (nextStake > 0) {
+        currentBet = nextStake;
+    }
+
+    syncMachineCreditsFromResponse({
+        machineCredits: readCabinetField(credits, 'machineCredits', 'machine_credits'),
+        walletBalance: readCabinetField(credits, 'walletBalance', 'wallet_balance')
+    });
+
+    walletBalance = parseCabinetNumber(readCabinetField(credits, 'walletBalance', 'wallet_balance'), walletBalance);
+    syncMachineSessionState({
+        isMachineClosed: readCabinetField(sessionState, 'isMachineClosed', 'is_machine_closed'),
+        canCashOut: readCabinetField(sessionState, 'canCashOut', 'can_cash_out'),
+        cashOutThreshold: readCabinetField(credits, 'cashOutThreshold', 'cash_out_threshold')
+    });
+
+    updateLobbyBalance();
+    updateStakeDisplay();
+    updatePaytable(currentHandRank);
+
+    if (normalizedJackpots) {
+        updateJackpotDisplay(normalizedJackpots);
+    }
+
+    return {
+        gameState: String(readCabinetField(snapshot, 'gameState', 'game_state') || 'idle').toLowerCase(),
+        pendingWinAmount: parseCabinetNumber(
+            readCabinetField(credits, 'pendingWinAmount', 'pending_win_amount')
+                ?? readCabinetField(evaluation, 'winAmount', 'win_amount'),
+            0),
+        message: String(
+            readCabinetField(presentation, 'message')
+                ?? readCabinetField(evaluation, 'message')
+                ?? '').trim()
+    };
+}
+
+function buildRoundSnapshotFromCabinetSnapshot(snapshot) {
+    if (!snapshot) return null;
+
+    const cabinetGameState = String(readCabinetField(snapshot, 'gameState', 'game_state') || '').toLowerCase();
+    if (!['hold', 'win', 'double_up'].includes(cabinetGameState)) {
+        return null;
+    }
+
+    const hand = readCabinetField(snapshot, 'hand') || {};
+    const credits = readCabinetField(snapshot, 'credits') || {};
+    const evaluation = readCabinetField(snapshot, 'evaluation') || {};
+    const doubleUp = readCabinetField(snapshot, 'doubleUp', 'double_up') || {};
+
+    const roundId = readCabinetField(doubleUp, 'roundId', 'round_id')
+        || readCabinetField(hand, 'roundId', 'round_id');
+    if (!roundId) {
+        return null;
+    }
+
+    const heldIndexes = Array.isArray(readCabinetField(hand, 'heldIndexes', 'held_indexes'))
+        ? readCabinetField(hand, 'heldIndexes', 'held_indexes')
+            .map((index) => parseInt(index, 10))
+            .filter((index) => Number.isFinite(index))
+        : [];
+
+    const rawCards = (cabinetGameState === 'win' || cabinetGameState === 'double_up')
+        ? readCabinetField(hand, 'resultCards', 'result_cards') || readCabinetField(hand, 'cards')
+        : readCabinetField(hand, 'cards');
+
+    const cardsForRestore = Array.isArray(rawCards)
+        ? rawCards.map(parseCabinetCard).filter(Boolean)
+        : [];
+
+    const pendingWinAmount = parseCabinetNumber(
+        readCabinetField(credits, 'pendingWinAmount', 'pending_win_amount')
+            ?? readCabinetField(evaluation, 'winAmount', 'win_amount'),
+        0);
+
+    const takeHalfUsed = cabinetGameState !== 'hold'
+        && !isCabinetButtonEnabled(snapshot, 'take_half')
+        && isCabinetButtonEnabled(snapshot, 'take_score');
+
+    const snapshotRound = {
+        roundId,
+        betAmount: parseCabinetNumber(readCabinetField(credits, 'stake'), currentBet),
+        phase: cabinetGameState === 'hold' ? 'Dealt'
+            : cabinetGameState === 'double_up' ? 'DoubleUp'
+            : 'Drawn',
+        handRank: normalizeCabinetHandRank(readCabinetField(evaluation, 'handRank', 'hand_rank')),
+        cards: cardsForRestore,
+        heldIndexes,
+        pendingWinAmount,
+        doubleUpAvailable: Boolean(readCabinetField(evaluation, 'doubleUpAvailable', 'double_up_available')),
+        takeHalfUsed
+    };
+
+    if (snapshotRound.phase === 'DoubleUp') {
+        snapshotRound.doubleUpSession = {
+            dealerCard: parseCabinetCard(readCabinetField(doubleUp, 'dealerCard', 'dealer_card')),
+            currentAmount: parseCabinetNumber(readCabinetField(doubleUp, 'currentAmount', 'current_amount'), pendingWinAmount),
+            switchesRemaining: parseCabinetNumber(readCabinetField(doubleUp, 'switchesRemaining', 'switches_remaining')),
+            isNoLoseActive: Boolean(readCabinetField(doubleUp, 'isNoLoseActive', 'is_no_lose_active')),
+            isLucky5Active: Boolean(readCabinetField(doubleUp, 'isLucky5Active', 'is_lucky5_active')),
+            luckyMultiplier: parseCabinetNumber(readCabinetField(doubleUp, 'luckyMultiplier', 'lucky_multiplier'), 1),
+            cardTrail: Array.isArray(readCabinetField(doubleUp, 'cardTrail', 'card_trail'))
+                ? readCabinetField(doubleUp, 'cardTrail', 'card_trail').map(parseCabinetCard).filter(Boolean)
+                : []
+        };
+    }
+
+    return snapshotRound;
+}
+
+function hasRecoverableMachineSession(session, cabinetSnapshot) {
+    const sessionCredits = Number(session?.machineCredits);
+    if (Number.isFinite(sessionCredits) && sessionCredits > 0) {
+        return true;
+    }
+
+    if (Boolean(session?.isMachineClosed) || Boolean(session?.canCashOut)) {
+        return true;
+    }
+
+    if (!cabinetSnapshot) {
+        return false;
+    }
+
+    const cabinetGameState = String(readCabinetField(cabinetSnapshot, 'gameState', 'game_state') || '').toLowerCase();
+    if (['hold', 'win', 'double_up', 'closed'].includes(cabinetGameState)) {
+        return true;
+    }
+
+    const credits = readCabinetField(cabinetSnapshot, 'credits') || {};
+    const pendingWinAmount = parseCabinetNumber(readCabinetField(credits, 'pendingWinAmount', 'pending_win_amount'));
+    const machineCredits = parseCabinetNumber(readCabinetField(credits, 'machineCredits', 'machine_credits'));
+
+    return pendingWinAmount > 0 || machineCredits > 0;
+}
+
 function isMachineClosedForUi() {
     return machineSessionClosed || balance >= MACHINE_CREDIT_LIMIT;
 }
@@ -491,6 +715,14 @@ async function fetchMachineSession() {
 
 async function fetchActiveRoundState() {
     return await apiCall('GET', getMachineActiveRoundPath());
+}
+
+async function fetchCabinetSnapshot() {
+    if (!GAME_CONFIG.features.enableDisplaySnapshot) {
+        return null;
+    }
+
+    return await apiCall('GET', getMachineCabinetSnapshotPath());
 }
 
 async function cashInMachine(amount) {
@@ -2823,25 +3055,36 @@ async function initGame(options = {}) {
         updateJackpotSelectedRow();
         updateBonusHandText();
 
+        let cabinetSnapshot = null;
         try {
-            const machineState = await apiCall('GET', GAME_CONFIG.api.machineState(machineId));
+            const [machineState, cabinetSnapshotResponse] = await Promise.all([
+                apiCall('GET', GAME_CONFIG.api.machineState(machineId)).catch(() => null),
+                fetchCabinetSnapshot().catch(() => null)
+            ]);
+            cabinetSnapshot = cabinetSnapshotResponse;
+
             if (machineState && machineState.jackpots) {
                 updateJackpotDisplay(machineState.jackpots);
             }
+
+            applyCabinetSnapshot(cabinetSnapshot);
         } catch (e) {}
 
         const activeRound = await fetchActiveRoundState();
-        if (activeRound) {
-            restoreRoundFromSnapshot(activeRound);
+        const cabinetRoundSnapshot = buildRoundSnapshotFromCabinetSnapshot(cabinetSnapshot);
+        const roundSnapshot = activeRound || cabinetRoundSnapshot;
+        if (roundSnapshot) {
+            restoreRoundFromSnapshot(roundSnapshot);
         } else {
-            if (allowLobbyFallback) {
+            if (allowLobbyFallback && !hasRecoverableMachineSession(session, cabinetSnapshot)) {
                 resetGameRuntimeState({ clearSelection: true });
                 await showLobby();
                 return;
             }
             gameState = 'idle';
             jackpotRankArmed = false;
-            refreshIdleMachineState();
+            const snapshotState = applyCabinetSnapshot(cabinetSnapshot);
+            refreshIdleMachineState(snapshotState?.message || null);
         }
 
         await setupSignalR();

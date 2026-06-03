@@ -54,6 +54,21 @@ function Wait-Port([int]$port, [int]$timeoutSec = 90) {
 
 Assert-Command "dotnet"
 
+$needsGodot = ($Client -eq "godot")
+$needsFlutter = ($Client -like "flutter-*")
+$needsWeb = ($Client -eq "web")
+
+if ($needsGodot) {
+    $godotBin = if ($env:GODOT_BIN) { $env:GODOT_BIN } else { "godot4" }
+    Assert-Command $godotBin
+}
+if ($needsFlutter) {
+    Assert-Command "flutter"
+}
+if ($needsWeb) {
+    Assert-Command "pnpm"
+}
+
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  Lucky5 v7 — Full Graphics Cabinet" -ForegroundColor Cyan

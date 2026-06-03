@@ -1,38 +1,42 @@
 <#
 .SYNOPSIS
-  Lucky5 local dev launcher.
-  Starts the in-memory .NET API on :5051, then launches the selected client.
-  No Docker required — the server uses an in-memory store.
+  Lucky5 v7 — 1-Click Launcher.
+  Starts the .NET API server with the full graphics web cabinet and Godot client.
 
-.PARAMETER Client
-  Client target: "godot" (default) | "web" | "flutter-windows" | "flutter-chrome" | "flutter-edge"
+.PARAMETER Godot
+  Also launch the Godot cabinet client (requires Godot 4.6+).
 
-.PARAMETER SkipServer
-  Skip starting the .NET API (if already running on :5051).
+.PARAMETER Headless
+  API only — no browser, no Godot.
+
+.PARAMETER Port
+  API port (default: 5051).
 
 .EXAMPLE
-  .\dev.ps1
-  .\dev.ps1 -Client web
-  .\dev.ps1 -SkipServer
+  .\dev.ps1                 # Server + open web cabinet in browser
+  .\dev.ps1 -Godot          # Server + web + Godot cabinet
+  .\dev.ps1 -Headless -Port 8080  # API only
+
+Admin login: admin / admin123
+Test login:  tester / password
 #>
 param(
-    [ValidateSet("godot", "web", "flutter-windows", "flutter-chrome", "flutter-edge")]
-    [string]$Client = "godot",
-    [switch]$SkipServer
+    [switch]$Godot,
+    [switch]$Headless,
+    [int]$Port = 5051
 )
 
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
 function Assert-Command([string]$name) {
     if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
-        Write-Error "'$name' not found in PATH. Please install it and re-run."
+        Write-Error "'$name' not found in PATH. Install it and re-run."
         exit 1
     }
 }
 
-function Wait-Port([int]$port, [int]$timeoutSec = 60) {
+function Wait-Port([int]$port, [int]$timeoutSec = 90) {
     Write-Host "  Waiting for localhost:$port ..." -NoNewline
     $deadline = (Get-Date).AddSeconds($timeoutSec)
     while ((Get-Date) -lt $deadline) {
@@ -41,13 +45,13 @@ function Wait-Port([int]$port, [int]$timeoutSec = 60) {
             $tcp.Connect("localhost", $port)
             $tcp.Close()
             Write-Host " ready." -ForegroundColor Green
-            return
+            return $true
         } catch { Start-Sleep -Milliseconds 500 }
     }
-    Write-Warning " timed out waiting for port $port."
+    Write-Warning " timed out."
+    return $false
 }
 
-# ── Pre-flight checks ─────────────────────────────────────────────────────────
 Assert-Command "dotnet"
 
 $needsGodot = ($Client -eq "godot")
@@ -55,7 +59,7 @@ $needsFlutter = ($Client -like "flutter-*")
 $needsWeb = ($Client -eq "web")
 
 if ($needsGodot) {
-    $godotBin = if ($env:GODOT_BIN) { $env:GODOT_BIN } else { "godot" }
+    $godotBin = if ($env:GODOT_BIN) { $env:GODOT_BIN } else { "godot4" }
     Assert-Command $godotBin
 }
 if ($needsFlutter) {
@@ -66,90 +70,58 @@ if ($needsWeb) {
 }
 
 Write-Host ""
-Write-Host "=== Lucky5 Dev Launcher ===" -ForegroundColor Cyan
-Write-Host "  Client : $Client"
-Write-Host "  Skip Server : $SkipServer"
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  Lucky5 v7 — Full Graphics Cabinet" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  URL:  http://localhost:$Port"
+Write-Host "  Admin: admin / admin123"
+Write-Host "  Test:  tester / password"
 Write-Host ""
 
-# ── 1. .NET API ────────────────────────────────────────────────────────────
 $apiProcess = $null
-if (-not $SkipServer) {
-    Write-Host "[1/3] Starting Lucky5.Api on http://localhost:5051 ..." -ForegroundColor Yellow
-    $apiProject = "$root\server\src\Lucky5.Api\Lucky5.Api.csproj"
-    $env:PORT = "5051"
-    $apiProcess = Start-Process -PassThru -NoNewWindow `
-        -FilePath "dotnet" `
-        -ArgumentList "run", "--project", $apiProject,
-                       "--no-launch-profile",
-                       "--environment", "Development" `
-        -WorkingDirectory "$root\server\src\Lucky5.Api"
-    Write-Host "  API PID: $($apiProcess.Id)"
-    Wait-Port 5051 90
+
+Write-Host "[1/3] Starting Lucky5.Api on http://localhost:$Port ..." -ForegroundColor Yellow
+$env:PORT = "$Port"
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+$apiProject = "$root\server\src\Lucky5.Api\Lucky5.Api.csproj"
+
+$apiProcess = Start-Process -PassThru -NoNewWindow `
+    -FilePath "dotnet" `
+    -ArgumentList "run", "--project", $apiProject, "--no-launch-profile" `
+    -WorkingDirectory "$root\server\src\Lucky5.Api"
+
+Write-Host "  API PID: $($apiProcess.Id)"
+$ready = Wait-Port $Port 90
+
+if (-not $ready) {
+    Write-Warning "Server may still be starting. Check http://localhost:$Port/health/live"
+}
+
+if (-not $Headless) {
+    Write-Host "[2/3] Opening web cabinet in browser..." -ForegroundColor Yellow
+    Start-Process "http://localhost:$Port"
+    Write-Host "  Full graphics cabinet loaded in browser." -ForegroundColor Green
 } else {
-    Write-Host "[1/3] Skipping server (flag set)." -ForegroundColor DarkGray
+    Write-Host "[2/3] Headless mode — API only." -ForegroundColor DarkGray
 }
 
-# ── 2. Client prep ────────────────────────────────────────────────────────
-if ($needsGodot) {
-    Write-Host "[2/3] Godot cabinet (no package install needed)." -ForegroundColor DarkGray
-} elseif ($needsFlutter) {
-    Write-Host "[2/3] Running flutter pub get..." -ForegroundColor Yellow
-    Push-Location "$root\client"
-    try {
-        flutter pub get
-    } finally {
-        Pop-Location
-    }
-} elseif ($needsWeb) {
-    Write-Host "[2/3] Running pnpm install..." -ForegroundColor Yellow
-    Push-Location "$root\src\web"
-    try {
-        pnpm install --frozen-lockfile
-    } finally {
-        Pop-Location
-    }
-}
-
-# ── 3. Launch client ──────────────────────────────────────────────────────
-Write-Host "[3/3] Launching $Client client..." -ForegroundColor Yellow
-
-if ($needsGodot) {
-    $env:LUCKY5_API_BASE_URL = "http://127.0.0.1:5051"
+if ($Godot) {
+    Write-Host "[3/3] Launching Godot cabinet..." -ForegroundColor Yellow
+    $godotBin = if ($env:GODOT_BIN) { $env:GODOT_BIN } elseif (Get-Command godot -ErrorAction SilentlyContinue) { "godot" } else { "godot4" }
+    Assert-Command $godotBin
+    $env:LUCKY5_API_BASE_URL = "http://127.0.0.1:$Port"
     if (-not $env:LUCKY5_ACCESS_TOKEN) {
-        Write-Warning "LUCKY5_ACCESS_TOKEN is not set. Godot will boot in fixture/auth mode."
+        Write-Warning "LUCKY5_ACCESS_TOKEN not set. Godot will use fixture/auth mode."
     }
     & $godotBin --path "$root\godot\cabinet"
-} elseif ($needsFlutter) {
-    $flutterTarget = ($Client -replace 'flutter-', '')
-    Push-Location "$root\client"
-    try {
-        if ($flutterTarget -eq "windows") {
-            flutter run -d windows `
-                --dart-define=API_BASE_URL=http://localhost:5051 `
-                --dart-define=HUB_URL=http://localhost:5051/CarrePokerGameHub
-        } else {
-            flutter run -d $flutterTarget `
-                --dart-define=API_BASE_URL=http://localhost:5051 `
-                --dart-define=HUB_URL=http://localhost:5051/CarrePokerGameHub `
-                --web-port 5173
-        }
-    } finally {
-        Pop-Location
-    }
-} elseif ($needsWeb) {
-    Push-Location "$root\src\web"
-    try {
-        $env:LUCKY5_API_ORIGIN = "http://localhost:5051"
-        pnpm run dev
-    } finally {
-        Pop-Location
-    }
+} else {
+    Write-Host "[3/3] Server running. Press Ctrl+C to stop." -ForegroundColor Green
+    if ($apiProcess) { Wait-Process -Id $apiProcess.Id }
 }
 
-# ── Cleanup ───────────────────────────────────────────────────────────────────
 if ($apiProcess -and -not $apiProcess.HasExited) {
     Write-Host ""
-    Write-Host "Stopping API process ($($apiProcess.Id))..." -ForegroundColor DarkGray
+    Write-Host "Stopping API ($($apiProcess.Id))..." -ForegroundColor DarkGray
     $apiProcess.Kill()
 }
 Write-Host "Done." -ForegroundColor Green

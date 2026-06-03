@@ -1,85 +1,96 @@
-# Lucky5
+# Lucky5 v7
 
-A clean-room recreation of a Lebanese amusement video poker machine (1990–2010 era).
+A clean-room recreation of a Lebanese amusement video poker machine (1990-2010 era).
 
-ASP.NET Core 9 backend · Godot 4 portrait cabinet · Vanilla JS/CSS web cabinet · Flutter mobile client · Firebase push notifications
+**Full graphics web cabinet** + **Godot 4.6 portrait cabinet** + **.NET 9 API server**
 
-Features authentic Lebanese arcade aesthetics, machine-credit vs wallet-credit economy, progressive jackpots, inline double-up Hi-Lo mechanic, switch-only Lucky 5 protection, admin telemetry, daily reward bonuses, agent-based user tracking, and deterministic policy logic targeting ~85% RTP while smoothing online variance.
+Features authentic Lebanese arcade aesthetics, machine-credit vs wallet-credit economy, progressive jackpots, inline double-up Hi-Lo mechanic, switch-only Lucky 5 protection, admin telemetry, agent lobby, daily reward bonuses, agent-based user tracking, and deterministic policy logic targeting ~85% RTP.
 
-## Quick Start
+## Prerequisites
 
-```bash
-# One-command local dev (Godot cabinet + API)
+- **.NET 9 SDK** (or later) — https://dotnet.microsoft.com
+- **Godot 4.6** (or later, optional) — https://godotengine.org
+- PowerShell 7+ (Windows) or bash (Linux/macOS)
+
+## 1-Click Quick Start
+
+```powershell
+# Starts server + opens full graphics web cabinet in browser
 .\dev.ps1
 
-# .NET backend only (port 8080, serves web cabinet from wwwroot)
-dotnet run --project server/src/Lucky5.Api/Lucky5.Api.csproj
+# Server + web cabinet + Godot cabinet
+.\dev.ps1 -Godot
 
-# Godot portrait cabinet (backend-authoritative)
-$env:LUCKY5_API_BASE_URL="http://127.0.0.1:8080"
-$env:LUCKY5_ACCESS_TOKEN="<player bearer token>"
-godot4 --path godot/cabinet
-
-# Flutter mobile client
-cd client && flutter run
-
-# Web cabinet (Next.js dev server)
-cd src/web && pnpm dev
+# API only (headless, for testing/debugging)
+.\dev.ps1 -Headless -Port 8080
 ```
 
-The backend serves the web cabinet as static files from the same process. The Godot cabinet is the default playable client.
+The API starts on `http://localhost:5051`. The web cabinet opens automatically in your browser with all graphics, lobby, agent system, and admin tools.
+```
 
-## Deployment
+The API starts on `http://localhost:5051`. The Godot cabinet connects to the API automatically.
 
-- **Docker / Cloud Run**: `docker build -f Dockerfile -t lucky5 .` → deploy to Cloud Run. See `docs/CLOUD_RUN_DEPLOYMENT.md`.
-- **Azure App Service**: see `docs/AZURE_DEPLOYMENT_GUIDE.md` and `azure.yaml`.
+## Credentials
 
-## Documentation
+| Username | Password | Role |
+|----------|----------|------|
+| `admin` | `admin123` | Admin (full access) |
+| `tester` | `password` | Player (test account, 50M balance) |
 
-| Document | Purpose |
-| --- | --- |
-| **[docs/CONTINUATION_GUIDE.md](docs/CONTINUATION_GUIDE.md)** | Fast developer handoff — economy model, rules, architecture |
-| **[docs/README.md](docs/README.md)** | Full game rules, paytable, API reference |
-| `docs/GAME_FEEL_REFERENCE.md` | Visual / UX reference from original cabinet |
-| `docs/forensics/` | APK reverse-engineering findings |
-| `contracts/` | OpenAPI and SignalR schemas |
+## Running Tests
+
+```powershell
+dotnet run --project server/tests/Lucky5.Tests/Lucky5.Tests.csproj
+```
+
+## Building for Production
+
+```powershell
+# Publish .NET API as self-contained executable
+dotnet publish server/src/Lucky5.Api/Lucky5.Api.csproj -c Release -o publish
+
+# Run the published server
+cd publish && dotnet Lucky5.Api.dll
+```
 
 ## Repository Structure
 
-```text
-server/src/
-├── Lucky5.Api/            Web host, controllers, static frontend (wwwroot/)
-│   └── wwwroot/js/        cabinet-*.js modules (shell, audio, bonus, firebase, etc.)
-├── Lucky5.Application/    Service contracts, DTOs, request/response models
-├── Lucky5.Domain/         Core engine (Game/CleanRoom/), entities
-│   └── Game/CleanRoom/    MachinePolicy.cs — authoritative RTP / variance logic
-├── Lucky5.Infrastructure/ Service implementations, in-memory store, Firebase
-├── Lucky5.Realtime/       SignalR hub
-└── Lucky5.Simulation/     RTP simulation runner
+```
+server/
+├── src/Lucky5.Api/            ASP.NET Core 9 host, controllers, auth middleware
+├── src/Lucky5.Application/    Service contracts, DTOs, request models
+├── src/Lucky5.Domain/         Core engine, entities, CleanRoom game logic
+│   └── Game/CleanRoom/        Authoritative RTP/variance/deterministic logic
+├── src/Lucky5.Infrastructure/ Service implementations, in-memory data store
+├── src/Lucky5.Realtime/       SignalR hub for cabinet communication
+└── src/Lucky5.Simulation/     RTP simulation runner
 
-client/                    Flutter mobile client (Android / iOS / Web / Windows)
-└── lib/core/              ApiService, FirebaseService, keep-alive
-godot/cabinet/             Godot 4 playable portrait cabinet client (default)
+godot/cabinet/                 Godot 4.6 portrait cabinet client
+├── scenes/                    Game scenes (CabinetRoot.tscn)
+├── scripts/                   GDScript game logic (cabinet_root.gd, etc.)
+├── skins/lucky5/cards/        52-card deck + back sides (high-res PNG)
+└── addons/                    Card framework, state machine, shader library
 
-docs/                      Developer documentation
-sources/                   Decompiled reference material (read-only)
+docs/                          Developer documentation
+scripts/                       Build, test, and utility scripts
 ```
 
 ## Feature Highlights (v7)
 
-- **Dual wallet**: `Credit` (bonus/agent-funded) + `WalletBalance` (cash), credit consumed first on cash-in
-- **Daily reward**: spin-based bonus award, lobby banner UI, idempotent daily gate
+- **Dual wallet**: `Credit` (bonus/agent-funded) + `WalletBalance` (cash), credit consumed first
+- **Daily reward**: spin-based bonus, idempotent daily gate
 - **Agent system**: agent entities, credit pool, user assignment — full admin API
-- **Firebase push**: FCM via Admin SDK (backend) + web service worker + Flutter client
-- **Image caching**: browser Cache API layer for game assets
-- **Audio SFX**: 15 named events (deal, draw, win, jackpot, bonus-claim, doubleUp, etc.)
 - **Session hardening**: active-round hydration, safe back-to-lobby, idempotent cash-out
+- **In-memory store**: zero external dependencies for local dev and testing
+- **Optional persistence**: file-backed snapshots via `Persistence:FileStore:RootPath`
 
-## Reference Material
+## Documentation
 
-| Location | Content |
-| --- | --- |
-| `docs/GAME_FEEL_REFERENCE.md` | Visual design reference from original cabinet |
-| `docs/forensics/` | APK reverse-engineering findings |
-| `Arcade Game RNG Simulation Model.md` | RNG / math reference |
-| `contracts/` | OpenAPI and SignalR schemas |
+| Document | Purpose |
+|---|---|
+| [docs/README.md](docs/README.md) | Full game rules, paytable, API reference |
+| [docs/CONTINUATION_GUIDE.md](docs/CONTINUATION_GUIDE.md) | Developer handoff — economy, architecture |
+| [docs/GAME_FEEL_REFERENCE.md](docs/GAME_FEEL_REFERENCE.md) | Visual/UX reference from original cabinet |
+| [docs/LUCKY5_AUTHORITATIVE_GAMEPLAY_REFERENCE.md](docs/LUCKY5_AUTHORITATIVE_GAMEPLAY_REFERENCE.md) | Gameplay rules and mechanics |
+| [docs/GODOT_KIOSK_RELEASE.md](docs/GODOT_KIOSK_RELEASE.md) | Kiosk release instructions |
+| [docs/forensics/](docs/forensics/) | APK reverse-engineering findings |

@@ -55,7 +55,7 @@ $needsFlutter = ($Client -like "flutter-*")
 $needsWeb = ($Client -eq "web")
 
 if ($needsGodot) {
-    $godotBin = if ($env:GODOT_BIN) { $env:GODOT_BIN } else { "godot4" }
+    $godotBin = if ($env:GODOT_BIN) { $env:GODOT_BIN } else { "godot" }
     Assert-Command $godotBin
 }
 if ($needsFlutter) {

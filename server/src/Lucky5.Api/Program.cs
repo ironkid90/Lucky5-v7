@@ -142,6 +142,7 @@ app.Use(async (context, next) =>
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
 app.UseRouting();
 app.UseCors();
 app.MapControllers();
@@ -160,5 +161,7 @@ app.MapHealthChecks("/health/fallback", new HealthCheckOptions
 {
     Predicate = _ => false
 });
+
+app.MapFallbackToFile("index.html");
 
 app.Run();

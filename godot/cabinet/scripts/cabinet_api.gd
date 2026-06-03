@@ -70,24 +70,42 @@ func post_refresh_token(refresh_token_val: String) -> bool:
         "refreshToken": refresh_token_val.strip_edges()
     })
 
+func get_admin_users() -> bool:
+    return _request_get("admin_users", "/api/Admin/users")
+
+func search_admin_users(query: String) -> bool:
+    return _request_get("admin_users_search", "/api/Admin/users/search?q=%s" % query.uri_encode())
+
+func get_admin_machines() -> bool:
+    return _request_get("admin_machines", "/api/Admin/machines")
+
 func _request(kind: String, method: int, path: String, body: Dictionary) -> bool:
-    if _http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
-        request_completed.emit(kind, false, {}, 0, "HTTP client is busy")
-        return false
+	var headers := ["Accept: application/json"]
+	if method != HTTPClient.METHOD_GET:
+		headers.append("Content-Type: application/json")
+	if not access_token.is_empty():
+		headers.append("Authorization: Bearer %s" % access_token)
 
-    _pending_kind = kind
-    var headers := ["Accept: application/json"]
-    if method != HTTPClient.METHOD_GET:
-        headers.append("Content-Type: application/json")
-    if not access_token.is_empty():
-        headers.append("Authorization: Bearer %s" % access_token)
+	var payload := "" if method == HTTPClient.METHOD_GET else JSON.stringify(body)
+	return _do_request(kind, method, path, payload, headers)
 
-    var payload := "" if method == HTTPClient.METHOD_GET else JSON.stringify(body)
-    var error := _http.request(api_base_url + path, headers, method, payload)
-    if error != OK:
-        request_completed.emit(kind, false, {}, 0, "Could not start HTTP request: %s" % error)
-        return false
-    return true
+func _request_get(kind: String, path: String) -> bool:
+	var headers := ["Accept: application/json"]
+	if not access_token.is_empty():
+		headers.append("Authorization: Bearer %s" % access_token)
+	return _do_request(kind, HTTPClient.METHOD_GET, path, "", headers)
+
+func _do_request(kind: String, method: int, path: String, payload: String, headers: Array) -> bool:
+	if _http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		request_completed.emit(kind, false, {}, 0, "HTTP client is busy")
+		return false
+
+	_pending_kind = kind
+	var error := _http.request(api_base_url + path, headers, method, payload)
+	if error != OK:
+		request_completed.emit(kind, false, {}, 0, "Could not start HTTP request: %s" % error)
+		return false
+	return true
 
 func _on_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
     var kind := _pending_kind

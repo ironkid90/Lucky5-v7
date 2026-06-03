@@ -1,4 +1,5 @@
 extends Node
+class_name CardSkin_Lucky5
 
 const CARD_BASE_PATH := "res://skins/lucky5/cards/"
 const BACK := CARD_BASE_PATH + "bside.png"

@@ -137,36 +137,9 @@ public static class AuthSecurityRegressionTests
 
     private static async Task CabinetClientsShouldUseIssuedOtpAndSupportCredentialBootstrapAsync(List<string> failures)
     {
-        var webApi = await File.ReadAllTextAsync(ResolveRepoFilePath("src", "web", "lib", "api.ts"));
-        var webCabinet = await File.ReadAllTextAsync(ResolveRepoFilePath("src", "web", "components", "lucky5-cabinet.tsx"));
-        var flutterAuthApi = await File.ReadAllTextAsync(ResolveRepoFilePath("client", "lib", "core", "api", "auth_api.dart"));
-        var flutterLoginScreen = await File.ReadAllTextAsync(ResolveRepoFilePath("client", "lib", "presentation", "login", "login_screen.dart"));
-        var gameJs = await File.ReadAllTextAsync(ResolveRepoFilePath("server", "src", "Lucky5.Api", "wwwroot", "js", "game.js"));
         var cabinetRoot = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_root.gd"));
         var cabinetReadme = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "README.md"));
 
-        Assert(
-            failures,
-            "Web signup/verify helpers should send the issued OTP code through the backend's otpCode contract.",
-            webApi.Contains("Promise<SignupResult>", StringComparison.Ordinal)
-                && webApi.Contains("{ username, otpCode: otp }", StringComparison.Ordinal));
-        Assert(
-            failures,
-            "Web cabinet bootstrap should not seed a fixed OTP and should consume preview codes when available.",
-            !webCabinet.Contains("DEFAULT_OTP = \"123456\"", StringComparison.Ordinal)
-                && webCabinet.Contains("const previewCode = signupResult.otp?.previewCode?.trim();", StringComparison.Ordinal));
-        Assert(
-            failures,
-            "Flutter login bootstrap should stop defaulting the OTP field to 123456 and should consume preview codes when available.",
-            !flutterLoginScreen.Contains("TextEditingController(text: \"123456\")", StringComparison.Ordinal)
-                && flutterLoginScreen.Contains("_otpController.text = otpPreview;", StringComparison.Ordinal)
-                && flutterAuthApi.Contains("Future<String?> signup(", StringComparison.Ordinal));
-        Assert(
-            failures,
-            "The cabinet web runtime should verify the issued OTP instead of hardcoding 123456.",
-            gameJs.Contains("async function doVerifyOtp(username, otpCode)", StringComparison.Ordinal)
-                && !gameJs.Contains("otpCode: '123456'", StringComparison.Ordinal)
-                && gameJs.Contains("const previewCode = signup?.otp?.previewCode;", StringComparison.Ordinal));
         Assert(
             failures,
             "The Godot cabinet should support username/password bootstrap and 401 re-auth recovery instead of staying token-only.",

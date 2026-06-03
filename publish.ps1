@@ -69,10 +69,19 @@ if (-not $SkipWeb) {
     try {
         Write-Host "  Installing dependencies..." -ForegroundColor DarkGray
         Invoke-Expression $installCmd
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  Retrying without frozen lockfile..." -ForegroundColor DarkYellow
+            if ($pkgManager -eq "pnpm") {
+                pnpm install --no-frozen-lockfile
+            } else {
+                npm install
+            }
+        }
 
         Write-Host "  Building static export..." -ForegroundColor DarkGray
         $env:NEXT_EXPORT = "1"
-        Invoke-Expression $buildCmd
+        # Use npx to avoid pnpm internal install trigger
+        npx next build
 
         if (-not (Test-Path "out")) {
             Write-Error "Web client build failed: 'out' directory not found."

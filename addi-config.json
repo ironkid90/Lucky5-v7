@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "exportedAt": 1780504986515,
+  "providers": [
+    {
+      "name": "agentrouter",
+      "providerType": "openai-completions",
+      "apiEndpoint": "https://agentrouter.org/v1",
+      "website": "https://agentrouter.org/",
+      "options": {
+        "reasoningEffort": "high",
+        "reasoningContentAdapt": true,
+        "extractReasoningContent": true
+      },
+      "id": "cc6b5fe2-28be-43f0-bfdf-13ea5571574d",
+      "models": [
+        {
+          "id": "b06ec5e7-a617-4e95-82e3-0c9179a0c449",
+          "rid": "deepseek-v4-pro",
+          "name": "deepseek-v4-pro",
+          "family": "addi",
+          "version": "1.0.0",
+          "maxInputTokens": 800000,
+          "maxOutputTokens": 428000,
+          "capabilities": {
+            "vision": false,
+            "toolCalling": true,
+            "reasoning": true
+          },
+          "options": {
+            "reasoningContentAdapt": true,
+            "extractReasoningContent": true,
+            "reasoningEffort": "high"
+          },
+          "isUserSelectable": true
+        }
+      ]
+    }
+  ]
+}

@@ -11,6 +11,7 @@
     "assets:smoke": "npm run assets:generate && node scripts/smoke-lucky5-assets.mjs"
   },
   "dependencies": {
+    "@composio/mcp": "^1.0.9",
     "@dataconnect/generated": "file:src/dataconnect-generated",
     "next": "15.3.0",
     "react": "^19.0.0",

@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-  Lucky5 v7 — 1-Click Launcher.
+  Lucky5 v7 - 1-Click Launcher.
   Starts the .NET API server and the Godot cabinet client by default.
 
 .PARAMETER Web
   Open the legacy static web cabinet fallback instead of launching Godot.
 
 .PARAMETER Headless
-  API only — no browser and no Godot.
+  API only - no browser and no Godot.
 
 .PARAMETER GodotBin
   Godot executable path or command name. Defaults to GODOT_BIN, then godot4, then godot.
@@ -84,7 +84,7 @@ if ($launchGodot) {
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Lucky5 v7 — Godot Cabinet" -ForegroundColor Cyan
+Write-Host "  Lucky5 v7 - Godot Cabinet" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  URL:  http://localhost:$Port"
 Write-Host "  Admin: admin / admin123"
@@ -126,7 +126,15 @@ if ($launchGodot) {
     if (-not $env:LUCKY5_ACCESS_TOKEN) {
         Write-Warning "LUCKY5_ACCESS_TOKEN not set. Godot will use interactive auth or fixture mode."
     }
-    & $GodotBin --path "$root\godot\cabinet"
+    $godotProjectPath = "$root\godot\cabinet"
+    $godotProcess = Start-Process -FilePath $GodotBin `
+        -ArgumentList @("--path", $godotProjectPath) `
+        -WorkingDirectory $godotProjectPath `
+        -Wait `
+        -PassThru
+    if ($godotProcess.ExitCode -ne 0) {
+        throw "Godot exited with code $($godotProcess.ExitCode)."
+    }
 } else {
     Write-Host "[3/3] Server running. Press Ctrl+C to stop." -ForegroundColor Green
     if ($apiProcess) { Wait-Process -Id $apiProcess.Id }

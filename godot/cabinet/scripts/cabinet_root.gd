@@ -784,6 +784,10 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 	var cards := store.cards()
 	if game_state == "drawn" or game_state == "win": cards = store.result_cards()
 	var previous_codes := _get_displayed_card_codes()
+	deal_queue.clear()
+	deal_queue_index = 0
+	if deal_timer != null:
+		deal_timer.stop()
 
 	for index in range(5):
 		var slot: Dictionary = cards_texture_rects[index]
@@ -794,13 +798,10 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 			slot["hold_label"].text = "HELD" if held else ""
 
 			if code.length() >= 2:
-				var rank := code.substr(0, code.length() - 1)
-				var suit := code.substr(code.length() - 1, 1)
-				var tex := CardSkin_Lucky5.card_texture(rank, suit)
-				slot["rect"].texture = tex
-
 				if previous_codes[index] != code:
-					_animate_card_deal(index)
+					_queue_card_reveal(index, code, held)
+				else:
+					slot["rect"].modulate = Color(1, 1, 1, 1)
 			else:
 				slot["rect"].texture = null
 				slot["rect"].modulate = Color(0, 0, 0, 0)
@@ -808,6 +809,37 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 			slot["rect"].texture = null
 			slot["rect"].modulate = Color(0, 0, 0, 0)
 			slot["hold_label"].text = ""
+
+	if not deal_queue.is_empty():
+		_process_deal_queue()
+
+func _queue_card_reveal(index: int, code: String, held: bool) -> void:
+	var tex := _card_texture_from_code(code)
+	if tex == null:
+		return
+	deal_queue.append({
+		"index": index,
+		"code": code,
+		"texture": tex,
+		"held": held
+	})
+
+func _card_texture_from_code(code: String) -> Texture2D:
+	if code.length() < 2:
+		return null
+	var rank := code.substr(0, code.length() - 1)
+	var suit := code.substr(code.length() - 1, 1)
+	return CardSkin_Lucky5.card_texture(rank, suit)
+
+func _show_queued_card(reveal: Dictionary) -> void:
+	var index := int(reveal.get("index", -1))
+	if index < 0 or index >= cards_texture_rects.size():
+		return
+	var slot: Dictionary = cards_texture_rects[index]
+	var rect: TextureRect = slot["rect"]
+	rect.texture = reveal.get("texture", null)
+	slot["hold_label"].text = "HELD" if bool(reveal.get("held", false)) else ""
+	_animate_card_deal(index)
 
 func _get_displayed_card_codes() -> Array:
 	var result: Array = []
@@ -828,13 +860,11 @@ func _animate_card_deal(index: int) -> void:
 		slot["tween"].kill()
 	slot["tween"] = null
 
-	var delay := index * 0.12
 	rect.modulate = Color(1, 1, 1, 0)
 	rect.scale = Vector2(1.0, 1.0)
 
 	var tw := create_tween()
 	tw.set_parallel(false)
-	tw.tween_interval(delay)
 	tw.tween_property(rect, "modulate", Color(1, 1, 1, 1), DEAL_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	slot["tween"] = tw
 
@@ -1154,4 +1184,18 @@ func _utc_now_string() -> String: return Time.get_datetime_string_from_system(tr
 
 func _format_amount(value: Variant) -> String: return store._format_amount(value)
 
-func _process_deal_queue() -> void: pass
+func _process_deal_queue() -> void:
+	if deal_queue_index >= deal_queue.size():
+		deal_queue.clear()
+		deal_queue_index = 0
+		return
+
+	var reveal: Dictionary = deal_queue[deal_queue_index]
+	deal_queue_index += 1
+	_show_queued_card(reveal)
+
+	if deal_queue_index < deal_queue.size():
+		deal_timer.start()
+	else:
+		deal_queue.clear()
+		deal_queue_index = 0

@@ -1,89 +1,45 @@
-Durable agent contract for this repository. Keep this file compact, reusable, and focused on behavior that improves long-run agent quality. 
+You are an AI coding agent working in Lucky5 v7. Optimize for correctness, safety, reversibility, and small verified changes.
 
-## Mission 
-- Optimize for correctness, safety, reversibility, context efficiency, and maintainability. 
-- Prefer durable workflow rules over tool dumps, copied docs, or temporary task notes. 
-- Treat AGENTS.md as policy, not as a scratchpad or knowledge base. 
+<context>
+Ground factual claims in this repository's source files, linked docs, and command output from the current workspace.
+</context>
 
-## Default Operating Loop 
-1. Restate the objective and success criteria briefly. 
-2. Inspect the repo and runtime before editing anything. 
-3. Read only the files needed for the task. 
-4. Make a short plan when the work is non-trivial. 
-5. Implement the smallest change that solves the problem. 
-6. Verify with the tightest relevant checks. 
-7. Report what changed, what was verified, assumptions, and remaining risk. 
+## Operating Loop
+- Inspect before editing. Read only the files needed for the task.
+- Preserve existing conventions and user changes. Never revert unrelated work.
+- Plan briefly for non-trivial work, then implement the smallest useful change.
+- Verify with the tightest relevant check. Never claim completion without evidence.
+- Report in concise markdown: what changed, what ran, assumptions, and remaining risk.
 
-## Core Behavior Rules 
-- Never invent file contents, command results, tests, runtime state, or tool capabilities. 
-- Inspect before editing. Verify after editing. 
-- Prefer reversible actions and previews before risky operations. 
-- Preserve existing project conventions unless the task explicitly changes them. 
-- Make local, minimal edits instead of broad rewrites unless a rewrite is the task. 
-- Do not revert unrelated user changes. 
-- Ask only when blocked on a truly risky unknown; otherwise make a reasonable assumption and state it. 
+## Safety
+- Do not invent file contents, command output, runtime state, or tool capabilities.
+- Confirm before destructive or high-risk actions: data deletion, history rewrite, force push, registry edits, production deploys, or cloud deletes.
+- Keep secrets, tokens, private keys, session data, and personal data out of chat, logs, and commits.
+- Prefer dry runs, previews, and read-only inspection before mutation.
 
-## Context And Memory Discipline 
-- Keep active context lean. Search first, then open only the relevant files and line ranges. 
-- Prefer local source-of-truth docs over memory or guesswork. 
-- Do not paste large logs, generated files, external docs, or tool schemas into AGENTS.md or chat unless they are necessary. 
-- Summarize bulky output instead of carrying it forward verbatim. 
-- Offload large transient output to task artifacts under `tmp/` when useful instead of keeping it in live context. 
-- After meaningful tasks, update the canonical Codex memory file defined in `docs/KANBAN_ORCHESTRATION.md` with current objective, environment facts, decisions, open questions, and next steps.
-- After meaningful tasks, write `tmp/summary-<timestamp>.json` using the required summary schema in `docs/KANBAN_ORCHESTRATION.md`.
+## Lucky5 Invariants
+- `docs/` is the source of truth for product and engineering behavior.
+- This repo is a Godot 4.6 portrait cabinet client plus a .NET 9 API server.
+- `godot/cabinet/` is the primary playable client; `server/src/Lucky5.Api/` is the sole backend.
+- `server/src/Lucky5.Domain/Game/CleanRoom/` owns deterministic authoritative game logic.
+- The backend owns balance, machine state, session state, and realtime behavior.
+- Preserve the retro cabinet feel. Do not turn the product into a generic casino UI.
+- Persistence is in-memory unless `Persistence:FileStore:RootPath` configures file snapshots.
 
-## Tool Strategy 
-- Use the smallest toolset that can complete the task well. 
-- Prefer fast targeted search tools such as `rg` or equivalent. 
-- Use explicit working directories for shell commands. 
-- Prefer shared local MCP wrappers and existing repo scripts when they help. 
-- For third-party libraries, prefer current official docs rather than stale recollection. 
-- Do not serialize raw tool catalogs or copied vendor docs into repo instruction files. 
+## Commands
+- Launch: `./dev.ps1` for API plus Godot, `./dev.ps1 -Headless` for API only.
+- Tests: `dotnet run --project server/tests/Lucky5.Tests/Lucky5.Tests.csproj`. Do not default to `dotnet test`.
+- Build API: `dotnet build server/Lucky5.sln` or publish `server/src/Lucky5.Api/Lucky5.Api.csproj`.
+- Optional Godot smoke: `./scripts/godot/Test-GodotCabinet.ps1` when Godot is on PATH or `GODOT_BIN` is set.
 
-## Editing And Verification 
-- Keep changes ASCII unless the file already requires Unicode. 
-- Add comments only when they clarify non-obvious logic. 
-- Validate with the smallest relevant check: build, test, lint, typecheck, smoke test, or targeted script. 
-- If verification cannot run, say so and provide the exact command that should be run next. 
-- Never claim a fix is complete without evidence from inspection or verification. 
+## Grounding Links
+- Start with [README.md](README.md) for setup, commands, credentials, and repo structure.
+- Use [docs/README.md](docs/README.md) and [docs/LUCKY5_AUTHORITATIVE_GAMEPLAY_REFERENCE.md](docs/LUCKY5_AUTHORITATIVE_GAMEPLAY_REFERENCE.md) for product and gameplay behavior.
+- Use [docs/GAME_FEEL_REFERENCE.md](docs/GAME_FEEL_REFERENCE.md), [docs/GODOT_CABINET_MIGRATION.md](docs/GODOT_CABINET_MIGRATION.md), and [docs/GODOT_KIOSK_RELEASE.md](docs/GODOT_KIOSK_RELEASE.md) for cabinet work.
+- Use [docs/KANBAN_ORCHESTRATION.md](docs/KANBAN_ORCHESTRATION.md) for Kanban worker, steward, review, recovery, and summary artifact rules.
+- No `CLAUDE.md` files are currently present; prefer live source and these docs over stale local instruction-file names.
 
-## Safety Rules 
-- Confirm before destructive or high-risk actions such as deleting data, rewriting git history, force-pushing, registry edits, production deploys, or cloud deletions. 
-- Prefer dry runs such as `-WhatIf`, preview modes, or read-only inspection before mutation. 
-
-## Lucky5 Repo Invariants 
-- `docs/` is the active source of truth for product and engineering behavior. 
-- Tests run with `dotnet run --project server/tests/Lucky5.Tests/Lucky5.Tests.csproj`, not `dotnet test`. 
-- Authoritative game logic belongs in `server/src/Lucky5.Domain/Game/CleanRoom/` and must stay deterministic. 
-- The backend is authoritative for balance, machine state, session state, and realtime behavior. 
-- The current persistence model is in-memory; data is lost on restart unless file snapshot persistence is configured. 
-- Preserve the retro cabinet feel; do not modernize the product into a generic casino UI. 
-- The Godot cabinet (`godot/cabinet/`) is the primary playable client. Godot 4.6 required. 
-- The .NET 9 API (`server/src/Lucky5.Api/`) is the sole backend. 
-
-## Lucky5 v7 Current State (June 2026) 
-- Single consolidated repo: Godot cabinet client + .NET 9 API server. 
-- Flutter, Web (Next.js), and Mobile (Capacitor) clients removed. 
-- Firebase, Azure, Docker, and cloud infra removed. 
-- Launch: `.\dev.ps1` starts API + Godot cabinet. `.\dev.ps1 -Headless` for API only. 
-- Admin access: username `admin`, password `admin123`. Test user: `tester` / `password`. 
-- In-memory data store with optional file persistence via `Persistence:FileStore:RootPath`. 
-
-## Repo Routing 
-- Root AGENTS.md provides the default contract for the whole repo. 
-- For subsystem detail, read the nearest local `CLAUDE.md` or nested instruction file before making deeper changes. 
-- Key local context files: `server/src/Lucky5.Api/CLAUDE.md`, `server/src/Lucky5.Domain/Game/CleanRoom/CLAUDE.md`, `server/tests/CLAUDE.md`. 
-
-## Smart General Defaults 
-- Favor search-driven discovery over loading entire files or directories. 
-- Prefer narrow diffs, stable interfaces, and changes that make future agent work easier. 
-- When touching workflows or tooling, improve reproducibility, naming, logging, and failure clarity. 
-- When touching docs, keep them actionable and aligned with the current repo reality. 
-
-## Anti-Bloat Maintenance Rule 
-Never let this file grow into a prompt dump. Do not paste external documentation, API references, vendor tool catalogs, raw prompts, giant command outputs, or generated content into AGENTS.md. 
-
-## Reinforcements 
-- Keep the summary artifact step explicit after meaningful tasks. 
-- For Kanban worker, steward, review, and recovery sessions, follow `docs/KANBAN_ORCHESTRATION.md`.
-- Never expose secrets, tokens, private keys, session data, or sensitive personal information.
+## Chat Customizations
+- Workspace custom agents live in `.github/agents/` and currently cover Playwright planning, generation, and healing.
+- Workspace skills live in `.github/skills/`. Load the most specific skill before specialized work such as ASP.NET Core, frontend design, deployment, codebase mapping, spreadsheet/doc generation, or skill creation.
+- Keep customization files compact. Link to existing docs instead of embedding them.

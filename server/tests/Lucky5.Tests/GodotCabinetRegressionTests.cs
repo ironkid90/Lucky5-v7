@@ -59,9 +59,16 @@ public static class GodotCabinetRegressionTests
             "dev.ps1 must launch the Godot cabinet by default and keep the legacy web cabinet behind an explicit -Web fallback",
             devScript.Contains("[switch]$Web", StringComparison.Ordinal)
                 && devScript.Contains("$launchGodot = -not $Headless -and -not $Web", StringComparison.Ordinal)
-                && devScript.Contains("& $GodotBin --path", StringComparison.Ordinal)
+                && devScript.Contains("Start-Process -FilePath $GodotBin", StringComparison.Ordinal)
+                && devScript.Contains("-Wait", StringComparison.Ordinal)
+                && !devScript.Contains("& $GodotBin --path", StringComparison.Ordinal)
                 && !devScript.Contains("[switch]$Godot", StringComparison.Ordinal)
                 && !devScript.Contains("$Client", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "dev.ps1 must stay ASCII-only so Windows PowerShell can parse the 1-click Godot launcher reliably",
+            devScript.All(ch => ch <= 127));
 
         Assert(
             failures,
@@ -79,6 +86,16 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("func _on_command_timeout", StringComparison.Ordinal)
                 && rootScript.Contains("store.apply_event", StringComparison.Ordinal)
                 && rootScript.Contains("id not in [\"menu\", \"reconnect_sync\", \"logout\", \"admin_toggle\"]", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet must reveal dealt and drawn cards through a sequential arcade deal queue instead of replacing the full hand at once",
+            rootScript.Contains("func _queue_card_reveal", StringComparison.Ordinal)
+                && rootScript.Contains("func _show_queued_card", StringComparison.Ordinal)
+                && rootScript.Contains("deal_queue.append", StringComparison.Ordinal)
+                && rootScript.Contains("deal_timer.start", StringComparison.Ordinal)
+                && rootScript.Contains("_process_deal_queue", StringComparison.Ordinal)
+                && !rootScript.Contains("func _process_deal_queue() -> void: pass", StringComparison.Ordinal));
     }
 
     private static string ResolveRepoFilePath(params string[] segments)

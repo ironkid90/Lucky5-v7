@@ -1,12 +1,12 @@
 # Lucky5 Godot Cabinet Contracts
 
-This directory is the Phase 0 contract package for the Godot cabinet migration.
+This directory is the contract package for the Godot cabinet migration.
 It is intentionally independent of backend C# type names and web DOM structure so
 Godot can bind to stable JSON contracts instead of server internals.
 
 ## Artifacts
 
-- `phase-0-discovery.md` catalogs the current web cabinet, endpoint surface,
+- `phase-0-discovery.md` catalogs the former web cabinet, endpoint surface,
   realtime behavior, DTO shapes, reconnect rules, and migration gaps.
 - `cabinet-contract-v1.schema.json` defines versioned `CabinetSnapshot`,
   `CabinetEvent`, `CabinetCommand`, and command result envelopes.
@@ -19,8 +19,8 @@ Godot can bind to stable JSON contracts instead of server internals.
 
 ## Contract Rules
 
-- `server/src/Lucky5.Api/wwwroot` remains the visual source of truth until Godot
-  reproduces and supersedes the cabinet experience.
+- `godot/cabinet/` is the active playable visual source of truth. Any retained
+  web/static assets are legacy fallback/reference material only.
 - The backend remains authoritative for credits, wallet balance, machine state,
   active rounds, double-up state, jackpot state, session visibility, reconnect,
   and recovery.

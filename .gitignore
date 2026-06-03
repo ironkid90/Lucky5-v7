@@ -127,14 +127,6 @@ Inspect TLS encrypted traffic using mitmproxy and wireshark.md
 **/bin/
 **/obj/
 
-# ── Flutter / Dart ────────────────────────────────────────────────────────────
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-build/
-pubspec.lock
-
 # ── Node / frontend ───────────────────────────────────────────────────────────
 node_modules/
 .pnpm-store/

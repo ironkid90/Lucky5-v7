@@ -7,7 +7,8 @@ Godot 4 portrait cabinet is now the default playable client for Lucky5.
 - Godot cabinet at `godot/cabinet/` is a **playable, backend-authoritative client**
 - Merge conflicts from stashed interactive auth work are resolved
 - `dev.ps1` defaults to Godot (`.\dev.ps1` starts API + Godot cabinet)
-- The web cabinet (`src/web/`) and Flutter client (`client/`) remain available
+- The legacy web cabinet is fallback-only and no longer part of the default launcher/build path
+- Flutter/mobile clients are removed from the active repo
 - Kiosk export lane at `scripts/godot/Build-GodotKiosk.ps1` (requires readiness gate)
 
 ## Runtime contract
@@ -25,6 +26,8 @@ Godot 4 portrait cabinet is now the default playable client for Lucky5.
 - Replay recovery via `POST /api/Game/machine/{machineId}/cabinet-replay`
 - Interactive auth panel with login, signup, and OTP verification flows
 - Server-driven button enablement; Godot never modifies credit totals
+- Legacy `v1` snapshots are normalized to `cabinet.v1` at the Godot store boundary
+- Mutating Godot commands use one pending action lock with timeout-to-snapshot recovery
 
 ## Disposition of prior migration artifacts
 

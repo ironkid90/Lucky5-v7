@@ -102,7 +102,7 @@ function Test-JsonFile {
 $contractSchemaPath = Join-Path $RepoRoot "docs/contracts/godot-cabinet/cabinet-contract-v1.schema.json"
 $variantSchemaPath = Join-Path $RepoRoot "docs/contracts/godot-cabinet/variant-definition-v1.schema.json"
 $variantPath = Join-Path $RepoRoot "docs/contracts/godot-cabinet/lucky5-classic.variant.v1.json"
-$fixturePath = Join-Path $RepoRoot "godot/cabinet/fixtures/classic_snapshot.json"
+$fixturePath = Join-Path $RepoRoot "godot/cabinet/data/fixture_snapshot.json"
 $godotProjectPath = Join-Path $RepoRoot "godot/cabinet"
 
 $jsonFiles = @($contractSchemaPath, $variantSchemaPath, $variantPath, $fixturePath)
@@ -120,7 +120,8 @@ $fixture = Get-Content -Raw -Path $fixturePath | ConvertFrom-Json -Depth 100
 $contractBlockers = New-Object System.Collections.Generic.List[string]
 if ($contract.'$defs'.SchemaVersion.const -ne "cabinet.v1") { $contractBlockers.Add("Cabinet schema version constant is not cabinet.v1.") }
 if ($fixture.schema_version -ne "cabinet.v1") { $contractBlockers.Add("Godot fixture schema_version is '$($fixture.schema_version)', expected cabinet.v1.") }
-if ($fixture.variant_id -ne $variant.variant_id) { $contractBlockers.Add("Godot fixture variant_id is '$($fixture.variant_id)', expected '$($variant.variant_id)'.") }
+$fixtureVariantId = if ($fixture.PSObject.Properties.Name -contains "variant_id") { $fixture.variant_id } elseif ($fixture.variant -and ($fixture.variant.PSObject.Properties.Name -contains "variant_id")) { $fixture.variant.variant_id } else { "" }
+if ($fixtureVariantId -ne $variant.variant_id) { $contractBlockers.Add("Godot fixture variant_id is '$fixtureVariantId', expected '$($variant.variant_id)'.") }
 if ($fixture.PSObject.Properties.Name -notcontains "sequence_number") { $contractBlockers.Add("Godot fixture is missing sequence_number for replay/gap recovery.") }
 if ($fixture.PSObject.Properties.Name -notcontains "state_version") { $contractBlockers.Add("Godot fixture is missing state_version for optimistic command safety.") }
 if ($contractBlockers.Count -eq 0) {
@@ -130,37 +131,49 @@ if ($contractBlockers.Count -eq 0) {
 }
 
 $commandBlockers = New-Object System.Collections.Generic.List[string]
-$apiClient = Get-Content -Raw -Path (Join-Path $RepoRoot "godot/cabinet/scripts/cabinet_api_client.gd")
-if ($apiClient -notmatch '"schema_version"\s*:\s*"cabinet\.v1"') { $commandBlockers.Add("Godot command emitter does not stamp schema_version cabinet.v1.") }
-if ($apiClient -notmatch 'expected_state_version') { $commandBlockers.Add("Godot command emitter must include expected_state_version.") }
-if ($apiClient -notmatch 'idempotency_key') { $commandBlockers.Add("Godot command emitter must include idempotency_key.") }
+$cabinetRoot = Get-Content -Raw -Path (Join-Path $RepoRoot "godot/cabinet/scripts/cabinet_root.gd")
+if ($cabinetRoot -notmatch '"schema_version"\s*:\s*"cabinet\.v1"') { $commandBlockers.Add("Godot command emitter does not stamp schema_version cabinet.v1.") }
+if ($cabinetRoot -notmatch 'expected_state_version') { $commandBlockers.Add("Godot command emitter must include expected_state_version.") }
+if ($cabinetRoot -notmatch 'idempotency_key') { $commandBlockers.Add("Godot command emitter must include idempotency_key.") }
+if ($cabinetRoot -notmatch 'client_sequence_number') { $commandBlockers.Add("Godot command emitter must include client_sequence_number.") }
+if ($cabinetRoot -notmatch 'pending_command_id') { $commandBlockers.Add("Godot command emitter must suppress duplicate pending commands.") }
 if ($commandBlockers.Count -eq 0) {
-    Add-Result -Area "contract" -Name "Godot command envelope" -Status "PASS" -Evidence "Command envelope includes cabinet.v1, expected_state_version, and idempotency_key."
+    Add-Result -Area "contract" -Name "Godot command envelope" -Status "PASS" -Evidence "Command envelope includes cabinet.v1, expected_state_version, idempotency_key, client_sequence_number, and pending action locking."
 } else {
     Add-Result -Area "contract" -Name "Godot command envelope" -Status "FAIL" -Evidence "Godot command envelope is not production contract compatible." -Blockers $commandBlockers.ToArray()
 }
 
 Invoke-GateCommand -Area "backend" -Name "Regression suite including replay, recovery, ledger, idempotency" -FileName "dotnet" -Arguments @("run", "--project", "server/tests/Lucky5.Tests/Lucky5.Tests.csproj") -WorkingDirectory $RepoRoot -TimeoutSeconds 180
 
-$npmCommand = Get-Command npm.cmd, npm -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($null -eq $npmCommand) {
-    Add-Result -Area "parity" -Name "Web cabinet asset parity smoke" -Status "BLOCKED" -Command "npm run assets:smoke" -Evidence "No npm executable found on PATH." -Blockers @("Install Node.js/npm or add npm to PATH, then rerun this gate.")
+$devScript = Get-Content -Raw -Path (Join-Path $RepoRoot "dev.ps1")
+$defaultLaunchBlockers = New-Object System.Collections.Generic.List[string]
+if ($devScript -match '\$Client') { $defaultLaunchBlockers.Add("dev.ps1 still references the removed Client selector.") }
+if ($devScript -match '\[switch\]\$Godot') { $defaultLaunchBlockers.Add("dev.ps1 still exposes Godot as an opt-in switch instead of the default.") }
+if ($devScript -notmatch '\[switch\]\$Web') { $defaultLaunchBlockers.Add("dev.ps1 must keep legacy web fallback behind an explicit -Web switch.") }
+if ($devScript -notmatch '\$launchGodot\s*=\s*-not \$Headless -and -not \$Web') { $defaultLaunchBlockers.Add("dev.ps1 does not make Godot the default non-headless launch path.") }
+if ($defaultLaunchBlockers.Count -eq 0) {
+    Add-Result -Area "launch" -Name "Godot default launcher" -Status "PASS" -Evidence "dev.ps1 launches Godot by default and makes web fallback explicit."
 } else {
-    Invoke-GateCommand -Area "parity" -Name "Web cabinet asset parity smoke" -FileName $npmCommand.Source -Arguments @("run", "assets:smoke") -WorkingDirectory (Join-Path $RepoRoot "src/web") -TimeoutSeconds 120
+    Add-Result -Area "launch" -Name "Godot default launcher" -Status "FAIL" -Evidence "dev.ps1 does not satisfy Godot default launch requirements." -Blockers $defaultLaunchBlockers.ToArray()
 }
 
 $godotCommand = Get-Command godot, godot4, Godot_v4.6-stable_win64.exe, Godot_v4.4.1-stable_win64.exe -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($null -eq $godotCommand) {
-    Add-Result -Area "godot" -Name "Godot headless project load" -Status "BLOCKED" -Command "godot --headless --path godot/cabinet --quit" -Evidence "No Godot executable found on PATH under checked command names." -Blockers @("Install Godot 4.x or add it to PATH, then rerun this gate.")
+    Add-Result -Area "godot" -Name "Godot headless project load" -Status "BLOCKED" -Command "scripts/godot/Test-GodotCabinet.ps1" -Evidence "No Godot executable found on PATH under checked command names." -Blockers @("Install Godot 4.x or add it to PATH, then rerun this gate.")
 } else {
-    Invoke-GateCommand -Area "godot" -Name "Godot headless project load" -FileName $godotCommand.Source -Arguments @("--headless", "--path", $godotProjectPath, "--quit") -WorkingDirectory $godotProjectPath -TimeoutSeconds 90
+    $pwshCommand = Get-Command pwsh, pwsh.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $pwshCommand) {
+        Add-Result -Area "godot" -Name "Godot headless project load" -Status "BLOCKED" -Command "scripts/godot/Test-GodotCabinet.ps1" -Evidence "PowerShell 7 executable not found for the Godot smoke wrapper." -Blockers @("Install PowerShell 7 or run scripts/godot/Test-GodotCabinet.ps1 manually.")
+    } else {
+        Invoke-GateCommand -Area "godot" -Name "Godot headless project load" -FileName $pwshCommand.Source -Arguments @("-NoProfile", "-File", (Join-Path $RepoRoot "scripts/godot/Test-GodotCabinet.ps1"), "-GodotBin", $godotCommand.Source) -WorkingDirectory $RepoRoot -TimeoutSeconds 120
+    }
 }
 
 $recoveryBlockers = New-Object System.Collections.Generic.List[string]
-$stateStore = Get-Content -Raw -Path (Join-Path $RepoRoot "godot/cabinet/scripts/cabinet_state_store.gd")
+$stateStore = Get-Content -Raw -Path (Join-Path $RepoRoot "godot/cabinet/scripts/cabinet_store.gd")
 if ($stateStore -notmatch 'sequence_number') { $recoveryBlockers.Add("Godot state store does not track sequence_number or detect gaps.") }
 if ($stateStore -notmatch 'state_version') { $recoveryBlockers.Add("Godot state store does not track state_version before applying snapshots/events.") }
-if ($stateStore -notmatch 'gap|replay|recovery|reconnect') { $recoveryBlockers.Add("Godot state store has no explicit gap/replay/recovery path yet.") }
+if ($stateStore -notmatch 'gap|replay|recovery|reconnect|enter_recovery') { $recoveryBlockers.Add("Godot state store has no explicit gap/replay/recovery path yet.") }
 if ($recoveryBlockers.Count -eq 0) {
     Add-Result -Area "replay" -Name "Godot gap recovery readiness" -Status "PASS" -Evidence "State store has explicit sequence/state recovery handling."
 } else {
@@ -176,9 +189,9 @@ if ([string]::IsNullOrWhiteSpace($variant.governance.approved_by)) { $production
 if ([string]::IsNullOrWhiteSpace($variant.rtp_gate.report_uri)) { $productionBlockers.Add("RTP gate report_uri is empty.") }
 
 if ($productionBlockers.Count -eq 0) {
-    Add-Result -Area "rollback-burn-in" -Name "Production activation checklist" -Status "PASS" -Evidence "Governance, RTP, and production activation flags are ready. Rollback can keep legacy web cabinet enabled until burn-in completes."
+    Add-Result -Area "rollback-burn-in" -Name "Production activation checklist" -Status "PASS" -Evidence "Governance, RTP, production activation, and Godot-first launch path are ready."
 } else {
-    Add-Result -Area "rollback-burn-in" -Name "Production activation checklist" -Status "FAIL" -Evidence "Rollback path remains legacy web cabinet; production activation and burn-in are blocked until governance and simulation gates pass." -Blockers $productionBlockers.ToArray()
+    Add-Result -Area "rollback-burn-in" -Name "Production activation checklist" -Status "FAIL" -Evidence "Production activation and burn-in are blocked until governance, simulation, and Godot launch gates pass." -Blockers $productionBlockers.ToArray()
 }
 
 $failed = @($results | Where-Object { $_.status -eq "FAIL" })
@@ -223,8 +236,8 @@ if ($allBlockers.Count -eq 0) {
 $lines.Add("")
 $lines.Add("## Rollback and Burn-in Checklist")
 $lines.Add("")
-$lines.Add("- Rollback route: keep the existing web cabinet as the production fallback until Godot passes this gate with no FAIL/BLOCKED results.")
-$lines.Add("- Burn-in entry requires: contract compatibility, replay/gap recovery, ledger/idempotency, Godot headless load, parity smoke, RTP report, governance approval, and production_activation enabled.")
+$lines.Add("- Rollback route: keep API-only operation and the explicit -Web fallback for local diagnosis; Godot remains the default playable client.")
+$lines.Add("- Burn-in entry requires: contract compatibility, replay/gap recovery, ledger/idempotency, Godot headless load, RTP report, governance approval, and production_activation enabled.")
 $lines.Add("- Burn-in exit requires: no unresolved recovery/ledger/idempotency incidents, operator rollback drill completed, and signed release artifact identified.")
 Set-Content -Path $mdArtifact -Value $lines -Encoding UTF8
 

@@ -1,6 +1,6 @@
 # AI9Poker Comparison And Lucky5 Event Matrix
 
-Status: planning artifact for presentation-only Lucky5 upgrades.
+Status: migration hardening backlog for presentation-only Lucky5 upgrades. P0 snapshot compatibility and P2 action-lock basics are partially implemented in the active Godot client.
 
 Scope: compare the AI9Poker browser-export map against the current Lucky5 backend
 contracts and Godot cabinet scripts, then define the Lucky5-specific event matrix
@@ -51,10 +51,10 @@ These are contract/presentation gaps, not gameplay gaps.
 
 | Gap | Current evidence | Risk | Presentation decision |
 | --- | --- | --- | --- |
-| Schema version mismatch | JSON schema requires `schema_version: "cabinet.v1"`; backend DTO and fixture use `"v1"`. | Godot cannot validate live snapshots against the contract without adapter logic. | Add a Godot compatibility adapter or align backend output before strict validation. |
-| Snapshot shape mismatch | Schema requires `message_type`, `server_time_utc`, `session`, `machine`, `variant`, `buttons`, `presentation`, and `recovery`; backend/Godot fixture use flat `session_id`, `machine_id`, `variant_id`, `ui_hints`, `timestamp`. | Godot code may bind to legacy seed fields and miss the real contract. | Document both shapes and make the store accept legacy only through a named compatibility path. |
-| Button ID mismatch | Schema button IDs include `deal_draw` and `cancel_hold`; backend/Godot fixture currently emit/use `deal` and `cancel`. | Controls may stay disabled or emit command names the backend does not understand. | Normalize IDs at the Godot adapter boundary or align backend/Godot to the schema. |
-| Command envelope mismatch | Schema command includes `message_type`, `client_sequence_number`, and `sent_at_utc`; Godot `emit_command` emits no `message_type`, no `client_sequence_number`, and uses `timestamp`. | Retries and telemetry become inconsistent. | Backlog should add a presentation command builder that emits the schema shape while preserving legacy fallbacks. |
+| Schema version mismatch | JSON schema requires `schema_version: "cabinet.v1"`; historical fixtures use `"v1"`. | Unadapted legacy snapshots cannot be treated as contract snapshots. | Active `CabinetStore` now normalizes legacy `v1` snapshots to `cabinet.v1`; keep strict backend schema alignment as the target. |
+| Snapshot shape mismatch | Schema requires `message_type`, `server_time_utc`, `session`, `machine`, `variant`, `buttons`, `presentation`, and `recovery`; historical fixtures use flat `session_id`, `machine_id`, `variant_id`, `ui_hints`, `timestamp`. | Godot code may bind to legacy seed fields and miss the real contract. | Active `CabinetStore` now accepts legacy flat snapshots through a named normalization path; keep new work on the schema shape. |
+| Button ID mismatch | Schema button IDs include `deal_draw` and `cancel_hold`; legacy fixtures emit/use `deal` and `cancel`. | Controls may stay disabled or emit command names the backend does not understand. | Active `CabinetStore` aliases `deal` -> `deal_draw` and `cancel` -> `cancel_hold` at the adapter boundary. |
+| Command envelope mismatch | Schema command includes `message_type`, `client_sequence_number`, and `sent_at_utc`; old fixture client code used no `message_type`, no `client_sequence_number`, and `timestamp`. | Retries and telemetry become inconsistent. | Active `CabinetRoot` emits the schema command envelope and now correlates command replies through a pending action lock. |
 | Command transport gap | Current API has no `/api/Game/cabinet-command` endpoint in this checkout; hub has method-specific commands. | Godot cannot submit a single schema command envelope yet. | Keep Godot commands presentation-only until backend command adapter is implemented. |
 | Realtime client gap | Current `godot/cabinet/scripts` has no WebSocket/SignalR client script. | Godot cannot receive live backend events or heartbeat timeouts. | Presentation backlog starts with a connection state machine and fakeable event adapter. |
 | Replay gap | Contract expects replay-or-snapshot behavior; current backend lacks a replay buffer. | Missed events cannot be safely applied incrementally. | Always request/apply full snapshot after reconnect until replay exists. |

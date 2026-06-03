@@ -26,6 +26,7 @@ const CARD_GAP := 6
 const DEAL_DURATION := 0.35
 const DEAL_STAGGER := 0.12
 const DU_SWITCH_DURATION := 0.22
+const COMMAND_TIMEOUT_SECONDS := 15.0
 
 # ─── state vars ───
 var api: CabinetApi
@@ -52,6 +53,9 @@ var du_cards: Array = []
 var active_screen := "game"
 var admin_search_results: Array = []
 var admin_machine_list: Array = []
+var pending_command_id := ""
+var pending_idempotency_key := ""
+var pending_command_type := ""
 
 # ─── node refs ───
 var title_label: Label
@@ -93,6 +97,7 @@ var crt_overlay: ColorRect
 var heartbeat_timer: Timer
 var replay_timer: Timer
 var token_refresh_timer: Timer
+var command_timeout_timer: Timer
 var deal_timer: Timer
 var deal_queue: Array = []
 var deal_queue_index := 0
@@ -119,6 +124,9 @@ func _ready() -> void:
 
 	token_refresh_timer = Timer.new(); token_refresh_timer.wait_time = 60.0; token_refresh_timer.autostart = true
 	token_refresh_timer.timeout.connect(_check_token_refresh); add_child(token_refresh_timer)
+
+	command_timeout_timer = Timer.new(); command_timeout_timer.wait_time = COMMAND_TIMEOUT_SECONDS; command_timeout_timer.one_shot = true
+	command_timeout_timer.timeout.connect(_on_command_timeout); add_child(command_timeout_timer)
 
 	deal_timer = Timer.new(); deal_timer.wait_time = DEAL_STAGGER; deal_timer.one_shot = true
 	deal_timer.timeout.connect(_process_deal_queue); add_child(deal_timer)
@@ -596,7 +604,7 @@ func _request_replay() -> void: api.post_replay(configured_machine_id, store.sta
 
 func _send_heartbeat() -> void:
 	if access_token.is_empty() or store.snapshot.is_empty(): return
-	_send_command("heartbeat", {}, false)
+	_send_command("heartbeat", {}, false, false)
 
 # ─── API response handler ───
 func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_message: String) -> void:
@@ -606,12 +614,15 @@ func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_mes
 
 	if not ok:
 		if _status_code == 401 and _has_auth_credentials():
+			_reject_action_lock("", "Session lost")
 			authenticating = false
-			_authenticate_and_sync("Session lost. Re-authenticating...")
+			_authenticate_and_sync("Session lost. Re-authenticating cabinet...")
 			return
 		if kind in ["login", "signup", "verify_otp"]:
 			auth_status = _response_message(body, error_message)
 			_refresh_ui(); return
+		if kind == "command":
+			_reject_action_lock("", error_message)
 		store.apply_transport_error(error_message)
 		_refresh_ui()
 		if kind != "replay": replay_timer.start()
@@ -628,10 +639,7 @@ func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_mes
 	elif kind == "snapshot" and typeof(data) == TYPE_DICTIONARY:
 		_apply_snapshot(data)
 	elif kind == "command" and typeof(data) == TYPE_DICTIONARY:
-		if data.has("snapshot") and typeof(data["snapshot"]) == TYPE_DICTIONARY:
-			_apply_snapshot(data["snapshot"])
-		elif data.has("error"):
-			store.apply_transport_error(str(data["error"].get("message", "Command rejected"))); _refresh_ui()
+		_handle_command_response(data)
 	elif kind == "replay" and typeof(data) == TYPE_DICTIONARY:
 		if data.get("requires_full_snapshot", false) and data.has("snapshot"):
 			_apply_snapshot(data["snapshot"])
@@ -652,6 +660,35 @@ func _handle_admin_response(kind: String, ok: bool, body, error_message: String)
 func _unwrap_response_data(body):
 	if typeof(body) == TYPE_DICTIONARY and body.has("data"): return body["data"]
 	return body
+
+func _handle_command_response(data: Dictionary) -> void:
+	var response_command_id := str(data.get("command_id", data.get("commandId", "")))
+	var accepted := bool(data.get("accepted", false))
+	var status := str(data.get("status", ""))
+	var applied_state := false
+
+	if data.has("snapshot") and typeof(data["snapshot"]) == TYPE_DICTIONARY:
+		_apply_snapshot(data["snapshot"])
+		applied_state = true
+	elif data.has("event") and typeof(data["event"]) == TYPE_DICTIONARY:
+		if store.apply_event(data["event"]):
+			applied_state = true
+			_refresh_ui()
+
+	if accepted or status == "duplicate":
+		_resolve_action_lock(response_command_id)
+		if not applied_state:
+			_request_snapshot()
+		else:
+			_refresh_ui()
+		return
+
+	var message := "Command rejected"
+	if data.has("error") and typeof(data["error"]) == TYPE_DICTIONARY:
+		message = str(data["error"].get("message", message))
+	_reject_action_lock(response_command_id, message)
+	store.enter_recovery(message)
+	_refresh_ui()
 
 func _response_message(body, fallback: String) -> String:
 	if typeof(body) == TYPE_DICTIONARY:
@@ -776,8 +813,8 @@ func _get_displayed_card_codes() -> Array:
 	var result: Array = []
 	for slot in cards_texture_rects:
 		if slot["rect"].texture != null and slot["rect"].modulate.a > 0.1:
-			var path := slot["rect"].texture.resource_path
-			var fname := path.get_file().trim_suffix(".png")
+			var path: String = str(slot["rect"].texture.resource_path)
+			var fname: String = path.get_file().trim_suffix(".png")
 			result.append(fname)
 		else:
 			result.append("")
@@ -812,8 +849,8 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	var switches := int(du_data.get("switches_remaining", 0))
 	du_switch_node.text = "SWAPS: %d" % switches if switches > 0 else ""
 
-	var dealer_card := du_data.get("dealer_card", {})
-	var challenger_card := du_data.get("challenger_card", {})
+	var dealer_card: Variant = du_data.get("dealer_card", {})
+	var challenger_card: Variant = du_data.get("challenger_card", {})
 
 	var dealer_code := ""
 	var challenger_code := ""
@@ -907,6 +944,7 @@ func _refresh_auth_panel() -> void:
 
 func _is_action_enabled(id: String) -> bool:
 	if access_token.is_empty(): return false
+	if _has_pending_command() and id not in ["menu", "reconnect_sync", "logout", "admin_toggle"]: return false
 	if id in ["reconnect_sync", "back_to_lobby", "logout", "admin_toggle"]: return true
 	if id == "take_score" and store.can_press("cash_out"): return true
 	return store.can_press(id)
@@ -939,6 +977,7 @@ func _refresh_admin_machines() -> void:
 # ─── input handlers ───
 func _on_card_gui_input(event: InputEvent, index: int) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if _has_pending_command(): return
 		if not store.can_press("hold_%d" % index): return
 		if local_hold_indexes.has(index): local_hold_indexes.erase(index)
 		else: local_hold_indexes.append(index); local_hold_indexes.sort()
@@ -1030,21 +1069,73 @@ func _cycle_bet() -> void:
 	if selected_bet > max_value: selected_bet = min_value
 	_send_command("bet_change", {"bet_amount": str(selected_bet)}, false); _refresh_ui()
 
-func _send_command(command_type: String, payload: Dictionary, expected_state: bool = true) -> void:
+func _send_command(command_type: String, payload: Dictionary, expected_state: bool = true, lock_action: bool = true) -> void:
 	if access_token.is_empty(): _authenticate_and_sync("No session token. Re-authenticating..."); return
 	client_sequence += 1
 	var command_id := _uuid_v4(); var state_version := store.state_version() if expected_state else 0; var session_id := store.session_id()
-	api.post_command({
+	var idempotency_key := "%s:%d:%s" % [command_type, client_sequence, command_id]
+	if lock_action and not _start_action_lock(command_id, idempotency_key, command_type):
+		return
+	var started: bool = api.post_command({
 		"message_type": "cabinet_command", "schema_version": "cabinet.v1",
 		"command_id": command_id, "command_type": command_type,
 		"session_id": null if session_id.is_empty() else session_id,
 		"machine_id": configured_machine_id,
 		"expected_state_version": state_version,
-		"idempotency_key": "%s:%d:%s" % [command_type, client_sequence, command_id],
+		"idempotency_key": idempotency_key,
 		"client_sequence_number": client_sequence,
 		"sent_at_utc": _utc_now_string(),
 		"payload": payload
 	})
+	if not started and lock_action:
+		_reject_action_lock(command_id, "Command request could not start")
+
+func _has_pending_command() -> bool:
+	return not pending_command_id.is_empty()
+
+func _start_action_lock(command_id: String, idempotency_key: String, command_type: String) -> bool:
+	if _has_pending_command():
+		store.enter_recovery("Waiting for %s response." % pending_command_type)
+		_refresh_ui()
+		return false
+	pending_command_id = command_id
+	pending_idempotency_key = idempotency_key
+	pending_command_type = command_type
+	command_timeout_timer.start()
+	_refresh_ui()
+	return true
+
+func _resolve_action_lock(command_id: String) -> void:
+	if not _has_pending_command():
+		return
+	if not command_id.is_empty() and command_id != pending_command_id:
+		store.enter_recovery("Command response did not match the pending command.")
+		return
+	_clear_action_lock()
+
+func _reject_action_lock(command_id: String, reason: String) -> void:
+	if not _has_pending_command():
+		return
+	if command_id.is_empty() or command_id == pending_command_id:
+		_clear_action_lock()
+	else:
+		store.enter_recovery("Command rejection did not match the pending command: %s" % reason)
+
+func _clear_action_lock() -> void:
+	pending_command_id = ""
+	pending_idempotency_key = ""
+	pending_command_type = ""
+	if command_timeout_timer != null:
+		command_timeout_timer.stop()
+
+func _on_command_timeout() -> void:
+	if not _has_pending_command():
+		return
+	var timed_out_type: String = pending_command_type
+	_clear_action_lock()
+	store.enter_recovery("Timed out waiting for %s response. Applying fresh snapshot." % timed_out_type)
+	_refresh_ui()
+	_request_snapshot()
 
 func _sanitize_cash_amount(text: String) -> int:
 	var value: int = int(float(text)) if not text.strip_edges().is_empty() else 200000
@@ -1061,6 +1152,6 @@ func _uuid_v4() -> String:
 
 func _utc_now_string() -> String: return Time.get_datetime_string_from_system(true) + "Z"
 
-func _format_amount(value: int) -> String: return store._format_amount(value)
+func _format_amount(value: Variant) -> String: return store._format_amount(value)
 
 func _process_deal_queue() -> void: pass

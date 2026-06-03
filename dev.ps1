@@ -1,28 +1,32 @@
 <#
 .SYNOPSIS
   Lucky5 v7 — 1-Click Launcher.
-  Starts the .NET API server with the full graphics web cabinet and Godot client.
+  Starts the .NET API server and the Godot cabinet client by default.
 
-.PARAMETER Godot
-  Also launch the Godot cabinet client (requires Godot 4.6+).
+.PARAMETER Web
+  Open the legacy static web cabinet fallback instead of launching Godot.
 
 .PARAMETER Headless
-  API only — no browser, no Godot.
+  API only — no browser and no Godot.
+
+.PARAMETER GodotBin
+  Godot executable path or command name. Defaults to GODOT_BIN, then godot4, then godot.
 
 .PARAMETER Port
   API port (default: 5051).
 
 .EXAMPLE
-  .\dev.ps1                 # Server + open web cabinet in browser
-  .\dev.ps1 -Godot          # Server + web + Godot cabinet
+  .\dev.ps1                 # Server + Godot cabinet
+  .\dev.ps1 -Web            # Server + legacy web cabinet fallback
   .\dev.ps1 -Headless -Port 8080  # API only
 
 Admin login: admin / admin123
 Test login:  tester / password
 #>
 param(
-    [switch]$Godot,
+    [switch]$Web,
     [switch]$Headless,
+    [string]$GodotBin = $env:GODOT_BIN,
     [int]$Port = 5051
 )
 
@@ -34,6 +38,19 @@ function Assert-Command([string]$name) {
         Write-Error "'$name' not found in PATH. Install it and re-run."
         exit 1
     }
+}
+
+function Resolve-GodotBin([string]$preferred) {
+    if (-not [string]::IsNullOrWhiteSpace($preferred)) {
+        return $preferred
+    }
+
+    $command = Get-Command godot4, godot, Godot_v4.6-stable_win64.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $command) {
+        return "godot4"
+    }
+
+    return $command.Source
 }
 
 function Wait-Port([int]$port, [int]$timeoutSec = 90) {
@@ -54,24 +71,20 @@ function Wait-Port([int]$port, [int]$timeoutSec = 90) {
 
 Assert-Command "dotnet"
 
-$needsGodot = ($Client -eq "godot")
-$needsFlutter = ($Client -like "flutter-*")
-$needsWeb = ($Client -eq "web")
+if ($Headless -and $Web) {
+    Write-Error "Use either -Headless or -Web, not both."
+    exit 1
+}
 
-if ($needsGodot) {
-    $godotBin = if ($env:GODOT_BIN) { $env:GODOT_BIN } else { "godot4" }
-    Assert-Command $godotBin
-}
-if ($needsFlutter) {
-    Assert-Command "flutter"
-}
-if ($needsWeb) {
-    Assert-Command "pnpm"
+$launchGodot = -not $Headless -and -not $Web
+if ($launchGodot) {
+    $GodotBin = Resolve-GodotBin $GodotBin
+    Assert-Command $GodotBin
 }
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Lucky5 v7 — Full Graphics Cabinet" -ForegroundColor Cyan
+Write-Host "  Lucky5 v7 — Godot Cabinet" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  URL:  http://localhost:$Port"
 Write-Host "  Admin: admin / admin123"
@@ -97,23 +110,23 @@ if (-not $ready) {
     Write-Warning "Server may still be starting. Check http://localhost:$Port/health/live"
 }
 
-if (-not $Headless) {
-    Write-Host "[2/3] Opening web cabinet in browser..." -ForegroundColor Yellow
+if ($Web) {
+    Write-Host "[2/3] Opening legacy web cabinet fallback..." -ForegroundColor Yellow
     Start-Process "http://localhost:$Port"
-    Write-Host "  Full graphics cabinet loaded in browser." -ForegroundColor Green
+    Write-Host "  Legacy web fallback loaded in browser." -ForegroundColor Green
+} elseif ($launchGodot) {
+    Write-Host "[2/3] Preparing Godot cabinet launch." -ForegroundColor Yellow
 } else {
-    Write-Host "[2/3] Headless mode — API only." -ForegroundColor DarkGray
+    Write-Host "[2/3] Headless mode - API only." -ForegroundColor DarkGray
 }
 
-if ($Godot) {
+if ($launchGodot) {
     Write-Host "[3/3] Launching Godot cabinet..." -ForegroundColor Yellow
-    $godotBin = if ($env:GODOT_BIN) { $env:GODOT_BIN } elseif (Get-Command godot -ErrorAction SilentlyContinue) { "godot" } else { "godot4" }
-    Assert-Command $godotBin
     $env:LUCKY5_API_BASE_URL = "http://127.0.0.1:$Port"
     if (-not $env:LUCKY5_ACCESS_TOKEN) {
-        Write-Warning "LUCKY5_ACCESS_TOKEN not set. Godot will use fixture/auth mode."
+        Write-Warning "LUCKY5_ACCESS_TOKEN not set. Godot will use interactive auth or fixture mode."
     }
-    & $godotBin --path "$root\godot\cabinet"
+    & $GodotBin --path "$root\godot\cabinet"
 } else {
     Write-Host "[3/3] Server running. Press Ctrl+C to stop." -ForegroundColor Green
     if ($apiProcess) { Wait-Process -Id $apiProcess.Id }

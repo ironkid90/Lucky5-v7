@@ -7,13 +7,17 @@ public static class GodotCabinetRegressionTests
         string project;
         string mainScene;
         string rootScript;
+        string storeScript;
         string apiScript;
+        string devScript;
         try
         {
             project = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "project.godot"));
             mainScene = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scenes", "CabinetRoot.tscn"));
             rootScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_root.gd"));
+            storeScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_store.gd"));
             apiScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_api.gd"));
+            devScript = await File.ReadAllTextAsync(ResolveRepoFilePath("dev.ps1"));
         }
         catch (Exception ex)
         {
@@ -49,6 +53,32 @@ public static class GodotCabinetRegressionTests
                 && apiScript.Contains("/api/Auth/signup", StringComparison.Ordinal)
                 && apiScript.Contains("func verify_otp(", StringComparison.Ordinal)
                 && apiScript.Contains("/api/Auth/verify-otp", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "dev.ps1 must launch the Godot cabinet by default and keep the legacy web cabinet behind an explicit -Web fallback",
+            devScript.Contains("[switch]$Web", StringComparison.Ordinal)
+                && devScript.Contains("$launchGodot = -not $Headless -and -not $Web", StringComparison.Ordinal)
+                && devScript.Contains("& $GodotBin --path", StringComparison.Ordinal)
+                && !devScript.Contains("[switch]$Godot", StringComparison.Ordinal)
+                && !devScript.Contains("$Client", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet store must normalize legacy v1 snapshots and legacy button IDs at the boundary",
+            storeScript.Contains("func _normalize_snapshot", StringComparison.Ordinal)
+                && storeScript.Contains("\"schema_version\": \"cabinet.v1\"", StringComparison.Ordinal)
+                && storeScript.Contains("\"deal\": \"deal_draw\"", StringComparison.Ordinal)
+                && storeScript.Contains("\"cancel\": \"cancel_hold\"", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet must suppress duplicate gameplay commands with a pending command lock and timeout recovery",
+            rootScript.Contains("pending_command_id", StringComparison.Ordinal)
+                && rootScript.Contains("func _start_action_lock", StringComparison.Ordinal)
+                && rootScript.Contains("func _on_command_timeout", StringComparison.Ordinal)
+                && rootScript.Contains("store.apply_event", StringComparison.Ordinal)
+                && rootScript.Contains("id not in [\"menu\", \"reconnect_sync\", \"logout\", \"admin_toggle\"]", StringComparison.Ordinal));
     }
 
     private static string ResolveRepoFilePath(params string[] segments)

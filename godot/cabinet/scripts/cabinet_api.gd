@@ -6,7 +6,7 @@ signal request_completed(kind: String, ok: bool, body: Variant, status_code: int
 var api_base_url := "http://127.0.0.1:8080"
 var access_token := ""
 var _http: HTTPRequest
-var _pending_kind := ""
+var _pending_kind: String = ""
 
 func _ready() -> void:
     _http = HTTPRequest.new()
@@ -80,46 +80,46 @@ func get_admin_machines() -> bool:
     return _request_get("admin_machines", "/api/Admin/machines")
 
 func _request(kind: String, method: int, path: String, body: Dictionary) -> bool:
-	var headers := ["Accept: application/json"]
-	if method != HTTPClient.METHOD_GET:
-		headers.append("Content-Type: application/json")
-	if not access_token.is_empty():
-		headers.append("Authorization: Bearer %s" % access_token)
+    var headers := PackedStringArray(["Accept: application/json"])
+    if method != HTTPClient.METHOD_GET:
+        headers.append("Content-Type: application/json")
+    if not access_token.is_empty():
+        headers.append("Authorization: Bearer %s" % access_token)
 
-	var payload := "" if method == HTTPClient.METHOD_GET else JSON.stringify(body)
-	return _do_request(kind, method, path, payload, headers)
+    var payload: String = "" if method == HTTPClient.METHOD_GET else JSON.stringify(body)
+    return _do_request(kind, method, path, payload, headers)
 
 func _request_get(kind: String, path: String) -> bool:
-	var headers := ["Accept: application/json"]
-	if not access_token.is_empty():
-		headers.append("Authorization: Bearer %s" % access_token)
-	return _do_request(kind, HTTPClient.METHOD_GET, path, "", headers)
+    var headers := PackedStringArray(["Accept: application/json"])
+    if not access_token.is_empty():
+        headers.append("Authorization: Bearer %s" % access_token)
+    return _do_request(kind, HTTPClient.METHOD_GET, path, "", headers)
 
-func _do_request(kind: String, method: int, path: String, payload: String, headers: Array) -> bool:
-	if _http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
-		request_completed.emit(kind, false, {}, 0, "HTTP client is busy")
-		return false
+func _do_request(kind: String, method: int, path: String, payload: String, headers: PackedStringArray) -> bool:
+    if _http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+        request_completed.emit(kind, false, {}, 0, "HTTP client is busy")
+        return false
 
-	_pending_kind = kind
-	var error := _http.request(api_base_url + path, headers, method, payload)
-	if error != OK:
-		request_completed.emit(kind, false, {}, 0, "Could not start HTTP request: %s" % error)
-		return false
-	return true
+    _pending_kind = kind
+    var error: int = _http.request(api_base_url + path, headers, method, payload)
+    if error != OK:
+        request_completed.emit(kind, false, {}, 0, "Could not start HTTP request: %s" % error)
+        return false
+    return true
 
 func _on_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
-    var kind := _pending_kind
+    var kind: String = _pending_kind
     _pending_kind = ""
 
     if result != HTTPRequest.RESULT_SUCCESS:
         request_completed.emit(kind, false, {}, response_code, "HTTP transport failed: %s" % result)
         return
 
-    var text := body.get_string_from_utf8()
-    var parsed = JSON.parse_string(text)
+    var text: String = body.get_string_from_utf8()
+    var parsed: Variant = JSON.parse_string(text)
     if parsed == null and not text.strip_edges().is_empty():
         request_completed.emit(kind, false, {}, response_code, "Backend returned non-JSON response")
         return
 
-    var ok := response_code >= 200 and response_code < 300
+    var ok: bool = response_code >= 200 and response_code < 300
     request_completed.emit(kind, ok, parsed if parsed != null else {}, response_code, "HTTP %s" % response_code)

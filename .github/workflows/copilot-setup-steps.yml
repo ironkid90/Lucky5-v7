@@ -19,16 +19,15 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-dotnet@v4
       with:
-        node-version: lts/*
+        dotnet-version: 9.0.x
 
-    - name: Install dependencies
-      run: npm ci
+    - name: Restore solution
+      run: dotnet restore server/Lucky5.sln
 
-    - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
+    - name: Build solution
+      run: dotnet build server/Lucky5.sln --configuration Release --no-restore
 
-    # Customize this step as needed
-    - name: Build application
-      run: npx run build
+    - name: Run regression suite
+      run: dotnet run --project server/tests/Lucky5.Tests/Lucky5.Tests.csproj

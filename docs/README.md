@@ -1,8 +1,10 @@
 # Lucky5 — Developer Guide
 
-Lucky5 is a clean-room recreation of a Lebanese amusement video poker machine (1990–2010 era). It features an ASP.NET Core 9 backend (REST API + SignalR hub) with a vanilla JS/CSS frontend, authentic Lebanese arcade aesthetics, four progressive jackpots, a Two Pair minimum qualifying hand, inline double-up Hi-Lo, and a deterministic architecture targeting 87.5% RTP.
+Lucky5 is a clean-room recreation of a Lebanese amusement video poker machine (1990-2010 era). It features an ASP.NET Core 9 backend (REST API + SignalR hub) with the Godot 4.6 portrait cabinet as the active playable client, authentic Lebanese arcade aesthetics, four progressive jackpots, a Two Pair minimum qualifying hand, inline double-up Hi-Lo, and a deterministic architecture targeting 87.5% RTP.
 
-This document is the single source of truth for anyone working on the codebase. It covers architecture, game rules, key files, data flows, and operational details.
+Current client status: `godot/cabinet/` is the primary playable cabinet and `dev.ps1` launches it by default. Static web cabinet material retained under `wwwroot` or `src/web` is legacy fallback/reference material, not the default build target.
+
+This document covers architecture, game rules, key files, data flows, and operational details. Some historical web/frontend notes remain as reference for parity work; prefer `docs/GODOT_CABINET_MIGRATION.md` and `docs/contracts/godot-cabinet/` for current client behavior.
 
 ---
 
@@ -11,7 +13,7 @@ This document is the single source of truth for anyone working on the codebase. 
 1. [Repository Layout](#repository-layout)
 2. [Architecture Overview](#architecture-overview)
 3. [Backend Layers](#backend-layers)
-4. [Frontend](#frontend)
+4. [Godot Cabinet Client](#godot-cabinet-client)
 5. [Game Rules & Mechanics](#game-rules--mechanics)
 6. [Credit Accounting (Deferred Settlement)](#credit-accounting-deferred-settlement)
 7. [Progressive Jackpots](#progressive-jackpots)
@@ -37,7 +39,7 @@ Lucky5/
 │   │   │   ├── Controllers/         # REST endpoints (Auth, Game, General)
 │   │   │   ├── Middleware/          # Exception handling, bearer token extraction
 │   │   │   ├── Program.cs          # App bootstrap, DI, middleware pipeline
-│   │   │   └── wwwroot/            # Static frontend (HTML/CSS/JS/assets)
+│   │   │   └── wwwroot/            # Legacy static fallback/reference assets
 │   │   │       ├── index.html
 │   │   │       ├── css/game.css
 │   │   │       ├── js/game.js
@@ -66,19 +68,15 @@ Lucky5/
 │   │   └── Lucky5.Simulation/      # RTP simulation runner
 │   ├── sql/                        # Database migration scripts (future)
 │   └── tests/                      # xUnit test project
-├── client/                         # Flutter skeleton (future mobile parity)
-├── contracts/                      # OpenAPI + SignalR schema references
-│   ├── openapi/
-│   └── signalr/
+├── godot/cabinet/                  # Primary Godot 4.6 portrait cabinet client
 ├── docs/                           # This documentation
 │   ├── README.md                   # You are here
 │   ├── GAME_FEEL_REFERENCE.md      # Visual design reference from original cabinet
-│   ├── ANDROID_BUILD.md            # Capacitor APK build guide
+│   ├── GODOT_CABINET_MIGRATION.md  # Current Godot client state
 │   └── forensics/                  # Original APK reverse-engineering findings
 ├── analysis/                       # Clean-room research & prototypes
 │   ├── clean_room_engine/          # Python engine prototype
 │   └── *.md / *.json               # Research notes, signal extraction data
-├── infra/                          # Docker Compose, nginx, env templates
 └── resources/                      # Extracted APK reference material
 ```
 
@@ -91,7 +89,7 @@ The system follows a three-layer deterministic engine design:
 ```
 ┌─────────────────────────────────────────────────────┐
 │  LAYER 3: Presentation Noise                        │
-│  Frontend (vanilla JS) + server noise seed          │
+│  Godot cabinet presentation + server noise seed     │
 │  Randomized timing, animations, visual effects      │
 └─────────────────────────┬───────────────────────────┘
                           │ REST + SignalR
@@ -108,7 +106,7 @@ The system follows a three-layer deterministic engine design:
 └─────────────────────────────────────────────────────┘
 ```
 
-All game outcomes are determined server-side. The frontend is a thin presentation layer that receives results via REST API calls and renders them with appropriate animations.
+All game outcomes are determined server-side. The Godot cabinet is a thin presentation layer that receives snapshots/command results and renders them with appropriate animations.
 
 ---
 
@@ -162,17 +160,18 @@ Key DTOs:
 
 ---
 
-## Frontend
+## Godot Cabinet Client
 
-The frontend is a single-page vanilla JS/CSS application served as static files from `wwwroot/`.
+The active frontend is the Godot 4.6 portrait cabinet under `godot/cabinet/`. It is presentation-only: the backend remains authoritative for balances, RNG, payouts, jackpots, double-up, sessions, and recovery.
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `index.html` | Page structure, login/signup screens, game layout, button grid |
-| `css/game.css` | All styling — retro arcade aesthetic, card designs, animations |
-| `js/game.js` | All game logic — API calls, state machine, animations, UI updates |
+| `godot/cabinet/scenes/CabinetRoot.tscn` | Main playable cabinet scene |
+| `godot/cabinet/scripts/cabinet_root.gd` | UI, auth, command emission, action lock, recovery rendering |
+| `godot/cabinet/scripts/cabinet_store.gd` | Snapshot normalization, button state, recovery state, event application |
+| `godot/cabinet/scripts/cabinet_api.gd` | HTTP API client for auth, snapshots, replay, commands, admin reads |
 
 ### Game States
 

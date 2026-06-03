@@ -29,6 +29,7 @@
 		"github-actions.use-enterprise": false,
 		"terminal.integrated.allowInUntrustedWorkspace": true,
 		"githubPullRequests.devMode": false,
-		"githubPullRequests.pullBranch": "always"
+		"githubPullRequests.pullBranch": "always",
+		"godotTools.editorPath.godot4": "c:\\Users\\Gabi.WIN-CD45QMUUPFF\\Desktop\\Godot\\Godot_v4.6.2-stable_win64.exe"
 	}
 }

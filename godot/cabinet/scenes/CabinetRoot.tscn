@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://cvmyd4ssup86b"]
+[gd_scene format=3 uid="uid://cvmyd4ssup86b"]
 
-[ext_resource type="Script" path="res://scripts/cabinet_root.gd" id="1_root"]
+[ext_resource type="Script" uid="uid://dpby8acd7u5y" path="res://scripts/cabinet_root.gd" id="1_root"]
 
 [node name="CabinetRoot" type="Control" unique_id=669639689]
 layout_mode = 3

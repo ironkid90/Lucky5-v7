@@ -118,6 +118,20 @@ public sealed class AuthController(IAuthService authService, IHostEnvironment en
         return Ok(ApiResponse<object>.Ok(new { loggedOut = true }, traceId: HttpContext.TraceIdentifier));
     }
 
+    [HttpPost("refresh-token")]
+    public async Task<ActionResult<ApiResponse<object>>> RefreshToken([FromBody] TokenRefreshRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var tokens = await authService.RefreshTokenAsync(request, cancellationToken);
+            return Ok(ApiResponse<object>.Ok(new { tokens }, "Token refreshed", HttpContext.TraceIdentifier));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(ex.Message, traceId: HttpContext.TraceIdentifier));
+        }
+    }
+
     private object BuildOtpPayload(PendingOtpChallengeDto challenge)
         => new
         {

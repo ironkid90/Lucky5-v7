@@ -162,6 +162,9 @@ const GAME_CONFIG = Object.freeze({
         adminUserSearch:  (q) => `/api/Admin/users/search?q=${encodeURIComponent(q)}`,
         adminCredit:      '/api/Admin/users/credit',
         adminMachines:    '/api/Admin/machines',
+        agents:           '/api/Agent',
+        agentLoadCredit:  (agentId) => `/api/Agent/${agentId}/load-credit`,
+        agentAssignUser:  (agentId, userId) => `/api/Agent/${agentId}/assign-user/${userId}`,
     }),
 
     // ── 4. RULES ─────────────────────────────────────────────────────────────

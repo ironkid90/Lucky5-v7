@@ -1,60 +1,35 @@
-# Godot cabinet migration starter slice
+# Godot cabinet migration — finalized
 
-This slice starts the Lucky5 cabinet migration without changing backend game authority.
+Godot 4 portrait cabinet is now the default playable client for Lucky5.
 
-## Reset after verification review
+## Status
 
-The current post-verification reset and dependency order lives in
-`docs/GODOT_MIGRATION_RESET_DEPENDENCY_MAP_2026-05-05.md`. Use current `main` as
-the implementation baseline. Trashed patches and dirty worktrees are reference
-evidence only; downstream Godot/backend product work must be reimplemented in the
-dependency order defined there.
+- Godot cabinet at `godot/cabinet/` is a **playable, backend-authoritative client**
+- Merge conflicts from stashed interactive auth work are resolved
+- `dev.ps1` defaults to Godot (`.\dev.ps1` starts API + Godot cabinet)
+- The web cabinet (`src/web/`) and Flutter client (`client/`) remain available
+- Kiosk export lane at `scripts/godot/Build-GodotKiosk.ps1` (requires readiness gate)
 
-## What is in this slice
+## Runtime contract
 
-- `docs/contracts/godot-cabinet/`
-  - Phase 0 discovery, authoritative Godot-facing schemas, and the Lucky5 Classic variant record
-- `contracts/cabinet/cabinet-v1.schema.json`
-  - earlier transitional schema copy; reconcile changes into `docs/contracts/godot-cabinet/` before using it for Godot work
-- `server/src/Lucky5.Application/Dtos/CabinetContractsDto.cs`
-  - backend DTO symbols matching the migration boundary
-- `GET /api/Game/machine/{machineId}/cabinet-snapshot`
-  - read-only backend snapshot endpoint for the Godot cabinet contract
-- `godot/cabinet/`
-  - a Godot 4 portrait cabinet prototype that renders a static Lucky5 Classic fixture
+- `LUCKY5_API_BASE_URL` — backend base URL (default: `http://127.0.0.1:8080`)
+- `LUCKY5_ACCESS_TOKEN` — preloaded bearer token (optional; interactive auth fallback)
+- `LUCKY5_AUTH_USERNAME` / `LUCKY5_AUTH_PASSWORD` — interactive auth credentials
+- `LUCKY5_MACHINE_ID` — machine ID (default: 1)
 
-## Current scope
+## Architecture
 
-- presentation-only Godot prototype
-- no payout, RNG, jackpot, or wallet logic in Godot
-- static Godot fixture load, with backend snapshot hydration ready for the next client wiring step
-- contract-first path toward future idempotent command endpoints
+- Fixture-first boot (`fixture_snapshot.json`) renders immediately, even offline
+- HTTP hydration from `GET /api/Game/machine/{machineId}/cabinet-snapshot`
+- Idempotent `cabinet.v1` command envelopes for all actions
+- Replay recovery via `POST /api/Game/machine/{machineId}/cabinet-replay`
+- Interactive auth panel with login, signup, and OTP verification flows
+- Server-driven button enablement; Godot never modifies credit totals
 
-## Visual target captured in the prototype
+## Disposition of prior migration artifacts
 
-- 720x1280 portrait cabinet
-- rainbow paytable pinned top-left
-- credit and stake block pinned top-right
-- centered five-card row
-- jackpot identity block above the wooden control deck
-- Lebanese button color order: HOLD amber, DEAL/DRAW red, BET green
-
-## Suggested next backend steps
-
-1. Add explicit `state_version` ownership and idempotency keys on deal/draw/double-up commands.
-2. Promote variant data into a canonical backend `VariantDefinition`.
-3. Wire SignalR event payloads to the new cabinet event schema.
-
-## Suggested next Godot steps
-
-1. Replace fixture loading with HTTP snapshot hydration.
-2. Add reconnect overlay and sequence-gap recovery.
-3. Map live button enablement to authoritative backend state.
-4. Add sound, card flip timing, and jackpot highlight polish using the existing pacing docs.
-
-## Release lane
-
-Kiosk export, signed asset manifest, deployment, and rollback policy lives in
-`docs/GODOT_KIOSK_RELEASE.md`. That lane is blocked until the production
-readiness gate in `docs/GODOT_MIGRATION_RESET_DEPENDENCY_MAP_2026-05-05.md`
-passes.
+- `lucky5-godot-playable-expansion.patch` — superseded by the resolved in-repo code
+- `lucky5-godot-playable-expansion-files/` — reference only
+- `lucky5-godot-playable-expansion-summary.md` — historical record
+- `lucky-5-v-7-godot/` — earlier scratch project, not in use
+- `lucky5_godot_deck_v1/` — card asset import package, used by the cabinet

@@ -1207,6 +1207,12 @@ return guessResult;
                 await SwitchDealerAsync(userId, GetRequiredGuidPayload(command.Payload, "round_id"), cancellationToken);
                 return;
 
+            case "swap_double_up_card":
+                await SwapDoubleUpCardAsync(userId, GetRequiredGuidPayload(command.Payload, "round_id"),
+                    command.Payload.TryGetValue("swap_position", out var posObj) && posObj is int pos ? pos : 0,
+                    cancellationToken);
+                return;
+
             case "take_half":
                 await TakeHalfAsync(userId, GetRequiredGuidPayload(command.Payload, "round_id"), cancellationToken);
                 return;
@@ -1860,7 +1866,11 @@ return guessResult;
                 MaxBet: ToDecimalString(machine.MaxBet),
                 MachineSerial: FirstNonEmpty(jackpot.MachineSerial, machine.MachineSerial),
                 MachineSerie: FirstNonEmpty(jackpot.MachineSerie, machine.MachineSerie),
-                MachineKent: FirstNonEmpty(jackpot.MachineKent, machine.MachineKent)),
+                MachineKent: FirstNonEmpty(jackpot.MachineKent, machine.MachineKent),
+                FirstRechargeCredit: ToDecimalString(machine.FirstRechargeCredit),
+                SecondRechargeCredit: ToDecimalString(machine.SecondRechargeCredit),
+                FirstRechargeBonus: ToDecimalString(machine.FirstRechargeBonus),
+                SecondRechargeBonus: ToDecimalString(machine.SecondRechargeBonus)),
             Variant: new CabinetVariantRefDto(
                 VariantId: CabinetVariantId,
                 VariantSchemaVersion: CabinetVariantSchemaVersion,
@@ -1975,7 +1985,7 @@ return guessResult;
         string[] buttonIds =
         [
             "menu", "bet", "deal_draw", "cancel_hold", "hold_0", "hold_1", "hold_2", "hold_3", "hold_4",
-            "big", "small", "take_half", "take_score", "cash_in", "cash_out", "reset_machine", "back_to_lobby", "logout"
+            "big", "small", "swap_double_up_card", "take_half", "take_score", "cash_in", "cash_out", "reset_machine", "back_to_lobby", "logout"
         ];
 
         return buttonIds
@@ -2005,6 +2015,7 @@ return guessResult;
         {
             buttons.Add("big");
             buttons.Add("small");
+            buttons.Add("swap_double_up_card");
             buttons.Add("take_score");
             if ((activeRound?.PendingWinAmount ?? 0m) > 1m && activeRound?.TakeHalfUsed != true)
             {
@@ -2082,7 +2093,7 @@ return guessResult;
         {
             "cash_in" or "cash_out" => "credits_updated",
             "deal" or "draw" or "take_score" => "round_updated",
-            "double_up_start" or "double_up_guess" or "double_up_switch" or "take_half" => "double_up_updated",
+            "double_up_start" or "double_up_guess" or "double_up_switch" or "swap_double_up_card" or "take_half" => "double_up_updated",
             "jackpot_rank_change" => "jackpot_updated",
             "join_machine" or "leave_machine" => "session_visibility_changed",
             "heartbeat" => "heartbeat_ack",

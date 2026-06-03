@@ -9,8 +9,8 @@ var local_connected: bool = false
 func apply_snapshot(next_snapshot: Dictionary, force: bool = false) -> bool:
     if next_snapshot.is_empty():
         return false
-    var incoming_version := int(next_snapshot.get("state_version", 0))
-    var current_version := int(snapshot.get("state_version", -1))
+    var incoming_version: int = int(next_snapshot.get("state_version", 0))
+    var current_version: int = int(snapshot.get("state_version", -1))
     if not force and current_version > incoming_version:
         return false
     snapshot = next_snapshot.duplicate(true)
@@ -30,15 +30,15 @@ func _index_buttons() -> void:
             button_state[str(button.get("id", ""))] = button
 
 func can_press(button_id: String) -> bool:
-    var button := button_state.get(button_id, {})
+    var button: Dictionary = button_state.get(button_id, {})
     return bool(button.get("visible", true)) and bool(button.get("enabled", false)) and commands_allowed()
 
 func button_reason(button_id: String) -> String:
-    var button := button_state.get(button_id, {})
+    var button: Dictionary = button_state.get(button_id, {})
     return str(button.get("reason", ""))
 
 func commands_allowed() -> bool:
-    var recovery := snapshot.get("recovery", {})
+    var recovery: Dictionary = snapshot.get("recovery", {})
     return bool(recovery.get("commands_allowed", true)) and not bool(recovery.get("requires_full_snapshot", false))
 
 func state_version() -> int:
@@ -84,7 +84,7 @@ func pending_win_amount() -> int:
     return _to_int(snapshot.get("credits", {}).get("pending_win_amount", 0))
 
 func current_round_id() -> String:
-    var hand := snapshot.get("hand", {})
+    var hand: Dictionary = snapshot.get("hand", {})
     var round_id = hand.get("round_id", null)
     if round_id == null:
         round_id = snapshot.get("double_up", {}).get("round_id", null)
@@ -106,19 +106,19 @@ func hand_rank() -> String:
     return str(snapshot.get("evaluation", {}).get("hand_rank", "None"))
 
 func message() -> String:
-    var presentation := snapshot.get("presentation", {})
+    var presentation: Dictionary = snapshot.get("presentation", {})
     if presentation.has("message"):
         return str(presentation.get("message"))
     return str(snapshot.get("evaluation", {}).get("message", ""))
 
 func recovery_message() -> String:
-    var recovery := snapshot.get("recovery", {})
+    var recovery: Dictionary = snapshot.get("recovery", {})
     if not last_transport_error.is_empty():
         return last_transport_error
     return str(recovery.get("reason", ""))
 
 func jackpot_line() -> String:
-    var jp := snapshot.get("jackpot", {})
+    var jp: Dictionary = snapshot.get("jackpot", {})
     return "FULL HOUSE %s (%s)\n4 KIND A %s  4 KIND B %s  STAR %s\nSTRAIGHT FLUSH %s" % [
         _format_amount(jp.get("full_house", 0)),
         str(jp.get("full_house_rank", "")),
@@ -147,12 +147,17 @@ func _to_int(value) -> int:
     return 0
 
 func _format_amount(value) -> String:
-    var amount := _to_int(value)
-    var sign := "" if amount >= 0 else "-"
-    var text := str(abs(amount))
-    var chunks := []
+    var amount: int = _to_int(value)
+    var sign: String = "" if amount >= 0 else "-"
+    var text: String = str(abs(amount))
+    var chunks: Array[String] = []
     while text.length() > 3:
         chunks.push_front(text.substr(text.length() - 3, 3))
         text = text.substr(0, text.length() - 3)
     chunks.push_front(text)
-    return sign + PackedStringArray(chunks).join(",")
+    var formatted := ""
+    for index in range(chunks.size()):
+        if index > 0:
+            formatted += ","
+        formatted += chunks[index]
+    return sign + formatted

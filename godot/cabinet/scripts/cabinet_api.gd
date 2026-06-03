@@ -25,6 +25,28 @@ func configure(base_url: String, token: String) -> void:
 func set_access_token(token: String) -> void:
     access_token = token.strip_edges()
 
+func login(username: String, password: String) -> bool:
+    return _request("login", HTTPClient.METHOD_POST, "/api/Auth/login", {
+        "username": username.strip_edges(),
+        "password": password
+    })
+
+func signup(username: String, password: String, phone_number: String) -> bool:
+    return _request("signup", HTTPClient.METHOD_POST, "/api/Auth/signup", {
+        "username": username.strip_edges(),
+        "password": password,
+        "phoneNumber": phone_number.strip_edges()
+    })
+
+func verify_otp(username: String, otp_code: String) -> bool:
+    return _request("verify_otp", HTTPClient.METHOD_POST, "/api/Auth/verify-otp", {
+        "username": username.strip_edges(),
+        "otpCode": otp_code.strip_edges()
+    })
+
+func logout() -> bool:
+    return _request("logout", HTTPClient.METHOD_POST, "/api/Auth/logout", {})
+
 func get_snapshot(machine_id: int) -> bool:
     return _request("snapshot", HTTPClient.METHOD_GET, "/api/Game/machine/%d/cabinet-snapshot" % machine_id, {})
 
@@ -42,6 +64,11 @@ func post_replay(machine_id: int, last_state_version: int, last_sequence_number:
 
 func post_command(command: Dictionary) -> bool:
     return _request("command", HTTPClient.METHOD_POST, "/api/Game/cabinet/command", command)
+
+func post_refresh_token(refresh_token_val: String) -> bool:
+    return _request("refresh_token", HTTPClient.METHOD_POST, "/api/Auth/refresh-token", {
+        "refreshToken": refresh_token_val.strip_edges()
+    })
 
 func _request(kind: String, method: int, path: String, body: Dictionary) -> bool:
     if _http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:

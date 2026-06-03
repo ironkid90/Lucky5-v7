@@ -16,3 +16,4 @@ public sealed record ContactReportRequest(int ContactTypeId, string Subject, str
 public sealed record DealRequest(int MachineId, decimal BetAmount);
 public sealed record DrawRequest(Guid RoundId, int[] HoldIndexes);
 public sealed record DoubleUpRequest(Guid RoundId, string Guess);
+public sealed record TokenRefreshRequest(string RefreshToken);

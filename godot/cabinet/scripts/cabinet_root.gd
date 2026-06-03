@@ -8,6 +8,8 @@ var store: CabinetStore = CabinetStoreScript.new()
 
 var api_base_url := "http://127.0.0.1:8080"
 var access_token := ""
+var refresh_token := ""
+var token_expires_at := 0.0
 var auth_username := ""
 var auth_password := ""
 var configured_machine_id := 1
@@ -35,6 +37,7 @@ var card_buttons: Array = []
 var action_buttons: Dictionary = {}
 var heartbeat_timer: Timer
 var replay_timer: Timer
+var token_refresh_timer: Timer
 var authenticating := false
 var pending_signup_username := ""
 var pending_signup_password := ""
@@ -61,6 +64,12 @@ func _ready() -> void:
 	replay_timer.one_shot = true
 	replay_timer.timeout.connect(_request_replay)
 	add_child(replay_timer)
+
+	token_refresh_timer = Timer.new()
+	token_refresh_timer.wait_time = 60.0
+	token_refresh_timer.autostart = true
+	token_refresh_timer.timeout.connect(_check_token_refresh)
+	add_child(token_refresh_timer)
 
 	if access_token.is_empty():
 		store.apply_transport_error("Log in to play against the local Lucky5 API.")
@@ -188,6 +197,7 @@ func _build_ui() -> void:
 	_add_action_button(grid, "cancel_hold", "CANCEL\nHOLD")
 	_add_action_button(grid, "big", "BIG")
 	_add_action_button(grid, "small", "SMALL")
+	_add_action_button(grid, "swap_double_up_card", "SWAP\nCARD")
 	_add_action_button(grid, "take_half", "TAKE\nHALF")
 	_add_action_button(grid, "take_score", "TAKE\nSCORE")
 	_add_action_button(grid, "cash_out", "CASH OUT")
@@ -331,6 +341,8 @@ func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_mes
 	var data = _unwrap_response_data(body)
 	if kind == "login":
 		_apply_login_response(body)
+	elif kind == "refresh_token":
+		_apply_login_response(body)
 	elif kind == "signup":
 		auth_status = _response_message(body, "SIGNUP OK - ENTER OTP")
 		_refresh_ui()
@@ -391,12 +403,36 @@ func _apply_login_response(body) -> void:
 		return
 
 	access_token = token
+	var refresh := ""
+	if typeof(tokens) == TYPE_DICTIONARY:
+		var token_data: Dictionary = tokens
+		if token_data.has("refreshToken"):
+			refresh = str(token_data["refreshToken"])
+		elif token_data.has("RefreshToken"):
+			refresh = str(token_data["RefreshToken"])
+	refresh_token = refresh
+	if typeof(tokens) == TYPE_DICTIONARY and tokens.has("expiresAtUtc"):
+		token_expires_at = Time.get_unix_time_from_datetime_string(str(tokens["expiresAtUtc"])) if str(tokens["expiresAtUtc"]).length() > 0 else 0.0
+	else:
+		token_expires_at = Time.get_unix_time_from_system() + 28800.0
 	pending_signup_username = ""
 	pending_signup_password = ""
 	auth_status = "SIGNED IN - LOADING CABINET"
 	api.set_access_token(access_token)
 	_request_snapshot()
 	_refresh_ui()
+
+func _check_token_refresh() -> void:
+	if refresh_token.is_empty() or access_token.is_empty():
+		return
+	var now := Time.get_unix_time_from_system()
+	if token_expires_at > 0.0 and now > token_expires_at - 3600.0:
+		_do_token_refresh()
+
+func _do_token_refresh() -> void:
+	if refresh_token.is_empty():
+		return
+	api.post_refresh_token(refresh_token)
 
 func _apply_replay_events(events: Array) -> void:
 	var applied := false
@@ -515,6 +551,10 @@ func _on_action_pressed(id: String) -> void:
 			_send_double_up_guess("big")
 		"small":
 			_send_double_up_guess("small")
+		"swap_double_up_card":
+			var swap_round_id := store.current_round_id()
+			if not swap_round_id.is_empty():
+				_send_command("swap_double_up_card", {"round_id": swap_round_id, "swap_position": 0})
 		"take_half":
 			var round_id := store.current_round_id()
 			if not round_id.is_empty():

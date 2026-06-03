@@ -65,6 +65,11 @@ func post_replay(machine_id: int, last_state_version: int, last_sequence_number:
 func post_command(command: Dictionary) -> bool:
     return _request("command", HTTPClient.METHOD_POST, "/api/Game/cabinet/command", command)
 
+func post_refresh_token(refresh_token_val: String) -> bool:
+    return _request("refresh_token", HTTPClient.METHOD_POST, "/api/Auth/refresh-token", {
+        "refreshToken": refresh_token_val.strip_edges()
+    })
+
 func _request(kind: String, method: int, path: String, body: Dictionary) -> bool:
     if _http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
         request_completed.emit(kind, false, {}, 0, "HTTP client is busy")

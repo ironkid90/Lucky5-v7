@@ -60,7 +60,15 @@ public sealed record CabinetMachineStateDto(
     [property: JsonPropertyName("machine_serie")]
     string MachineSerie,
     [property: JsonPropertyName("machine_kent")]
-    string MachineKent);
+    string MachineKent,
+    [property: JsonPropertyName("first_recharge_credit")]
+    string FirstRechargeCredit,
+    [property: JsonPropertyName("second_recharge_credit")]
+    string SecondRechargeCredit,
+    [property: JsonPropertyName("first_recharge_bonus")]
+    string FirstRechargeBonus,
+    [property: JsonPropertyName("second_recharge_bonus")]
+    string SecondRechargeBonus);
 
 public sealed record CabinetVariantRefDto(
     [property: JsonPropertyName("variant_id")]

@@ -22,7 +22,11 @@
     "max_bet": "1000000",
     "machine_serial": "GODOT-FIXTURE",
     "machine_serie": "L5",
-    "machine_kent": "001"
+    "machine_kent": "001",
+    "first_recharge_credit": "200000",
+    "second_recharge_credit": "500000",
+    "first_recharge_bonus": "20000",
+    "second_recharge_bonus": "75000"
   },
   "variant": {
     "variant_id": "lucky5.classic",
@@ -89,6 +93,7 @@
     { "id": "hold_4", "enabled": false, "visible": true, "pressed": false, "reason": "disabled_in_idle" },
     { "id": "big", "enabled": false, "visible": true, "pressed": false, "reason": "disabled_in_idle" },
     { "id": "small", "enabled": false, "visible": true, "pressed": false, "reason": "disabled_in_idle" },
+    { "id": "swap_double_up_card", "enabled": false, "visible": true, "pressed": false, "reason": "disabled_in_idle" },
     { "id": "take_half", "enabled": false, "visible": true, "pressed": false, "reason": "disabled_in_idle" },
     { "id": "take_score", "enabled": false, "visible": true, "pressed": false, "reason": "disabled_in_idle" },
     { "id": "cash_in", "enabled": true, "visible": true, "pressed": false, "reason": "" },

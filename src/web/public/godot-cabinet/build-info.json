@@ -1,0 +1,11 @@
+{
+  "schema_version": "lucky5.godot_web_export.v1",
+  "exported_at_utc": "2026-06-04T14:54:37.3889896Z",
+  "godot_version": "4.6.3.stable.official.7d41c59c4",
+  "godot_project_path": "godot/cabinet",
+  "export_preset": "Web",
+  "output_path": "src/web/public/godot-cabinet/index.html",
+  "entry_url": "/godot",
+  "asset_url": "/godot-cabinet/index.html",
+  "status": "passed"
+}

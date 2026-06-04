@@ -614,9 +614,13 @@ public static class GodotCabinetRegressionTests
                 && gameService.Contains("Kind: \"lucky5\"", StringComparison.Ordinal)
                 && gameService.Contains("FindRepeatedRankCabinetCard(activeRound?.ResultCards, 4)", StringComparison.Ordinal)
                 && gameService.Contains("TryBuildCabinetCardFromCode(\"5S\")", StringComparison.Ordinal)
+                && rootScript.Contains("const BONUS_COIN_SIZE := Vector2(28, 28)", StringComparison.Ordinal)
                 && rootScript.Contains("var bonus_stage_panel: PanelContainer", StringComparison.Ordinal)
+                && rootScript.Contains("var bonus_coin_rect: TextureRect", StringComparison.Ordinal)
                 && rootScript.Contains("bonus_stage_panel = PanelContainer.new()", StringComparison.Ordinal)
+                && rootScript.Contains("bonus_stage_panel.custom_minimum_size = Vector2(184, 40)", StringComparison.Ordinal)
                 && rootScript.Contains("bonus_stage_card = TextureRect.new()", StringComparison.Ordinal)
+                && rootScript.Contains("bonus_stage_card.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED", StringComparison.Ordinal)
                 && rootScript.Contains("func _refresh_bonus_stage() -> void:", StringComparison.Ordinal)
                 && rootScript.Contains("var bonus: Dictionary = _bonus_presentation()", StringComparison.Ordinal)
                 && rootScript.Contains("func _fallback_bonus_presentation() -> Dictionary:", StringComparison.Ordinal)
@@ -627,11 +631,16 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("arcade_font = _load_cabinet_font(\"fonts/ARCADE.ttf\")", StringComparison.Ordinal)
                 && rootScript.Contains("press_sound = _load_cabinet_audio(CABINET_PRESS_SOUND)", StringComparison.Ordinal)
                 && rootScript.Contains("_set_bonus_stage_texture(card_code, active, kind)", StringComparison.Ordinal)
+                && rootScript.Contains("bonus_coin_rect.texture = _load_cabinet_texture(\"images/coin.png\")", StringComparison.Ordinal)
+                && rootScript.Contains("func _refresh_bonus_coin(active: bool, kind: String, amount: int, free_count: int) -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("_refresh_bonus_coin(active, kind, amount, free_count)", StringComparison.Ordinal)
                 && rootScript.Contains("_load_cabinet_texture(\"images/lucky5.png\")", StringComparison.Ordinal)
                 && rootScript.Contains("_load_cabinet_texture(\"images/bonus.png\")", StringComparison.Ordinal)
                 && rootScript.Contains("_load_cabinet_texture(\"images/free.png\")", StringComparison.Ordinal)
+                && rootScript.Contains("bonus_stage_tween.tween_property(bonus_coin_rect, \"scale\", Vector2(1.0, 1.0), 0.42)", StringComparison.Ordinal)
                 && rootScript.Contains("_style_bonus_stage(active)", StringComparison.Ordinal)
-                && rootScript.Contains("_animate_bonus_stage(active)", StringComparison.Ordinal));
+                && rootScript.Contains("_animate_bonus_stage(active)", StringComparison.Ordinal)
+                && RepoFileExists("godot", "cabinet", "skins", "cabinet_ai9", "images", "coin.png"));
 
         Assert(
             failures,

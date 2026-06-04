@@ -1738,7 +1738,7 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	var switch_count_decreased := _prev_switches_remaining >= 0 and switches < _prev_switches_remaining
 	var switch_replaced_dealer := challenger_code.is_empty() and dealer_changed and (switch_count_decreased or command_switched_dealer)
 	var inferred_win_reveal := challenger_code.is_empty() and dealer_changed and not switch_replaced_dealer
-	var board_dealer_code := _prev_dealer_code if inferred_win_reveal else dealer_code
+	var board_dealer_code := _prev_dealer_code if ((inferred_win_reveal or switch_replaced_dealer) and not _prev_dealer_code.is_empty()) else dealer_code
 	var board_challenger_code := dealer_code if inferred_win_reveal else challenger_code
 	var board_status := "Win" if inferred_win_reveal else status
 
@@ -2006,7 +2006,7 @@ func _start_du_card_shuffle(new_dealer_code: String, new_player_code: String) ->
 		du_shuffle_timer.start()
 
 func _start_du_dealer_replace_shuffle(new_dealer_code: String) -> void:
-	if du_dealer_rect == null:
+	if du_dealer_rect == null or du_challenger_rect == null:
 		return
 	du_shuffle_target_dealer = new_dealer_code
 	du_shuffle_target_challenger = ""
@@ -2019,12 +2019,10 @@ func _start_du_dealer_replace_shuffle(new_dealer_code: String) -> void:
 	if du_challenger_label != null:
 		du_challenger_label.text = "BIG / SMALL ?"
 		du_challenger_label.add_theme_color_override("font_color", COLOR_GOLD)
-	if du_challenger_rect != null:
-		du_challenger_rect.texture = _card_back_texture(false)
-		du_challenger_rect.modulate = Color(1, 1, 1, 1.0)
-		du_challenger_rect.scale = Vector2(1.0, 1.0)
+	du_challenger_rect.texture = _card_back_texture(false)
+	du_challenger_rect.modulate = Color(1, 1, 1, 1.0)
+	du_challenger_rect.scale = Vector2(0.92, 0.92)
 	du_dealer_rect.modulate = Color(1, 1, 1, 1)
-	du_dealer_rect.scale = Vector2(0.92, 0.92)
 	_process_du_shuffle()
 	if du_shuffle_timer != null and du_shuffle_timer.is_stopped():
 		du_shuffle_timer.start()

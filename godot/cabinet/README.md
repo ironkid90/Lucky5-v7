@@ -11,6 +11,9 @@ LUCKY5_API_BASE_URL=http://127.0.0.1:8080
 LUCKY5_ACCESS_TOKEN=<optional preloaded player bearer token>
 LUCKY5_AUTH_USERNAME=<player username>
 LUCKY5_AUTH_PASSWORD=<player password>
+# Optional launcher aliases accepted by the cabinet:
+LUCKY5_KIOSK_USERNAME=<player username>
+LUCKY5_KIOSK_PASSWORD=<player password>
 LUCKY5_MACHINE_ID=1
 ```
 
@@ -54,7 +57,8 @@ The scene boots `res://data/fixture_snapshot.json` immediately, then hydrates fr
 When `LUCKY5_ACCESS_TOKEN` is absent, the cabinet authenticates with
 `LUCKY5_AUTH_USERNAME` and `LUCKY5_AUTH_PASSWORD`, stores the returned bearer
 token in memory, and re-authenticates on `401` recovery paths before requesting
-another authoritative snapshot.
+another authoritative snapshot. `LUCKY5_KIOSK_USERNAME` and
+`LUCKY5_KIOSK_PASSWORD` are accepted as compatibility aliases.
 
 ## Playable controls
 

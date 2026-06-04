@@ -123,8 +123,11 @@ if ($Web) {
 if ($launchGodot) {
     Write-Host "[3/3] Launching Godot cabinet..." -ForegroundColor Yellow
     $env:LUCKY5_API_BASE_URL = "http://127.0.0.1:$Port"
-    if (-not $env:LUCKY5_ACCESS_TOKEN) {
-        Write-Warning "LUCKY5_ACCESS_TOKEN not set. Godot will use interactive auth or fixture mode."
+    $hasCredentialBootstrap = -not [string]::IsNullOrWhiteSpace($env:LUCKY5_AUTH_USERNAME) -and -not [string]::IsNullOrWhiteSpace($env:LUCKY5_AUTH_PASSWORD)
+    if (-not $env:LUCKY5_ACCESS_TOKEN -and -not $hasCredentialBootstrap) {
+        $env:LUCKY5_AUTH_USERNAME = "tester"
+        $env:LUCKY5_AUTH_PASSWORD = "password"
+        Write-Host "  LUCKY5_ACCESS_TOKEN not set; using local test login tester / password." -ForegroundColor DarkGray
     }
     $godotProjectPath = "$root\godot\cabinet"
     $godotProcess = Start-Process -FilePath $GodotBin `

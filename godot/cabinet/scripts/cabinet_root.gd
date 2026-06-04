@@ -35,18 +35,22 @@ const BUTTON_PRESSED_SHADOW_SIZE := 1
 const BUTTON_ASSET_BASE_PATH := "res://skins/lucky5/buttons/"
 const BUTTON_ASSET_FONT_SIZE := 13
 
-const CARD_SIZE := Vector2(110, 154)
+const CARD_AREA_MIN_HEIGHT := 180
+const CARD_SIZE := Vector2(122, 171)
 const CARD_SMALL_SIZE := Vector2(80, 112)
 const CARD_GAP := 6
+const CONTROL_DECK_MIN_HEIGHT := 324
+const CONTROL_HOLD_BUTTON_HEIGHT := 70
+const CONTROL_ACTION_BUTTON_HEIGHT := 80
+const CONTROL_BOTTOM_BUTTON_HEIGHT := 72
 const DEAL_DURATION := 0.22
 const DEAL_STAGGER := 0.10
 const DRAW_OUT_DURATION := 0.055
 const DRAW_IN_DURATION := 0.075
 const DRAW_STAGGER := 0.045
 const DU_SWITCH_DURATION := 0.22
-const DU_MAIN_CARD_SIZE := Vector2(150, 210)
-const DU_BOARD_CARD_SIZE := Vector2(54, 76)
-const DU_TRAIL_CARD_SIZE := Vector2(34, 48)
+const DU_BOARD_CARD_SIZE := Vector2(92, 129)
+const DU_TRAIL_CARD_SIZE := Vector2(92, 129)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
 const DU_SHUFFLE_INTERVAL := 0.08
 const DU_SHUFFLE_TICKS := 8
@@ -121,6 +125,7 @@ var hold_buttons: Array = []
 var menu_overlay: PanelContainer
 var menu_panel: VBoxContainer
 var menu_open := false
+var card_area_panel: Panel
 var card_container: HBoxContainer
 var idle_title_label: Label
 var du_dealer_rect: TextureRect
@@ -238,8 +243,10 @@ func _load_environment() -> void:
 	if not env_base.is_empty(): api_base_url = env_base
 	access_token = OS.get_environment("LUCKY5_ACCESS_TOKEN")
 	var env_username := OS.get_environment("LUCKY5_AUTH_USERNAME")
+	if env_username.is_empty(): env_username = OS.get_environment("LUCKY5_KIOSK_USERNAME")
 	if env_username.is_empty(): env_username = OS.get_environment("LUCKY5_USERNAME")
 	var env_password := OS.get_environment("LUCKY5_AUTH_PASSWORD")
+	if env_password.is_empty(): env_password = OS.get_environment("LUCKY5_KIOSK_PASSWORD")
 	if env_password.is_empty(): env_password = OS.get_environment("LUCKY5_PASSWORD")
 	kiosk_auth_configured = not env_username.is_empty() and not env_password.is_empty()
 	auth_username = env_username
@@ -441,6 +448,7 @@ func _build_ui() -> void:
 
 	var bottom_spacer := Control.new()
 	bottom_spacer.name = "CabinetBottomDeckSpacer"
+	bottom_spacer.custom_minimum_size = Vector2(0, 8)
 	bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(bottom_spacer)
 
@@ -459,7 +467,7 @@ func _build_control_deck(parent: Node) -> void:
 	ps.corner_radius_top_left = 8; ps.corner_radius_top_right = 8
 	ps.corner_radius_bottom_left = 8; ps.corner_radius_bottom_right = 8
 	deck.add_theme_stylebox_override("panel", ps)
-	deck.custom_minimum_size = Vector2(0, 248)
+	deck.custom_minimum_size = Vector2(0, CONTROL_DECK_MIN_HEIGHT)
 	parent.add_child(deck)
 	_decorate_control_deck(deck)
 
@@ -482,7 +490,7 @@ func _build_control_deck(parent: Node) -> void:
 	rows.add_child(hold_row)
 	hold_buttons.clear()
 	for index in range(5):
-		var hold_button := _make_button("HOLD", 58, COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK, "hold")
+		var hold_button := _make_button("HOLD", CONTROL_HOLD_BUTTON_HEIGHT, COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK, "hold")
 		hold_button.name = "HoldButton%d" % (index + 1)
 		hold_button.pressed.connect(_on_hold_button_pressed.bind(index))
 		hold_buttons.append(hold_button)
@@ -500,7 +508,7 @@ func _build_control_deck(parent: Node) -> void:
 		["bet", "BET", COLOR_BUTTON_GREEN, COLOR_WHITE, Color(0.180, 0.900, 0.260)],
 	]
 	for def in action_defs:
-		_add_deck_action_button(action_row, def, 72)
+		_add_deck_action_button(action_row, def, CONTROL_ACTION_BUTTON_HEIGHT)
 
 	var bottom_row := HBoxContainer.new()
 	bottom_row.name = "ArcadeBottomRow"
@@ -512,7 +520,7 @@ func _build_control_deck(parent: Node) -> void:
 		["take_score", "TAKE\nSCORE", COLOR_BUTTON_ORANGE, COLOR_BG, COLOR_GOLD_DARK],
 	]
 	for def in bottom_defs:
-		_add_deck_action_button(bottom_row, def, 64)
+		_add_deck_action_button(bottom_row, def, CONTROL_BOTTOM_BUTTON_HEIGHT)
 
 	bet_label = _make_label("BET %s" % selected_bet, 13, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	bet_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -757,7 +765,7 @@ func _build_credit_bar(parent: Node) -> void:
 	bar.add_child(stake_label)
 
 func _build_card_area(parent: Node) -> void:
-	var bg_panel := Panel.new()
+	card_area_panel = Panel.new()
 	var cps := StyleBoxFlat.new()
 	cps.bg_color = Color(0.02, 0.01, 0.005, 0.6)
 	cps.border_color = COLOR_GOLD_DARK
@@ -765,14 +773,14 @@ func _build_card_area(parent: Node) -> void:
 	cps.border_width_top = 1; cps.border_width_bottom = 1
 	cps.corner_radius_top_left = 8; cps.corner_radius_top_right = 8
 	cps.corner_radius_bottom_left = 8; cps.corner_radius_bottom_right = 8
-	bg_panel.add_theme_stylebox_override("panel", cps)
-	bg_panel.custom_minimum_size = Vector2(0, 180)
-	parent.add_child(bg_panel)
+	card_area_panel.add_theme_stylebox_override("panel", cps)
+	card_area_panel.custom_minimum_size = Vector2(0, CARD_AREA_MIN_HEIGHT)
+	parent.add_child(card_area_panel)
 
 	card_container = HBoxContainer.new()
 	card_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	card_container.add_theme_constant_override("separation", CARD_GAP)
-	bg_panel.add_child(card_container)
+	card_area_panel.add_child(card_container)
 
 	idle_title_label = _make_label(IDLE_TITLE_TEXT, 42, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	idle_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -780,7 +788,7 @@ func _build_card_area(parent: Node) -> void:
 	idle_title_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
 	idle_title_label.add_theme_constant_override("shadow_outline_size", 4)
 	idle_title_label.visible = false
-	bg_panel.add_child(idle_title_label)
+	card_area_panel.add_child(idle_title_label)
 
 	for index in range(5):
 		var slot := VBoxContainer.new()
@@ -949,13 +957,15 @@ func _build_du_info(parent: Node) -> void:
 	du_info_panel.add_child(du_label_node)
 
 	du_trail_container = HBoxContainer.new()
+	du_trail_container.name = "DoubleUpDeckRow"
 	du_trail_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	du_trail_container.add_theme_constant_override("separation", 4)
+	du_trail_container.add_theme_constant_override("separation", 7)
 	du_info_panel.add_child(du_trail_container)
 
 	du_cards.clear()
 	for index in range(DOUBLE_UP_BOARD_SLOT_COUNT):
 		var slot := VBoxContainer.new()
+		slot.name = "DoubleUpDeckSlot%d" % index
 		slot.alignment = BoxContainer.ALIGNMENT_CENTER
 		slot.add_theme_constant_override("separation", 1)
 		var slot_label := _make_label("", 8, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
@@ -968,51 +978,12 @@ func _build_du_info(parent: Node) -> void:
 		slot.add_child(slot_rect)
 		du_trail_container.add_child(slot)
 		du_cards.append({ "label": slot_label, "rect": slot_rect })
-
-	var du_focus_stage := Control.new()
-	du_focus_stage.name = "DoubleUpSingleCardStage"
-	du_focus_stage.custom_minimum_size = Vector2(0, DU_MAIN_CARD_SIZE.y + 24)
-	du_info_panel.add_child(du_focus_stage)
-
-	var challenger_slot := VBoxContainer.new()
-	challenger_slot.name = "DoubleUpChallengerStage"
-	challenger_slot.alignment = BoxContainer.ALIGNMENT_CENTER
-	challenger_slot.add_theme_constant_override("separation", 1)
-	challenger_slot.custom_minimum_size = Vector2(DU_MAIN_CARD_SIZE.x, DU_MAIN_CARD_SIZE.y + 18)
-	challenger_slot.anchor_left = 0.5
-	challenger_slot.anchor_right = 0.5
-	challenger_slot.offset_left = -DU_MAIN_CARD_SIZE.x * 0.5
-	challenger_slot.offset_right = DU_MAIN_CARD_SIZE.x * 0.5
-	challenger_slot.offset_top = 0
-	challenger_slot.offset_bottom = DU_MAIN_CARD_SIZE.y + 18
-	du_challenger_label = _make_label("BIG / SMALL ?", 9, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
-	challenger_slot.add_child(du_challenger_label)
-	du_challenger_rect = TextureRect.new()
-	du_challenger_rect.custom_minimum_size = DU_MAIN_CARD_SIZE
-	du_challenger_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	du_challenger_rect.stretch_mode = TextureRect.STRETCH_SCALE
-	challenger_slot.add_child(du_challenger_rect)
-	du_focus_stage.add_child(challenger_slot)
-
-	var dealer_slot := VBoxContainer.new()
-	dealer_slot.name = "DoubleUpDealerReference"
-	dealer_slot.alignment = BoxContainer.ALIGNMENT_CENTER
-	dealer_slot.add_theme_constant_override("separation", 1)
-	dealer_slot.custom_minimum_size = Vector2(DU_BOARD_CARD_SIZE.x, DU_BOARD_CARD_SIZE.y + 14)
-	dealer_slot.anchor_left = 0.5
-	dealer_slot.anchor_right = 0.5
-	dealer_slot.offset_left = -DU_MAIN_CARD_SIZE.x * 0.5 - 10
-	dealer_slot.offset_right = -DU_MAIN_CARD_SIZE.x * 0.5 + DU_BOARD_CARD_SIZE.x + 10
-	dealer_slot.offset_top = 24
-	dealer_slot.offset_bottom = 24 + DU_BOARD_CARD_SIZE.y + 14
-	du_dealer_label = _make_label("DEALER", 8, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
-	dealer_slot.add_child(du_dealer_label)
-	du_dealer_rect = TextureRect.new()
-	du_dealer_rect.custom_minimum_size = DU_BOARD_CARD_SIZE
-	du_dealer_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	du_dealer_rect.stretch_mode = TextureRect.STRETCH_SCALE
-	dealer_slot.add_child(du_dealer_rect)
-	du_focus_stage.add_child(dealer_slot)
+		if index == 0:
+			du_dealer_label = slot_label
+			du_dealer_rect = slot_rect
+		elif index == 1:
+			du_challenger_label = slot_label
+			du_challenger_rect = slot_rect
 
 	var du_infos := HBoxContainer.new()
 	du_infos.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1322,6 +1293,7 @@ func _refresh_ui() -> void:
 	var du_data: Dictionary = store.snapshot.get("double_up", {})
 	var du_active := bool(du_data.get("active", false))
 	_maybe_auto_start_double_up(game_state, du_active)
+	_refresh_card_area_layout(du_active)
 
 	_refresh_cards(game_state, du_active)
 	_refresh_du_panel(du_data, du_active)
@@ -1345,6 +1317,12 @@ func _refresh_ui() -> void:
 		var held := held_indexes.has(index)
 		hold_button.disabled = not _is_action_enabled("hold_%d" % index)
 		hold_button.text = "HELD" if held else ("" if _button_uses_asset(hold_button) else "HOLD")
+
+func _refresh_card_area_layout(du_active: bool) -> void:
+	if card_area_panel == null:
+		return
+	card_area_panel.visible = not du_active
+	card_area_panel.custom_minimum_size = Vector2(0, 0 if du_active else CARD_AREA_MIN_HEIGHT)
 
 func _refresh_cards(game_state: String, du_active: bool) -> void:
 	var cards := store.cards()
@@ -1686,12 +1664,21 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	if typeof(challenger_card) == TYPE_DICTIONARY:
 		challenger_code = str(challenger_card.get("code", ""))
 
-	_prepare_du_board(du_data, dealer_code, challenger_code, status)
-
 	var dealer_changed := not dealer_code.is_empty() and _prev_dealer_code != "" and _prev_dealer_code != dealer_code
 	var challenger_changed := not challenger_code.is_empty() and _prev_challenger_code != challenger_code
+	var inferred_win_reveal := challenger_code.is_empty() and dealer_changed
+	var board_dealer_code := _prev_dealer_code if inferred_win_reveal else dealer_code
+	var board_challenger_code := dealer_code if inferred_win_reveal else challenger_code
+	var board_status := "Win" if inferred_win_reveal else status
 
-	if challenger_code.is_empty():
+	_prepare_du_board(du_data, board_dealer_code, board_challenger_code, board_status)
+
+	if inferred_win_reveal:
+		if du_promote_timer != null:
+			du_promote_timer.stop()
+		_start_du_card_shuffle(board_dealer_code, board_challenger_code)
+		_queue_du_dealer_promotion(board_challenger_code)
+	elif challenger_code.is_empty():
 		if du_promote_timer != null:
 			du_promote_timer.stop()
 		du_pending_promote_dealer = ""
@@ -1720,43 +1707,48 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 func _prepare_du_board(du_data: Dictionary, dealer_code: String, challenger_code: String, status: String) -> void:
 	_clear_du_board()
 
-	_refresh_du_trail(du_data)
+	_refresh_du_trail(du_data, dealer_code, challenger_code, status)
 
-	if not dealer_code.is_empty():
-		du_dealer_label.text = "DEALER"
-		du_dealer_label.add_theme_color_override("font_color", COLOR_GREEN if _is_lucky_du_card(du_data, dealer_code) else COLOR_BLUE)
-		_set_du_card_texture(du_dealer_rect, dealer_code)
-	else:
-		du_dealer_label.text = "DEALER"
-		du_dealer_label.add_theme_color_override("font_color", COLOR_BLUE)
-		du_dealer_rect.texture = _card_back_texture(false)
-		du_dealer_rect.modulate = Color(1, 1, 1, 0.34)
+func _refresh_du_trail(du_data: Dictionary, dealer_code: String, challenger_code: String, status: String) -> void:
+	var trail_codes := _du_visible_deck_codes(du_data, dealer_code, challenger_code, du_cards.size())
+	var dealer_index := _du_last_code_index(trail_codes, dealer_code)
+	var challenger_index := _du_last_code_index(trail_codes, challenger_code)
+	var shuffle_index := -1
+	if challenger_code.is_empty() and dealer_code.length() >= 2:
+		shuffle_index = min(trail_codes.size(), du_cards.size() - 1)
 
-	du_challenger_rect.custom_minimum_size = DU_MAIN_CARD_SIZE
-	if not challenger_code.is_empty():
-		du_challenger_label.text = _du_result_label(status)
-		du_challenger_label.add_theme_color_override("font_color", COLOR_GREEN if _is_lucky_du_card(du_data, challenger_code) else COLOR_GOLD)
-		_set_du_card_texture(du_challenger_rect, challenger_code)
-	else:
-		du_challenger_label.text = "BIG / SMALL ?"
-		du_challenger_label.add_theme_color_override("font_color", COLOR_GOLD)
-		du_challenger_rect.texture = _card_back_texture(false)
-		du_challenger_rect.modulate = Color(1, 1, 1, 1.0)
-		du_challenger_rect.scale = Vector2(1.0, 1.0)
-
-func _refresh_du_trail(du_data: Dictionary) -> void:
-	var dealer_card: Variant = du_data.get("dealer_card", {})
-	var dealer_code := ""
-	if typeof(dealer_card) == TYPE_DICTIONARY:
-		dealer_code = str(dealer_card.get("code", ""))
-
-	var trail_codes := _du_visible_trail_codes(du_data, dealer_code, du_cards.size())
 	for index in range(du_cards.size()):
 		if index < trail_codes.size():
 			var code := str(trail_codes[index])
-			_set_du_board_slot(index, code, "PLAYED", _is_lucky_du_card(du_data, code))
+			var label_text := "DEALER" if index == dealer_index else "HIT"
+			if index == challenger_index:
+				label_text = _du_result_label(status)
+			_set_du_board_slot(index, code, label_text, _is_lucky_du_card(du_data, code))
+			if index == dealer_index:
+				_set_du_dealer_slot(index)
+			if index == challenger_index:
+				_set_du_challenger_slot(index)
+		elif index == shuffle_index:
+			_set_du_board_back(index, "BIG / SMALL ?", 1.0)
+			_set_du_challenger_slot(index)
 		else:
 			_set_du_board_back(index, "", 0.18)
+
+	if dealer_index < 0 and not trail_codes.is_empty():
+		_set_du_dealer_slot(0)
+		_set_du_board_slot(0, str(trail_codes[0]), "DEALER", _is_lucky_du_card(du_data, str(trail_codes[0])))
+	if du_challenger_rect == null and du_cards.size() > 1:
+		_set_du_challenger_slot(1)
+
+func _du_visible_deck_codes(du_data: Dictionary, dealer_code: String, challenger_code: String, max_count: int) -> Array:
+	var result := _du_visible_trail_codes(du_data, "", max_count)
+	if dealer_code.length() >= 2 and (result.is_empty() or str(result[result.size() - 1]) != dealer_code):
+		result.append(dealer_code)
+	if challenger_code.length() >= 2 and (result.is_empty() or str(result[result.size() - 1]) != challenger_code):
+		result.append(challenger_code)
+	while result.size() > max_count:
+		result.remove_at(0)
+	return result
 
 func _du_visible_trail_codes(du_data: Dictionary, dealer_code: String, max_count: int) -> Array:
 	var result: Array = []
@@ -1786,6 +1778,14 @@ func _du_visible_trail_codes(du_data: Dictionary, dealer_code: String, max_count
 	for i in range(start_index, limit):
 		result.append(str(codes[i]))
 	return result
+
+func _du_last_code_index(codes: Array, target_code: String) -> int:
+	if target_code.length() < 2:
+		return -1
+	for index in range(codes.size() - 1, -1, -1):
+		if str(codes[index]) == target_code:
+			return index
+	return -1
 
 func _du_entry_code(entry: Variant) -> String:
 	if typeof(entry) == TYPE_DICTIONARY:
@@ -1842,6 +1842,10 @@ func _is_lucky_du_card(du_data: Dictionary, code: String) -> bool:
 func _clear_du_board() -> void:
 	for index in range(du_cards.size()):
 		_set_du_board_back(index, "", 0.34)
+	du_dealer_rect = null
+	du_dealer_label = null
+	du_challenger_rect = null
+	du_challenger_label = null
 	if du_dealer_label != null:
 		du_dealer_label.text = "DEALER"
 		du_dealer_label.add_theme_color_override("font_color", COLOR_BLUE)
@@ -1853,10 +1857,23 @@ func _clear_du_board() -> void:
 		du_challenger_label.text = "BIG / SMALL ?"
 		du_challenger_label.add_theme_color_override("font_color", COLOR_GOLD)
 	if du_challenger_rect != null:
-		du_challenger_rect.custom_minimum_size = DU_MAIN_CARD_SIZE
 		du_challenger_rect.texture = _card_back_texture(false)
 		du_challenger_rect.modulate = Color(1, 1, 1, 1.0)
 		du_challenger_rect.scale = Vector2(1.0, 1.0)
+
+func _set_du_dealer_slot(index: int) -> void:
+	if index < 0 or index >= du_cards.size():
+		return
+	var slot: Dictionary = du_cards[index]
+	du_dealer_label = slot["label"]
+	du_dealer_rect = slot["rect"]
+
+func _set_du_challenger_slot(index: int) -> void:
+	if index < 0 or index >= du_cards.size():
+		return
+	var slot: Dictionary = du_cards[index]
+	du_challenger_label = slot["label"]
+	du_challenger_rect = slot["rect"]
 
 func _set_du_board_slot(index: int, code: String, label_text: String, highlighted: bool) -> void:
 	if index < 0 or index >= du_cards.size():

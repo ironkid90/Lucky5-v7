@@ -30,7 +30,7 @@ public sealed record MachinePolicyTelemetry(
 ///
 /// Integration notes for the live repo:
 /// 1. Replace deal-time calls to ResolvePayoutScale(...) with ResolvePolicy(...).
-/// 2. Keep double-up offer decisions visible, but feed policy telemetry into session DTOs.
+/// 2. Keep double-up availability visible, but feed policy telemetry into session DTOs.
 /// 3. Preserve deterministic pre-shuffle behavior; all guardrails operate on distributions and future scaling only.
 /// </summary>
 public sealed record MachinePolicyResolution(

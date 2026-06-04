@@ -1,7 +1,7 @@
 # Lucky 5 v8 — "Cabinet Real" Plan
 
-**Status:** Tracks A+B+C code-complete. Track A RTP verification pending user-run sim.
-**Last updated:** 2026-04-20
+**Status:** Tracks A+B+C code-complete. Track A RTP verification passed on 2026-06-04 after fresh-machine smoothing, dynamic jackpot/double-up reserve, and always-on double-up deck-pressure fixes.
+**Last updated:** 2026-06-04
 **Scope:** Major version bump focused on (a) realistic arcade-cabinet visual & tactile feel, (b) engine RTP **calibration** to 80% composite **without changing any game rules**, and (c) targeted 2026-04-20 surgery (hold-badge fix, FH-target button, FH jackpot reposition, single-star 4OAK accrual, paytable drain for wins).
 **Non-goals:** Mobile-first redesign, new game modes, database migration (Data Connect schema remains aspirational).
 
@@ -21,7 +21,7 @@
 - Largest empirical leak under optimal play is the double-up layer (Ace-auto-win + optimal BIG/SMALL strategy + Lucky 5 no-lose safety).
 
 ### Root-cause analysis
-The v7 config declared `TargetDoubleUpRtp = 0.0950` but optimal players extract closer to 0.12 – 0.13 from the DU layer once Ace-auto-win and Lucky 5 safety are exploited. Because the controller's base target is computed as `TargetRtp - TargetJackpotRtp - TargetDoubleUpRtp`, an under-estimated DU target made the controller aim for a base RTP that, when summed with reality, overshot 80%. The correction loop would eventually pull down but only after material over-payment.
+The v7 config declared `TargetDoubleUpRtp = 0.0950` but optimal players extract closer to 0.12 – 0.13 from the DU layer once Ace-auto-win and Lucky 5 safety are exploited. Because the controller's base target was computed from fixed jackpot/double-up reservations, under-estimated overlay layers made the controller aim for a base RTP that, when summed with reality, overshot 80%. The correction loop would eventually pull down but only after material over-payment. Fresh machines also trusted very small round samples too quickly when the first buy-in had many credits.
 
 ### v8 calibration knob changes (rules unchanged)
 
@@ -35,18 +35,26 @@ All changes applied in `server/src/Lucky5.Domain/Game/CleanRoom/CoreModels.cs` `
 | `WarmupOpeningMediumScale` | 1.70 | **1.58** | Same. |
 | `WarmupOpeningBigScale` | 1.75 | **1.60** | Same. |
 | `DefaultPayoutScale` | 1.75 | **1.60** | Moves the neutral-state scale closer to the new target-base equilibrium. |
-| `MinPayoutScale` | 1.18 | **1.08** | Extends downward headroom when live RTP trends hot. |
+| `MinPayoutScale` | 1.18 | **1.09** | Extends downward headroom when live RTP trends hot while keeping short-run dry spells from sagging below target. |
 | `CrisisScaleBoost` | 0.07 | **0.05** | Prevents pity-boost from pushing the scale into overshoot during long loss streaks. |
 | `MaxPayoutScale` | 2.05 | 2.05 *(unchanged)* | Generosity cap preserved for cold streaks. |
+
+### 2026-06-04 stabilization pass
+
+- Fresh-machine RTP smoothing is round-sample based: the controller ignores RTP drift until `RtpMinSamplesForControl` rounds, so a first 200k-credit buy-in cannot make one early round look statistically mature.
+- Base target now reserves the larger of configured vs observed jackpot RTP and the larger of configured vs observed double-up RTP. This lets base payout scale respond to real overlay pressure instead of relying only on total-RTP drift.
+- Double-up remains available on every positive win. `MachinePolicy.ShouldOfferDoubleUp` is deliberately always-on; RTP control comes from base-game reserve/scaling plus bounded double-up deck pressure that can remove key auto-win/no-lose cards during hot or close-call states.
+- Double-up deck pressure is reversible: hot/near-close states can remove bounded high-leverage cards, while long Lucky 5 or medium-win drought states preserve key cards and trim only middle ranks so play keeps close calls and avoids stale dry spells.
+- Closed sessions with positive machine credits are preserved across reset/reopen attempts. The backend blocks cash-in/play until the player explicitly cashes out; reset no longer silently auto-cashes-out a closed machine.
 
 ### Test updates required
 - `CleanRoomEngineTests.cs` assertion `"Approved payout-scale defaults should match the v8 tuned architecture"` updated to the new default/min values.
 - All DU rule tests (Ace auto-win, unlimited chain, Lucky 5 switch, machine close) remain **unchanged** and must still pass.
 
-### Verification workflow (user-run)
+### Verification workflow
 ```powershell
-# 1. Regression suite (~30 s)
-dotnet run --project server/tests/Lucky5.Tests/Lucky5.Tests.csproj
+# 1. Regression suite
+dotnet run -c Release --project server/tests/Lucky5.Tests/Lucky5.Tests.csproj
 
 # 2. RTP sim — 200 k rounds smoke test
 dotnet run --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -c Release -- --rounds 200000
@@ -54,7 +62,16 @@ dotnet run --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -c Re
 # 3. RTP sim — 500 k rounds certification gate
 dotnet run --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -c Release -- --certification
 ```
-The sim gate passes when composite RTP lands in [78%, 82%] with the Balanced player strategy. If the first pass lands outside the target band, the following single-knob tweaks are the safest next levers (still no rule changes):
+Verified on 2026-06-04 with Release builds:
+
+| Command | Result |
+|---------|--------|
+| `dotnet run -c Release --project server/tests/Lucky5.Tests/Lucky5.Tests.csproj` | PASS |
+| `dotnet run -c Release --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -- --rounds 10000 --min-rtp 0.78 --max-rtp 0.82` | PASS, 78.32% RTP, double-up offer/win 100.00% |
+| `dotnet run -c Release --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -- --rounds 200000 --min-rtp 0.78 --max-rtp 0.82` | PASS, 81.20% RTP, double-up offer/win 100.00% |
+| `dotnet run -c Release --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -- --certification` | PASS, 80.37% RTP, double-up offer/win 100.00% |
+
+The sim gate passes when composite RTP lands in [78%, 82%] with the Balanced player strategy. If a future pass lands outside the target band, the following single-knob tweaks are the safest next levers (still no rule changes):
 
 1. **Persistent overshoot:** lower `DefaultPayoutScale` in 0.05 steps toward 1.50.
 2. **Undershoot:** raise `WarmupOpeningBigScale` back toward 1.70, or trim `TargetDoubleUpRtp` back toward 0.11.

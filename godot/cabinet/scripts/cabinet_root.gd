@@ -29,16 +29,18 @@ const COLOR_BUTTON_BLACK := Color(0.035, 0.035, 0.035, 1.0)
 const CARD_SIZE := Vector2(110, 154)
 const CARD_SMALL_SIZE := Vector2(80, 112)
 const CARD_GAP := 6
-const DEAL_DURATION := 0.35
-const DEAL_STAGGER := 0.12
+const DEAL_DURATION := 0.22
+const DEAL_STAGGER := 0.10
 const DU_SWITCH_DURATION := 0.22
 const DU_MAIN_CARD_SIZE := Vector2(150, 210)
-const DU_BOARD_CARD_SIZE := Vector2(78, 109)
+const DU_BOARD_CARD_SIZE := Vector2(54, 76)
 const DU_TRAIL_CARD_SIZE := Vector2(34, 48)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
 const DU_SHUFFLE_INTERVAL := 0.08
 const DU_SHUFFLE_TICKS := 8
 const DU_SHUFFLE_CODES := ["AS", "KH", "QD", "JC", "10S", "9H", "8D", "7C"]
+const WIN_COUNTER_MIN_DURATION := 0.18
+const WIN_COUNTER_MAX_DURATION := 0.75
 const COMMAND_TIMEOUT_SECONDS := 15.0
 
 # ─── state vars ───
@@ -95,6 +97,7 @@ var cash_in_edit: LineEdit
 var bet_label: Label
 var action_buttons: Dictionary = {}
 var hold_buttons: Array = []
+var menu_overlay: PanelContainer
 var menu_panel: VBoxContainer
 var menu_open := false
 var card_container: HBoxContainer
@@ -143,6 +146,12 @@ var du_shuffle_target_dealer := ""
 var du_shuffle_target_challenger := ""
 var _prev_dealer_code := ""
 var _prev_challenger_code := ""
+var win_displayed_amount := 0
+var win_target_amount := 0
+var win_counter_tween: Tween
+var win_pulse_tween: Tween
+var credit_pulse_tween: Tween
+var last_machine_credit_amount := -1
 
 # ─── lifecycle ───
 func _ready() -> void:
@@ -262,12 +271,14 @@ func _build_ui() -> void:
 	var root := ScrollContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	root.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(root)
 
 	var vbox := VBoxContainer.new()
 	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vbox.add_theme_constant_override("separation", 8)
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(vbox)
 
 	var margin := MarginContainer.new()
@@ -276,8 +287,10 @@ func _build_ui() -> void:
 	margin.add_theme_constant_override("margin_top", 10)
 	margin.add_theme_constant_override("margin_bottom", 10)
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(margin)
 	var content := VBoxContainer.new()
+	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 6)
 	margin.add_child(content)
 
@@ -306,8 +319,13 @@ func _build_ui() -> void:
 	recovery_label = _make_label("", 14, COLOR_RED, HORIZONTAL_ALIGNMENT_CENTER)
 	content.add_child(recovery_label)
 
+	var bottom_spacer := Control.new()
+	bottom_spacer.name = "CabinetBottomDeckSpacer"
+	bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(bottom_spacer)
+
 	_build_control_deck(content)
-	_build_menu_panel(content)
+	_build_menu_panel(self)
 
 	_build_admin_screen(content)
 
@@ -387,11 +405,37 @@ func _add_deck_action_button(row: HBoxContainer, def: Array, min_h: int) -> void
 	row.add_child(button)
 
 func _build_menu_panel(parent: Node) -> void:
+	menu_overlay = PanelContainer.new()
+	menu_overlay.name = "CabinetMenuOverlay"
+	menu_overlay.visible = false
+	menu_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var overlay_style := StyleBoxFlat.new()
+	overlay_style.bg_color = Color(0, 0, 0, 0.74)
+	menu_overlay.add_theme_stylebox_override("panel", overlay_style)
+	parent.add_child(menu_overlay)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	menu_overlay.add_child(center)
+
+	var shell := PanelContainer.new()
+	shell.custom_minimum_size = Vector2(500, 0)
+	var shell_style := StyleBoxFlat.new()
+	shell_style.bg_color = Color(0.080, 0.038, 0.014, 0.98)
+	shell_style.border_color = COLOR_PANEL_BORDER
+	shell_style.border_width_left = 2; shell_style.border_width_right = 2
+	shell_style.border_width_top = 2; shell_style.border_width_bottom = 3
+	shell_style.corner_radius_top_left = 8; shell_style.corner_radius_top_right = 8
+	shell_style.corner_radius_bottom_left = 8; shell_style.corner_radius_bottom_right = 8
+	shell_style.content_margin_left = 14; shell_style.content_margin_right = 14
+	shell_style.content_margin_top = 12; shell_style.content_margin_bottom = 12
+	shell.add_theme_stylebox_override("panel", shell_style)
+	center.add_child(shell)
+
 	menu_panel = VBoxContainer.new()
 	menu_panel.name = "CabinetMenuPanel"
-	menu_panel.visible = false
 	menu_panel.add_theme_constant_override("separation", 6)
-	parent.add_child(menu_panel)
+	shell.add_child(menu_panel)
 
 	var title := _make_label("MENU", 16, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	menu_panel.add_child(title)
@@ -473,8 +517,9 @@ func _build_paytable(parent: Node) -> void:
 	paytable_amount_labels.clear()
 	paytable_multipliers.clear()
 
-	var panel := Panel.new()
-	panel.custom_minimum_size = Vector2(0, 0)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(0, 156)
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var ps := StyleBoxFlat.new()
 	ps.bg_color = Color(0.078, 0.039, 0.016, 0.8)
 	ps.border_color = COLOR_GOLD_DARK
@@ -482,6 +527,8 @@ func _build_paytable(parent: Node) -> void:
 	ps.border_width_top = 1; ps.border_width_bottom = 1
 	ps.corner_radius_top_left = 6; ps.corner_radius_top_right = 6
 	ps.corner_radius_bottom_left = 6; ps.corner_radius_bottom_right = 6
+	ps.content_margin_left = 4; ps.content_margin_right = 4
+	ps.content_margin_top = 3; ps.content_margin_bottom = 3
 	panel.add_theme_stylebox_override("panel", ps)
 	parent.add_child(panel)
 
@@ -500,17 +547,20 @@ func _build_paytable(parent: Node) -> void:
 		["TwoPair", "TWO PAIR", 2, COLOR_WHITE],
 	]
 	for hand in hands:
-		var row_panel := Panel.new()
-		row_panel.custom_minimum_size = Vector2(0, 0)
+		var row_panel := PanelContainer.new()
+		row_panel.custom_minimum_size = Vector2(0, 15)
 		var rps := StyleBoxFlat.new()
 		rps.bg_color = Color(0, 0, 0, 0)
 		row_panel.add_theme_stylebox_override("panel", rps)
 		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
 		row_panel.add_child(row)
 		var name_l := _make_label(hand[1], 12, hand[3])
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_l.clip_text = true
 		row.add_child(name_l)
 		var amount_l := _make_label("0", 12, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
+		amount_l.custom_minimum_size = Vector2(98, 0)
 		row.add_child(amount_l)
 		paytable_rows[str(hand[0])] = row_panel
 		paytable_amount_labels[str(hand[0])] = amount_l
@@ -597,6 +647,10 @@ func _build_win_display(parent: Node) -> void:
 	win_slot_label = _make_label("", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	row.add_child(win_slot_label)
 	win_amount_label = _make_label("", 22, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	win_amount_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
+	win_amount_label.add_theme_constant_override("shadow_offset_x", 2)
+	win_amount_label.add_theme_constant_override("shadow_offset_y", 2)
+	win_amount_label.add_theme_constant_override("shadow_outline_size", 2)
 	row.add_child(win_amount_label)
 
 func _build_machine_info(parent: Node) -> void:
@@ -641,15 +695,18 @@ func _build_machine_info(parent: Node) -> void:
 	var jp_row := HBoxContainer.new()
 	jp_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	jp_row.add_theme_constant_override("separation", 10)
+	jp_row.custom_minimum_size = Vector2(0, 34)
 	rows.add_child(jp_row)
 
 	jackpot_counter_panels.clear()
 	for slot in [["*", "4k-a", COLOR_GREEN_DIM], ["SF", "sf", COLOR_RED], ["*", "4k-b", COLOR_GREEN_DIM]]:
 		var counter_panel := Panel.new()
+		counter_panel.custom_minimum_size = Vector2(150, 34)
 		var cps := StyleBoxFlat.new()
 		cps.bg_color = Color(0, 0, 0, 0)
 		counter_panel.add_theme_stylebox_override("panel", cps)
 		var counter_box := VBoxContainer.new()
+		counter_box.set_anchors_preset(Control.PRESET_FULL_RECT)
 		counter_box.alignment = BoxContainer.ALIGNMENT_CENTER
 		counter_box.add_theme_constant_override("separation", 1)
 		counter_panel.add_child(counter_box)
@@ -663,6 +720,7 @@ func _build_machine_info(parent: Node) -> void:
 
 	bonus_message_label = _make_label("4 OF A KIND   WINS BONUS", 16, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	bonus_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bonus_message_label.custom_minimum_size = Vector2(0, 24)
 	bonus_message_label.visible = true
 	rows.add_child(bonus_message_label)
 
@@ -696,26 +754,22 @@ func _build_du_info(parent: Node) -> void:
 		du_trail_container.add_child(slot)
 		du_cards.append({ "label": slot_label, "rect": slot_rect })
 
-	var du_focus_row := HBoxContainer.new()
-	du_focus_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	du_focus_row.add_theme_constant_override("separation", 12)
-	du_info_panel.add_child(du_focus_row)
-
-	var dealer_slot := VBoxContainer.new()
-	dealer_slot.alignment = BoxContainer.ALIGNMENT_CENTER
-	dealer_slot.add_theme_constant_override("separation", 1)
-	du_dealer_label = _make_label("DEALER", 8, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
-	dealer_slot.add_child(du_dealer_label)
-	du_dealer_rect = TextureRect.new()
-	du_dealer_rect.custom_minimum_size = DU_BOARD_CARD_SIZE
-	du_dealer_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	du_dealer_rect.stretch_mode = TextureRect.STRETCH_SCALE
-	dealer_slot.add_child(du_dealer_rect)
-	du_focus_row.add_child(dealer_slot)
+	var du_focus_stage := Control.new()
+	du_focus_stage.name = "DoubleUpSingleCardStage"
+	du_focus_stage.custom_minimum_size = Vector2(0, DU_MAIN_CARD_SIZE.y + 24)
+	du_info_panel.add_child(du_focus_stage)
 
 	var challenger_slot := VBoxContainer.new()
+	challenger_slot.name = "DoubleUpChallengerStage"
 	challenger_slot.alignment = BoxContainer.ALIGNMENT_CENTER
 	challenger_slot.add_theme_constant_override("separation", 1)
+	challenger_slot.custom_minimum_size = Vector2(DU_MAIN_CARD_SIZE.x, DU_MAIN_CARD_SIZE.y + 18)
+	challenger_slot.anchor_left = 0.5
+	challenger_slot.anchor_right = 0.5
+	challenger_slot.offset_left = -DU_MAIN_CARD_SIZE.x * 0.5
+	challenger_slot.offset_right = DU_MAIN_CARD_SIZE.x * 0.5
+	challenger_slot.offset_top = 0
+	challenger_slot.offset_bottom = DU_MAIN_CARD_SIZE.y + 18
 	du_challenger_label = _make_label("BIG / SMALL ?", 9, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	challenger_slot.add_child(du_challenger_label)
 	du_challenger_rect = TextureRect.new()
@@ -723,7 +777,27 @@ func _build_du_info(parent: Node) -> void:
 	du_challenger_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	du_challenger_rect.stretch_mode = TextureRect.STRETCH_SCALE
 	challenger_slot.add_child(du_challenger_rect)
-	du_focus_row.add_child(challenger_slot)
+	du_focus_stage.add_child(challenger_slot)
+
+	var dealer_slot := VBoxContainer.new()
+	dealer_slot.name = "DoubleUpDealerReference"
+	dealer_slot.alignment = BoxContainer.ALIGNMENT_CENTER
+	dealer_slot.add_theme_constant_override("separation", 1)
+	dealer_slot.custom_minimum_size = Vector2(DU_BOARD_CARD_SIZE.x, DU_BOARD_CARD_SIZE.y + 14)
+	dealer_slot.anchor_left = 0.5
+	dealer_slot.anchor_right = 0.5
+	dealer_slot.offset_left = -DU_MAIN_CARD_SIZE.x * 0.5 - 10
+	dealer_slot.offset_right = -DU_MAIN_CARD_SIZE.x * 0.5 + DU_BOARD_CARD_SIZE.x + 10
+	dealer_slot.offset_top = 24
+	dealer_slot.offset_bottom = 24 + DU_BOARD_CARD_SIZE.y + 14
+	du_dealer_label = _make_label("DEALER", 8, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
+	dealer_slot.add_child(du_dealer_label)
+	du_dealer_rect = TextureRect.new()
+	du_dealer_rect.custom_minimum_size = DU_BOARD_CARD_SIZE
+	du_dealer_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	du_dealer_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	dealer_slot.add_child(du_dealer_rect)
+	du_focus_stage.add_child(dealer_slot)
 
 	var du_infos := HBoxContainer.new()
 	du_infos.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1014,7 +1088,7 @@ func _apply_snapshot(next_snapshot: Dictionary) -> void:
 func _refresh_ui() -> void:
 	_refresh_auth_panel()
 	title_label.text = "%s\n%s" % [store.machine_name(), str(store.snapshot.get("variant", {}).get("display_name", "Lucky5 Classic"))]
-	credit_label.text = store.credit_line()
+	_refresh_credit_display()
 	message_label.text = store.message()
 	if access_token.is_empty():
 		recovery_label.text = "LOGIN: %s" % auth_status
@@ -1037,8 +1111,8 @@ func _refresh_ui() -> void:
 	_refresh_win_display()
 	_refresh_lucky5_banner()
 	admin_screen.visible = active_screen == "admin"
-	if menu_panel != null:
-		menu_panel.visible = menu_open and active_screen == "game"
+	if menu_overlay != null:
+		menu_overlay.visible = menu_open and active_screen == "game"
 
 	for id in action_buttons.keys():
 		var button: Button = action_buttons[id]
@@ -1162,11 +1236,14 @@ func _animate_card_deal(index: int) -> void:
 	slot["tween"] = null
 
 	rect.modulate = Color(1, 1, 1, 0)
-	rect.scale = Vector2(1.0, 1.0)
+	rect.pivot_offset = rect.custom_minimum_size * 0.5
+	rect.scale = Vector2(0.82, 0.82)
 
 	var tw := create_tween()
-	tw.set_parallel(false)
+	tw.set_parallel(true)
 	tw.tween_property(rect, "modulate", Color(1, 1, 1, 1), DEAL_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(rect, "scale", Vector2(1.04, 1.04), DEAL_DURATION * 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.chain().tween_property(rect, "scale", Vector2(1.0, 1.0), DEAL_DURATION * 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	slot["tween"] = tw
 
 func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
@@ -1479,7 +1556,7 @@ func _refresh_paytable_values() -> void:
 func _refresh_paytable_highlights() -> void:
 	var hand_rank: String = store.hand_rank()
 	for key in paytable_rows.keys():
-		var row_panel: Panel = paytable_rows.get(key, null)
+		var row_panel: PanelContainer = paytable_rows.get(key, null)
 		if row_panel == null: continue
 		var sty := row_panel.get_theme_stylebox("panel", "") as StyleBoxFlat
 		if sty == null: continue
@@ -1494,16 +1571,78 @@ func _refresh_machine_info() -> void:
 	if bonus_message_label != null:
 		bonus_message_label.visible = true
 
+func _refresh_credit_display() -> void:
+	if credit_label == null:
+		return
+	var machine_credits := store.machine_credits()
+	credit_label.text = store.credit_line()
+	if last_machine_credit_amount >= 0 and machine_credits > last_machine_credit_amount:
+		_pulse_credit_display()
+	last_machine_credit_amount = machine_credits
+
+func _pulse_credit_display() -> void:
+	if credit_label == null:
+		return
+	if credit_pulse_tween != null and credit_pulse_tween.is_valid():
+		credit_pulse_tween.kill()
+	credit_label.pivot_offset = credit_label.size * 0.5
+	credit_label.scale = Vector2(1.05, 1.05)
+	credit_pulse_tween = create_tween()
+	credit_pulse_tween.tween_property(credit_label, "scale", Vector2(1.0, 1.0), 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
 func _refresh_win_display() -> void:
-	var credits: Dictionary = store.snapshot.get("credits", {})
-	var pending := store._to_int(credits.get("pending_win_amount", 0))
+	var pending := store.pending_win_amount()
 	var eval: Dictionary = store.snapshot.get("evaluation", {})
 	if pending > 0:
 		win_slot_label.text = str(eval.get("hand_rank", "WIN"))
-		win_amount_label.text = "+%s" % _format_amount(pending)
+		if pending != win_target_amount:
+			_animate_win_amount_to(pending)
+		elif win_amount_label.text.is_empty():
+			_set_win_display_amount(float(pending))
 	else:
+		if win_target_amount > 0 or win_displayed_amount > 0:
+			_animate_win_amount_to(0)
+		else:
+			win_slot_label.text = ""
+			win_amount_label.text = ""
+
+func _animate_win_amount_to(target_amount: int) -> void:
+	if win_amount_label == null:
+		return
+	if win_counter_tween != null and win_counter_tween.is_valid():
+		win_counter_tween.kill()
+	win_target_amount = max(0, target_amount)
+	var distance: int = abs(win_target_amount - win_displayed_amount)
+	var duration: float = clampf(float(distance) / 12000000.0, WIN_COUNTER_MIN_DURATION, WIN_COUNTER_MAX_DURATION)
+	win_counter_tween = create_tween()
+	win_counter_tween.tween_method(Callable(self, "_set_win_display_amount"), float(win_displayed_amount), float(win_target_amount), duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	win_counter_tween.finished.connect(_on_win_counter_finished)
+	_pulse_win_display()
+
+func _set_win_display_amount(value: Variant) -> void:
+	win_displayed_amount = max(0, int(round(float(value))))
+	if win_amount_label == null:
+		return
+	if win_displayed_amount > 0:
+		win_amount_label.text = "+%s" % _format_amount(win_displayed_amount)
+	else:
+		win_amount_label.text = ""
+
+func _pulse_win_display() -> void:
+	if win_amount_label == null:
+		return
+	if win_pulse_tween != null and win_pulse_tween.is_valid():
+		win_pulse_tween.kill()
+	win_amount_label.pivot_offset = win_amount_label.size * 0.5
+	win_amount_label.scale = Vector2(1.10, 1.10)
+	win_pulse_tween = create_tween()
+	win_pulse_tween.tween_property(win_amount_label, "scale", Vector2(1.0, 1.0), 0.24).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+func _on_win_counter_finished() -> void:
+	if win_target_amount <= 0 and win_displayed_amount <= 0:
 		win_slot_label.text = ""
 		win_amount_label.text = ""
+		win_amount_label.scale = Vector2(1.0, 1.0)
 
 func _refresh_lucky5_banner() -> void:
 	var du: Dictionary = store.snapshot.get("double_up", {})

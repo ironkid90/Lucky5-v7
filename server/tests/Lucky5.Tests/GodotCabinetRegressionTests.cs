@@ -55,7 +55,11 @@ public static class GodotCabinetRegressionTests
                 && project.Contains("config/features=PackedStringArray(\"4.6\", \"GL Compatibility\")", StringComparison.Ordinal)
                 && project.Contains("window/size/viewport_width=720", StringComparison.Ordinal)
                 && project.Contains("window/size/viewport_height=1280", StringComparison.Ordinal)
+                && project.Contains("window/size/window_width_override=540", StringComparison.Ordinal)
+                && project.Contains("window/size/window_height_override=960", StringComparison.Ordinal)
                 && project.Contains("window/handheld/orientation=1", StringComparison.Ordinal)
+                && project.Contains("window/stretch/mode=\"viewport\"", StringComparison.Ordinal)
+                && project.Contains("window/stretch/aspect=\"keep\"", StringComparison.Ordinal)
                 && project.Contains("renderer/rendering_method=\"gl_compatibility\"", StringComparison.Ordinal)
                 && project.Contains("renderer/rendering_method.mobile=\"gl_compatibility\"", StringComparison.Ordinal));
 
@@ -223,11 +227,16 @@ public static class GodotCabinetRegressionTests
             failures,
             "Godot cabinet must reveal dealt and drawn cards through a sequential arcade deal queue instead of replacing the full hand at once",
             rootScript.Contains("func _queue_card_reveal", StringComparison.Ordinal)
+                && rootScript.Contains("const DEAL_DURATION := 0.22", StringComparison.Ordinal)
+                && rootScript.Contains("const DEAL_STAGGER := 0.10", StringComparison.Ordinal)
                 && rootScript.Contains("func _show_queued_card", StringComparison.Ordinal)
                 && rootScript.Contains("deal_queue.append", StringComparison.Ordinal)
                 && rootScript.Contains("deal_timer.start", StringComparison.Ordinal)
                 && rootScript.Contains("_process_deal_queue", StringComparison.Ordinal)
                 && rootScript.Contains("var previous_code: String = previous_codes[index] if index < previous_codes.size() else \"\"", StringComparison.Ordinal)
+                && rootScript.Contains("rect.scale = Vector2(0.82, 0.82)", StringComparison.Ordinal)
+                && rootScript.Contains("tween_property(rect, \"scale\", Vector2(1.04, 1.04)", StringComparison.Ordinal)
+                && rootScript.Contains("tween_property(rect, \"scale\", Vector2(1.0, 1.0)", StringComparison.Ordinal)
                 && !rootScript.Contains("func _process_deal_queue() -> void: pass", StringComparison.Ordinal));
 
         Assert(
@@ -247,10 +256,16 @@ public static class GodotCabinetRegressionTests
             failures,
             "Godot cabinet double-up must use the arcade presentation: large centered challenger, small dealer reference, rapid card shuffle, and backend card trail",
             rootScript.Contains("const DU_MAIN_CARD_SIZE := Vector2(150, 210)", StringComparison.Ordinal)
+                && rootScript.Contains("const DU_BOARD_CARD_SIZE := Vector2(54, 76)", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_SHUFFLE_INTERVAL := 0.08", StringComparison.Ordinal)
                 && rootScript.Contains("var du_shuffle_timer: Timer", StringComparison.Ordinal)
                 && rootScript.Contains("du_shuffle_timer.timeout.connect(_process_du_shuffle)", StringComparison.Ordinal)
+                && rootScript.Contains("du_focus_stage.name = \"DoubleUpSingleCardStage\"", StringComparison.Ordinal)
+                && rootScript.Contains("challenger_slot.name = \"DoubleUpChallengerStage\"", StringComparison.Ordinal)
+                && rootScript.Contains("dealer_slot.name = \"DoubleUpDealerReference\"", StringComparison.Ordinal)
+                && rootScript.Contains("challenger_slot.anchor_left = 0.5", StringComparison.Ordinal)
                 && rootScript.Contains("du_challenger_rect.custom_minimum_size = DU_MAIN_CARD_SIZE", StringComparison.Ordinal)
+                && !rootScript.Contains("du_focus_row.add_child(dealer_slot)", StringComparison.Ordinal)
                 && !rootScript.Contains("var vs_label := _make_label(\"VS\"", StringComparison.Ordinal)
                 && rootScript.Contains("func _start_du_card_shuffle", StringComparison.Ordinal)
                 && rootScript.Contains("func _process_du_shuffle", StringComparison.Ordinal)
@@ -264,9 +279,18 @@ public static class GodotCabinetRegressionTests
             failures,
             "Godot cabinet must expose the AI9Poker-style physical control deck and route double-up switch through BET",
             rootScript.Contains("var hold_buttons: Array = []", StringComparison.Ordinal)
+                && rootScript.Contains("root.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED", StringComparison.Ordinal)
+                && rootScript.Contains("vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL", StringComparison.Ordinal)
+                && rootScript.Contains("content.size_flags_vertical = Control.SIZE_EXPAND_FILL", StringComparison.Ordinal)
+                && rootScript.Contains("bottom_spacer.name = \"CabinetBottomDeckSpacer\"", StringComparison.Ordinal)
+                && rootScript.Contains("var menu_overlay: PanelContainer", StringComparison.Ordinal)
                 && rootScript.Contains("var menu_panel: VBoxContainer", StringComparison.Ordinal)
                 && rootScript.Contains("func _build_control_deck", StringComparison.Ordinal)
                 && rootScript.Contains("func _build_menu_panel", StringComparison.Ordinal)
+                && rootScript.Contains("_build_menu_panel(self)", StringComparison.Ordinal)
+                && rootScript.Contains("menu_overlay.name = \"CabinetMenuOverlay\"", StringComparison.Ordinal)
+                && rootScript.Contains("menu_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)", StringComparison.Ordinal)
+                && rootScript.Contains("menu_overlay.visible = menu_open and active_screen == \"game\"", StringComparison.Ordinal)
                 && rootScript.Contains("[\"big\", \"BIG\"", StringComparison.Ordinal)
                 && rootScript.Contains("[\"small\", \"SMALL\"", StringComparison.Ordinal)
                 && rootScript.Contains("[\"cancel_hold\", \"CANCEL\\nHOLD\"", StringComparison.Ordinal)
@@ -278,6 +302,7 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("_on_hold_button_pressed.bind(index)", StringComparison.Ordinal)
                 && rootScript.Contains("if store.game_state() == \"double_up\" and store.can_press(\"swap_double_up_card\"):", StringComparison.Ordinal)
                 && rootScript.Contains("_send_command(\"swap_double_up_card\"", StringComparison.Ordinal)
+                && !rootScript.Contains("_build_menu_panel(content)", StringComparison.Ordinal)
                 && !rootScript.Contains("[\"swap_double_up_card\", \"SWAP\\nCARD\"", StringComparison.Ordinal));
 
         Assert(
@@ -297,6 +322,21 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("bonus_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL", StringComparison.Ordinal)
                 && rootScript.Contains("machine_kent_label.text = \"KENT /3 : %s\"", StringComparison.Ordinal)
                 && rootScript.Contains("bonus_message_label.visible = true", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet win display must animate the AI9Poker-style win amount drain and pulse credits from backend values",
+            rootScript.Contains("const WIN_COUNTER_MIN_DURATION := 0.18", StringComparison.Ordinal)
+                && rootScript.Contains("const WIN_COUNTER_MAX_DURATION := 0.75", StringComparison.Ordinal)
+                && rootScript.Contains("var win_displayed_amount := 0", StringComparison.Ordinal)
+                && rootScript.Contains("var last_machine_credit_amount := -1", StringComparison.Ordinal)
+                && rootScript.Contains("_refresh_credit_display()", StringComparison.Ordinal)
+                && rootScript.Contains("var pending := store.pending_win_amount()", StringComparison.Ordinal)
+                && rootScript.Contains("func _animate_win_amount_to(target_amount: int) -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("tween_method(Callable(self, \"_set_win_display_amount\")", StringComparison.Ordinal)
+                && rootScript.Contains("func _pulse_credit_display() -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("func _pulse_win_display() -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("win_amount_label.add_theme_constant_override(\"shadow_outline_size\", 2)", StringComparison.Ordinal));
 
         Assert(
             failures,

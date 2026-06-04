@@ -56,10 +56,14 @@ const DU_SHUFFLE_INTERVAL := 0.08
 const DU_SHUFFLE_TICKS := 8
 const DU_SHUFFLE_CODES := ["AS", "KH", "QD", "JC", "10S", "9H", "8D", "7C"]
 const DU_REVEAL_SETTLE_SECONDS := 0.50
+const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 1.0
 const IDLE_FH_CARD_DELAY_SECONDS := 60.0
 const IDLE_TITLE_TEXT := "LUCKY 5"
 const WIN_COUNTER_MIN_DURATION := 0.18
 const WIN_COUNTER_MAX_DURATION := 0.75
+const CREDIT_DRAIN_MIN_DURATION := 1.20
+const CREDIT_DRAIN_MAX_DURATION := 2.00
+const CREDIT_DRAIN_JACKPOT_DURATION := 5.00
 const JACKPOT_TRICKLE_DURATION := 0.30
 const JACKPOT_DRAIN_DURATION := 2.80
 const COMMAND_TIMEOUT_SECONDS := 15.0
@@ -82,6 +86,7 @@ var client_sequence := 0
 var local_hold_indexes: Array = []
 var auto_holds_cancelled := false
 var auto_double_up_round_ids: Array = []
+var auto_double_up_pending_round_id := ""
 var idle_fh_rank_revealed := false
 var last_game_state := ""
 var authenticating := false
@@ -169,6 +174,7 @@ var command_timeout_timer: Timer
 var deal_timer: Timer
 var du_shuffle_timer: Timer
 var du_promote_timer: Timer
+var auto_double_up_timer: Timer
 var idle_fh_timer: Timer
 var deal_queue: Array = []
 var deal_queue_index := 0
@@ -180,13 +186,19 @@ var du_shuffle_target_challenger := ""
 var du_pending_promote_dealer := ""
 var _prev_dealer_code := ""
 var _prev_challenger_code := ""
+var _prev_switches_remaining := -1
+var du_trail_anchor_code := ""
 var win_displayed_amount := 0
 var win_target_amount := 0
 var win_counter_tween: Tween
 var win_pulse_tween: Tween
 var credit_pulse_tween: Tween
+var credit_counter_tween: Tween
 var bonus_stage_tween: Tween
 var last_machine_credit_amount := -1
+var displayed_machine_credit_amount := -1
+var credit_target_amount := -1
+var credit_transfer_active := false
 var bonus_stage_key := ""
 var displayed_jackpots: Dictionary = {}
 var jackpot_counter_targets: Dictionary = {}
@@ -223,6 +235,9 @@ func _ready() -> void:
 
 	du_promote_timer = Timer.new(); du_promote_timer.wait_time = DU_REVEAL_SETTLE_SECONDS; du_promote_timer.one_shot = true
 	du_promote_timer.timeout.connect(_on_du_promote_timeout); add_child(du_promote_timer)
+
+	auto_double_up_timer = Timer.new(); auto_double_up_timer.wait_time = DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS; auto_double_up_timer.one_shot = true
+	auto_double_up_timer.timeout.connect(_on_auto_double_up_timer_timeout); add_child(auto_double_up_timer)
 
 	idle_fh_timer = Timer.new(); idle_fh_timer.wait_time = IDLE_FH_CARD_DELAY_SECONDS; idle_fh_timer.one_shot = true
 	idle_fh_timer.timeout.connect(_on_idle_fh_timer_timeout); add_child(idle_fh_timer)
@@ -1448,31 +1463,54 @@ func _on_idle_fh_timer_timeout() -> void:
 
 func _maybe_auto_start_double_up(game_state: String, du_active: bool) -> void:
 	if du_active or _has_pending_command() or access_token.is_empty():
+		_cancel_auto_double_up_timer()
 		return
 	if not (game_state in ["win", "drawn", "result"]):
+		_cancel_auto_double_up_timer()
 		return
 	var evaluation: Dictionary = store.snapshot.get("evaluation", {})
 	if not bool(evaluation.get("double_up_available", false)):
+		_cancel_auto_double_up_timer()
 		return
 	var round_id := store.current_round_id()
 	if round_id.is_empty() or auto_double_up_round_ids.has(round_id):
+		_cancel_auto_double_up_timer()
 		return
-	auto_double_up_round_ids.append(round_id)
-	if auto_double_up_round_ids.size() > 32:
-		auto_double_up_round_ids.remove_at(0)
-	call_deferred("_auto_start_double_up", round_id)
+	if auto_double_up_pending_round_id == round_id and auto_double_up_timer != null and not auto_double_up_timer.is_stopped():
+		return
+	auto_double_up_pending_round_id = round_id
+	if auto_double_up_timer != null:
+		auto_double_up_timer.stop()
+		auto_double_up_timer.wait_time = DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS
+		auto_double_up_timer.start()
+
+func _cancel_auto_double_up_timer() -> void:
+	if auto_double_up_timer != null:
+		auto_double_up_timer.stop()
+	auto_double_up_pending_round_id = ""
+
+func _on_auto_double_up_timer_timeout() -> void:
+	var round_id := auto_double_up_pending_round_id
+	auto_double_up_pending_round_id = ""
+	_auto_start_double_up(round_id)
 
 func _auto_start_double_up(round_id: String) -> void:
-	if round_id.is_empty() or _has_pending_command() or access_token.is_empty():
+	if round_id.is_empty() or _has_pending_command() or access_token.is_empty() or auto_double_up_round_ids.has(round_id):
 		return
 	if store.current_round_id() != round_id:
 		return
 	var game_state := store.game_state()
 	if not (game_state in ["win", "drawn", "result"]):
 		return
+	var evaluation: Dictionary = store.snapshot.get("evaluation", {})
+	if not bool(evaluation.get("double_up_available", false)):
+		return
 	var du_data: Dictionary = store.snapshot.get("double_up", {})
 	if bool(du_data.get("active", false)):
 		return
+	auto_double_up_round_ids.append(round_id)
+	if auto_double_up_round_ids.size() > 32:
+		auto_double_up_round_ids.remove_at(0)
 	_send_command("double_up_start", {"round_id": round_id})
 
 func _queue_card_reveal(index: int, code: String, held: bool) -> void:
@@ -1646,6 +1684,8 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 		du_pending_promote_dealer = ""
 		_prev_dealer_code = ""
 		_prev_challenger_code = ""
+		_prev_switches_remaining = -1
+		du_trail_anchor_code = ""
 		return
 
 	var status := str(du_data.get("status", ""))
@@ -1666,14 +1706,21 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 
 	var dealer_changed := not dealer_code.is_empty() and _prev_dealer_code != "" and _prev_dealer_code != dealer_code
 	var challenger_changed := not challenger_code.is_empty() and _prev_challenger_code != challenger_code
-	var inferred_win_reveal := challenger_code.is_empty() and dealer_changed
+	var switch_replaced_dealer := challenger_code.is_empty() and dealer_changed and _prev_switches_remaining >= 0 and switches < _prev_switches_remaining
+	var inferred_win_reveal := challenger_code.is_empty() and dealer_changed and not switch_replaced_dealer
 	var board_dealer_code := _prev_dealer_code if inferred_win_reveal else dealer_code
 	var board_challenger_code := dealer_code if inferred_win_reveal else challenger_code
 	var board_status := "Win" if inferred_win_reveal else status
 
-	_prepare_du_board(du_data, board_dealer_code, board_challenger_code, board_status)
+	_prepare_du_board(du_data, board_dealer_code, board_challenger_code, board_status, switch_replaced_dealer)
 
-	if inferred_win_reveal:
+	if switch_replaced_dealer:
+		du_trail_anchor_code = dealer_code
+		if du_promote_timer != null:
+			du_promote_timer.stop()
+		du_pending_promote_dealer = ""
+		_start_du_card_shuffle(dealer_code, "")
+	elif inferred_win_reveal:
 		if du_promote_timer != null:
 			du_promote_timer.stop()
 		_start_du_card_shuffle(board_dealer_code, board_challenger_code)
@@ -1697,6 +1744,7 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 
 	_prev_dealer_code = dealer_code
 	_prev_challenger_code = challenger_code
+	_prev_switches_remaining = switches
 
 	var is_lucky5 := bool(du_data.get("is_lucky5_active", false))
 	var is_no_lose := bool(du_data.get("is_no_lose_active", false))
@@ -1704,13 +1752,17 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	du_lucky_node.add_theme_color_override("font_color", COLOR_GREEN if is_lucky5 or is_no_lose else COLOR_BLUE)
 	du_guess_node.text = "HI OR LO"
 
-func _prepare_du_board(du_data: Dictionary, dealer_code: String, challenger_code: String, status: String) -> void:
+func _prepare_du_board(du_data: Dictionary, dealer_code: String, challenger_code: String, status: String, dealer_replace_only: bool = false) -> void:
 	_clear_du_board()
 
-	_refresh_du_trail(du_data, dealer_code, challenger_code, status)
+	_refresh_du_trail(du_data, dealer_code, challenger_code, status, dealer_replace_only)
 
-func _refresh_du_trail(du_data: Dictionary, dealer_code: String, challenger_code: String, status: String) -> void:
+func _refresh_du_trail(du_data: Dictionary, dealer_code: String, challenger_code: String, status: String, dealer_replace_only: bool = false) -> void:
 	var trail_codes := _du_visible_deck_codes(du_data, dealer_code, challenger_code, du_cards.size())
+	if dealer_replace_only:
+		trail_codes = []
+		if dealer_code.length() >= 2:
+			trail_codes.append(dealer_code)
 	var dealer_index := _du_last_code_index(trail_codes, dealer_code)
 	var challenger_index := _du_last_code_index(trail_codes, challenger_code)
 	var shuffle_index := -1
@@ -1742,6 +1794,13 @@ func _refresh_du_trail(du_data: Dictionary, dealer_code: String, challenger_code
 
 func _du_visible_deck_codes(du_data: Dictionary, dealer_code: String, challenger_code: String, max_count: int) -> Array:
 	var result := _du_visible_trail_codes(du_data, "", max_count)
+	if not du_trail_anchor_code.is_empty():
+		var anchor_index := _du_first_code_index(result, du_trail_anchor_code)
+		if anchor_index >= 0:
+			var anchored_result := []
+			for index in range(anchor_index, result.size()):
+				anchored_result.append(result[index])
+			result = anchored_result
 	if dealer_code.length() >= 2 and (result.is_empty() or str(result[result.size() - 1]) != dealer_code):
 		result.append(dealer_code)
 	if challenger_code.length() >= 2 and (result.is_empty() or str(result[result.size() - 1]) != challenger_code):
@@ -1749,6 +1808,14 @@ func _du_visible_deck_codes(du_data: Dictionary, dealer_code: String, challenger
 	while result.size() > max_count:
 		result.remove_at(0)
 	return result
+
+func _du_first_code_index(codes: Array, target_code: String) -> int:
+	if target_code.length() < 2:
+		return -1
+	for index in range(codes.size()):
+		if str(codes[index]) == target_code:
+			return index
+	return -1
 
 func _du_visible_trail_codes(du_data: Dictionary, dealer_code: String, max_count: int) -> Array:
 	var result: Array = []
@@ -2210,10 +2277,85 @@ func _refresh_credit_display() -> void:
 	if credit_label == null:
 		return
 	var machine_credits := store.machine_credits()
-	credit_label.text = store.credit_line()
+	if displayed_machine_credit_amount < 0:
+		_set_credit_display_amount(machine_credits)
+		credit_target_amount = machine_credits
+		last_machine_credit_amount = machine_credits
+		return
+	if credit_transfer_active:
+		if machine_credits != credit_target_amount:
+			_animate_credit_transfer(displayed_machine_credit_amount, machine_credits, max(win_displayed_amount, win_target_amount))
+		return
+
+	var credit_gain: int = machine_credits - displayed_machine_credit_amount
+	var visible_win: int = max(win_displayed_amount, win_target_amount)
+	var settling_score := pending_command_type == "take_score" or pending_command_type == "cash_out"
+	if credit_gain > 0 and settling_score:
+		var drain_amount: int = visible_win if visible_win > 0 else credit_gain
+		_animate_credit_transfer(displayed_machine_credit_amount, machine_credits, drain_amount)
+		return
+
+	_set_credit_display_amount(machine_credits)
+	credit_target_amount = machine_credits
 	if last_machine_credit_amount >= 0 and machine_credits > last_machine_credit_amount:
 		_pulse_credit_display()
 	last_machine_credit_amount = machine_credits
+
+func _credit_line_for_amount(machine_credit_amount: int) -> String:
+	return "CREDIT %s\nWALLET %s\nBONUS %s\nSTAKE %s\nIN %s" % [
+		_format_amount(machine_credit_amount),
+		_format_amount(store.wallet_balance()),
+		_format_amount(store.credit_balance()),
+		_format_amount(store.stake()),
+		_format_amount(store.total_cash_in())
+	]
+
+func _set_credit_display_amount(value: Variant) -> void:
+	displayed_machine_credit_amount = max(0, int(round(float(value))))
+	if credit_label == null:
+		return
+	credit_label.text = _credit_line_for_amount(displayed_machine_credit_amount)
+
+func _animate_credit_transfer(from_amount: int, to_amount: int, drain_amount: int) -> void:
+	if credit_counter_tween != null and credit_counter_tween.is_valid():
+		credit_counter_tween.kill()
+	if win_counter_tween != null and win_counter_tween.is_valid():
+		win_counter_tween.kill()
+
+	credit_transfer_active = true
+	credit_target_amount = max(0, to_amount)
+	win_target_amount = 0
+	var start_credit: int = max(0, from_amount)
+	var start_win: int = max(max(0, drain_amount), max(win_displayed_amount, win_target_amount))
+	var duration := _settlement_drain_duration(start_win)
+
+	var eval: Dictionary = store.snapshot.get("evaluation", {})
+	if win_slot_label != null and win_slot_label.text.is_empty():
+		win_slot_label.text = str(eval.get("hand_rank", "WIN"))
+
+	credit_counter_tween = create_tween()
+	credit_counter_tween.set_parallel(true)
+	credit_counter_tween.tween_method(Callable(self, "_set_credit_display_amount"), float(start_credit), float(credit_target_amount), duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	credit_counter_tween.tween_method(Callable(self, "_set_win_display_amount"), float(start_win), 0.0, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	credit_counter_tween.finished.connect(_on_credit_transfer_finished)
+	_pulse_credit_display()
+	_pulse_win_display()
+
+func _settlement_drain_duration(amount: int) -> float:
+	var eval: Dictionary = store.snapshot.get("evaluation", {})
+	var jackpot_won := store._to_int(eval.get("jackpot_won", 0))
+	var hand_rank := str(eval.get("hand_rank", ""))
+	if jackpot_won > 0 or hand_rank == "RoyalFlush":
+		return CREDIT_DRAIN_JACKPOT_DURATION
+	return clampf(float(abs(amount)) / 12000000.0, CREDIT_DRAIN_MIN_DURATION, CREDIT_DRAIN_MAX_DURATION)
+
+func _on_credit_transfer_finished() -> void:
+	credit_transfer_active = false
+	_set_credit_display_amount(credit_target_amount)
+	last_machine_credit_amount = credit_target_amount
+	_set_win_display_amount(0)
+	_on_win_counter_finished()
+	_pulse_credit_display()
 
 func _pulse_credit_display() -> void:
 	if credit_label == null:
@@ -2226,6 +2368,8 @@ func _pulse_credit_display() -> void:
 	credit_pulse_tween.tween_property(credit_label, "scale", Vector2(1.0, 1.0), 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 func _refresh_win_display() -> void:
+	if credit_transfer_active:
+		return
 	var pending := store.pending_win_amount()
 	var eval: Dictionary = store.snapshot.get("evaluation", {})
 	if pending > 0:
@@ -2381,8 +2525,11 @@ func _on_action_pressed(id: String) -> void:
 		"cash_in":
 			cash_in_amount = _sanitize_cash_amount(cash_in_edit.text); cash_in_edit.text = str(cash_in_amount)
 			_send_command("cash_in", {"amount": str(cash_in_amount)})
-		"cash_out": _send_command("cash_out", {})
+		"cash_out":
+			_cancel_auto_double_up_timer()
+			_send_command("cash_out", {})
 		"deal_draw":
+			_cancel_auto_double_up_timer()
 			if store.game_state() == "hold":
 				var round_id := store.current_round_id()
 				if not round_id.is_empty(): _send_command("draw", {"round_id": round_id, "hold_indexes": _draw_hold_indexes()})
@@ -2399,9 +2546,11 @@ func _on_action_pressed(id: String) -> void:
 			var switch_round_id := store.current_round_id()
 			if not switch_round_id.is_empty(): _send_command("double_up_switch", {"round_id": switch_round_id})
 		"take_half":
+			_cancel_auto_double_up_timer()
 			var round_id := store.current_round_id()
 			if not round_id.is_empty(): _send_command("take_half", {"round_id": round_id})
 		"take_score":
+			_cancel_auto_double_up_timer()
 			var round_id := store.current_round_id()
 			if not round_id.is_empty(): _send_command("take_score", {"round_id": round_id})
 			elif store.can_press("cash_out"): _send_command("cash_out", {})
@@ -2502,11 +2651,13 @@ func _on_admin_assign_user(user_id: String) -> void:
 func _on_admin_close() -> void: active_screen = "game"; admin_screen.visible = false; _refresh_ui()
 
 func _send_double_up_guess(guess: String) -> void:
+	_cancel_auto_double_up_timer()
 	var round_id := store.current_round_id()
 	if round_id.is_empty(): return
 	_send_command("double_up_guess", {"round_id": round_id, "guess": guess})
 
 func _cycle_bet() -> void:
+	_cancel_auto_double_up_timer()
 	var min_value: int = max(1, store.min_bet()); var max_value: int = max(min_value, store.max_bet()); var step: int = min_value
 	selected_bet += step
 	if selected_bet > max_value: selected_bet = min_value

@@ -44,5 +44,6 @@ public sealed record DoubleUpStateDto(
     int SwitchesRemaining,
     bool IsNoLoseActive,
     int LuckyMultiplier,
+    int CurrentRoundIndex = 0,
     IReadOnlyList<PokerCardDto>? CardTrail = null,
     bool IsLucky5Active = false);

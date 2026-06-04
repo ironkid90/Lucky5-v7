@@ -33,6 +33,9 @@ const COLOR_BUTTON_BLACK := Color(0.035, 0.035, 0.035, 1.0)
 const BUTTON_BEVEL_SHADOW_SIZE := 5
 const BUTTON_PRESSED_SHADOW_SIZE := 1
 const BUTTON_ASSET_BASE_PATH := "res://skins/lucky5/buttons/"
+const CABINET_AI9_SKIN_ROOT := "res://skins/cabinet_ai9/"
+const CABINET_BOARD_TEXTURE := "images/board.png"
+const CABINET_PRESS_SOUND := "audio/press.mp3"
 const BUTTON_ASSET_FONT_SIZE := 13
 
 const CARD_AREA_MIN_HEIGHT := 248
@@ -43,20 +46,20 @@ const CONTROL_DECK_MIN_HEIGHT := 324
 const CONTROL_HOLD_BUTTON_HEIGHT := 70
 const CONTROL_ACTION_BUTTON_HEIGHT := 80
 const CONTROL_BOTTOM_BUTTON_HEIGHT := 72
-const DEAL_DURATION := 0.22
-const DEAL_STAGGER := 0.10
-const DRAW_OUT_DURATION := 0.055
-const DRAW_IN_DURATION := 0.075
-const DRAW_STAGGER := 0.045
-const DU_SWITCH_DURATION := 0.22
+const DEAL_DURATION := 0.15
+const DEAL_STAGGER := 0.15
+const DRAW_OUT_DURATION := 0.10
+const DRAW_IN_DURATION := 0.15
+const DRAW_STAGGER := 0.15
+const DU_SWITCH_DURATION := 0.20
 const DU_BOARD_CARD_SIZE := Vector2(104, 146)
 const DU_TRAIL_CARD_SIZE := Vector2(132, 185)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
-const DU_SHUFFLE_INTERVAL := 0.08
+const DU_SHUFFLE_INTERVAL := 0.075
 const DU_SHUFFLE_TICKS := 8
 const DU_SHUFFLE_CODES := ["AS", "KH", "QD", "JC", "10S", "9H", "8D", "7C"]
-const DU_REVEAL_SETTLE_SECONDS := 0.50
-const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 1.0
+const DU_REVEAL_SETTLE_SECONDS := 0.90
+const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 0.90
 const IDLE_FH_CARD_DELAY_SECONDS := 60.0
 const IDLE_TITLE_TEXT := "LUCKY 5"
 const WIN_COUNTER_MIN_DURATION := 0.18
@@ -106,6 +109,13 @@ var pending_idempotency_key := ""
 var pending_command_type := ""
 var button_asset_textures: Dictionary = {}
 var button_asset_styleboxes: Array = []
+var cabinet_texture_cache: Dictionary = {}
+var cabinet_audio_cache: Dictionary = {}
+var arcade_font: Font
+var impact_font: Font
+var ui_font: Font
+var press_sound: AudioStream
+var press_audio_player: AudioStreamPlayer
 
 # ─── node refs ───
 var title_label: Label
@@ -189,6 +199,9 @@ var du_shuffle_target_dealer := ""
 var du_shuffle_target_challenger := ""
 var du_shuffle_replace_dealer_only := false
 var du_pending_promote_dealer := ""
+var du_pending_promote_trail_code := ""
+var du_pending_promote_trail_label := ""
+var du_local_trail_entries: Array = []
 var _prev_dealer_code := ""
 var _prev_challenger_code := ""
 var _prev_switches_remaining := -1
@@ -213,7 +226,9 @@ var jackpot_counter_tweens: Dictionary = {}
 # ─── lifecycle ───
 func _ready() -> void:
 	_load_environment()
+	_load_cabinet_skin_resources()
 	_build_ui()
+	_create_press_audio_player()
 	_load_fixture_snapshot()
 
 	api = CabinetApiScript.new()
@@ -265,6 +280,8 @@ func _exit_tree() -> void:
 			(style as StyleBoxTexture).texture = null
 	button_asset_styleboxes.clear()
 	button_asset_textures.clear()
+	cabinet_texture_cache.clear()
+	cabinet_audio_cache.clear()
 	_stop_timers_for_exit()
 
 func _release_button_asset_styles(node: Node) -> void:
@@ -301,12 +318,82 @@ func _load_environment() -> void:
 	var env_machine := OS.get_environment("LUCKY5_MACHINE_ID")
 	if not env_machine.is_empty() and env_machine.is_valid_int(): configured_machine_id = int(env_machine)
 
+func _load_cabinet_skin_resources() -> void:
+	arcade_font = _load_cabinet_font("fonts/ARCADE.ttf")
+	impact_font = _load_cabinet_font("fonts/Impact.ttf")
+	ui_font = _load_cabinet_font("fonts/InterSemiBold.ttf")
+	press_sound = _load_cabinet_audio(CABINET_PRESS_SOUND)
+
+func _cabinet_resource_path(relative_path: String) -> String:
+	var path := CABINET_AI9_SKIN_ROOT + relative_path
+	if ResourceLoader.exists(path):
+		return path
+	var absolute_path := ProjectSettings.globalize_path(path)
+	if FileAccess.file_exists(absolute_path):
+		return path
+	return ""
+
+func _load_cabinet_texture(relative_path: String) -> Texture2D:
+	if cabinet_texture_cache.has(relative_path):
+		return cabinet_texture_cache[relative_path] as Texture2D
+	var path := _cabinet_resource_path(relative_path)
+	if path.is_empty():
+		return null
+	var texture := ResourceLoader.load(path) as Texture2D
+	if texture != null:
+		cabinet_texture_cache[relative_path] = texture
+	return texture
+
+func _load_cabinet_audio(relative_path: String) -> AudioStream:
+	if cabinet_audio_cache.has(relative_path):
+		return cabinet_audio_cache[relative_path] as AudioStream
+	var path := _cabinet_resource_path(relative_path)
+	if path.is_empty():
+		return null
+	var audio := ResourceLoader.load(path) as AudioStream
+	if audio != null:
+		cabinet_audio_cache[relative_path] = audio
+	return audio
+
+func _load_cabinet_font(relative_path: String) -> Font:
+	var path := _cabinet_resource_path(relative_path)
+	if path.is_empty():
+		return null
+	return ResourceLoader.load(path) as Font
+
+func _create_press_audio_player() -> void:
+	if press_sound == null:
+		return
+	press_audio_player = AudioStreamPlayer.new()
+	press_audio_player.name = "CabinetPressAudio"
+	press_audio_player.stream = press_sound
+	press_audio_player.volume_db = -4.0
+	add_child(press_audio_player)
+
+func _play_press_sound() -> void:
+	if press_audio_player == null:
+		return
+	press_audio_player.stop()
+	press_audio_player.play()
+
+func _font_for_key(font_key: String) -> Font:
+	match font_key:
+		"impact":
+			return impact_font if impact_font != null else arcade_font
+		"ui":
+			return ui_font if ui_font != null else arcade_font
+		_:
+			return arcade_font if arcade_font != null else ui_font
+
 # ─── helper: create styled label ───
-func _make_label(text_str: String, size: int, color_val: Color, align := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
+func _make_label(text_str: String, size: int, color_val: Color, align := HORIZONTAL_ALIGNMENT_LEFT, font_key := "arcade") -> Label:
 	var l := Label.new()
 	l.text = text_str
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color_val)
+	var label_font := _font_for_key(font_key)
+	if label_font != null:
+		l.add_theme_font_override("font", label_font)
 	l.horizontal_alignment = align
 	return l
 
@@ -434,6 +521,8 @@ func _build_ui() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
+	_add_cabinet_board_background(self, 0.56)
+
 	crt_overlay = ColorRect.new()
 	crt_overlay.color = Color(0, 0, 0, 0.08)
 	crt_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -503,6 +592,21 @@ func _build_ui() -> void:
 
 	_build_admin_screen(content)
 
+func _add_cabinet_board_background(parent: Control, alpha: float) -> TextureRect:
+	var texture := _load_cabinet_texture(CABINET_BOARD_TEXTURE)
+	if texture == null:
+		return null
+	var board := TextureRect.new()
+	board.name = "CabinetAi9BoardTexture"
+	board.texture = texture
+	board.set_anchors_preset(Control.PRESET_FULL_RECT)
+	board.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	board.stretch_mode = TextureRect.STRETCH_SCALE
+	board.modulate = Color(1, 0.82, 0.56, alpha)
+	board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(board)
+	return board
+
 func _build_control_deck(parent: Node) -> void:
 	var deck := Panel.new()
 	var ps := StyleBoxFlat.new()
@@ -514,6 +618,7 @@ func _build_control_deck(parent: Node) -> void:
 	ps.corner_radius_bottom_left = 8; ps.corner_radius_bottom_right = 8
 	deck.add_theme_stylebox_override("panel", ps)
 	deck.custom_minimum_size = Vector2(0, CONTROL_DECK_MIN_HEIGHT)
+	deck.clip_contents = true
 	parent.add_child(deck)
 	_decorate_control_deck(deck)
 
@@ -573,6 +678,7 @@ func _build_control_deck(parent: Node) -> void:
 	rows.add_child(bet_label)
 
 func _decorate_control_deck(deck: Control) -> void:
+	_add_cabinet_board_background(deck, 0.72)
 	_add_control_deck_band(deck, "ControlDeckBandTop", 0.0, 0.36, COLOR_CONTROL_DECK_TOP)
 	_add_control_deck_band(deck, "ControlDeckBandMid", 0.32, 0.74, COLOR_CONTROL_DECK_MID)
 	_add_control_deck_band(deck, "ControlDeckBandBottom", 0.70, 1.0, COLOR_CONTROL_DECK_BOTTOM)
@@ -770,6 +876,11 @@ func _build_paytable(parent: Node) -> void:
 		row_panel.custom_minimum_size = Vector2(0, 15)
 		var rps := StyleBoxFlat.new()
 		rps.bg_color = Color(0, 0, 0, 0)
+		rps.border_color = Color(0, 0, 0, 0)
+		rps.border_width_left = 0; rps.border_width_right = 0
+		rps.border_width_top = 0; rps.border_width_bottom = 0
+		rps.content_margin_left = 2; rps.content_margin_right = 2
+		rps.content_margin_top = 0; rps.content_margin_bottom = 0
 		row_panel.add_theme_stylebox_override("panel", rps)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
@@ -1658,9 +1769,9 @@ func _show_draw_replacement(index: int, reveal: Dictionary) -> void:
 	var base_position := rect.position
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(rect, "modulate", Color(1, 1, 1, 0), DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.tween_property(rect, "position", base_position + Vector2(0, 48), DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.tween_property(rect, "scale", Vector2(0.92, 0.92), DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(rect, "modulate", Color(1, 1, 1, 0.72), DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(rect, "position", base_position, DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(rect, "scale", Vector2(0.08, 1.02), DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.chain().tween_callback(Callable(self, "_finish_card_draw_replacement").bind(index, code, texture, bool(reveal.get("held", false)), base_position))
 	slot["tween"] = tw
 
@@ -1671,9 +1782,9 @@ func _finish_card_draw_replacement(index: int, code: String, texture: Texture2D,
 	var rect: TextureRect = slot["rect"]
 	slot["tween"] = null
 	rect.texture = texture
-	rect.position = base_position + Vector2(0, -38)
-	rect.scale = Vector2(0.88, 0.88)
-	rect.modulate = Color(1, 1, 1, 0)
+	rect.position = base_position
+	rect.scale = Vector2(0.08, 1.02)
+	rect.modulate = Color(1, 1, 1, 0.72)
 	slot["displayed_code"] = code
 	slot["pending_code"] = ""
 	slot["hold_label"].text = "HELD" if held else ""
@@ -1691,7 +1802,7 @@ func _animate_card_draw_in(index: int, base_position: Vector2) -> void:
 	tw.set_parallel(true)
 	tw.tween_property(rect, "modulate", Color(1, 1, 1, 1), DRAW_IN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(rect, "position", base_position, DRAW_IN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(rect, "scale", Vector2(1.03, 1.03), DRAW_IN_DURATION * 0.62).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(rect, "scale", Vector2(1.03, 1.0), DRAW_IN_DURATION * 0.62).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.chain().tween_property(rect, "scale", Vector2(1.0, 1.0), DRAW_IN_DURATION * 0.38).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	slot["tween"] = tw
 
@@ -1709,17 +1820,17 @@ func _animate_card_deal(index: int) -> void:
 		slot["tween"].kill()
 	slot["tween"] = null
 
-	rect.modulate = Color(1, 1, 1, 0)
+	rect.modulate = Color(1, 1, 1, 0.70)
 	rect.pivot_offset = rect.custom_minimum_size * 0.5
 	var base_position := rect.position
-	rect.position = base_position + Vector2(0, -58)
-	rect.scale = Vector2(0.82, 0.82)
+	rect.position = base_position
+	rect.scale = Vector2(0.08, 1.02)
 
 	var tw := create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(rect, "modulate", Color(1, 1, 1, 1), DEAL_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(rect, "position", base_position, DEAL_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(rect, "scale", Vector2(1.04, 1.04), DEAL_DURATION * 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(rect, "scale", Vector2(1.04, 1.0), DEAL_DURATION * 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.chain().tween_property(rect, "scale", Vector2(1.0, 1.0), DEAL_DURATION * 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	slot["tween"] = tw
 
@@ -1732,7 +1843,8 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 		if du_promote_timer != null:
 			du_promote_timer.stop()
 		_clear_du_board()
-		du_pending_promote_dealer = ""
+		_clear_du_pending_promotion()
+		du_local_trail_entries.clear()
 		_prev_dealer_code = ""
 		_prev_challenger_code = ""
 		_prev_switches_remaining = -1
@@ -1761,7 +1873,7 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	if switch_replaced_dealer:
 		if du_promote_timer != null:
 			du_promote_timer.stop()
-		du_pending_promote_dealer = ""
+		_clear_du_pending_promotion()
 		du_last_switch_dealer_code = dealer_code
 		_start_du_dealer_replace_shuffle(dealer_code)
 	elif inferred_win_reveal:
@@ -1769,11 +1881,11 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 		if du_promote_timer != null:
 			du_promote_timer.stop()
 		_start_du_card_shuffle(board_dealer_code, board_challenger_code)
-		_queue_du_dealer_promotion(board_challenger_code)
+		_queue_du_dealer_promotion(board_challenger_code, board_dealer_code)
 	elif challenger_code.is_empty():
 		if du_promote_timer != null:
 			du_promote_timer.stop()
-		du_pending_promote_dealer = ""
+		_clear_du_pending_promotion()
 		_set_du_card_texture(du_dealer_rect, dealer_code)
 		var showing_switched_dealer := not du_last_switch_dealer_code.is_empty() and du_last_switch_dealer_code == dealer_code
 		if not showing_switched_dealer and (du_shuffle_timer == null or du_shuffle_timer.is_stopped() or not du_shuffle_target_challenger.is_empty()):
@@ -1782,7 +1894,7 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 		du_last_switch_dealer_code = ""
 		_start_du_card_shuffle(dealer_code, challenger_code)
 		if challenger_changed and _du_should_promote_after_reveal(status, challenger_code):
-			_queue_du_dealer_promotion(challenger_code)
+			_queue_du_dealer_promotion(challenger_code, dealer_code)
 	else:
 		if du_shuffle_timer != null and not du_shuffle_timer.is_stopped():
 			du_shuffle_timer.stop()
@@ -1810,96 +1922,158 @@ func _refresh_du_trail(du_data: Dictionary, dealer_code: String, challenger_code
 	if slot_count <= 0:
 		return
 
-	var max_trail_per_page: int = max(0, slot_count - 2)
-	var trail_entries := [] if dealer_replace_only else _du_visible_trail_entries(du_data, dealer_code, max_trail_per_page)
-	var dealer_index: int = min(trail_entries.size(), slot_count - 1)
-	var reveal_index: int = min(dealer_index + 1, slot_count - 1)
-
-	for index in range(trail_entries.size()):
-		if index >= dealer_index or index >= slot_count:
-			break
-		var entry: Dictionary = trail_entries[index]
-		var trail_code := str(entry.get("code", ""))
-		var trail_label := str(entry.get("label", "")).strip_edges().to_upper()
-		if trail_label.is_empty() or trail_label == "DEALER":
-			trail_label = "PLAYED"
-		_set_du_board_slot(index, trail_code, trail_label, _is_lucky_du_card(du_data, trail_code))
-
-	if dealer_code.length() >= 2:
-		_set_du_board_slot(dealer_index, dealer_code, "DEALER", _is_lucky_du_card(du_data, dealer_code))
+	var page_entries := []
+	if dealer_replace_only:
+		if dealer_code.length() >= 2:
+			page_entries.append({"code": dealer_code, "label": "DEALER"})
 	else:
-		_set_du_board_back(dealer_index, "", 0.18)
-	_set_du_dealer_slot(dealer_index)
+		page_entries = _du_visible_page_entries(du_data, dealer_code, challenger_code, slot_count)
 
-	_set_du_challenger_slot(reveal_index)
+	var dealer_index := _du_page_entry_index(page_entries, dealer_code)
+	if dealer_index < 0 and dealer_code.length() >= 2:
+		if page_entries.size() >= slot_count:
+			page_entries.clear()
+		page_entries.append({"code": dealer_code, "label": "DEALER"})
+		dealer_index = page_entries.size() - 1
+	if dealer_index < 0:
+		dealer_index = 0
+
+	var challenger_index := -1
 	if challenger_code.length() >= 2:
-		_set_du_board_slot(reveal_index, challenger_code, _du_result_label(status), _is_lucky_du_card(du_data, challenger_code))
-	elif dealer_code.length() >= 2 and reveal_index != dealer_index:
-		_set_du_board_back(reveal_index, "BIG / SMALL ?", 1.0)
-	elif dealer_code.length() < 2:
-		_set_du_board_back(reveal_index, "", 0.18)
+		challenger_index = _du_page_entry_index_after(page_entries, challenger_code, dealer_index)
+		if challenger_index < 0:
+			challenger_index = _du_page_entry_index(page_entries, challenger_code)
 
-	for slot_index in range(reveal_index + 1, slot_count):
-		_set_du_board_back(slot_index, "", 0.18)
+	var reveal_index: int = challenger_index if challenger_index >= 0 else min(dealer_index + 1, slot_count - 1)
+
+	for slot_index in range(slot_count):
+		if slot_index < page_entries.size():
+			var entry: Dictionary = page_entries[slot_index]
+			var code := str(entry.get("code", ""))
+			var label := ""
+			if slot_index == dealer_index:
+				label = "DEALER"
+			elif slot_index == challenger_index:
+				label = _du_result_label(status)
+			_set_du_board_slot(slot_index, code, label, _is_lucky_du_card(du_data, code))
+		elif slot_index == reveal_index and dealer_code.length() >= 2:
+			_set_du_board_back(slot_index, "BIG / SMALL ?", 1.0)
+		else:
+			_set_du_board_back(slot_index, "", 0.18)
+
+	_set_du_dealer_slot(dealer_index)
+	_set_du_challenger_slot(reveal_index)
 
 func _du_visible_deck_codes(du_data: Dictionary, dealer_code: String, challenger_code: String, max_count: int) -> Array:
 	var result: Array = []
 	if max_count <= 0:
 		return result
-	for entry in _du_visible_trail_entries(du_data, dealer_code, max_count):
+	for entry in _du_visible_page_entries(du_data, dealer_code, challenger_code, max_count):
 		result.append(str(entry.get("code", "")))
-	if dealer_code.length() >= 2 and result.size() < max_count:
-		result.append(dealer_code)
-	if challenger_code.length() >= 2 and result.size() < max_count:
-		result.append(challenger_code)
 	return result
 
 func _du_visible_hit_codes(du_data: Dictionary, dealer_code: String, challenger_code: String, max_count: int) -> Array:
 	var result: Array = []
 	if max_count <= 0:
 		return result
-	for entry in _du_visible_trail_entries(du_data, dealer_code, max_count):
+	for entry in _du_visible_page_entries(du_data, dealer_code, challenger_code, max_count):
 		var code := str(entry.get("code", ""))
-		if code.length() >= 2 and code != challenger_code:
+		if code.length() >= 2 and code != dealer_code and code != challenger_code:
 			result.append(code)
 	return result
 
-func _du_visible_trail_entries(du_data: Dictionary, dealer_code: String, max_count: int) -> Array:
+func _du_visible_page_entries(du_data: Dictionary, dealer_code: String, challenger_code: String, slot_count: int) -> Array:
+	if slot_count <= 0:
+		return []
+	var timeline := _du_timeline_entries(du_data)
+	var dealer_position := _du_page_entry_index(timeline, dealer_code)
+	if dealer_position < 0 and dealer_code.length() >= 2:
+		timeline.append({"code": dealer_code, "label": "DEALER"})
+		dealer_position = timeline.size() - 1
+	if dealer_position < 0:
+		return []
+
+	while timeline.size() > dealer_position + 1:
+		timeline.remove_at(timeline.size() - 1)
+
+	if challenger_code.length() >= 2 and _du_page_entry_index_after(timeline, challenger_code, dealer_position) < 0:
+		timeline.append({"code": challenger_code, "label": "REVEAL"})
+
+	var page_start := _du_page_start_for_dealer_index(dealer_position, slot_count)
 	var result: Array = []
-	if max_count <= 0:
-		return result
-
-	var trail_source := _du_array(du_data, ["card_trail", "cardTrail", "CardTrail"])
-	if typeof(trail_source) != TYPE_ARRAY:
-		return result
-
-	for entry in trail_source:
-		var code := _du_entry_code(entry)
-		if code.length() < 2:
-			continue
-		if not result.is_empty() and str((result[result.size() - 1] as Dictionary).get("code", "")) == code:
-			continue
-		result.append({"code": code, "label": _du_entry_label(entry)})
-
-	if dealer_code.length() >= 2 and not result.is_empty() and str((result[result.size() - 1] as Dictionary).get("code", "")) == dealer_code:
-		result.remove_at(result.size() - 1)
-
-	if result.size() > max_count:
-		var carry_step: int = max(1, max_count - 1)
-		var overshoot := result.size() - max_count
-		var pages := int(ceil(float(overshoot) / float(carry_step)))
-		var start_index := pages * carry_step
-		while start_index > 0 and start_index >= result.size():
-			start_index -= carry_step
-
-		var window: Array = []
-		for index in range(start_index, result.size()):
-			window.append(result[index])
-		result = window
-
-	while result.size() > max_count:
-		result.remove_at(0)
+	for index in range(page_start, timeline.size()):
+		if result.size() >= slot_count:
+			break
+		result.append(timeline[index])
 	return result
+
+func _du_timeline_entries(du_data: Dictionary) -> Array:
+	var result: Array = []
+	var has_local_trail := not du_local_trail_entries.is_empty()
+	var trail_source := du_local_trail_entries if has_local_trail else _du_array(du_data, ["card_trail", "cardTrail", "CardTrail"])
+	if typeof(trail_source) == TYPE_ARRAY:
+		for entry in trail_source:
+			var code := _du_entry_code(entry)
+			_append_du_timeline_entry(result, code, _du_entry_label(entry))
+	return result
+
+func _du_page_start_for_dealer_index(dealer_position: int, slot_count: int) -> int:
+	var stride: int = max(1, slot_count - 1)
+	if dealer_position <= 0:
+		return 0
+	return int(floor(float(dealer_position) / float(stride))) * stride
+
+func _du_page_entry_index(entries: Array, code: String) -> int:
+	if code.length() < 2:
+		return -1
+	for index in range(entries.size()):
+		if typeof(entries[index]) != TYPE_DICTIONARY:
+			continue
+		if str((entries[index] as Dictionary).get("code", "")) == code:
+			return index
+	return -1
+
+func _du_page_entry_index_after(entries: Array, code: String, start_after: int) -> int:
+	if code.length() < 2:
+		return -1
+	for index in range(max(0, start_after + 1), entries.size()):
+		if typeof(entries[index]) != TYPE_DICTIONARY:
+			continue
+		if str((entries[index] as Dictionary).get("code", "")) == code:
+			return index
+	return -1
+
+func _du_current_round_index(du_data: Dictionary) -> int:
+	return max(0, store._to_int(_du_first_value(du_data, ["current_round_index", "currentRoundIndex", "CurrentRoundIndex", "double_up_count", "doubleUpCount", "DoubleUpCount"], 0)))
+
+func _append_du_timeline_entry(entries: Array, code: String, label_text: String) -> void:
+	if code.length() < 2 or _du_trail_contains_code(entries, code):
+		return
+	var label := label_text.strip_edges().to_upper()
+	if label.is_empty() or label == "DEALER":
+		label = "PLAYED"
+	entries.append({"code": code, "label": label})
+
+func _du_trail_contains_code(entries: Array, code: String) -> bool:
+	for entry in entries:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if str((entry as Dictionary).get("code", "")) == code:
+			return true
+	return false
+
+func _append_du_local_trail_entry(code: String, label_text: String = "PLAYED") -> void:
+	if code.length() < 2:
+		return
+	for entry in du_local_trail_entries:
+		if typeof(entry) == TYPE_DICTIONARY and str((entry as Dictionary).get("code", "")) == code:
+			return
+	var label := label_text.strip_edges().to_upper()
+	if label.is_empty() or label == "DEALER":
+		label = "PLAYED"
+	du_local_trail_entries.append({"code": code, "label": label})
+	while du_local_trail_entries.size() > DOUBLE_UP_BOARD_SLOT_COUNT * 2:
+		du_local_trail_entries.remove_at(0)
 
 func _du_entry_code(entry: Variant) -> String:
 	if typeof(entry) == TYPE_DICTIONARY:
@@ -1935,10 +2109,17 @@ func _du_should_promote_after_reveal(status: String, challenger_code: String) ->
 	var normalized := status.to_upper()
 	return normalized.find("LOSE") < 0 and normalized.find("LOST") < 0
 
-func _queue_du_dealer_promotion(next_dealer_code: String) -> void:
+func _clear_du_pending_promotion() -> void:
+	du_pending_promote_dealer = ""
+	du_pending_promote_trail_code = ""
+	du_pending_promote_trail_label = ""
+
+func _queue_du_dealer_promotion(next_dealer_code: String, trail_code: String = "", trail_label: String = "PLAYED") -> void:
 	if next_dealer_code.length() < 2:
 		return
 	du_pending_promote_dealer = next_dealer_code
+	du_pending_promote_trail_code = trail_code
+	du_pending_promote_trail_label = trail_label
 	if du_promote_timer != null:
 		du_promote_timer.stop()
 		du_promote_timer.wait_time = DU_REVEAL_SETTLE_SECONDS
@@ -1947,15 +2128,20 @@ func _queue_du_dealer_promotion(next_dealer_code: String) -> void:
 func _on_du_promote_timeout() -> void:
 	if du_pending_promote_dealer.length() < 2:
 		return
+	var next_dealer_code := du_pending_promote_dealer
+	var trail_code := du_pending_promote_trail_code
+	var trail_label := du_pending_promote_trail_label
 	var du_data := _double_up_data()
 	if not _is_double_up_active(du_data):
-		du_pending_promote_dealer = ""
+		_clear_du_pending_promotion()
 		return
-	if not _du_should_promote_after_reveal(_du_status(du_data), du_pending_promote_dealer):
-		du_pending_promote_dealer = ""
+	if not _du_should_promote_after_reveal(_du_status(du_data), next_dealer_code):
+		_clear_du_pending_promotion()
 		return
-	_start_du_card_shuffle(du_pending_promote_dealer, "")
-	du_pending_promote_dealer = ""
+	_append_du_local_trail_entry(trail_code, trail_label)
+	_prepare_du_board(du_data, next_dealer_code, "", _du_status(du_data), false)
+	_start_du_card_shuffle(next_dealer_code, "")
+	_clear_du_pending_promotion()
 
 func _is_lucky_du_card(du_data: Dictionary, code: String) -> bool:
 	return code == "5S" and (
@@ -2226,7 +2412,7 @@ func _refresh_bonus_stage() -> void:
 	else:
 		bonus_stage_amount_label.text = "BONUS 0"
 
-	_set_bonus_stage_texture(card_code, active)
+	_set_bonus_stage_texture(card_code, active, kind)
 	_style_bonus_stage(active)
 	var next_key := "%s:%s:%s:%s" % [kind, card_code, str(active), str(amount)]
 	if next_key != bonus_stage_key:
@@ -2294,11 +2480,22 @@ func _four_kind_rank_card_code() -> String:
 			return str(first_code_by_rank.get(rank, ""))
 	return ""
 
-func _set_bonus_stage_texture(card_code: String, active: bool) -> void:
+func _set_bonus_stage_texture(card_code: String, active: bool, kind: String) -> void:
 	var texture: Texture2D = null
+	match kind:
+		"lucky5":
+			texture = _load_cabinet_texture("images/lucky5.png")
+		"bonus_card":
+			texture = _load_cabinet_texture("images/bonus.png")
+		_:
+			texture = _load_cabinet_texture("images/free.png")
 	if card_code.length() >= 2:
-		texture = _card_texture_from_code(card_code)
-	bonus_stage_card.texture = texture if texture != null else _card_back_texture(false)
+		var card_texture := _card_texture_from_code(card_code)
+		if card_texture != null and texture == null:
+			texture = card_texture
+	if texture == null:
+		texture = _load_cabinet_texture("images/bonus.png")
+	bonus_stage_card.texture = texture
 	bonus_stage_card.modulate = Color(1, 1, 1, 1) if active and texture != null else Color(1, 1, 1, 0.42)
 
 func _style_bonus_stage(active: bool) -> void:
@@ -2324,10 +2521,12 @@ func _animate_bonus_stage(active: bool) -> void:
 	bonus_stage_panel.scale = Vector2(1.04, 1.04) if active else Vector2(1.0, 1.0)
 	bonus_stage_tween = create_tween()
 	bonus_stage_tween.set_parallel(true)
-	bonus_stage_tween.tween_property(bonus_stage_panel, "scale", Vector2(1.0, 1.0), 0.20).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	bonus_stage_tween.tween_property(bonus_stage_panel, "scale", Vector2(1.0, 1.0), 0.33).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	if active:
 		bonus_stage_card.scale = Vector2(1.16, 1.16)
-		bonus_stage_tween.tween_property(bonus_stage_card, "scale", Vector2(1.0, 1.0), 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		bonus_stage_tween.tween_property(bonus_stage_card, "scale", Vector2(1.0, 1.0), 0.33).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		bonus_stage_tween.tween_property(bonus_stage_card, "modulate", Color(1.0, 0.96, 0.62, 1.0), 0.16).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		bonus_stage_tween.chain().tween_property(bonus_stage_card, "modulate", Color(1, 1, 1, 1), 0.17).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 
 func _full_house_rank_text() -> String:
 	var jp: Dictionary = _jackpot_data()
@@ -2388,7 +2587,17 @@ func _refresh_paytable_highlights() -> void:
 		var sty := row_panel.get_theme_stylebox("panel", "") as StyleBoxFlat
 		if sty == null: continue
 		var highlighted: bool = str(key) == hand_rank or (win_displayed_amount > 0 and str(key) == score_key)
-		sty.bg_color = Color(1.0, 1.0, 0.3, 0.25) if highlighted else Color(0, 0, 0, 0)
+		if highlighted:
+			sty.bg_color = Color(1.0, 0.86, 0.16, 0.36)
+			sty.border_color = COLOR_GOLD
+			sty.border_width_left = 1; sty.border_width_right = 1
+			sty.border_width_top = 1; sty.border_width_bottom = 1
+		else:
+			sty.bg_color = Color(0, 0, 0, 0)
+			sty.border_color = Color(0, 0, 0, 0)
+			sty.border_width_left = 0; sty.border_width_right = 0
+			sty.border_width_top = 0; sty.border_width_bottom = 0
+		row_panel.queue_redraw()
 
 func _refresh_machine_info() -> void:
 	var machine: Dictionary = store.snapshot.get("machine", {})
@@ -2820,10 +3029,12 @@ func _on_hold_button_pressed(index: int) -> void:
 
 func _toggle_hold(index: int) -> void:
 	if index == 0 and _can_switch_full_house_rank():
+		_play_press_sound()
 		_send_full_house_rank_switch()
 		return
 	if _has_pending_command(): return
 	if not store.can_press("hold_%d" % index): return
+	_play_press_sound()
 	if local_hold_indexes.is_empty():
 		local_hold_indexes = _editable_hold_baseline()
 	if local_hold_indexes.has(index): local_hold_indexes.erase(index)
@@ -2836,6 +3047,7 @@ func _on_menu_close_pressed() -> void:
 	_refresh_ui()
 
 func _on_action_pressed(id: String) -> void:
+	_play_press_sound()
 	match id:
 		"menu":
 			menu_open = not menu_open

@@ -126,6 +126,8 @@ public sealed record CabinetDoubleUpDto(
     bool IsNoLoseActive,
     [property: JsonPropertyName("is_lucky5_active")]
     bool IsLucky5Active,
+    [property: JsonPropertyName("current_round_index")]
+    int CurrentRoundIndex,
     string Status,
     [property: JsonPropertyName("round_id"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     Guid? RoundId = null,

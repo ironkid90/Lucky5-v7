@@ -529,6 +529,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             DealerCard: ToCleanRoomDto(session.DealerCard),
             SwitchesRemaining: session.Options.MaxSwitchesPerRound - session.SwitchCountInRound,
             IsNoLoseActive: session.IsNoLoseActive,
+            CurrentRoundIndex: session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(session),
             IsLucky5Active: session.IsNoLoseActive,
@@ -573,6 +574,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
                 SwitchesRemaining: 0,
                 IsNoLoseActive: session.IsNoLoseActive,
                 LuckyMultiplier: luckyMult,
+                CurrentRoundIndex: session.CurrentRoundIndex,
                 Noise: noise,
                 CardTrail: BuildCardTrail(session),
                 IsLucky5Active: session.IsNoLoseActive);
@@ -584,6 +586,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             SwitchesRemaining: session.Options.MaxSwitchesPerRound - session.SwitchCountInRound,
             IsNoLoseActive: session.IsNoLoseActive,
             LuckyMultiplier: luckyMult,
+            CurrentRoundIndex: session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(session),
             IsLucky5Active: session.IsNoLoseActive);
@@ -613,6 +616,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             ChallengerCard: ToCleanRoomDto(session.Deck[swapPosition]),
             SwitchesRemaining: session.Options.MaxSwitchesPerRound - session.SwitchCountInRound,
             IsNoLoseActive: session.IsNoLoseActive,
+            CurrentRoundIndex: session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(session),
             IsLucky5Active: session.IsNoLoseActive,
@@ -652,6 +656,7 @@ switch (resolution.Outcome)
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: resolution.Session.Options.MaxSwitchesPerRound - resolution.Session.SwitchCountInRound,
             IsNoLoseActive: resolution.Session.IsNoLoseActive,
+            CurrentRoundIndex: resolution.Session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(resolution.Session),
             IsLucky5Active: resolution.Session.IsNoLoseActive);
@@ -668,6 +673,7 @@ switch (resolution.Outcome)
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: 0,
             IsNoLoseActive: false,
+            CurrentRoundIndex: resolution.Session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(resolution.Session),
             IsLucky5Active: false);
@@ -683,6 +689,7 @@ switch (resolution.Outcome)
             DealerCard: ToCleanRoomDto(resolution.DealerCard),
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: 0,
+            CurrentRoundIndex: resolution.Session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(resolution.Session),
             IsLucky5Active: false);
@@ -700,6 +707,7 @@ switch (resolution.Outcome)
             DealerCard: ToCleanRoomDto(resolution.DealerCard),
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: 0,
+            CurrentRoundIndex: resolution.Session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(resolution.Session),
             IsLucky5Active: false);
@@ -827,6 +835,7 @@ return guessResult;
             DealerCard: round.DoubleUpSession != null ? ToCleanRoomDto(round.DoubleUpSession.DealerCard) : null,
             SwitchesRemaining: switchesRemaining,
             IsNoLoseActive: round.DoubleUpSession?.IsNoLoseActive ?? false,
+            CurrentRoundIndex: round.DoubleUpSession?.CurrentRoundIndex ?? 0,
             Noise: noise);
     }
 
@@ -1645,6 +1654,7 @@ return guessResult;
                 SwitchesRemaining: switchesRemaining,
                 IsNoLoseActive: duSession.IsNoLoseActive,
                 LuckyMultiplier: multiplier,
+                CurrentRoundIndex: duSession.CurrentRoundIndex,
                 CardTrail: BuildCardTrail(duSession),
                 IsLucky5Active: duSession.IsNoLoseActive);
         }
@@ -1901,6 +1911,7 @@ return guessResult;
                 SwitchesRemaining: doubleUpSession?.SwitchesRemaining ?? 0,
                 IsNoLoseActive: doubleUpSession?.IsNoLoseActive ?? false,
                 IsLucky5Active: doubleUpSession?.IsLucky5Active ?? false,
+                CurrentRoundIndex: doubleUpSession?.CurrentRoundIndex ?? 0,
                 Status: BuildCabinetDoubleUpStatus(activeRound),
                 RoundId: gameState == "double_up" ? activeRound?.RoundId : null,
                 DealerCard: doubleUpSession?.DealerCard is null ? null : ToCabinetCard(doubleUpSession.DealerCard, faceUp: true, held: false),
@@ -2111,6 +2122,7 @@ return guessResult;
                 if (CanSwitchDoubleUpDealer(gameState, activeRound))
                 {
                     buttons.Add("double_up_switch");
+                    buttons.Add("bet");
                 }
             }
 
@@ -2261,7 +2273,32 @@ return guessResult;
     }
 
     private static IReadOnlyList<PokerCardDto> BuildCardTrail(Lucky5DoubleUpSession session)
-        => session.Deck.Take(session.DealerIndex + 1).Select(ToCleanRoomDto).ToArray();
+    {
+        if (session.PlayedDealerIndexes is null)
+        {
+            return session.Deck.Take(session.DealerIndex + 1).Select(ToCleanRoomDto).ToArray();
+        }
+
+        var trail = new List<PokerCardDto>();
+        foreach (var index in session.PlayedDealerIndexes)
+        {
+            if (index >= 0 && index < session.Deck.Length)
+            {
+                trail.Add(ToCleanRoomDto(session.Deck[index]));
+            }
+        }
+
+        if (session.DealerIndex >= 0 && session.DealerIndex < session.Deck.Length)
+        {
+            var dealer = ToCleanRoomDto(session.Deck[session.DealerIndex]);
+            if (trail.Count == 0 || trail[^1].Code != dealer.Code)
+            {
+                trail.Add(dealer);
+            }
+        }
+
+        return trail;
+    }
 
     private static PokerCardDto ToDto(PokerCard c)
     {

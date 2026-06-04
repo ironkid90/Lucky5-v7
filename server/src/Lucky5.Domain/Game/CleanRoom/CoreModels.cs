@@ -248,7 +248,8 @@ public sealed record Lucky5DoubleUpSession(
     bool IsTerminal = false,
     Lucky5DoubleUpOutcome? TerminalOutcome = null,
     int CashoutCredits = 0,
-    int SwapActivePosition = -1);
+    int SwapActivePosition = -1,
+    int[]? PlayedDealerIndexes = null);
 
 public sealed record Lucky5DoubleUpResolution(
     BigSmallGuess Guess,

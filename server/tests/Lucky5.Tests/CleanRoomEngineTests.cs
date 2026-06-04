@@ -85,6 +85,8 @@ public static class CleanRoomEngineTests
         var safeFailResolution = Lucky5DoubleUpEngine.ResolveGuess(afterLuckySwitch, BigSmallGuess.Small);
         Assert(failures, "Wrong guess under no-lose mode should safe-fail", safeFailResolution.Outcome == Lucky5DoubleUpOutcome.SafeFail);
         Assert(failures, "Safe fail should bank the protected winnings", safeFailResolution.CashoutCredits == 40);
+        Assert(failures, "Double-up switch should not append to the played high/low trail", afterLuckySwitch.PlayedDealerIndexes is { Length: 0 });
+        Assert(failures, "Double-up resolution should append only the dealer card that was actually played", safeFailResolution.Session.PlayedDealerIndexes is { Length: 1 } safeTrail && safeTrail[0] == 1);
 
         // Chained no-lose: win after Lucky5 should keep protection, then lose → SafeFail
         // Deck: 9H(start) → 5S(switch,Lucky5) → KH(guess Big,win:K>5) → QD(guess Big,lose:Q<K)
@@ -99,9 +101,11 @@ public static class CleanRoomEngineTests
         Assert(failures, "Chained: winning guess after Lucky5 should still be a Win", chainedWin.Outcome == Lucky5DoubleUpOutcome.Win);
         Assert(failures, "Chained: no-lose should persist through wins", chainedWin.Session.IsNoLoseActive);
         Assert(failures, "Chained: amount should double on win", chainedWin.NextAmount == 80);
+        Assert(failures, "Chained: played high/low trail should preserve the switched dealer as the first played card", chainedWin.Session.PlayedDealerIndexes is { Length: 1 } chainedTrail && chainedTrail[0] == 1);
         var chainedLoss = Lucky5DoubleUpEngine.ResolveGuess(chainedWin.Session, BigSmallGuess.Big);
         Assert(failures, "Chained: losing after wins with no-lose active should SafeFail", chainedLoss.Outcome == Lucky5DoubleUpOutcome.SafeFail);
         Assert(failures, "Chained: SafeFail should bank the pre-loss amount", chainedLoss.CashoutCredits == 80);
+        Assert(failures, "Chained: every high/low hit should append one played dealer card left-to-right", chainedLoss.Session.PlayedDealerIndexes is { Length: 2 } lossTrail && lossTrail[0] == 1 && lossTrail[1] == 2);
 
         var repeatedLuckySession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
             seedRoot: seed,

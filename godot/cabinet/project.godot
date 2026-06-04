@@ -26,7 +26,6 @@ window/size/viewport_height=1280
 window/size/window_width_override=540
 window/size/window_height_override=960
 window/stretch/mode="viewport"
-window/stretch/aspect="keep"
 window/handheld/orientation=1
 
 [dotnet]
@@ -37,5 +36,4 @@ project/assembly_name="Lucky5 Cabinet"
 
 textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="mobile"
 textures/vram_compression/import_etc2_astc=true

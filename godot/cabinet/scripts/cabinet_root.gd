@@ -71,9 +71,13 @@ var pending_command_type := ""
 
 # ─── node refs ───
 var title_label: Label
-var paytable_labels: Array = []
+var paytable_rows: Dictionary = {}
+var paytable_amount_labels: Dictionary = {}
+var full_house_rank_label: Label
+var full_house_jackpot_label: Label
 var credit_label: Label
 var jackpot_counters: Dictionary = {}
+var jackpot_counter_panels: Dictionary = {}
 var message_label: Label
 var recovery_label: Label
 var auth_panel: VBoxContainer
@@ -444,6 +448,9 @@ func _build_auth_panel(parent: Node) -> void:
 		btns.add_child(b)
 
 func _build_paytable(parent: Node) -> void:
+	paytable_rows.clear()
+	paytable_amount_labels.clear()
+
 	var panel := Panel.new()
 	panel.custom_minimum_size = Vector2(0, 0)
 	var ps := StyleBoxFlat.new()
@@ -471,12 +478,30 @@ func _build_paytable(parent: Node) -> void:
 		["TWO PAIR", 2, COLOR_WHITE],
 	]
 	for hand in hands:
+		var row_panel := Panel.new()
+		row_panel.custom_minimum_size = Vector2(0, 0)
+		var rps := StyleBoxFlat.new()
+		rps.bg_color = Color(0, 0, 0, 0)
+		row_panel.add_theme_stylebox_override("panel", rps)
 		var row := HBoxContainer.new()
+		row_panel.add_child(row)
 		var name_l := _make_label(hand[0], 12, hand[2])
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(name_l)
-		row.add_child(_make_label("x%s" % hand[1], 12, hand[2], HORIZONTAL_ALIGNMENT_RIGHT))
-		pbox.add_child(row)
+		var amount_l := _make_label("x%s" % hand[1], 12, hand[2], HORIZONTAL_ALIGNMENT_RIGHT)
+		row.add_child(amount_l)
+		paytable_rows[str(hand[0])] = row_panel
+		paytable_amount_labels[str(hand[0])] = amount_l
+		pbox.add_child(row_panel)
+
+	var fh_rank_row := HBoxContainer.new()
+	fh_rank_row.add_theme_constant_override("separation", 4)
+	pbox.add_child(fh_rank_row)
+	full_house_rank_label = _make_label(_full_house_rank_text(), 12, Color(0.498, 0.843, 1.0))
+	fh_rank_row.add_child(full_house_rank_label)
+	full_house_jackpot_label = _make_label("0", 12, Color(0.498, 0.843, 1.0), HORIZONTAL_ALIGNMENT_RIGHT)
+	full_house_jackpot_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fh_rank_row.add_child(full_house_jackpot_label)
 
 func _build_credit_bar(parent: Node) -> void:
 	var bar := HBoxContainer.new()
@@ -595,12 +620,23 @@ func _build_machine_info(parent: Node) -> void:
 	jp_row.add_theme_constant_override("separation", 10)
 	rows.add_child(jp_row)
 
-	for slot in [["4K-A", "4k-a", COLOR_GREEN_DIM], ["SF", "sf", COLOR_RED], ["4K-B", "4k-b", COLOR_GREEN_DIM], ["FH", "fh", Color(0.498, 0.843, 1.0)]]:
-		var tag := _make_label(slot[0], 10, slot[2])
-		jp_row.add_child(tag)
+	jackpot_counter_panels.clear()
+	for slot in [["*", "4k-a", COLOR_GREEN_DIM], ["SF", "sf", COLOR_RED], ["*", "4k-b", COLOR_GREEN_DIM]]:
+		var counter_panel := Panel.new()
+		var cps := StyleBoxFlat.new()
+		cps.bg_color = Color(0, 0, 0, 0)
+		counter_panel.add_theme_stylebox_override("panel", cps)
+		var counter_box := VBoxContainer.new()
+		counter_box.alignment = BoxContainer.ALIGNMENT_CENTER
+		counter_box.add_theme_constant_override("separation", 1)
+		counter_panel.add_child(counter_box)
+		var tag := _make_label(slot[0], 10, slot[2], HORIZONTAL_ALIGNMENT_CENTER)
+		counter_box.add_child(tag)
 		var val := _make_label("0", 14, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-		jp_row.add_child(val)
-		jackpot_counters[slot[1]] = val
+		counter_box.add_child(val)
+		jackpot_counters[str(slot[1])] = val
+		jackpot_counter_panels[str(slot[1])] = counter_panel
+		jp_row.add_child(counter_panel)
 
 	bonus_message_label = _make_label("4 OF A KIND   WINS BONUS", 16, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	bonus_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -935,8 +971,20 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 	if deal_timer != null:
 		deal_timer.stop()
 
+	var show_idle_rank_card := game_state == "idle" and not du_active and cards.is_empty()
 	for index in range(5):
 		var slot: Dictionary = cards_texture_rects[index]
+		if show_idle_rank_card and index == 2:
+			var rank_code := _full_house_rank_card_code()
+			if rank_code.length() >= 2:
+				var tex := _card_texture_from_code(rank_code)
+				slot["rect"].texture = tex if tex != null else null
+				slot["rect"].modulate = Color(1, 1, 1, 1)
+			var held := local_hold_indexes.has(index)
+			slot["hold_label"].text = "FH"
+			slot["displayed_code"] = rank_code
+			slot["pending_code"] = ""
+			continue
 		if index < cards.size() and typeof(cards[index]) == TYPE_DICTIONARY:
 			var card: Dictionary = cards[index]
 			var code: String = card.get("code", "")
@@ -1169,14 +1217,79 @@ func _refresh_du_trail(du_data: Dictionary) -> void:
 
 func _refresh_jackpots() -> void:
 	var jp: Dictionary = store.snapshot.get("jackpot", {})
+	var active_4k: String = str(jp.get("active_four_of_a_kind_slot", "A"))
 	if jackpot_counters.has("4k-a"):
 		jackpot_counters["4k-a"].text = _format_amount(jp.get("four_of_a_kind_a", 0))
 	if jackpot_counters.has("sf"):
 		jackpot_counters["sf"].text = _format_amount(jp.get("straight_flush", 0))
 	if jackpot_counters.has("4k-b"):
 		jackpot_counters["4k-b"].text = _format_amount(jp.get("four_of_a_kind_b", 0))
-	if jackpot_counters.has("fh"):
-		jackpot_counters["fh"].text = _format_amount(jp.get("full_house", 0))
+	_set_jackpot_counter_active("4k-a", active_4k == "A")
+	_set_jackpot_counter_active("4k-b", active_4k == "B")
+	_refresh_paytable_values()
+	_refresh_paytable_highlights()
+
+func _set_jackpot_counter_active(slot_key: String, active: bool) -> void:
+	var counter_panel: Panel = jackpot_counter_panels.get(slot_key, null)
+	if counter_panel == null: return
+	var sty := counter_panel.get_theme_stylebox("panel", "") as StyleBoxFlat
+	if sty == null: return
+	var active_colors := { "4k-a": Color(1.0, 1.0, 0.3, 1.0), "4k-b": Color(1.0, 1.0, 0.3, 1.0) }
+	sty.bg_color = active_colors.get(slot_key, Color(0, 0, 0, 0)) if active else Color(0, 0, 0, 0)
+	if active:
+		sty.border_color = COLOR_GOLD
+		sty.border_width_left = 1; sty.border_width_right = 1
+		sty.border_width_top = 1; sty.border_width_bottom = 1
+	else:
+		sty.border_color = Color(0, 0, 0, 0)
+		sty.border_width_left = 0; sty.border_width_right = 0
+		sty.border_width_top = 0; sty.border_width_bottom = 0
+
+func _full_house_rank_text() -> String:
+	var jp: Dictionary = store.snapshot.get("jackpot", {})
+	var rank: Variant = jp.get("full_house_rank", 0)
+	var rank_value: int = store._to_int(rank)
+	if rank_value <= 0: return "FH RANK"
+	match rank_value:
+		14: return "FH RANK: A"
+		13: return "FH RANK: K"
+		12: return "FH RANK: Q"
+		11: return "FH RANK: J"
+		10: return "FH RANK: 10"
+		9: return "FH RANK: 9"
+		8: return "FH RANK: 8"
+		7: return "FH RANK: 7"
+		6: return "FH RANK: 6"
+		5: return "FH RANK: 5"
+		_: return "FH RANK: %d" % rank_value
+
+func _full_house_rank_card_code() -> String:
+	return _full_house_rank_text() + "S"
+
+func _refresh_paytable_values() -> void:
+	if full_house_jackpot_label == null or full_house_rank_label == null: return
+	var jp: Dictionary = store.snapshot.get("jackpot", {})
+	full_house_jackpot_label.text = _format_amount(jp.get("full_house", 0))
+	full_house_rank_label.text = _full_house_rank_text()
+
+func _refresh_paytable_highlights() -> void:
+	var hand_rank := store.hand_rank()
+	for key in paytable_rows.keys():
+		var row_panel: Panel = paytable_rows.get(key, null)
+		if row_panel == null: continue
+		var sty := row_panel.get_theme_stylebox("panel", "") as StyleBoxFlat
+		if sty == null: continue
+		var highlighted := false
+		match hand_rank:
+			"RoyalFlush": highlighted = key == "ROYAL FLUSH"
+			"StraightFlush": highlighted = key == "STRAIGHT FLUSH"
+			"FourOfAKind": highlighted = key == "FOUR OF A KIND"
+			"FullHouse": highlighted = key == "FULL HOUSE"
+			"Flush": highlighted = key == "FLUSH"
+			"Straight": highlighted = key == "STRAIGHT"
+			"ThreeOfAKind": highlighted = key == "THREE OF A KIND"
+			"TwoPair": highlighted = key == "TWO PAIR"
+		sty.bg_color = Color(1.0, 1.0, 0.3, 0.25) if highlighted else Color(0, 0, 0, 0)
 
 func _refresh_machine_info() -> void:
 	var machine: Dictionary = store.snapshot.get("machine", {})

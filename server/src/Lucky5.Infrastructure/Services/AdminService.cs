@@ -12,6 +12,36 @@ using PersistenceStore = Lucky5.Infrastructure.Persistence.IPersistentStateStore
 
 public sealed class AdminService(InMemoryDataStore store, PersistenceStore persistentStateStore, PersistenceCoordinator persistentStateCoordinator) : IAdminService
 {
+    public Task<AdminDashboardDto> GetDashboardAsync(CancellationToken cancellationToken)
+    {
+        var users = store.Users.Values.ToArray();
+        var ledgers = store.MachineLedgers.Values.ToArray();
+        var sessions = store.MachineSessions.Values.ToArray();
+        var now = DateTime.UtcNow;
+        var totalCapitalIn = ledgers.Sum(ledger => ledger.CapitalIn);
+        var totalCapitalOut = ledgers.Sum(ledger => ledger.CapitalOut);
+
+        var dashboard = new AdminDashboardDto(
+            UserCount: users.Length,
+            PlayerCount: users.Count(user => !string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase)),
+            AdminCount: users.Count(user => string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase)),
+            TotalWalletBalance: store.MemberProfiles.Values.Sum(profile => profile.WalletBalance),
+            TotalMachineCredits: sessions.Sum(session => session.MachineCredits),
+            MachineCount: store.Machines.Count,
+            OpenMachineCount: store.Machines.Values.Count(machine => machine.IsOpen),
+            ClosedMachineCount: store.Machines.Values.Count(machine => !machine.IsOpen),
+            ActiveMachineSessions: sessions.Count(session => session.MachineCredits > 0m || session.TotalCashIn > 0m || session.IsMachineClosed),
+            RecoverableRounds: store.ActiveRounds.Values.Count(IsRoundRecoverable),
+            CabinetDeviceCount: store.CabinetDevices.Count,
+            ActiveCabinetDeviceSessions: store.CabinetDeviceSessions.Values.Count(session => session.IsActive(now)),
+            RevokedCabinetDeviceCount: store.CabinetDevices.Values.Count(device => device.IsRevoked),
+            TotalCapitalIn: totalCapitalIn,
+            TotalCapitalOut: totalCapitalOut,
+            ObservedRtp: totalCapitalIn <= 0m ? 0m : decimal.Round(totalCapitalOut / totalCapitalIn, 4));
+
+        return Task.FromResult(dashboard);
+    }
+
     public Task<IReadOnlyList<AdminUserDto>> ListUsersAsync(CancellationToken cancellationToken)
     {
         var users = store.Users.Values
@@ -40,6 +70,48 @@ public sealed class AdminService(InMemoryDataStore store, PersistenceStore persi
         if (!store.Users.TryGetValue(userId, out var user))
             throw new KeyNotFoundException("User not found");
         return Task.FromResult(ToAdminUserDto(user));
+    }
+
+    public Task<AdminUserDetailDto> GetUserDetailAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        if (!store.Users.TryGetValue(userId, out var user))
+            throw new KeyNotFoundException("User not found");
+
+        store.MemberProfiles.TryGetValue(userId, out var profile);
+        var recentLedger = store.Ledger
+            .Where(row => row.UserId == userId)
+            .OrderByDescending(row => row.CreatedUtc)
+            .Take(25)
+            .Select(ToWalletLedgerDto)
+            .ToArray();
+        var sessions = store.MachineSessions.Values
+            .Where(session => session.UserId == userId)
+            .OrderByDescending(session => session.LastUpdatedUtc)
+            .Select(ToAdminUserSessionDto)
+            .ToArray();
+        var activeRounds = store.ActiveRounds.Values
+            .Where(round => round.UserId == userId && IsRoundRecoverable(round))
+            .OrderByDescending(round => round.CreatedUtc)
+            .Select(ToAdminActiveRoundDto)
+            .ToArray();
+
+        var detail = new AdminUserDetailDto(
+            User: ToAdminUserDto(user),
+            Email: profile?.Email ?? user.Email,
+            FullName: profile?.FullName ?? user.FullName,
+            Credit: profile?.Credit ?? 0m,
+            AgentId: profile?.AgentId ?? user.AgentId,
+            GeneratedId: string.IsNullOrWhiteSpace(profile?.GeneratedID) ? user.GeneratedID : profile!.GeneratedID,
+            MinimumOut: profile?.MinimumOut ?? 0m,
+            BonusDate: profile?.BonusDate,
+            BonusRechargeCount: profile?.BonusRechargeCount ?? 0,
+            SessionNetLoss: profile?.SessionNetLoss ?? 0m,
+            TotalWins: profile?.TotalWins ?? 0,
+            RecentLedger: recentLedger,
+            Sessions: sessions,
+            ActiveRounds: activeRounds);
+
+        return Task.FromResult(detail);
     }
 
     public Task<WalletLedgerEntryDto> AdminCreditAsync(Guid adminId, AdminCreditRequest request, CancellationToken cancellationToken)
@@ -75,6 +147,51 @@ public sealed class AdminService(InMemoryDataStore store, PersistenceStore persi
     {
         var machine = store.Machines.Values.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
         return Task.FromResult(ToAdminMachineDto(machine));
+    }
+
+    public Task<AdminMachineDetailDto> GetMachineDetailAsync(int machineId, CancellationToken cancellationToken)
+    {
+        var machine = store.Machines.Values.FirstOrDefault(m => m.Id == machineId) ?? throw new KeyNotFoundException("Machine not found");
+        if (!store.MachineLedgers.TryGetValue(machineId, out var ledger))
+        {
+            ledger = new MachineLedgerState
+            {
+                MachineId = machine.Id,
+                MachineSerial = machine.MachineSerial,
+                MachineSerie = machine.MachineSerie,
+                MachineKent = machine.MachineKent
+            };
+        }
+
+        var activeRounds = store.ActiveRounds.Values
+            .Where(round => round.MachineId == machineId && IsRoundRecoverable(round))
+            .OrderByDescending(round => round.CreatedUtc)
+            .Select(ToAdminActiveRoundDto)
+            .ToArray();
+        var cabinetDevices = store.CabinetDevices.Values
+            .Where(device => device.MachineId == machineId)
+            .OrderBy(device => device.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .Select(ToCabinetDeviceDto)
+            .ToArray();
+
+        var detail = new AdminMachineDetailDto(
+            Machine: ToAdminMachineDto(machine),
+            DoorState: ledger.DoorState.ToString(),
+            Active: ledger.Active,
+            Ready: ledger.Ready,
+            CapitalIn: ledger.CapitalIn,
+            CapitalOut: ledger.CapitalOut,
+            BaseCapitalOut: ledger.BaseCapitalOut,
+            JackpotCapitalOut: ledger.JackpotCapitalOut,
+            DoubleUpCapitalOut: ledger.DoubleUpCapitalOut,
+            MachineAmount: ledger.MachineAmount,
+            CurrentUserAmount: ledger.CurrentUserAmount,
+            OpenAmount: ledger.OpenAmount,
+            Profit: ledger.Profit,
+            ActiveRounds: activeRounds,
+            CabinetDevices: cabinetDevices);
+
+        return Task.FromResult(detail);
     }
 
     public Task<AdminMachineDto> ResetMachineAsync(Guid adminId, int machineId, CancellationToken cancellationToken)
@@ -186,6 +303,81 @@ public sealed class AdminService(InMemoryDataStore store, PersistenceStore persi
         store.Ledger.Add(row);
         PersistStateSafe(cancellationToken);
         return new WalletLedgerEntryDto(row.Id, row.Amount, row.BalanceAfter, row.Type, row.Reference, row.CreatedUtc);
+    }
+
+    private AdminUserSessionDto ToAdminUserSessionDto(MachineSessionState session)
+    {
+        var machineName = store.Machines.TryGetValue(session.MachineId, out var machine) ? machine.Name : string.Empty;
+        return new AdminUserSessionDto(
+            session.SessionId,
+            session.MachineId,
+            machineName,
+            session.MachineCredits,
+            session.TotalCashIn,
+            session.IsMachineClosed,
+            session.CounterplayScore,
+            session.CreatedUtc,
+            session.LastUpdatedUtc);
+    }
+
+    private AdminActiveRoundDto ToAdminActiveRoundDto(GameRound round)
+    {
+        var username = store.MemberProfiles.TryGetValue(round.UserId, out var profile)
+            ? profile.Username
+            : store.Users.TryGetValue(round.UserId, out var user)
+                ? user.Username
+                : round.UserId.ToString("N");
+        var machineName = store.Machines.TryGetValue(round.MachineId, out var machine) ? machine.Name : string.Empty;
+        var phase = round.DoubleUpSession is not null && !round.DoubleUpSession.IsTerminal
+            ? "DoubleUp"
+            : round.IsCompleted
+                ? "Drawn"
+                : "Dealt";
+        var ageSeconds = Math.Max(0, (int)(DateTime.UtcNow - round.CreatedUtc).TotalSeconds);
+
+        return new AdminActiveRoundDto(
+            round.RoundId,
+            round.UserId,
+            username,
+            round.MachineId,
+            machineName,
+            round.BetAmount,
+            phase,
+            round.HandRank,
+            round.WinAmount,
+            round.IsCompleted,
+            round.IsPayoutSettled,
+            round.EnteredDoubleUp,
+            round.CreatedUtc,
+            ageSeconds);
+    }
+
+    private static WalletLedgerEntryDto ToWalletLedgerDto(WalletLedgerEntry row)
+        => new(row.Id, row.Amount, row.BalanceAfter, row.Type, row.Reference, row.CreatedUtc);
+
+    private CabinetDeviceDto ToCabinetDeviceDto(CabinetDevice device)
+    {
+        var machineName = store.Machines.TryGetValue(device.MachineId, out var machine) ? machine.Name : string.Empty;
+        var now = DateTime.UtcNow;
+        var activeSessionCount = store.CabinetDeviceSessions.Values.Count(session => session.DeviceId == device.Id && session.IsActive(now));
+        return new CabinetDeviceDto(
+            device.Id,
+            device.MachineId,
+            machineName,
+            device.DisplayName,
+            device.SerialNumber,
+            device.SecretFingerprint,
+            device.CreatedUtc,
+            device.CreatedByAdminId,
+            device.LastAuthenticatedUtc,
+            device.LastSeenUtc,
+            device.LastFirmwareVersion,
+            device.LastClientVersion,
+            device.IsRevoked,
+            device.RevokedUtc,
+            device.RevokedByAdminId,
+            device.RevocationReason,
+            activeSessionCount);
     }
 
     private AdminUserDto ToAdminUserDto(User user)

@@ -6,6 +6,7 @@ using Lucky5.Application.Requests;
 public interface IGameService
 {
     Task<IReadOnlyList<string>> GetGamesAsync(CancellationToken cancellationToken);
+    Task<PlayerLobbyDto> GetLobbyAsync(Guid userId, CancellationToken cancellationToken);
     Task<IReadOnlyList<MachineListingDto>> GetMachinesAsync(CancellationToken cancellationToken);
     Task<DefaultRulesDto> GetDefaultRulesAsync(CancellationToken cancellationToken);
     Task<MachineSessionDto> GetMachineSessionAsync(Guid userId, int machineId, CancellationToken cancellationToken);

@@ -4,7 +4,7 @@ using System.Net;
 using System.Text.Json;
 using Lucky5.Application.Dtos;
 
-public sealed class ApiExceptionMiddleware(RequestDelegate next)
+public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExceptionMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
     {
@@ -18,7 +18,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next)
         }
     }
 
-    private static async Task WriteErrorResponse(HttpContext context, Exception ex)
+    private async Task WriteErrorResponse(HttpContext context, Exception ex)
     {
         var (status, message) = ex switch
         {
@@ -27,6 +27,14 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next)
             InvalidOperationException => (HttpStatusCode.BadRequest, ex.Message),
             _ => (HttpStatusCode.InternalServerError, "Unexpected server error")
         };
+
+        logger.LogError(
+            ex,
+            "Unhandled API request failure {Method} {Path} -> {StatusCode} ({TraceId})",
+            context.Request.Method,
+            context.Request.Path,
+            (int)status,
+            context.TraceIdentifier);
 
         context.Response.StatusCode = (int)status;
         context.Response.ContentType = "application/json";

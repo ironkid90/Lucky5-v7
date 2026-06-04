@@ -57,21 +57,27 @@ public sealed class RoundNoiseRng
         var guidHead = BinaryPrimitives.ReadUInt64LittleEndian(guidBytes.AsSpan(0, 8));
         var guidTail = BinaryPrimitives.ReadUInt64LittleEndian(guidBytes.AsSpan(8, 8));
 
-        var decimalBits = decimal.GetBits(betAmount);
-        var betBits =
-            ((ulong)(uint)decimalBits[0] << 32) ^
-            (uint)decimalBits[1] ^
-            ((ulong)(uint)decimalBits[2] << 1) ^
-            ((ulong)(uint)decimalBits[3] << 17);
+        var betBits = DecimalToEntropyBits(betAmount);
 
         var timingNoise = (ulong)DateTime.UtcNow.Ticks ^ (ulong)Stopwatch.GetTimestamp();
-        var ledgerNoise =
-            ((ulong)ledger.RoundCount << 32) ^
-            (ulong)(int)(ledger.CapitalIn * 100m) ^
-            ((ulong)(int)(ledger.CapitalOut * 100m) << 16) ^
-            ((ulong)machineId << 48);
+        var ledgerNoise = Mix(
+            ((ulong)(uint)ledger.RoundCount << 32) ^ (uint)machineId,
+            DecimalToEntropyBits(ledger.CapitalIn),
+            DecimalToEntropyBits(ledger.CapitalOut),
+            DecimalToEntropyBits(ledger.BaseCapitalOut),
+            DecimalToEntropyBits(ledger.JackpotCapitalOut),
+            DecimalToEntropyBits(ledger.DoubleUpCapitalOut),
+            DecimalToEntropyBits(ledger.NetSinceLastClose));
 
         return Mix(cryptoSeed, guidHead, guidTail, betBits, timingNoise, ledgerNoise);
+    }
+
+    private static ulong DecimalToEntropyBits(decimal value)
+    {
+        var bits = decimal.GetBits(value);
+        return Mix(
+            ((ulong)(uint)bits[0] << 32) ^ (uint)bits[1],
+            ((ulong)(uint)bits[2] << 32) ^ (uint)bits[3]);
     }
 
     public static ulong Mix(params ulong[] values)

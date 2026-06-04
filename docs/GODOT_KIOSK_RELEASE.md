@@ -114,13 +114,13 @@ should host the shared Godot cabinet at `/godot`. The script writes the export t
 the ignored `src/web/public/godot-cabinet/` folder and records
 `lucky5.godot_web_export.v1` metadata beside the generated bundle.
 
-The Godot project is pinned to GL Compatibility because this 2D cabinet must
-share a renderer path across desktop kiosk, browser, and Android targets. Keep
-the Web preset single-threaded unless the hosting server is prepared for the
-required cross-origin isolation headers. Android APKs from this preset are
-unsigned dev artifacts; release signing keys stay outside the repository. Export
-presets exclude `addons/*`; do not ship editor/plugin payloads unless a reviewed
-runtime dependency is added.
+The Godot project keeps GL Compatibility for desktop kiosk and browser exports,
+while Android uses Godot's mobile renderer path to avoid OpenGL ES shader limit
+failures on emulator/device smoke tests. Keep the Web preset single-threaded
+unless the hosting server is prepared for the required cross-origin isolation
+headers. Android APKs from this preset are unsigned dev artifacts; release
+signing keys stay outside the repository. Export presets exclude `addons/*`; do
+not ship editor/plugin payloads unless a reviewed runtime dependency is added.
 
 ## Asset manifest policy
 

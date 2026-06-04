@@ -1,5 +1,7 @@
 namespace Lucky5.Tests;
 
+using Lucky5.Domain.Entities;
+using Lucky5.Domain.Game;
 using Lucky5.Domain.Game.CleanRoom;
 
 public static class CleanRoomEngineTests
@@ -21,6 +23,36 @@ public static class CleanRoomEngineTests
         var initial = FiveCardDrawEngine.DealFiveCardDraw(seed, "opening-hand");
         var heldState = FiveCardDrawEngine.Reduce(initial, new RoundAction(RoundActionKind.SetHoldMask, HoldMask: [true, false, true, false, false]));
         var drawnState = FiveCardDrawEngine.Reduce(heldState, new RoundAction(RoundActionKind.Draw));
+
+        var longRunningLedger = new MachineLedgerState
+        {
+            MachineId = 1,
+            RoundCount = 42,
+            CapitalIn = 420_000m,
+            CapitalOut = 41_969_664m,
+            BaseCapitalOut = 71_649m,
+            JackpotCapitalOut = 0m,
+            DoubleUpCapitalOut = 41_898_015m,
+            NetSinceLastClose = 0m
+        };
+        var entropyCreated = false;
+        try
+        {
+            entropyCreated = RoundNoiseRng.CreateEntropySeed(
+                Guid.Parse("10000000-0000-0000-0000-000000000001"),
+                1,
+                5_000m,
+                longRunningLedger) != 0UL;
+        }
+        catch (OverflowException)
+        {
+            entropyCreated = false;
+        }
+
+        Assert(
+            failures,
+            "Entropy seed should support long-running machine ledgers without Int32 overflow",
+            entropyCreated);
 
         Assert(failures, "Held card 0 should survive draw", drawnState.Hand[0].Equals(initial.Hand[0]));
         Assert(failures, "Held card 2 should survive draw", drawnState.Hand[2].Equals(initial.Hand[2]));

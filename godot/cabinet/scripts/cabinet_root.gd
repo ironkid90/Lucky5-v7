@@ -61,6 +61,7 @@ const DU_SHUFFLE_INTERVAL := 0.075
 const DU_SHUFFLE_TICKS := 8
 const DU_SHUFFLE_CODES := ["AS", "KH", "QD", "JC", "10S", "9H", "8D", "7C"]
 const DU_REVEAL_SETTLE_SECONDS := 0.90
+const DU_END_HOLD_SECONDS := 0.90
 const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 0.90
 const IDLE_FH_CARD_DELAY_SECONDS := 60.0
 const IDLE_TITLE_TEXT := "LUCKY 5"
@@ -192,6 +193,7 @@ var command_timeout_timer: Timer
 var deal_timer: Timer
 var du_shuffle_timer: Timer
 var du_promote_timer: Timer
+var du_end_hold_timer: Timer
 var auto_double_up_timer: Timer
 var idle_fh_timer: Timer
 var deal_queue: Array = []
@@ -206,6 +208,10 @@ var du_pending_promote_dealer := ""
 var du_pending_promote_trail_code := ""
 var du_pending_promote_trail_label := ""
 var du_local_trail_entries: Array = []
+var du_last_active_data: Dictionary = {}
+var du_end_hold_data: Dictionary = {}
+var du_end_hold_active := false
+var du_was_active := false
 var _prev_dealer_code := ""
 var _prev_challenger_code := ""
 var _prev_switches_remaining := -1
@@ -260,6 +266,9 @@ func _ready() -> void:
 
 	du_promote_timer = Timer.new(); du_promote_timer.wait_time = DU_REVEAL_SETTLE_SECONDS; du_promote_timer.one_shot = true
 	du_promote_timer.timeout.connect(_on_du_promote_timeout); add_child(du_promote_timer)
+
+	du_end_hold_timer = Timer.new(); du_end_hold_timer.wait_time = DU_END_HOLD_SECONDS; du_end_hold_timer.one_shot = true
+	du_end_hold_timer.timeout.connect(_on_du_end_hold_timeout); add_child(du_end_hold_timer)
 
 	auto_double_up_timer = Timer.new(); auto_double_up_timer.wait_time = DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS; auto_double_up_timer.one_shot = true
 	auto_double_up_timer.timeout.connect(_on_auto_double_up_timer_timeout); add_child(auto_double_up_timer)
@@ -319,7 +328,7 @@ func _release_button_asset_styles(node: Node) -> void:
 		_release_button_asset_styles(child)
 
 func _stop_timers_for_exit() -> void:
-	for timer in [heartbeat_timer, replay_timer, token_refresh_timer, command_timeout_timer, deal_timer, du_shuffle_timer, du_promote_timer, auto_double_up_timer, idle_fh_timer]:
+	for timer in [heartbeat_timer, replay_timer, token_refresh_timer, command_timeout_timer, deal_timer, du_shuffle_timer, du_promote_timer, du_end_hold_timer, auto_double_up_timer, idle_fh_timer]:
 		if timer != null:
 			timer.stop()
 
@@ -1491,12 +1500,14 @@ func _refresh_ui() -> void:
 	last_game_state = game_state
 
 	var du_data := _double_up_data()
-	var du_active := _is_double_up_active(du_data)
+	var raw_du_active := _is_double_up_active(du_data)
+	var du_render_data := _double_up_render_data(du_data, raw_du_active)
+	var du_active := raw_du_active or du_end_hold_active
 	_maybe_auto_start_double_up(game_state, du_active)
 	_refresh_card_area_layout(du_active)
 
 	_refresh_cards(game_state, du_active)
-	_refresh_du_panel(du_data, du_active)
+	_refresh_du_panel(du_render_data, du_active)
 	_refresh_jackpots()
 	_refresh_machine_info()
 	_refresh_win_display()
@@ -1518,6 +1529,43 @@ func _refresh_ui() -> void:
 		var fh_switch := index == 0 and _can_switch_full_house_rank()
 		hold_button.disabled = not _is_action_enabled("hold_%d" % index)
 		hold_button.text = "HELD" if held else ("" if _button_uses_asset(hold_button) else ("FH" if fh_switch else "HOLD"))
+
+func _double_up_render_data(du_data: Dictionary, raw_du_active: bool) -> Dictionary:
+	if raw_du_active:
+		if du_end_hold_timer != null:
+			du_end_hold_timer.stop()
+		du_end_hold_active = false
+		du_end_hold_data.clear()
+		du_last_active_data = du_data.duplicate(true)
+		du_was_active = true
+		return du_data
+
+	if du_was_active and not du_last_active_data.is_empty():
+		if not du_end_hold_active:
+			var hold_source := du_data if _du_has_renderable_cards(du_data) else du_last_active_data
+			du_end_hold_data = hold_source.duplicate(true)
+			du_last_active_data = du_end_hold_data.duplicate(true)
+			du_end_hold_active = true
+			if du_end_hold_timer != null:
+				du_end_hold_timer.stop()
+				du_end_hold_timer.wait_time = DU_END_HOLD_SECONDS
+				du_end_hold_timer.start()
+		return du_end_hold_data
+
+	return du_data
+
+func _du_has_renderable_cards(du_data: Dictionary) -> bool:
+	var dealer_code := _du_card_code(du_data, ["dealer_card", "dealerCard", "DealerCard", "double_up_card", "doubleUpCard", "DoubleUpCard"])
+	if dealer_code.length() >= 2:
+		return true
+	return not _du_array(du_data, ["card_trail", "cardTrail", "CardTrail"]).is_empty()
+
+func _on_du_end_hold_timeout() -> void:
+	du_end_hold_active = false
+	du_end_hold_data.clear()
+	du_last_active_data.clear()
+	du_was_active = false
+	_refresh_ui()
 
 func _refresh_card_area_layout(du_active: bool) -> void:
 	if card_area_panel == null:

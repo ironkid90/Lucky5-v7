@@ -56,7 +56,7 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
-            "Godot cabinet project must stay portrait, iconed, and GL Compatibility based so the same 2D client can ship to kiosk, web, and Android lanes",
+            "Godot cabinet project must stay portrait, iconed, GL Compatibility based for desktop/web, and Mobile-rendered for Android",
             project.Contains("config/icon=\"res://icon-512.png\"", StringComparison.Ordinal)
                 && project.Contains("config/features=PackedStringArray(\"4.6\", \"GL Compatibility\")", StringComparison.Ordinal)
                 && project.Contains("window/size/viewport_width=720", StringComparison.Ordinal)
@@ -67,7 +67,7 @@ public static class GodotCabinetRegressionTests
                 && project.Contains("window/stretch/mode=\"viewport\"", StringComparison.Ordinal)
                 && project.Contains("window/stretch/aspect=\"keep\"", StringComparison.Ordinal)
                 && project.Contains("renderer/rendering_method=\"gl_compatibility\"", StringComparison.Ordinal)
-                && project.Contains("renderer/rendering_method.mobile=\"gl_compatibility\"", StringComparison.Ordinal));
+                && project.Contains("renderer/rendering_method.mobile=\"mobile\"", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -92,6 +92,7 @@ public static class GodotCabinetRegressionTests
                 && exportPresets.Contains("custom_features=\"android\"", StringComparison.Ordinal)
                 && exportPresets.Contains("export_path=\"../../artifacts/godot-android/dev/Lucky5Cabinet.apk\"", StringComparison.Ordinal)
                 && exportPresets.Contains("architectures/arm64-v8a=true", StringComparison.Ordinal)
+                && exportPresets.Contains("architectures/x86_64=true", StringComparison.Ordinal)
                 && exportPresets.Contains("package/unique_name=\"com.lucky5.cabinet\"", StringComparison.Ordinal)
                 && exportPresets.Contains("package/name=\"Lucky5 Cabinet\"", StringComparison.Ordinal)
                 && exportPresets.Contains("screen/immersive_mode=true", StringComparison.Ordinal)
@@ -332,6 +333,7 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("const DU_TRAIL_CARD_SIZE := Vector2(122, 206)", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_SHUFFLE_INTERVAL := 0.075", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_REVEAL_SETTLE_SECONDS := 0.90", StringComparison.Ordinal)
+                && rootScript.Contains("const DU_END_HOLD_SECONDS := 0.90", StringComparison.Ordinal)
                 && rootScript.Contains("const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 0.90", StringComparison.Ordinal)
                 && rootScript.Contains("var card_area_panel: Panel", StringComparison.Ordinal)
                 && rootScript.Contains("var card_center: CenterContainer", StringComparison.Ordinal)
@@ -371,15 +373,30 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("_queue_du_dealer_promotion(board_challenger_code, board_dealer_code)", StringComparison.Ordinal)
                 && rootScript.Contains("var du_shuffle_timer: Timer", StringComparison.Ordinal)
                 && rootScript.Contains("var du_promote_timer: Timer", StringComparison.Ordinal)
+                && rootScript.Contains("var du_end_hold_timer: Timer", StringComparison.Ordinal)
                 && rootScript.Contains("var du_pending_promote_trail_code := \"\"", StringComparison.Ordinal)
                 && rootScript.Contains("var du_local_trail_entries: Array = []", StringComparison.Ordinal)
+                && rootScript.Contains("var du_last_active_data: Dictionary = {}", StringComparison.Ordinal)
+                && rootScript.Contains("var du_end_hold_data: Dictionary = {}", StringComparison.Ordinal)
+                && rootScript.Contains("var du_end_hold_active := false", StringComparison.Ordinal)
+                && rootScript.Contains("var du_was_active := false", StringComparison.Ordinal)
                 && rootScript.Contains("var auto_double_up_timer: Timer", StringComparison.Ordinal)
                 && rootScript.Contains("var auto_double_up_round_ids: Array = []", StringComparison.Ordinal)
                 && rootScript.Contains("var auto_double_up_pending_round_id := \"\"", StringComparison.Ordinal)
                 && rootScript.Contains("du_shuffle_timer.timeout.connect(_process_du_shuffle)", StringComparison.Ordinal)
                 && rootScript.Contains("du_promote_timer.timeout.connect(_on_du_promote_timeout)", StringComparison.Ordinal)
+                && rootScript.Contains("du_end_hold_timer.timeout.connect(_on_du_end_hold_timeout)", StringComparison.Ordinal)
                 && rootScript.Contains("auto_double_up_timer.timeout.connect(_on_auto_double_up_timer_timeout)", StringComparison.Ordinal)
+                && rootScript.Contains("du_end_hold_timer.wait_time = DU_END_HOLD_SECONDS", StringComparison.Ordinal)
                 && rootScript.Contains("auto_double_up_timer.wait_time = DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS", StringComparison.Ordinal)
+                && rootScript.Contains("var raw_du_active := _is_double_up_active(du_data)", StringComparison.Ordinal)
+                && rootScript.Contains("var du_render_data := _double_up_render_data(du_data, raw_du_active)", StringComparison.Ordinal)
+                && rootScript.Contains("var du_active := raw_du_active or du_end_hold_active", StringComparison.Ordinal)
+                && rootScript.Contains("_refresh_du_panel(du_render_data, du_active)", StringComparison.Ordinal)
+                && rootScript.Contains("func _double_up_render_data(du_data: Dictionary, raw_du_active: bool) -> Dictionary:", StringComparison.Ordinal)
+                && rootScript.Contains("var hold_source := du_data if _du_has_renderable_cards(du_data) else du_last_active_data", StringComparison.Ordinal)
+                && rootScript.Contains("func _du_has_renderable_cards(du_data: Dictionary) -> bool:", StringComparison.Ordinal)
+                && rootScript.Contains("func _on_du_end_hold_timeout() -> void:", StringComparison.Ordinal)
                 && rootScript.Contains("du_trail_container.name = \"DoubleUpDeckRow\"", StringComparison.Ordinal)
                 && rootScript.Contains("du_trail_container.visible = false", StringComparison.Ordinal)
                 && rootScript.Contains("du_trail_container.add_theme_constant_override(\"separation\", CARD_GAP)", StringComparison.Ordinal)

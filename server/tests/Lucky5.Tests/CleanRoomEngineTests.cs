@@ -337,6 +337,23 @@ public static class CleanRoomEngineTests
             "Double-up pressure deck should still be a no-duplicate card set after bounded removals.",
             highPressureDeck.Distinct().Count() == highPressureDeck.Length);
 
+        var highPressurePlayDeck = MachinePolicy.BuildDoubleUpPlayDeck(
+            FiveCardDrawEngine.BuildStandardDeck(),
+            DeterministicSeed.Derive(seed, "du-play-pressure"),
+            roundsSinceLucky5Hit: 4,
+            netSinceLastClose: highPressureDoubleUpState.NetSinceLastClose,
+            roundPolicyMode: PolicyDistributionMode.Cold,
+            state: highPressureDoubleUpState,
+            openingAmount: 250_000,
+            machineCreditBaseline: 33_000_000);
+        var firstTwelvePairWins = Enumerable.Range(0, Math.Min(12, highPressurePlayDeck.Length - 1))
+            .Count(index => IsOptimalHiLoWin(highPressurePlayDeck[index], highPressurePlayDeck[index + 1]));
+        Assert(
+            failures,
+            "High double-up pressure play deck should sequence trap-heavy adjacent pairs without changing cards.",
+            firstTwelvePairWins <= 3
+                && highPressurePlayDeck.Distinct().Count() == highPressurePlayDeck.Length);
+
         var recoveryDoubleUpState = new MachinePolicyState
         {
             CreditsIn = 1_000_000m,
@@ -405,6 +422,18 @@ public static class CleanRoomEngineTests
         {
             failures.Add(message);
         }
+    }
+
+    private static bool IsOptimalHiLoWin(CleanRoomCard dealer, CleanRoomCard challenger)
+    {
+        if (challenger.Rank == 14 || dealer.Rank == 14)
+        {
+            return true;
+        }
+
+        return dealer.Rank <= 8
+            ? challenger.Rank > dealer.Rank
+            : challenger.Rank < dealer.Rank;
     }
 
     private static string Codes(IEnumerable<CleanRoomCard> cards)

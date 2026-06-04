@@ -227,6 +227,13 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
+            "Godot cabinet store must expose backend-advised holds so the cabinet command path matches the web auto-hold flow",
+            storeScript.Contains("func advised_hold_indexes() -> Array:", StringComparison.Ordinal)
+                && storeScript.Contains("hand.get(\"advised_holds\", [])", StringComparison.Ordinal)
+                && storeScript.Contains("index >= 0 and index < 5", StringComparison.Ordinal));
+
+        Assert(
+            failures,
             "Godot cabinet must suppress duplicate gameplay commands with a pending command lock and timeout recovery",
             rootScript.Contains("pending_command_id", StringComparison.Ordinal)
                 && rootScript.Contains("func _start_action_lock", StringComparison.Ordinal)
@@ -271,7 +278,6 @@ public static class GodotCabinetRegressionTests
             failures,
             "Godot cabinet must apply AI9Poker-style auto-hold suggestions visually while still allowing manual adjustment and cancel",
             rootScript.Contains("var auto_holds_cancelled := false", StringComparison.Ordinal)
-                && storeScript.Contains("func advised_hold_indexes() -> Array:", StringComparison.Ordinal)
                 && rootScript.Contains("AUTO-HOLD SUGGESTED - DRAW OR ADJUST", StringComparison.Ordinal)
                 && rootScript.Contains("func _visual_hold_indexes() -> Array:", StringComparison.Ordinal)
                 && rootScript.Contains("func _draw_hold_indexes() -> Array:", StringComparison.Ordinal)
@@ -279,38 +285,6 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("store.advised_hold_indexes()", StringComparison.Ordinal)
                 && rootScript.Contains("\"hold_indexes\": _draw_hold_indexes()", StringComparison.Ordinal)
                 && rootScript.Contains("auto_holds_cancelled = true; _send_command(\"clear_holds\"", StringComparison.Ordinal));
-
-        Assert(
-            failures,
-            "Godot cabinet must tolerate both snake_case cabinet snapshots and camelCase web reconnect snapshots for visible play state",
-            storeScript.Contains("func _first_value(source: Dictionary, keys: Array, fallback: Variant = null) -> Variant:", StringComparison.Ordinal)
-                && storeScript.Contains("func _to_bool(value) -> bool:", StringComparison.Ordinal)
-                && storeScript.Contains("_first_value(payload, [\"game_state\", \"gameState\"], null)", StringComparison.Ordinal)
-                && storeScript.Contains("_first_value(payload, [\"double_up\", \"doubleUp\", \"doubleUpSession\"], null)", StringComparison.Ordinal)
-                && roundUpdateScript.Contains("[\"credits\"]", StringComparison.Ordinal)
-                && roundUpdateScript.Contains("[\"jackpot\", \"jackpots\"]", StringComparison.Ordinal)
-                && roundUpdateScript.Contains("[\"recovery\"]", StringComparison.Ordinal)
-                && roundUpdateScript.Contains("_normalize_button_ids(snapshot)", StringComparison.Ordinal)
-                && storeScript.Contains("snapshot[str(key_pair[0])] = value", StringComparison.Ordinal)
-                && storeScript.Contains("if payload.has(\"buttons\"):", StringComparison.Ordinal)
-                && storeScript.Contains("return str(_first_value(snapshot, [\"game_state\", \"gameState\", \"phase\"], \"idle\"))", StringComparison.Ordinal)
-                && storeScript.Contains("return _to_int(_first_value(credits, [\"machine_credits\", \"machineCredits\", \"balance\"], 0))", StringComparison.Ordinal)
-                && storeScript.Contains("return _to_int(_first_value(credits, [\"pending_win_amount\", \"pendingWinAmount\"], _first_value(evaluation, [\"win_amount\", \"winAmount\"], 0)))", StringComparison.Ordinal)
-                && storeScript.Contains("_first_value(hand, [\"held_indexes\", \"heldIndexes\", \"held\"], [])", StringComparison.Ordinal)
-                && storeScript.Contains("_first_value(hand, [\"advised_holds\", \"advisedHolds\"], [])", StringComparison.Ordinal)
-                && storeScript.Contains("_first_value(hand, [\"result_cards\", \"resultCards\", \"ResultCards\"], cards())", StringComparison.Ordinal)
-                && storeScript.Contains("return str(_first_value(evaluation, [\"hand_rank\", \"handRank\", \"HandRank\"], \"None\"))", StringComparison.Ordinal)
-                && storeScript.Contains("_first_value(jp, [\"full_house\", \"fullHouse\"], 0)", StringComparison.Ordinal)
-                && rootScript.Contains("func _jackpot_data() -> Dictionary:", StringComparison.Ordinal)
-                && rootScript.Contains("func _jackpot_active_4k_slot(jp: Dictionary) -> String:", StringComparison.Ordinal)
-                && rootScript.Contains("func _evaluation_data() -> Dictionary:", StringComparison.Ordinal)
-                && rootScript.Contains("_du_first_value(jp, [\"full_house\", \"fullHouse\", \"FullHouse\"], 0)", StringComparison.Ordinal)
-                && rootScript.Contains("_du_first_value(jp, [\"full_house_rank\", \"fullHouseRank\", \"FullHouseRank\"], 0)", StringComparison.Ordinal)
-                && rootScript.Contains("_du_first_value(eval, [\"hand_rank\", \"handRank\", \"HandRank\"], store.hand_rank())", StringComparison.Ordinal)
-                && rootScript.Contains("_du_first_value(eval, [\"jackpot_won\", \"jackpotWon\", \"JackpotWon\"], 0)", StringComparison.Ordinal)
-                && rootScript.Contains("_du_first_value(presentation, [\"bonus\", \"Bonus\"], {})", StringComparison.Ordinal)
-                && rootScript.Contains("_du_first_value(bonus, [\"free_game_count\", \"freeGameCount\", \"FreeGameCount\"], 0)", StringComparison.Ordinal)
-                && rootScript.Contains("_du_first_value(bonus, [\"card_code\", \"cardCode\", \"CardCode\"], \"\")", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -739,32 +713,18 @@ public static class GodotCabinetRegressionTests
             failures,
             "Godot cabinet jackpot counters must animate live trickles and visible jackpot drains instead of snapping meter values",
             rootScript.Contains("const JACKPOT_TRICKLE_DURATION := 0.30", StringComparison.Ordinal)
-                && rootScript.Contains("const JACKPOT_DRAIN_MIN_DURATION := 2.80", StringComparison.Ordinal)
-                && rootScript.Contains("const JACKPOT_DRAIN_MAX_DURATION := 5.50", StringComparison.Ordinal)
+                && rootScript.Contains("const JACKPOT_DRAIN_DURATION := 2.80", StringComparison.Ordinal)
                 && rootScript.Contains("var displayed_jackpots: Dictionary = {}", StringComparison.Ordinal)
                 && rootScript.Contains("var jackpot_counter_tweens: Dictionary = {}", StringComparison.Ordinal)
                 && rootScript.Contains("func _animate_jackpot_counter(slot_key: String, from_value: int, to_value: int) -> void:", StringComparison.Ordinal)
                 && rootScript.Contains("to_value < from_value", StringComparison.Ordinal)
-                && rootScript.Contains("func _jackpot_counter_duration(from_value: int, to_value: int) -> float:", StringComparison.Ordinal)
-                && rootScript.Contains("JACKPOT_DRAIN_MIN_DURATION, JACKPOT_DRAIN_MAX_DURATION", StringComparison.Ordinal)
-                && rootScript.Contains("func _pulse_jackpot_counter(slot_key: String) -> void:", StringComparison.Ordinal)
-                && rootScript.Contains("_refresh_jackpot_counter(\"fh\", store._to_int(_du_first_value(jp, [\"full_house\", \"fullHouse\", \"FullHouse\"], 0)))", StringComparison.Ordinal)
                 && rootScript.Contains("tween_method(Callable(self, \"_set_jackpot_counter_display\").bind(slot_key)", StringComparison.Ordinal)
                 && rootScript.Contains("func _set_jackpot_counter_display(value: float, slot_key: String) -> void:", StringComparison.Ordinal));
 
         Assert(
             failures,
-"Godot cabinet idle screen must delay the armed Full House rank and then show it alone after the Lucky 5 title",
-            rootScript.Contains("const IDLE_FH_CARD_DELAY_SECONDS := 60.0", StringComparison.Ordinal)
-                && rootScript.Contains("const IDLE_TITLE_TEXT := \"LUCKY 5\"", StringComparison.Ordinal)
-                && rootScript.Contains("var idle_fh_rank_revealed := false", StringComparison.Ordinal)
-                && rootScript.Contains("var idle_title_label: Label", StringComparison.Ordinal)
-                && rootScript.Contains("idle_fh_timer.timeout.connect(_on_idle_fh_timer_timeout)", StringComparison.Ordinal)
-                && rootScript.Contains("idle_title_label = _make_label(IDLE_TITLE_TEXT", StringComparison.Ordinal)
-                && rootScript.Contains("func _sync_idle_fh_timer(is_blank_idle: bool) -> void:", StringComparison.Ordinal)
-                && rootScript.Contains("func _on_idle_fh_timer_timeout() -> void:", StringComparison.Ordinal)
-                && rootScript.Contains("var show_idle_rank_card := is_blank_idle and idle_fh_rank_revealed", StringComparison.Ordinal)
-                && rootScript.Contains("card_container.visible = not du_active and not show_idle_title", StringComparison.Ordinal)
+"Godot cabinet idle screen must show the armed Full House rank as the middle card like the reference cabinet",
+            rootScript.Contains("var show_idle_rank_card := game_state == \"idle\" and not du_active and cards.is_empty()", StringComparison.Ordinal)
                 && rootScript.Contains("if show_idle_rank_card and index == 2:", StringComparison.Ordinal)
                 && rootScript.Contains("if show_idle_rank_card:", StringComparison.Ordinal)
                 && rootScript.Contains("_stage_empty_card_slot(slot)", StringComparison.Ordinal)

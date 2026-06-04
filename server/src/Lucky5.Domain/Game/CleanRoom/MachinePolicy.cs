@@ -492,9 +492,19 @@ public static class MachinePolicy
             machineCreditBaseline,
             cfg);
         var shuffledDeck = FiveCardDrawEngine.ShuffleDeck(entropySeed, "double-up", pressureDeck);
+        var projectedWin = machineCreditBaseline + (openingAmount * 2m);
+        var projectedChainExposure = machineCreditBaseline + Math.Max(openingAmount * 16m, openingAmount * 2m);
+        var isProjectedCloseCall = projectedWin >= cfg.CloseThreshold * cfg.DoubleUpSequenceCreditStart
+            || projectedChainExposure >= cfg.SoftCapWarning;
+        var sequencePressureStart = projectedChainExposure >= cfg.SoftCapWarning
+            ? Math.Min(cfg.DoubleUpSequencePressureStart, cfg.DoubleUpHighExposureSequencePressureStart)
+            : cfg.DoubleUpSequencePressureStart;
+        var shouldReleaseLowExposure = pressure >= cfg.DoubleUpSequencePressureStart
+            && !isProjectedCloseCall
+            && ShouldReleaseLowExposureDoubleUp(entropySeed, cfg);
 
-        return pressure >= cfg.DoubleUpSequencePressureStart
-            ? BuildPressureSequenceDeck(shuffledDeck, pressure, entropySeed)
+        return pressure >= sequencePressureStart && (isProjectedCloseCall || !shouldReleaseLowExposure)
+            ? BuildPressureSequenceDeck(shuffledDeck, pressure, entropySeed, cfg)
             : shuffledDeck;
     }
 
@@ -614,7 +624,7 @@ public static class MachinePolicy
         return deck.ToArray();
     }
 
-    private static CleanRoomCard[] BuildPressureSequenceDeck(CleanRoomCard[] deck, decimal pressure, ulong entropySeed)
+    private static CleanRoomCard[] BuildPressureSequenceDeck(CleanRoomCard[] deck, decimal pressure, ulong entropySeed, EngineConfig cfg)
     {
         var rng = new SplitMix64Rng(DeterministicSeed.Derive(entropySeed, "double-up-sequence-pressure"));
         var groups = deck
@@ -628,7 +638,7 @@ public static class MachinePolicy
             })
             .ToList();
 
-        if (pressure < 0.90m)
+        if (pressure < cfg.DoubleUpSequencePressureStart)
         {
             var middleGroups = groups
                 .Where(group => group[0].Rank is >= 6 and <= 10)
@@ -643,6 +653,22 @@ public static class MachinePolicy
         }
 
         return groups.SelectMany(group => group).ToArray();
+    }
+
+    private static bool ShouldReleaseLowExposureDoubleUp(ulong entropySeed, EngineConfig cfg)
+    {
+        if (cfg.DoubleUpSuspenseReleaseChance <= 0m)
+        {
+            return false;
+        }
+
+        if (cfg.DoubleUpSuspenseReleaseChance >= 1m)
+        {
+            return true;
+        }
+
+        var rng = new SplitMix64Rng(DeterministicSeed.Derive(entropySeed, "double-up-suspense-release"));
+        return (decimal)rng.NextUnit() < cfg.DoubleUpSuspenseReleaseChance;
     }
 
     private static CleanRoomCard[] BuildRecoveryDoubleUpDeck(

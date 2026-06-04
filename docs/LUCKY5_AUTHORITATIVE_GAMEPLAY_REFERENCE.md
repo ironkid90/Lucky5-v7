@@ -269,6 +269,7 @@ Meaning:
 - **HI OR LO** — guess direction labels.
 - **5 ♠ NEVER LOSE WHEN BUYING** — if the player has activated the Lucky 5 buy/no-lose state (`IsNoLoseActive == true`) and the next dealt double-up card is the **5 of Spades**, a wrong guess does **not** forfeit credits; the round resolves as `SafeFail` returning the accumulated amount.
 - **Availability invariant** — every positive base-game win remains eligible for double-up. RTP tuning must not hide or skip the double-up screen; balancing belongs in base-game scaling and bounded server-side double-up deck pressure.
+- **Pressure invariant** — bounded pressure may remove high-leverage cards, sequence trap-heavy adjacent pairs during hot/near-close states, and release a small deterministic share of low-exposure chains for suspense. It must not change the displayed rules, duplicate cards, invent cards, block player choices, or make the cabinet feel like a dry spell followed by one sudden close.
 
 **Visual binding:**
 
@@ -658,7 +659,7 @@ The server-side Monte Carlo harness (`server/src/Lucky5.Simulation/Program.cs`) 
 
 | Date       | Change                                                                                                                                                                                                                                  |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-06-04 | Added simulation fidelity checkpoints and Ace settlement invariant: `WinAmount` is already Ace-multiplied before double-up, and the simulator must mirror deal/draw staking, jackpot pools, double-up telemetry, and counterplay behavior. |
+| 2026-06-04 | Clarified suspense-aware double-up pressure: always-on availability, bounded key-card removal, high-pressure sequencing, deterministic low-exposure release, and no duplicated/synthetic cards. |
 | 2026-06-04 | Clarified double-up availability and RTP tuning: every positive base-game win remains eligible for double-up; balancing uses base-game scaling and bounded server-side double-up deck pressure. |
 | 2026-06-04 | Clarified 40M close persistence: reset/reopen does not auto-cash-out positive machine credits; closed sessions remain blocked until explicit player cash-out. |
 | 2026-05-05 | Initial authoritative capture from `ai9poker.com/install`.                                                                                                                                                                            |

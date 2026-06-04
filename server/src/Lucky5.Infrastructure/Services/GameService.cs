@@ -1835,6 +1835,7 @@ return guessResult;
     {
         var gameState = BuildCabinetGameState(activeRound, session);
         var heldIndexes = activeRound?.HeldIndexes ?? [];
+        var advisedHolds = BuildCabinetAdvisedHolds(gameState, activeRound);
         var heldSet = heldIndexes.ToHashSet();
         var handCards = (activeRound?.Cards ?? [])
             .Select((card, index) => ToCabinetCard(card, faceUp: true, held: heldSet.Contains(index)))

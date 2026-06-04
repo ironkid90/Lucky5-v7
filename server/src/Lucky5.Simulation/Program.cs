@@ -361,6 +361,42 @@ DoubleUpChainResult PlayDoubleUpChain(
     bool sabotagePhase,
     SimulationResult result)
 {
+    var machineCreditBaseline = Decimal.ToInt32(Math.Min(bank.MachineCredits, int.MaxValue));
+    var pressure = MachinePolicy.ComputeDoubleUpDeckPressure(
+        policyState,
+        policyState.RoundsSinceLucky5Hit,
+        policyState.NetSinceLastClose,
+        policyMode,
+        openingAmount,
+        machineCreditBaseline);
+    var projectedWin = bank.MachineCredits + (openingAmount * 2m);
+    var projectedChainExposure = bank.MachineCredits + Math.Max(openingAmount * 16m, openingAmount * 2m);
+    var isProjectedCloseCall = projectedWin >= cfg.CloseThreshold * cfg.DoubleUpSequenceCreditStart
+        || projectedChainExposure >= cfg.SoftCapWarning;
+    var sequencePressureStart = projectedChainExposure >= cfg.SoftCapWarning
+        ? Math.Min(cfg.DoubleUpSequencePressureStart, cfg.DoubleUpHighExposureSequencePressureStart)
+        : cfg.DoubleUpSequencePressureStart;
+    var shouldReleaseLowExposure = pressure >= cfg.DoubleUpSequencePressureStart
+        && !isProjectedCloseCall
+        && RollUnsalted(roundSeed, "double-up-suspense-release", cfg.DoubleUpSuspenseReleaseChance);
+    result.DoubleUpPressureSamples++;
+    result.DoubleUpPressureSum += pressure;
+    result.MaxDoubleUpPressure = Math.Max(result.MaxDoubleUpPressure, pressure);
+    if (projectedChainExposure >= cfg.SoftCapWarning)
+    {
+        result.DoubleUpHighExposureChains++;
+    }
+
+    if (pressure >= cfg.DoubleUpSequencePressureStart)
+    {
+        result.DoubleUpNormalPressureChains++;
+    }
+
+    if (pressure >= sequencePressureStart && (isProjectedCloseCall || !shouldReleaseLowExposure))
+    {
+        result.DoubleUpSequenceEligibleChains++;
+    }
+
     var duDeck = MachinePolicy.BuildDoubleUpPlayDeck(
         FiveCardDrawEngine.BuildStandardDeck(),
         roundSeed,
@@ -369,13 +405,13 @@ DoubleUpChainResult PlayDoubleUpChain(
         policyMode,
         policyState,
         openingAmount,
-        Decimal.ToInt32(Math.Min(bank.MachineCredits, int.MaxValue)));
+        machineCreditBaseline);
 
     var session = Lucky5DoubleUpEngine.CreateSessionFromDeck(
         roundSeed,
         duDeck,
         openingAmount,
-        machineCreditBaseline: Decimal.ToInt32(Math.Min(bank.MachineCredits, int.MaxValue)),
+        machineCreditBaseline: machineCreditBaseline,
         options: new Lucky5DoubleUpOptions(MaxCreditLimit: Decimal.ToInt32(cfg.CloseThreshold)));
 
     var settledCredits = 0;
@@ -640,13 +676,13 @@ static bool Roll(ulong seed, string stream, int salt, decimal threshold)
     return (decimal)rng.NextUnit() < threshold;
 }
 
-bool[] ComputeBehaviorHolds(
-    CleanRoomCard[] hand,
-    PlayerBehavior behavior,
-    ulong seed,
-    int roundIndex,
-    bool sabotagePhase,
-    SimulationResult result)
+static bool RollUnsalted(ulong seed, string stream, decimal threshold)
+{
+    var rng = new SplitMix64Rng(DeterministicSeed.Derive(seed, stream));
+    return (decimal)rng.NextUnit() < threshold;
+}
+
+bool[] ComputeOptimalHolds(CleanRoomCard[] hand)
 {
     var advisedIndexes = FiveCardDrawEngine.ComputeAdvisedHolds(hand);
     if (behavior != PlayerBehavior.CounterplaySabotage || !sabotagePhase)
@@ -803,15 +839,7 @@ static void PrintEnhancedSummary(string label, SimulationResult result)
     Console.WriteLine($"  DU outcomes: win {result.DoubleUpResolutionWins:N0} | lose {result.DoubleUpResolutionLosses:N0} | safe {result.DoubleUpSafeFails:N0} | close {result.DoubleUpMachineClosedResolutions:N0} | switches {result.DoubleUpDealerSwitches:N0} | take-half {result.TakeHalfEvents:N0}");
     Console.WriteLine($"  Ace effects: base hands {result.AceMultiplierHands:N0} | unscaled lift {result.AceMultiplierUnscaledCredits:N0} | DU opening lift {result.AceDoubleUpOpeningBoostCredits:N0}");
     Console.WriteLine($"  Close suspense: >=28M {result.SoftCapWarningTouches:N0} | >=35M {result.HardCapCloseCalls:N0} | >=38M {result.CriticalCloseCalls:N0}");
-    Console.WriteLine($"  Close sources: base {result.MachineClosesFromBaseGame:N0} | jackpot {result.MachineClosesFromJackpot:N0} | DU {result.MachineClosesFromDoubleUp:N0} | take-half {result.MachineClosesFromTakeHalf:N0}");
-    Console.WriteLine($"  Soft/critical sources: >=28M DU {result.SoftCapTouchesFromDoubleUp:N0}+J {result.SoftCapTouchesFromJackpot:N0} | >=38M DU {result.CriticalTouchesFromDoubleUp:N0}+J {result.CriticalTouchesFromJackpot:N0}");
-    Console.WriteLine($"  Policy modes: cold {result.PolicyColdRounds:N0} | neutral {result.PolicyNeutralRounds:N0} | hot {result.PolicyHotRounds:N0}");
-    if (result.Behavior == PlayerBehavior.CounterplaySabotage)
-    {
-        Console.WriteLine($"  Counterplay: sabotage rounds {result.CounterplaySabotageRounds:N0} | broken holds {result.CounterplayBrokenAdvisedHoldRounds:N0} | broken paying hands {result.CounterplayBrokenPayingHands:N0} | trash holds {result.CounterplayTrashHolds:N0}");
-        Console.WriteLine($"  Counterplay DU: wrong-way guesses {result.CounterplayWrongWayDoubleUpGuesses:N0} | small-on-low {result.CounterplaySmallOnLowDealerGuesses:N0} | cold overrides {result.CounterplayColdOverrides:N0} | max score {result.MaxCounterplayScore:N0}");
-        Console.WriteLine($"  Counterplay hot states: transitions {result.CounterplayHotTransitions:N0} | hot rounds {result.CounterplayHotRounds:N0} | hot-after-sabotage {result.CounterplayHotAfterSabotageRounds:N0}");
-    }
+    Console.WriteLine($"  DU pressure: seq {result.DoubleUpSequenceEligibleChains:N0}/{result.DoubleUpPressureSamples:N0} | high exposure {result.DoubleUpHighExposureChains:N0} | normal pressure {result.DoubleUpNormalPressureChains:N0} | avg {result.AverageDoubleUpPressure:F3} | max {result.MaxDoubleUpPressure:F3}");
     
     // Enhanced telemetry
     Console.WriteLine($"  Warmup activations: {result.WarmupActivations:N0} | Pity activations: {result.PityActivations:N0} | Crisis activations: {result.CrisisActivations:N0}");
@@ -951,9 +979,15 @@ sealed class SimulationResult(PlayerBehavior behavior, int rounds)
     public int SoftCapWarningTouches { get; set; }
     public int HardCapCloseCalls { get; set; }
     public int CriticalCloseCalls { get; set; }
+    public int DoubleUpPressureSamples { get; set; }
+    public int DoubleUpSequenceEligibleChains { get; set; }
+    public int DoubleUpHighExposureChains { get; set; }
+    public int DoubleUpNormalPressureChains { get; set; }
     public decimal MaxMachineCredits { get; set; }
     public decimal LargestJackpot { get; set; }
     public decimal LargestBankedCreditEvent { get; set; }
+    public decimal DoubleUpPressureSum { get; set; }
+    public decimal MaxDoubleUpPressure { get; set; }
     public decimal FinalObservedRtp { get; set; }
     public decimal FinalBaseRtp { get; set; }
     public decimal FinalJackpotRtp { get; set; }
@@ -1114,6 +1148,7 @@ sealed class SimulationResult(PlayerBehavior behavior, int rounds)
     public decimal AcceptRate => OfferedWinningRounds <= 0 ? 0m : decimal.Round((decimal)EnteredDoubleUpChains / OfferedWinningRounds, 4);
     public decimal RealizedIncrementalGainPerEnteredChain => EnteredTriggerCredits <= 0m ? 0m : decimal.Round(DoubleUpOverlayOut / EnteredTriggerCredits, 4);
     public decimal AveragePayoutScale => PayoutScaleSamples <= 0 ? 0m : decimal.Round(PayoutScaleSum / PayoutScaleSamples, 4);
+    public decimal AverageDoubleUpPressure => DoubleUpPressureSamples <= 0 ? 0m : decimal.Round(DoubleUpPressureSum / DoubleUpPressureSamples, 4);
 }
 
 readonly record struct JackpotResolution(decimal TotalPayout, JackpotHitKind Kind);

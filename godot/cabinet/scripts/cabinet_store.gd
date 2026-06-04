@@ -445,8 +445,8 @@ func held_indexes() -> Array:
 
 func advised_hold_indexes() -> Array:
 	var advised := []
-	var hand: Dictionary = _as_dictionary(snapshot.get("hand", {}))
-	for value in _as_array(_first_value(hand, ["advised_holds", "advisedHolds"], [])):
+	var hand: Dictionary = snapshot.get("hand", {})
+	for value in _as_array(hand.get("advised_holds", [])):
 		var index := _to_int(value)
 		if index >= 0 and index < 5 and not advised.has(index):
 			advised.append(index)

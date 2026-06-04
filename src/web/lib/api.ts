@@ -1,4 +1,7 @@
 import type {
+  AdminMachine,
+  AdminUser,
+  AgentInfo,
   DealResult,
   DefaultRules,
   DoubleUpResult,
@@ -61,6 +64,39 @@ export async function getProfile(token: string): Promise<MemberProfile> {
 
 export async function getMemberHistory(token: string): Promise<WalletLedgerEntry[]> {
   return apiFetch<WalletLedgerEntry[]>("GET", "/api/Auth/MemberHistory", token);
+}
+
+// ── Admin / agent desk ──────────────────────────────────────────────────────
+
+export async function listAdminUsers(token: string): Promise<AdminUser[]> {
+  return apiFetch<AdminUser[]>("GET", "/api/Admin/users", token);
+}
+
+export async function searchAdminUsers(query: string, token: string): Promise<AdminUser[]> {
+  return apiFetch<AdminUser[]>("GET", `/api/Admin/users/search?q=${encodeURIComponent(query)}`, token);
+}
+
+export async function listAdminMachines(token: string): Promise<AdminMachine[]> {
+  return apiFetch<AdminMachine[]>("GET", "/api/Admin/machines", token);
+}
+
+export async function listAgents(token: string): Promise<AgentInfo[]> {
+  return apiFetch<AgentInfo[]>("GET", "/api/Agent", token);
+}
+
+export async function createAgent(
+  request: { name: string; code: string; phoneNumber: string },
+  token: string,
+): Promise<AgentInfo> {
+  return apiFetch<AgentInfo>("POST", "/api/Agent", token, request);
+}
+
+export async function loadAgentCredit(agentId: number, amount: number, token: string): Promise<AgentInfo> {
+  return apiFetch<AgentInfo>("POST", `/api/Agent/${agentId}/load-credit`, token, { amount });
+}
+
+export async function assignUserToAgent(agentId: number, userId: string, token: string): Promise<void> {
+  await apiFetch("POST", `/api/Agent/${agentId}/assign-user/${userId}`, token);
 }
 
 // ── Machines ─────────────────────────────────────────────────────────────────

@@ -5,11 +5,11 @@
 // against the same origin in dev without CORS or asset duplication.
 //
 // Override per-environment via env vars:
-//   LUCKY5_API_ORIGIN     — backend origin (default: http://localhost:5000)
+//   LUCKY5_API_ORIGIN     — backend origin (default: http://localhost:5051)
 //   NEXT_PUBLIC_API_BASE  — leave empty in dev so api.ts uses same-origin
 //                            (the rewrites below handle the proxy).
 
-const apiOrigin = process.env.LUCKY5_API_ORIGIN ?? "http://localhost:5000";
+const apiOrigin = process.env.LUCKY5_API_ORIGIN ?? "http://localhost:5051";
 
 const nextConfig = {
   async rewrites() {

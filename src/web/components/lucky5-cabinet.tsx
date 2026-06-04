@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, startTransition, useEffect, useState } from "react";
+import { useCallback, startTransition, useEffect, useRef, useState } from "react";
 
 import {
+    assignUserToAgent,
     cashoutDoubleUp,
+    createAgent,
     deal,
     draw,
     getDefaultRules,
@@ -12,16 +14,23 @@ import {
     getMemberHistory,
     getProfile,
     guessDoubleUp,
+    listAdminMachines,
+    listAdminUsers,
+    listAgents,
     listMachines,
     login,
+    loadAgentCredit,
+    searchAdminUsers,
     signup,
-    startDoubleUp,
     switchDealer,
     switchFhRank,
     takeHalf,
     verifyOtp,
 } from "@/lib/api";
 import type {
+    AdminMachine,
+    AdminUser,
+    AgentInfo,
     DealResult,
     DefaultRules,
     DoubleUpResult,
@@ -57,6 +66,7 @@ const PAYTABLE_ROWS: Array<{ key: string; label: string; color: string }> = [
 ];
 
 type MessageTone = "ready" | "warning" | "danger";
+type AdminPanelTab = "users" | "agents" | "machines";
 type DoubleUpBoardSlot = {
     key: string;
     card: PokerCard | null;
@@ -66,6 +76,10 @@ type DoubleUpBoardSlot = {
 };
 
 const DOUBLE_UP_BOARD_SLOT_COUNT = 5;
+const CARD_SLOT_COUNT = 5;
+const CARD_SLOT_INDEXES = Array.from({ length: CARD_SLOT_COUNT }, (_, index) => index);
+const CARD_REVEAL_STAGGER_MS = 110;
+const CARD_REVEAL_ANIMATION_MS = 260;
 
 function formatMoney(value: number) {
     return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
@@ -233,15 +247,17 @@ function buildDoubleUpBoardSlots(viewModel: DoubleUpViewModel | null): DoubleUpB
     return slots.slice(0, DOUBLE_UP_BOARD_SLOT_COUNT);
 }
 
-function PlayingCard({ card, label, held, onClick }: {
+function PlayingCard({ card, label, held, revealing, shuffling, onClick }: {
     card?: PokerCard | null;
     label?: string;
     held?: boolean;
+    revealing?: boolean;
+    shuffling?: boolean;
     onClick?: () => void;
 }) {
     return (
         <div
-            className={`playing-card-apk${held ? " held" : ""}${onClick ? " clickable" : ""}`}
+            className={`playing-card-apk${held ? " held" : ""}${revealing ? " revealing" : ""}${shuffling ? " shuffling" : ""}${onClick ? " clickable" : ""}`}
             onClick={onClick}
             role={onClick ? "button" : undefined}
             tabIndex={onClick ? 0 : undefined}
@@ -264,14 +280,23 @@ function DoubleUpBoard({ viewModel }: { viewModel: DoubleUpViewModel | null }) {
     return (
         <div className="apk-du-panel">
             <div className="apk-du-board">
-                {slots.map((slot, index) => (
-                    <div
-                        key={`${slot.key}-${index}`}
-                        className={`apk-du-slot apk-du-slot--${slot.kind}${slot.isLucky ? " apk-du-slot--lucky" : ""}`}
-                    >
-                        <PlayingCard card={slot.card} label={slot.label} />
-                    </div>
-                ))}
+                {slots.map((slot, index) => {
+                    const isActiveShuffle = slot.kind === "active" && !slot.card;
+
+                    return (
+                        <div
+                            key={`${slot.key}-${index}`}
+                            className={`apk-du-slot apk-du-slot--${slot.kind}${slot.isLucky ? " apk-du-slot--lucky" : ""}`}
+                        >
+                            <PlayingCard
+                                card={slot.card}
+                                label={slot.label}
+                                revealing={slot.kind === "challenger"}
+                                shuffling={isActiveShuffle}
+                            />
+                        </div>
+                    );
+                })}
             </div>
             <div className="apk-du-copy-row">
                 <span className="apk-du-copy">HI LO GAMBLE</span>
@@ -405,6 +430,18 @@ export function Lucky5Cabinet() {
     const [machineSession, setMachineSession] = useState<MachineSession | null>(null);
     const [rules, setRules] = useState<DefaultRules | null>(null);
     const [history, setHistory] = useState<WalletLedgerEntry[]>([]);
+    const [adminTab, setAdminTab] = useState<AdminPanelTab>("agents");
+    const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+    const [adminMachines, setAdminMachines] = useState<AdminMachine[]>([]);
+    const [agents, setAgents] = useState<AgentInfo[]>([]);
+    const [adminSearch, setAdminSearch] = useState("");
+    const [adminSearchQuery, setAdminSearchQuery] = useState("");
+    const [agentName, setAgentName] = useState("");
+    const [agentCode, setAgentCode] = useState("");
+    const [agentPhone, setAgentPhone] = useState("");
+    const [agentCredit, setAgentCredit] = useState("100000");
+    const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+    const [selectedUserId, setSelectedUserId] = useState("");
     const [betAmount, setBetAmount] = useState("5000");
     const [holdIndexes, setHoldIndexes] = useState<number[]>([]);
     const [dealResult, setDealResult] = useState<DealResult | null>(null);
@@ -418,6 +455,9 @@ export function Lucky5Cabinet() {
     const [idleFhCard, setIdleFhCard] = useState<PokerCard | null>(null);
     const [drainAmount, setDrainAmount] = useState(0);
     const [isDraining, setIsDraining] = useState(false);
+    const [visibleCardIndexes, setVisibleCardIndexes] = useState<number[]>([]);
+    const [revealingCardIndexes, setRevealingCardIndexes] = useState<number[]>([]);
+    const revealTimeouts = useRef<number[]>([]);
 
     const MACHINE_CREDIT_LIMIT = 40000000;
 
@@ -427,11 +467,78 @@ export function Lucky5Cabinet() {
     const hasWin = (drawResult?.winAmount ?? 0) > 0;
     const doubleUpViewModel = mapDoubleUpResultToViewModel(doubleUpResult);
     const doubleUpAmount = doubleUpViewModel?.currentAmount ?? drawResult?.winAmount ?? 0;
+    const isInDoubleUp = doubleUpViewModel !== null && !doubleUpViewModel.isTerminal;
+    const canEnterDoubleUp = hasWin && !!drawResult && !isInDoubleUp;
+    const canGuessBigSmall = isInDoubleUp ? !!doubleUpViewModel?.canGuess : canEnterDoubleUp;
+    const isAdmin = profile?.role?.toLowerCase() === "admin";
+    const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) ?? null;
+    const visibleCardIndexSet = new Set(visibleCardIndexes);
+    const revealingCardIndexSet = new Set(revealingCardIndexes);
+    const activeCardCount = Math.min(activeCards.length, CARD_SLOT_COUNT);
+    const isCardRevealRunning = !isInDoubleUp
+        && activeCardCount > 0
+        && (visibleCardIndexes.length < activeCardCount || revealingCardIndexes.length > 0);
+
+    const clearRevealTimeouts = useCallback(() => {
+        for (const timeoutId of revealTimeouts.current) {
+            window.clearTimeout(timeoutId);
+        }
+        revealTimeouts.current = [];
+    }, []);
+
+    const resetCardReveal = useCallback(() => {
+        clearRevealTimeouts();
+        setVisibleCardIndexes([]);
+        setRevealingCardIndexes([]);
+    }, [clearRevealTimeouts]);
+
+    const playCardReveal = useCallback((slots: number[], initialVisible: number[] = []) => {
+        clearRevealTimeouts();
+
+        const normalizedInitial = Array.from(new Set(
+            initialVisible.filter((index) => index >= 0 && index < CARD_SLOT_COUNT),
+        )).sort((left, right) => left - right);
+        const normalizedInitialSet = new Set(normalizedInitial);
+        const revealSlots = Array.from(new Set(
+            slots.filter((index) =>
+                index >= 0
+                && index < CARD_SLOT_COUNT
+                && !normalizedInitialSet.has(index),
+            ),
+        )).sort((left, right) => left - right);
+
+        setVisibleCardIndexes(normalizedInitial);
+        setRevealingCardIndexes([]);
+
+        for (const [step, index] of revealSlots.entries()) {
+            const revealTimeout = window.setTimeout(() => {
+                setVisibleCardIndexes((current) =>
+                    current.includes(index)
+                        ? current
+                        : [...current, index].sort((left, right) => left - right),
+                );
+                setRevealingCardIndexes((current) =>
+                    current.includes(index) ? current : [...current, index],
+                );
+
+                const settleTimeout = window.setTimeout(() => {
+                    setRevealingCardIndexes((current) => current.filter((value) => value !== index));
+                }, CARD_REVEAL_ANIMATION_MS);
+                revealTimeouts.current.push(settleTimeout);
+            }, step * CARD_REVEAL_STAGGER_MS);
+            revealTimeouts.current.push(revealTimeout);
+        }
+    }, [clearRevealTimeouts]);
+
+    useEffect(() => () => {
+        clearRevealTimeouts();
+    }, [clearRevealTimeouts]);
 
     function clearActiveRoundState() {
         setDealResult(null);
         setDrawResult(null);
         setHoldIndexes([]);
+        resetCardReveal();
     }
     const isMachineClosed = machineSession?.isMachineClosed ?? false;
 
@@ -488,6 +595,29 @@ export function Lucky5Cabinet() {
         setMachineSession(await getMachineSession(machineId, accessToken));
     }, [accessToken, machineId]);
 
+    const refreshAdminPanel = useCallback(async () => {
+        if (!accessToken || !isAdmin) {
+            return;
+        }
+
+        if (adminTab === "users") {
+            const query = adminSearchQuery.trim();
+            setAdminUsers(query ? await searchAdminUsers(query, accessToken) : await listAdminUsers(accessToken));
+            return;
+        }
+
+        if (adminTab === "agents") {
+            const nextAgents = await listAgents(accessToken);
+            setAgents(nextAgents);
+            if (!selectedAgentId && nextAgents.length > 0) {
+                setSelectedAgentId(nextAgents[0].id);
+            }
+            return;
+        }
+
+        setAdminMachines(await listAdminMachines(accessToken));
+    }, [accessToken, adminSearchQuery, adminTab, isAdmin, selectedAgentId]);
+
     useEffect(() => {
         if (!accessToken) {
             return;
@@ -509,6 +639,14 @@ export function Lucky5Cabinet() {
         }, 5000);
         return () => window.clearInterval(timer);
     }, [accessToken, machineId, refreshMachineState, refreshMachineSession]);
+
+    useEffect(() => {
+        if (!isAdmin) {
+            return;
+        }
+
+        void refreshAdminPanel();
+    }, [isAdmin, refreshAdminPanel]);
 
     async function runAction(action: () => Promise<void>) {
         setBusy(true);
@@ -560,6 +698,7 @@ export function Lucky5Cabinet() {
             setDrawResult(null);
             setDoubleUpResult(null);
             setHoldIndexes([]);
+            resetCardReveal();
         });
 
         setMessage(`${machine.name} linked. Set your wager and deal.`);
@@ -573,6 +712,10 @@ export function Lucky5Cabinet() {
     }
 
     async function handleDealOrDraw() {
+        if (isCardRevealRunning) {
+            return;
+        }
+
         if (!accessToken || !machineId) {
             setMessage("Boot the cabinet and select a machine first.");
             setMessageTone("warning");
@@ -581,17 +724,19 @@ export function Lucky5Cabinet() {
 
         if (dealResult && !drawResult) {
             await runAction(async () => {
+                const heldSlots = [...holdIndexes].sort((a, b) => a - b);
                 const result = await draw(
                     dealResult.roundId,
-                    [...holdIndexes].sort((a, b) => a - b),
+                    heldSlots,
                     accessToken,
                 );
                 setDrawResult(result);
                 setDoubleUpResult(null);
+                playCardReveal(CARD_SLOT_INDEXES.filter((index) => !heldSlots.includes(index)), heldSlots);
                 syncWallet(result.walletBalanceAfterRound);
                 setMessage(
                     result.winAmount > 0
-                        ? `${result.handRank} paid ${formatMoney(result.winAmount)}. Take score or enter DOUBLE-UP.`
+                        ? `${result.handRank} paid ${formatMoney(result.winAmount)}. Take score or press BIG/SMALL.`
                         : `${result.handRank}. Round settled, ready for the next deal.`,
                 );
                 setMessageTone(result.winAmount > 0 ? "ready" : "warning");
@@ -606,6 +751,7 @@ export function Lucky5Cabinet() {
             setDrawResult(null);
             setDoubleUpResult(null);
             setHoldIndexes([]);
+            playCardReveal(CARD_SLOT_INDEXES);
             syncWallet(result.walletBalanceAfterBet);
             setMessage("Choose the cards to HOLD, then press DRAW.");
             setMessageTone("ready");
@@ -613,20 +759,11 @@ export function Lucky5Cabinet() {
         });
     }
 
-    async function handleStartDoubleUp() {
-        if (!accessToken || !drawResult || !hasWin) {
+    async function handleSwitch() {
+        if (isCardRevealRunning) {
             return;
         }
 
-        await runAction(async () => {
-            const result = await startDoubleUp(drawResult.roundId, accessToken);
-            setDoubleUpResult(result);
-            setMessage(`DOUBLE-UP armed. Dealer shows ${result.dealerCard?.code ?? "--"}. Big or small?`);
-            setMessageTone(toneForStatus(result.status));
-        });
-    }
-
-    async function handleSwitch() {
         if (!accessToken || !openRoundId) {
             return;
         }
@@ -641,13 +778,52 @@ export function Lucky5Cabinet() {
         });
     }
 
+    function handleBetPress() {
+        if (isInDoubleUp) {
+            if (doubleUpViewModel?.canSwitch) {
+                void handleSwitch();
+            }
+            return;
+        }
+
+        setHasPressedBetThisSession(true);
+        const next = selectedMachine
+            ? Math.min(Number(betAmount) + (selectedMachine.minBet), selectedMachine.maxBet)
+            : Number(betAmount);
+        setBetAmount(String(next));
+    }
+
     async function handleGuess(guess: "big" | "small") {
-        if (!accessToken || !openRoundId) {
+        if (isCardRevealRunning || !accessToken) {
+            return;
+        }
+
+        if (!isInDoubleUp) {
+            if (!drawResult || !hasWin) {
+                return;
+            }
+
+            await runAction(async () => {
+                const result = await guessDoubleUp(drawResult.roundId, guess, accessToken);
+                setDoubleUpResult(result);
+                syncWallet(result.walletBalance);
+                setMessage(`${guess.toUpperCase()} resolved: ${result.status}. Current amount ${formatMoney(result.currentAmount)}.`);
+                setMessageTone(toneForStatus(result.status));
+                if (isTerminalDoubleUpStatus(result.status)) {
+                    clearActiveRoundState();
+                }
+                await Promise.all([refreshHistory(), refreshMachineState()]);
+            });
+            return;
+        }
+
+        const roundId = doubleUpResult?.roundId ?? openRoundId;
+        if (!roundId || !doubleUpViewModel?.canGuess) {
             return;
         }
 
         await runAction(async () => {
-            const result = await guessDoubleUp(openRoundId, guess, accessToken);
+            const result = await guessDoubleUp(roundId, guess, accessToken);
             setDoubleUpResult(result);
             syncWallet(result.walletBalance);
             setMessage(`${guess.toUpperCase()} resolved: ${result.status}. Current amount ${formatMoney(result.currentAmount)}.`);
@@ -660,6 +836,10 @@ export function Lucky5Cabinet() {
     }
 
     async function handleCashout() {
+        if (isCardRevealRunning) {
+            return;
+        }
+
         if (!accessToken || !openRoundId) {
             return;
         }
@@ -702,6 +882,10 @@ export function Lucky5Cabinet() {
     }
 
     async function handleTakeHalf() {
+        if (isCardRevealRunning) {
+            return;
+        }
+
         if (!accessToken || !openRoundId) {
             return;
         }
@@ -719,7 +903,80 @@ export function Lucky5Cabinet() {
         });
     }
 
+    async function handleAdminSearch() {
+        setAdminTab("users");
+        setAdminSearchQuery(adminSearch.trim());
+        if (adminTab === "users" && adminSearch.trim() === adminSearchQuery.trim()) {
+            await runAction(refreshAdminPanel);
+        }
+    }
+
+    async function handleCreateAgent() {
+        if (!accessToken || !isAdmin) {
+            return;
+        }
+
+        const name = agentName.trim();
+        const code = agentCode.trim().toUpperCase();
+        const phoneNumber = agentPhone.trim() || "N/A";
+        if (!name || !code) {
+            setMessage("Agent name and code are required.");
+            setMessageTone("warning");
+            return;
+        }
+
+        await runAction(async () => {
+            const agent = await createAgent({ name, code, phoneNumber }, accessToken);
+            setAgents((current) => [agent, ...current.filter((row) => row.id !== agent.id)]);
+            setSelectedAgentId(agent.id);
+            setAgentName("");
+            setAgentCode("");
+            setAgentPhone("");
+            setMessage(`Agent ${agent.code} created.`);
+            setMessageTone("ready");
+        });
+    }
+
+    async function handleLoadAgentCredit() {
+        if (!accessToken || !selectedAgentId) {
+            return;
+        }
+
+        const amount = Number(agentCredit);
+        if (!Number.isFinite(amount) || amount <= 0) {
+            setMessage("Enter a positive agent credit amount.");
+            setMessageTone("warning");
+            return;
+        }
+
+        await runAction(async () => {
+            const agent = await loadAgentCredit(selectedAgentId, amount, accessToken);
+            setAgents((current) => current.map((row) => (row.id === agent.id ? agent : row)));
+            setMessage(`Loaded ${formatMoney(amount)} to agent ${agent.code}.`);
+            setMessageTone("ready");
+        });
+    }
+
+    async function handleAssignUserToAgent(userId: string) {
+        if (!accessToken || !selectedAgentId) {
+            setMessage("Select an agent before assigning a user.");
+            setMessageTone("warning");
+            return;
+        }
+
+        await runAction(async () => {
+            await assignUserToAgent(selectedAgentId, userId, accessToken);
+            setSelectedUserId(userId);
+            setMessage(`User assigned to ${selectedAgent?.code ?? "agent"}.`);
+            setMessageTone("ready");
+        });
+    }
+
     function toggleHold(index: number) {
+        if (isCardRevealRunning) {
+            return;
+        }
+
         // FH-rank picker: HOLD[0] opens picker when idle + bet-pressed
         if (index === 0 && !dealResult && !drawResult && !isInDoubleUp && hasPressedBetThisSession) {
             setIsFhPickerOpen(true);
@@ -759,10 +1016,7 @@ export function Lucky5Cabinet() {
         (jackpotSnapshot as unknown as Record<string, number | undefined> | undefined)?.fourOfAKindB ?? 0,
     );
 
-    const isInDoubleUp = doubleUpViewModel !== null && !doubleUpViewModel.isTerminal;
-    const bonusText = drawResult?.handRank
-        ? `${drawResult.handRank.toUpperCase().replace(/([A-Z])/g, " $1").trim()} WINS BONUS`
-        : null;
+    const bonusText = "4 OF A KIND   WINS BONUS";
 
     // Rotating idle FH face-up card in the middle slot (zero-based index 2) when not in a round.
     useEffect(() => {
@@ -819,16 +1073,21 @@ export function Lucky5Cabinet() {
                         ) : (
                             /* Normal 5-card row with hold-click */
                             <div className="apk-card-row">
-                                {Array.from({ length: 5 }, (_, index) => {
+                                {Array.from({ length: CARD_SLOT_COUNT }, (_, index) => {
                                     // Idle FH face-up card in the middle slot (zero-based index 2) when not in a round.
                                     const isIdleSlot = index === 2 && !dealResult && !drawResult && !isInDoubleUp;
-                                    const cardToDisplay = isIdleSlot ? idleFhCard : (activeCards[index] ?? null);
+                                    const cardToDisplay = isIdleSlot
+                                        ? idleFhCard
+                                        : visibleCardIndexSet.has(index)
+                                            ? (activeCards[index] ?? null)
+                                            : null;
                                     return (
                                         <PlayingCard
                                             key={`card-${index}`}
                                             card={cardToDisplay}
                                             held={holdIndexes.includes(index)}
-                                            onClick={() => toggleHold(index)}
+                                            revealing={revealingCardIndexSet.has(index)}
+                                            onClick={isCardRevealRunning ? undefined : () => toggleHold(index)}
                                         />
                                     );
                                 })}
@@ -886,13 +1145,13 @@ export function Lucky5Cabinet() {
                             <>
                                 {/* Row 1 — HOLD buttons */}
                                 <div className="apk-hold-row">
-                                    {Array.from({ length: 5 }, (_, index) => (
+                                    {Array.from({ length: CARD_SLOT_COUNT }, (_, index) => (
                                         <button
                                             key={index}
                                             className={`apk-hold-btn${holdIndexes.includes(index) ? " active" : ""}`}
                                             type="button"
                                             onClick={() => toggleHold(index)}
-                                            disabled={!dealResult || !!drawResult || busy || isInDoubleUp}
+                                            disabled={!dealResult || !!drawResult || busy || isInDoubleUp || isCardRevealRunning}
                                         >
                                             {index === 0 && !dealResult && !drawResult && !isInDoubleUp && hasPressedBetThisSession ? "FH" : "HOLD"}
                                         </button>
@@ -905,7 +1164,7 @@ export function Lucky5Cabinet() {
                                         className="apk-btn apk-btn-big"
                                         type="button"
                                         onClick={() => void handleGuess("big")}
-                                        disabled={busy || !doubleUpViewModel?.canGuess}
+                                        disabled={busy || isCardRevealRunning || !canGuessBigSmall}
                                     >
                                         BIG
                                     </button>
@@ -913,7 +1172,7 @@ export function Lucky5Cabinet() {
                                         className="apk-btn apk-btn-small"
                                         type="button"
                                         onClick={() => void handleGuess("small")}
-                                        disabled={busy || !doubleUpViewModel?.canGuess}
+                                        disabled={busy || isCardRevealRunning || !canGuessBigSmall}
                                     >
                                         SMALL
                                     </button>
@@ -923,7 +1182,7 @@ export function Lucky5Cabinet() {
                                         onClick={() => {
                                             setHoldIndexes([]);
                                         }}
-                                        disabled={busy || !dealResult || !!drawResult || isInDoubleUp}
+                                        disabled={busy || !dealResult || !!drawResult || isInDoubleUp || isCardRevealRunning}
                                     >
                                         CANCEL<br />HOLD
                                     </button>
@@ -931,7 +1190,7 @@ export function Lucky5Cabinet() {
                                         className="apk-btn apk-btn-deal"
                                         type="button"
                                         onClick={() => void handleDealOrDraw()}
-                                        disabled={busy || !machineId || isInDoubleUp}
+                                        disabled={busy || !machineId || isInDoubleUp || isCardRevealRunning}
                                     >
                                         {busy ? "WAIT" : dealResult && !drawResult ? "DRAW" : "DEAL"}<br />
                                         {dealResult && !drawResult ? "" : "DRAW"}
@@ -939,14 +1198,13 @@ export function Lucky5Cabinet() {
                                     <button
                                         className="apk-btn apk-btn-bet"
                                         type="button"
-                                        onClick={() => {
-                                            setHasPressedBetThisSession(true);
-                                            const next = selectedMachine
-                                                ? Math.min(Number(betAmount) + (selectedMachine.minBet), selectedMachine.maxBet)
-                                                : Number(betAmount);
-                                            setBetAmount(String(next));
-                                        }}
-                                        disabled={busy || !!dealResult || isInDoubleUp}
+                                        onClick={() => void handleBetPress()}
+                                        disabled={
+                                            busy
+                                            || (isInDoubleUp
+                                                ? !doubleUpViewModel?.canSwitch
+                                                : !!dealResult)
+                                        }
                                     >
                                         BET
                                     </button>
@@ -958,7 +1216,7 @@ export function Lucky5Cabinet() {
                                         className="apk-btn apk-btn-take-half"
                                         type="button"
                                         onClick={() => void handleTakeHalf()}
-                                        disabled={busy || !openRoundId || (!hasWin && !doubleUpResult)}
+                                        disabled={busy || isCardRevealRunning || !openRoundId || (!hasWin && !doubleUpResult)}
                                     >
                                         TAKE<br />HALF
                                     </button>
@@ -1001,40 +1259,29 @@ export function Lucky5Cabinet() {
                                         className="apk-btn apk-btn-take-score"
                                         type="button"
                                         onClick={() => void handleCashout()}
-                                        disabled={busy || !openRoundId || (!hasWin && !doubleUpResult)}
+                                        disabled={busy || isCardRevealRunning || !openRoundId || (!hasWin && !doubleUpResult)}
                                     >
                                         TAKE<br />SCORE
                                     </button>
                                 </div>
 
-                                {/* SWITCH + DOUBLE-UP entry — shown below bottom row when applicable */}
+                                {/* Double-up status mirrors the original deck: BIG/SMALL enter, BET switches. */}
                                 {(hasWin || isInDoubleUp) && (
-                                    <div className="apk-du-action-row">
-                                        <button
-                                            className="apk-btn apk-btn-switch"
-                                            type="button"
-                                            onClick={() => void handleSwitch()}
-                                            disabled={busy || !doubleUpViewModel?.canSwitch}
-                                        >
-                                            SWITCH<br />DEALER
-                                        </button>
-                                        <button
-                                            className="apk-btn apk-btn-double-up"
-                                            type="button"
-                                            onClick={() => void handleStartDoubleUp()}
-                                            disabled={busy || !hasWin || isInDoubleUp}
-                                        >
-                                            DOUBLE<br />UP
-                                        </button>
-                                        <div className="apk-du-info">
-                                            <div className="apk-du-status">{doubleUpViewModel?.status ?? "—"}</div>
+                                    <div className="apk-du-status-row">
+                                        <div className="apk-du-info" aria-live="polite">
+                                            <div className="apk-du-status">
+                                                {isInDoubleUp ? doubleUpViewModel?.status ?? "DOUBLE-UP" : "DOUBLE-UP READY"}
+                                            </div>
                                             <div className="apk-du-amount">
                                                 {formatMoney(doubleUpAmount)}
                                             </div>
-                                            {(doubleUpViewModel?.switchesRemaining ?? 0) > 0 && (
+                                            {isInDoubleUp && (doubleUpViewModel?.switchesRemaining ?? 0) > 0 && (
                                                 <div className="apk-du-switches">
-                                                    SW: {doubleUpViewModel!.switchesRemaining}
+                                                    BET SW: {doubleUpViewModel!.switchesRemaining}
                                                 </div>
+                                            )}
+                                            {!isInDoubleUp && hasWin && (
+                                                <div className="apk-du-switches">BIG / SMALL</div>
                                             )}
                                         </div>
                                     </div>
@@ -1097,6 +1344,194 @@ export function Lucky5Cabinet() {
 
             {/* ── Side column: telemetry + history ── */}
             <aside className="side-column">
+                {isAdmin && (
+                    <section className="admin-agent-panel">
+                        <div className="admin-panel-head">
+                            <div>
+                                <div className="section-title">Admin / agent</div>
+                                <div className="section-subtitle">{profile?.username} · {profile?.role}</div>
+                            </div>
+                            <button
+                                className="admin-mini-button"
+                                type="button"
+                                onClick={() => void runAction(refreshAdminPanel)}
+                                disabled={busy}
+                            >
+                                REFRESH
+                            </button>
+                        </div>
+
+                        <div className="admin-tabs" role="tablist" aria-label="Admin menu">
+                            {(["agents", "users", "machines"] as AdminPanelTab[]).map((tab) => (
+                                <button
+                                    key={tab}
+                                    className={`admin-tab${adminTab === tab ? " active" : ""}`}
+                                    type="button"
+                                    onClick={() => setAdminTab(tab)}
+                                >
+                                    {tab}
+                                </button>
+                            ))}
+                        </div>
+
+                        {adminTab === "agents" && (
+                            <div className="admin-stack">
+                                <div className="admin-form-grid">
+                                    <input
+                                        aria-label="Agent name"
+                                        placeholder="AGENT NAME"
+                                        value={agentName}
+                                        onChange={(event) => setAgentName(event.target.value)}
+                                    />
+                                    <input
+                                        aria-label="Agent code"
+                                        placeholder="CODE"
+                                        value={agentCode}
+                                        onChange={(event) => setAgentCode(event.target.value)}
+                                    />
+                                    <input
+                                        aria-label="Agent phone"
+                                        placeholder="PHONE"
+                                        value={agentPhone}
+                                        onChange={(event) => setAgentPhone(event.target.value)}
+                                    />
+                                </div>
+                                <button
+                                    className="admin-command"
+                                    type="button"
+                                    onClick={() => void handleCreateAgent()}
+                                    disabled={busy}
+                                >
+                                    CREATE AGENT
+                                </button>
+                                <div className="admin-load-row">
+                                    <select
+                                        aria-label="Selected agent"
+                                        value={selectedAgentId ?? ""}
+                                        onChange={(event) => setSelectedAgentId(event.target.value ? Number(event.target.value) : null)}
+                                    >
+                                        <option value="">SELECT AGENT</option>
+                                        {agents.map((agent) => (
+                                            <option key={agent.id} value={agent.id}>
+                                                {agent.code} · {agent.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        aria-label="Agent credit"
+                                        inputMode="numeric"
+                                        value={agentCredit}
+                                        onChange={(event) => setAgentCredit(event.target.value)}
+                                    />
+                                    <button
+                                        className="admin-mini-button"
+                                        type="button"
+                                        onClick={() => void handleLoadAgentCredit()}
+                                        disabled={busy || !selectedAgentId}
+                                    >
+                                        LOAD
+                                    </button>
+                                </div>
+                                <div className="admin-list">
+                                    {agents.length === 0 && <div className="hint">No agents loaded.</div>}
+                                    {agents.slice(0, 6).map((agent) => (
+                                        <button
+                                            key={agent.id}
+                                            className={`admin-list-row admin-list-row-button${selectedAgentId === agent.id ? " active" : ""}`}
+                                            type="button"
+                                            onClick={() => setSelectedAgentId(agent.id)}
+                                        >
+                                            <span>
+                                                <strong>{agent.code}</strong>
+                                                <small>{agent.name} · {agent.phoneNumber || "no phone"}</small>
+                                            </span>
+                                            <em>{formatMoney(agent.creditPool)}</em>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {adminTab === "users" && (
+                            <div className="admin-stack">
+                                <div className="admin-search-row">
+                                    <input
+                                        aria-label="User search"
+                                        placeholder="SEARCH USER"
+                                        value={adminSearch}
+                                        onChange={(event) => setAdminSearch(event.target.value)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
+                                                void handleAdminSearch();
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        className="admin-mini-button"
+                                        type="button"
+                                        onClick={() => void handleAdminSearch()}
+                                        disabled={busy}
+                                    >
+                                        SEARCH
+                                    </button>
+                                    <button
+                                        className="admin-mini-button"
+                                        type="button"
+                                        onClick={() => {
+                                            setAdminSearch("");
+                                            setAdminSearchQuery("");
+                                        }}
+                                        disabled={busy}
+                                    >
+                                        ALL
+                                    </button>
+                                </div>
+                                <div className="admin-list">
+                                    {adminUsers.length === 0 && <div className="hint">No users loaded.</div>}
+                                    {adminUsers.slice(0, 7).map((user) => (
+                                        <div
+                                            key={user.userId}
+                                            className={`admin-list-row admin-user-row${selectedUserId === user.userId ? " active" : ""}`}
+                                        >
+                                            <span>
+                                                <strong>{user.username}</strong>
+                                                <small>{user.role} · {user.phoneNumber || "no phone"}</small>
+                                            </span>
+                                            <em>{formatMoney(user.walletBalance)}</em>
+                                            <button
+                                                className="admin-mini-button"
+                                                type="button"
+                                                onClick={() => void handleAssignUserToAgent(user.userId)}
+                                                disabled={busy || !selectedAgentId}
+                                            >
+                                                ASSIGN
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {adminTab === "machines" && (
+                            <div className="admin-list">
+                                {adminMachines.length === 0 && <div className="hint">No machines loaded.</div>}
+                                {adminMachines.slice(0, 6).map((machine) => (
+                                    <div className="admin-list-row admin-machine-row" key={machine.machineId}>
+                                        <span>
+                                            <strong>{machine.name}</strong>
+                                            <small>
+                                                {machine.phase} · {machine.activePlayers} players · {machine.activeRounds} rounds
+                                            </small>
+                                        </span>
+                                        <em>{formatPercent(machine.observedRtp)}</em>
+                                        <small>{machine.isOpen ? "OPEN" : "CLOSED"}</small>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                )}
+
                 <section className="diagnostics diagnostics-secondary">
                     <div className="section-title">Machine telemetry</div>
                     <div className="section-subtitle">Operational backend state.</div>

@@ -15,8 +15,9 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Lucky5 Cabinet"
+config/icon="res://icon.svg"
 run/main_scene="res://scenes/CabinetRoot.tscn"
-config/features=PackedStringArray("4.6", "Forward Plus")
+config/features=PackedStringArray("4.6", "GL Compatibility")
 
 [display]
 
@@ -30,4 +31,6 @@ project/assembly_name="Lucky5 Cabinet"
 
 [rendering]
 
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
 textures/canvas_textures/default_texture_filter=0

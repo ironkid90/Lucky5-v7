@@ -5,21 +5,29 @@ public static class GodotCabinetRegressionTests
     public static async Task RunAsync(List<string> failures)
     {
         string project;
+        string exportPresets;
         string mainScene;
         string rootScript;
         string storeScript;
         string apiScript;
         string cardSkinScript;
         string devScript;
+        string webLayout;
+        string webManifest;
+        string webIcon;
         try
         {
             project = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "project.godot"));
+            exportPresets = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "export_presets.cfg"));
             mainScene = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scenes", "CabinetRoot.tscn"));
             rootScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_root.gd"));
             storeScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_store.gd"));
             apiScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_api.gd"));
             cardSkinScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "skins", "lucky5", "CardSkin_Lucky5.gd"));
             devScript = await File.ReadAllTextAsync(ResolveRepoFilePath("dev.ps1"));
+            webLayout = await File.ReadAllTextAsync(ResolveRepoFilePath("src", "web", "app", "layout.tsx"));
+            webManifest = await File.ReadAllTextAsync(ResolveRepoFilePath("src", "web", "app", "manifest.ts"));
+            webIcon = await File.ReadAllTextAsync(ResolveRepoFilePath("src", "web", "public", "icon.svg"));
         }
         catch (Exception ex)
         {
@@ -31,6 +39,42 @@ public static class GodotCabinetRegressionTests
             failures,
             "Godot cabinet project must launch CabinetRoot.tscn as the playable main scene",
             project.Contains("run/main_scene=\"res://scenes/CabinetRoot.tscn\"", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet project must stay portrait, iconed, and GL Compatibility based so the same 2D client can ship to kiosk, web, and Android lanes",
+            project.Contains("config/icon=\"res://icon.svg\"", StringComparison.Ordinal)
+                && project.Contains("config/features=PackedStringArray(\"4.6\", \"GL Compatibility\")", StringComparison.Ordinal)
+                && project.Contains("window/size/viewport_width=720", StringComparison.Ordinal)
+                && project.Contains("window/size/viewport_height=1280", StringComparison.Ordinal)
+                && project.Contains("window/handheld/orientation=1", StringComparison.Ordinal)
+                && project.Contains("renderer/rendering_method=\"gl_compatibility\"", StringComparison.Ordinal)
+                && project.Contains("renderer/rendering_method.mobile=\"gl_compatibility\"", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet export presets must define Windows kiosk, Web PWA, and Android APK lanes for one shared cabinet client",
+            exportPresets.Contains("name=\"Windows Desktop\"", StringComparison.Ordinal)
+                && exportPresets.Contains("platform=\"Windows Desktop\"", StringComparison.Ordinal)
+                && exportPresets.Contains("export_path=\"../../artifacts/godot-kiosk/dev/Lucky5Cabinet.exe\"", StringComparison.Ordinal)
+                && exportPresets.Contains("name=\"Web\"", StringComparison.Ordinal)
+                && exportPresets.Contains("platform=\"Web\"", StringComparison.Ordinal)
+                && exportPresets.Contains("custom_features=\"web\"", StringComparison.Ordinal)
+                && exportPresets.Contains("export_path=\"../../artifacts/godot-web/dev/index.html\"", StringComparison.Ordinal)
+                && exportPresets.Contains("variant/thread_support=false", StringComparison.Ordinal)
+                && exportPresets.Contains("progressive_web_app/enabled=true", StringComparison.Ordinal)
+                && exportPresets.Contains("progressive_web_app/display=1", StringComparison.Ordinal)
+                && exportPresets.Contains("progressive_web_app/orientation=2", StringComparison.Ordinal)
+                && exportPresets.Contains("name=\"Android\"", StringComparison.Ordinal)
+                && exportPresets.Contains("platform=\"Android\"", StringComparison.Ordinal)
+                && exportPresets.Contains("custom_features=\"android\"", StringComparison.Ordinal)
+                && exportPresets.Contains("export_path=\"../../artifacts/godot-android/dev/Lucky5Cabinet.apk\"", StringComparison.Ordinal)
+                && exportPresets.Contains("architectures/arm64-v8a=true", StringComparison.Ordinal)
+                && exportPresets.Contains("package/unique_name=\"com.lucky5.cabinet\"", StringComparison.Ordinal)
+                && exportPresets.Contains("package/name=\"Lucky5 Cabinet\"", StringComparison.Ordinal)
+                && exportPresets.Contains("screen/immersive_mode=true", StringComparison.Ordinal)
+                && exportPresets.Contains("permissions/internet=true", StringComparison.Ordinal)
+                && exportPresets.Contains("permissions/access_network_state=true", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -73,6 +117,24 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
+            "Godot cabinet admin panel must expose agent create/load/assign flows against the backend Agent API",
+            apiScript.Contains("func get_admin_agents", StringComparison.Ordinal)
+                && apiScript.Contains("func create_admin_agent", StringComparison.Ordinal)
+                && apiScript.Contains("func load_admin_agent_credit", StringComparison.Ordinal)
+                && apiScript.Contains("func assign_admin_user_to_agent", StringComparison.Ordinal)
+                && apiScript.Contains("/api/Agent/%d/load-credit", StringComparison.Ordinal)
+                && apiScript.Contains("/api/Agent/%d/assign-user/%s", StringComparison.Ordinal)
+                && rootScript.Contains("[\"AGENTS\", _on_admin_agents]", StringComparison.Ordinal)
+                && rootScript.Contains("var admin_agent_tools: VBoxContainer", StringComparison.Ordinal)
+                && rootScript.Contains("var admin_agents_list: VBoxContainer", StringComparison.Ordinal)
+                && rootScript.Contains("var admin_selected_agent_id := 0", StringComparison.Ordinal)
+                && rootScript.Contains("api.create_admin_agent(name, code, phone)", StringComparison.Ordinal)
+                && rootScript.Contains("api.load_admin_agent_credit(admin_selected_agent_id, amount)", StringComparison.Ordinal)
+                && rootScript.Contains("api.assign_admin_user_to_agent(admin_selected_agent_id, user_id.strip_edges())", StringComparison.Ordinal)
+                && rootScript.Contains("assign_button.pressed.connect(_on_admin_assign_user.bind", StringComparison.Ordinal));
+
+        Assert(
+            failures,
             "dev.ps1 must launch the Godot cabinet by default and keep the legacy web cabinet behind an explicit -Web fallback",
             devScript.Contains("[switch]$Web", StringComparison.Ordinal)
                 && devScript.Contains("$launchGodot = -not $Headless -and -not $Web", StringComparison.Ordinal)
@@ -86,6 +148,24 @@ public static class GodotCabinetRegressionTests
             failures,
             "dev.ps1 must stay ASCII-only so Windows PowerShell can parse the 1-click Godot launcher reliably",
             devScript.All(ch => ch <= 127));
+
+        Assert(
+            failures,
+            "Web cabinet fallback must expose an installable portrait app shell for the shared web/Android-compatible cabinet path",
+            webLayout.Contains("manifest: \"/manifest.webmanifest\"", StringComparison.Ordinal)
+                && webLayout.Contains("appleWebApp", StringComparison.Ordinal)
+                && webLayout.Contains("\"apple-mobile-web-app-capable\": \"yes\"", StringComparison.Ordinal)
+                && webLayout.Contains("statusBarStyle: \"black-translucent\"", StringComparison.Ordinal)
+                && webLayout.Contains("formatDetection", StringComparison.Ordinal)
+                && webLayout.Contains("themeColor: \"#060606\"", StringComparison.Ordinal)
+                && webManifest.Contains("export default function manifest(): MetadataRoute.Manifest", StringComparison.Ordinal)
+                && webManifest.Contains("display: \"standalone\"", StringComparison.Ordinal)
+                && webManifest.Contains("display_override: [\"fullscreen\", \"standalone\"]", StringComparison.Ordinal)
+                && webManifest.Contains("orientation: \"portrait\"", StringComparison.Ordinal)
+                && webManifest.Contains("theme_color: \"#060606\"", StringComparison.Ordinal)
+                && webManifest.Contains("purpose: \"maskable\"", StringComparison.Ordinal)
+                && webIcon.Contains("LUCKY5", StringComparison.Ordinal)
+                && webIcon.Contains("CABINET", StringComparison.Ordinal));
 
         Assert(
             failures,

@@ -8,6 +8,14 @@ Godot 4 portrait cabinet is now the default playable client for Lucky5.
 - Merge conflicts from stashed interactive auth work are resolved
 - `dev.ps1` defaults to Godot (`.\dev.ps1` starts API + Godot cabinet)
 - The legacy web cabinet is fallback-only and no longer part of the default launcher/build path
+- The web cabinet fallback exposes a portrait install shell through
+  `src/web/app/manifest.ts` and `src/web/public/icon.svg` so the same cabinet
+  surface can be tested as a web/Android-compatible app while Godot remains the
+  primary playable client
+- Godot cabinet export presets now cover Windows Desktop, Web PWA, and unsigned
+  Android APK compatibility lanes from the same portrait `CabinetRoot.tscn`
+  client. The project uses GL Compatibility to avoid splitting renderer behavior
+  between kiosk, browser, and mobile
 - Flutter/mobile clients are removed from the active repo
 - Kiosk export lane at `scripts/godot/Build-GodotKiosk.ps1` (requires readiness gate)
 

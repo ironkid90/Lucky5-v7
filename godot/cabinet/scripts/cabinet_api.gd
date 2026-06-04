@@ -79,6 +79,24 @@ func search_admin_users(query: String) -> bool:
 func get_admin_machines() -> bool:
     return _request_get("admin_machines", "/api/Admin/machines")
 
+func get_admin_agents() -> bool:
+    return _request_get("admin_agents", "/api/Agent")
+
+func create_admin_agent(name: String, code: String, phone_number: String) -> bool:
+    return _request("admin_agent_create", HTTPClient.METHOD_POST, "/api/Agent", {
+        "name": name.strip_edges(),
+        "code": code.strip_edges().to_upper(),
+        "phoneNumber": phone_number.strip_edges()
+    })
+
+func load_admin_agent_credit(agent_id: int, amount: int) -> bool:
+    return _request("admin_agent_load_credit", HTTPClient.METHOD_POST, "/api/Agent/%d/load-credit" % agent_id, {
+        "amount": amount
+    })
+
+func assign_admin_user_to_agent(agent_id: int, user_id: String) -> bool:
+    return _request("admin_agent_assign_user", HTTPClient.METHOD_POST, "/api/Agent/%d/assign-user/%s" % [agent_id, user_id.uri_encode()], {})
+
 func _request(kind: String, method: int, path: String, body: Dictionary) -> bool:
     var headers := PackedStringArray(["Accept: application/json"])
     if method != HTTPClient.METHOD_GET:

@@ -75,6 +75,11 @@ unless the public-key distribution model has been reviewed.
 2. Ensure `godot/cabinet/export_presets.cfg` exists locally or is supplied by CI.
    Godot creates this file from the editor export UI. It may contain platform
    paths or signing settings, so review before committing any preset changes.
+   The committed dev presets define:
+
+   - `Windows Desktop` for the readiness-gated kiosk artifact.
+   - `Web` for a portrait PWA compatibility export.
+   - `Android` for an unsigned portrait APK compatibility export.
 
 3. Run the build script from the repository root:
 
@@ -92,6 +97,23 @@ unless the public-key distribution model has been reviewed.
 
 5. Record the produced manifest hash, signature hash, git commit, Godot version,
    and readiness gate artifact ID in the release/change ticket.
+
+## Compatibility export lanes
+
+The web and Android presets are source-controlled so the cabinet remains one
+Godot app instead of separate UI forks. They are not production release lanes
+until their platform-specific QA and signing policy are approved.
+
+```powershell
+godot --headless --path godot/cabinet --export-release "Web" artifacts/godot-web/dev/index.html
+godot --headless --path godot/cabinet --export-release "Android" artifacts/godot-android/dev/Lucky5Cabinet.apk
+```
+
+The Godot project is pinned to GL Compatibility because this 2D cabinet must
+share a renderer path across desktop kiosk, browser, and Android targets. Keep
+the Web preset single-threaded unless the hosting server is prepared for the
+required cross-origin isolation headers. Android APKs from this preset are
+unsigned dev artifacts; release signing keys stay outside the repository.
 
 ## Asset manifest policy
 

@@ -112,6 +112,68 @@ export interface WalletLedgerEntry {
   createdUtc: string;
 }
 
+export interface AdminUser {
+  userId: string;
+  username: string;
+  displayName: string;
+  phoneNumber: string;
+  walletBalance: number;
+  role: string;
+  createdUtc: string;
+  lastSeenUtc: string;
+}
+
+export interface AdminMachineSession {
+  sessionId: string;
+  userId: string;
+  username: string;
+  machineCredits: number;
+  totalCashIn: number;
+  isMachineClosed: boolean;
+  counterplayScore: number;
+  lastUpdatedUtc: string;
+}
+
+export interface AdminMachine {
+  machineId: number;
+  name: string;
+  isOpen: boolean;
+  minBet: number;
+  maxBet: number;
+  observedRtp: number;
+  targetRtp: number;
+  baseRtp: number;
+  phase: string;
+  lastPayoutScale: number;
+  roundCount: number;
+  consecutiveLosses: number;
+  roundsSinceMediumWin: number;
+  cooldownRemaining: number;
+  netSinceLastClose: number;
+  roundsSinceLucky5Hit: number;
+  lastRoundUtc: string;
+  jackpotFullHouse: number;
+  jackpotFullHouseRank: number;
+  jackpotFourOfAKindA: number;
+  jackpotFourOfAKindB: number;
+  activeFourOfAKindSlot: number;
+  jackpotStraightFlush: number;
+  jackpotKent: number;
+  activeRounds: number;
+  activePlayers: number;
+  sessions: AdminMachineSession[];
+}
+
+export interface AgentInfo {
+  id: number;
+  name: string;
+  code: string;
+  phoneNumber: string;
+  isActive: boolean;
+  creditPool: number;
+  createdUtc: string;
+}
+
 export interface DefaultRules {
   payoutMultipliers: Record<string, number>;
 }

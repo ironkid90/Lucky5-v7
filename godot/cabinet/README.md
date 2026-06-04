@@ -14,6 +14,27 @@ LUCKY5_AUTH_PASSWORD=<player password>
 LUCKY5_MACHINE_ID=1
 ```
 
+## Platform export lanes
+
+The same `res://scenes/CabinetRoot.tscn` client is the source for all cabinet
+targets. `godot/cabinet/export_presets.cfg` keeps three explicit lanes:
+
+- `Windows Desktop` exports the kiosk build to `artifacts/godot-kiosk/`.
+- `Web` exports a portrait PWA shell to `artifacts/godot-web/`.
+- `Android` exports an unsigned portrait APK to `artifacts/godot-android/`.
+
+Use the Windows kiosk script for release packages because it enforces the
+readiness gate and asset manifest policy. The web and Android presets are dev
+compatibility lanes until signing, store policy, and device QA are approved:
+
+```powershell
+godot --headless --path godot/cabinet --export-release "Web" artifacts/godot-web/dev/index.html
+godot --headless --path godot/cabinet --export-release "Android" artifacts/godot-android/dev/Lucky5Cabinet.apk
+```
+
+Android exports require local Android tooling and export templates. Web exports
+must be served over HTTP(S); do not open the generated HTML from `file://`.
+
 The scene boots `res://data/fixture_snapshot.json` immediately, then hydrates from:
 
 - `GET /api/Game/machine/{machineId}/cabinet-snapshot`

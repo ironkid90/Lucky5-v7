@@ -7,7 +7,22 @@ export const metadata: Metadata = {
   description:
     "Lucky5 retro arcade cabinet — 5-card draw with Ranked Full House, 4-of-a-Kind A/B, Straight Flush and Kent jackpots, plus the 5-card double-up bonus.",
   applicationName: "Lucky5",
-  themeColor: "#060606",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Lucky5",
+    statusBarStyle: "black-translucent",
+  },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {

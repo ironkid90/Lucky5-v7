@@ -60,7 +60,8 @@ body::before {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -133,6 +134,7 @@ input {
 .status-box,
 .message-box,
 .diagnostics,
+.admin-agent-panel,
 .history-panel {
   background: var(--panel-soft);
   border: 1px solid var(--line);
@@ -143,6 +145,7 @@ input {
 .status-box,
 .message-box,
 .diagnostics,
+.admin-agent-panel,
 .history-panel,
 .auth-panel,
 .double-up-panel {
@@ -179,6 +182,8 @@ input {
 .card-stage,
 .control-deck,
 .side-column,
+.admin-stack,
+.admin-list,
 .history-list,
 .double-up-panel,
 .auth-panel {
@@ -194,6 +199,11 @@ input {
 .control-row.secondary,
 .control-row.tertiary,
 .diagnostic-grid,
+.admin-tabs,
+.admin-form-grid,
+.admin-load-row,
+.admin-search-row,
+.admin-list-row,
 .double-up-cards,
 .double-up-meta,
 .auth-grid {
@@ -627,6 +637,142 @@ input {
   background: rgba(20, 18, 14, 0.82);
 }
 
+.admin-agent-panel {
+  padding: 12px;
+  background: rgba(13, 16, 16, 0.88);
+  border-color: rgba(156, 230, 255, 0.2);
+}
+
+.admin-panel-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.admin-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.admin-tab,
+.admin-mini-button,
+.admin-command {
+  border: 1px solid rgba(255, 212, 71, 0.2);
+  background: rgba(0, 0, 0, 0.38);
+  color: #f9e6b4;
+  border-radius: 8px;
+  min-height: 32px;
+  padding: 7px 8px;
+  font-size: 0.48rem;
+  text-transform: uppercase;
+}
+
+.admin-tab.active,
+.admin-list-row.active {
+  border-color: rgba(132, 255, 85, 0.52);
+  color: var(--signal);
+}
+
+.admin-command {
+  color: #211403;
+  background: linear-gradient(180deg, #ffd447 0%, #b87318 100%);
+}
+
+.admin-form-grid {
+  grid-template-columns: minmax(0, 1.3fr) minmax(58px, 0.7fr);
+  gap: 6px;
+}
+
+.admin-form-grid input:last-child {
+  grid-column: 1 / -1;
+}
+
+.admin-load-row {
+  grid-template-columns: minmax(0, 1fr) minmax(70px, 0.45fr) auto;
+  gap: 6px;
+}
+
+.admin-search-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+}
+
+.admin-agent-panel input,
+.admin-agent-panel select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(255, 212, 71, 0.18);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.42);
+  color: #fff6df;
+  min-height: 34px;
+  padding: 7px 8px;
+  font-size: 0.5rem;
+}
+
+.admin-list-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(156, 230, 255, 0.12);
+  background: rgba(255, 255, 255, 0.035);
+  color: #fff6df;
+  text-align: left;
+}
+
+.admin-list-row-button {
+  cursor: pointer;
+}
+
+.admin-list-row span,
+.admin-list-row strong,
+.admin-list-row small,
+.admin-list-row em {
+  min-width: 0;
+}
+
+.admin-list-row strong,
+.admin-list-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-list-row strong {
+  color: #fff6df;
+  font-size: 0.54rem;
+}
+
+.admin-list-row small {
+  color: #b8ddec;
+  font-size: 0.44rem;
+  margin-top: 4px;
+}
+
+.admin-list-row em {
+  color: var(--amber-hot);
+  font-style: normal;
+  font-size: 0.5rem;
+}
+
+.admin-list-row .admin-mini-button {
+  min-height: 28px;
+  padding: 5px 6px;
+}
+
+.admin-user-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.admin-machine-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
 .diagnostic-card {
   padding: 10px;
   border-radius: 12px;
@@ -688,6 +834,9 @@ input {
 .guess-button:disabled,
 .action-button:disabled,
 .auth-button:disabled,
+.admin-tab:disabled,
+.admin-mini-button:disabled,
+.admin-command:disabled,
 .hold-button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -942,6 +1091,87 @@ input {
   box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
 }
 
+.playing-card-apk.revealing {
+  transform-origin: center top;
+  animation: apk-card-reveal 260ms cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.playing-card-apk.shuffling {
+  border-color: #ffd700;
+  box-shadow:
+    0 0 16px rgba(255, 215, 0, 0.46),
+    inset 0 0 0 1px rgba(255, 245, 180, 0.36);
+}
+
+.playing-card-apk.shuffling .card-img {
+  animation: apk-du-card-shuffle 320ms steps(2, end) infinite;
+}
+
+.playing-card-apk.shuffling::after {
+  content: "";
+  position: absolute;
+  inset: -18% -35%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.12) 38%,
+    rgba(255,245,168,0.58) 50%,
+    rgba(255,255,255,0.12) 62%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+  transform: translateX(-45%) rotate(16deg);
+  animation: apk-du-shuffle-scan 520ms linear infinite;
+}
+
+@keyframes apk-card-reveal {
+  0% {
+    opacity: 0.2;
+    transform: translateY(-18px) rotateX(82deg) scale(0.96);
+    filter: brightness(1.35);
+  }
+  58% {
+    opacity: 1;
+    transform: translateY(2px) rotateX(-8deg) scale(1.015);
+    filter: brightness(1.14);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg) scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes apk-du-card-shuffle {
+  0% {
+    transform: translateY(-2px) rotate(-1.4deg) scale(1.01);
+    filter: brightness(1.05) saturate(1.05);
+  }
+  50% {
+    transform: translateY(2px) rotate(1.4deg) scale(0.99);
+    filter: brightness(1.28) saturate(1.2) hue-rotate(18deg);
+  }
+  100% {
+    transform: translateY(-1px) rotate(-0.8deg) scale(1.01);
+    filter: brightness(1.08) saturate(1.08);
+  }
+}
+
+@keyframes apk-du-shuffle-scan {
+  0% {
+    transform: translateX(-55%) rotate(16deg);
+    opacity: 0.32;
+  }
+  48% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(55%) rotate(16deg);
+    opacity: 0.25;
+  }
+}
+
 .card-img {
   width: 100%;
   height: 100%;
@@ -1062,6 +1292,14 @@ input {
   padding: 3px 0;
   margin-top: 4px;
   border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playing-card-apk.revealing,
+  .playing-card-apk.shuffling .card-img,
+  .playing-card-apk.shuffling::after {
+    animation: none;
+  }
 }
 
 /* ── Control deck (APK 3-row wood layout) ───────────────────── */
@@ -1197,29 +1435,25 @@ input {
   display: flex;
 }
 
-/* DU action row */
-.apk-du-action-row {
+/* DU status row */
+.apk-du-status-row {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 6px;
-  align-items: center;
   padding: 6px 0 0;
   border-top: 1px solid rgba(255,255,255,0.08);
 }
-
-.apk-btn-switch     { background: linear-gradient(180deg, #999 0%, #444 100%); }
-.apk-btn-double-up  { background: linear-gradient(180deg, #ffd64d 0%, #b87200 100%); color: #2a1500; }
 
 .apk-du-info {
   font-family: var(--display-font);
   font-size: 0.55rem;
   color: #fff4d3;
-  padding: 4px 8px;
+  padding: 5px 8px;
   background: rgba(0,0,0,0.35);
   border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 28px;
 }
 
 .apk-du-status  { color: #ffd700; }
@@ -1273,8 +1507,21 @@ input {
   .double-up-cards,
   .double-up-meta,
   .auth-grid,
+  .admin-form-grid,
+  .admin-load-row,
+  .admin-search-row,
+  .admin-user-row,
+  .admin-machine-row,
   .diagnostic-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-form-grid input:last-child {
+    grid-column: auto;
   }
 
   .card-row,

@@ -6,6 +6,8 @@ var rounds = 10_000;
 var minRtp = 0.78m;
 var maxRtp = 0.82m;
 var isCertificationRun = false;
+var behavior = PlayerBehavior.Balanced;
+var varianceReport = false;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -27,6 +29,13 @@ for (int i = 0; i < args.Length; i++)
             isCertificationRun = true;
             rounds = 500_000;
             break;
+        case "--behavior":
+            if (i + 1 < args.Length && TryParseBehavior(args[i + 1], out var parsedBehavior))
+                behavior = parsedBehavior;
+            break;
+        case "--variance-report":
+            varianceReport = true;
+            break;
     }
 }
 
@@ -40,21 +49,19 @@ Console.WriteLine($"Bet: {Bet:N0} | Paytable: {paytable.Name}");
 Console.WriteLine($"Target RTP: {cfg.TargetRtp:P2} = Base {cfg.TargetScaledBaseRtp:P2} + Jackpot {cfg.TargetJackpotRtp:P2} + Double-Up {cfg.TargetDoubleUpRtp:P2}");
 Console.WriteLine($"Machine close threshold: {cfg.CloseThreshold:N0} | Double-up always-on | DU pressure removals: {cfg.DoubleUpPressureMaxKeyRemovals} | Min DU deck: {cfg.DoubleUpMinDeckSize}");
 Console.WriteLine($"Run type: {(isCertificationRun ? "Certification" : "CI Gate")} | Rounds: {rounds:N0} | RTP range: [{minRtp:P2}, {maxRtp:P2}]");
+Console.WriteLine($"Behavior: {DescribeBehavior(behavior)}");
 Console.WriteLine();
 
-var balanced10kSamples = Enumerable.Range(0, 9)
-    .Select(sample => RunSimulation(10_000, PlayerBehavior.Balanced, sample))
-    .OrderBy(result => result.TotalRtp)
-    .ToArray();
-var balanced10kMedian = balanced10kSamples[balanced10kSamples.Length / 2];
-var balanced100k = RunSimulation(100_000, PlayerBehavior.Balanced, 0);
-var balanced1M = RunSimulation(1_000_000, PlayerBehavior.Balanced, 1);
-
 // Run the main simulation with enhanced telemetry
-var mainResult = RunSimulation(rounds, PlayerBehavior.Balanced, 0, true);
+var mainResult = RunSimulation(rounds, behavior, 0, true);
 
 Console.WriteLine("--- Main Simulation Results ---");
 PrintEnhancedSummary($"{rounds:N0} rounds", mainResult);
+
+if (varianceReport)
+{
+    PrintVarianceReport();
+}
 
 // Determine pass/fail based on RTP bounds
 var passed = mainResult.TotalRtp >= minRtp && mainResult.TotalRtp <= maxRtp;
@@ -173,6 +180,8 @@ SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIn
                 ledger.JackpotCapitalOut += jackpotOverlay;
                 ledger.LastWinChannel = WinChannel.Jackpot;
                 payout = (int)jackpotWon;
+                result.JackpotHits++;
+                result.LargestJackpot = Math.Max(result.LargestJackpot, jackpotWon);
             }
         }
         else
@@ -306,7 +315,7 @@ DoubleUpChainResult PlayDoubleUpChain(
     MachinePolicyState policyState,
     SimulationResult result)
 {
-    var duDeck = MachinePolicy.BuildDoubleUpDeck(
+    var duDeck = MachinePolicy.BuildDoubleUpPlayDeck(
         FiveCardDrawEngine.BuildStandardDeck(),
         roundSeed,
         policyState.RoundsSinceLucky5Hit,
@@ -318,7 +327,7 @@ DoubleUpChainResult PlayDoubleUpChain(
 
     var session = Lucky5DoubleUpEngine.CreateSessionFromDeck(
         roundSeed,
-        FiveCardDrawEngine.ShuffleDeck(roundSeed, "double-up", duDeck),
+        duDeck,
         openingAmount,
         machineCreditBaseline: Decimal.ToInt32(Math.Min(bank.MachineCredits, int.MaxValue)),
         options: new Lucky5DoubleUpOptions(MaxCreditLimit: Decimal.ToInt32(cfg.CloseThreshold)));
@@ -411,6 +420,23 @@ void BankCredits(SessionState bank, int amount, SimulationResult result)
 
     var before = bank.MachineCredits;
     bank.MachineCredits += amount;
+    result.MaxMachineCredits = Math.Max(result.MaxMachineCredits, bank.MachineCredits);
+    result.LargestBankedCreditEvent = Math.Max(result.LargestBankedCreditEvent, amount);
+    if (before < cfg.SoftCapWarning && bank.MachineCredits >= cfg.SoftCapWarning)
+    {
+        result.SoftCapWarningTouches++;
+    }
+
+    if (before < cfg.SoftCapHard && bank.MachineCredits >= cfg.SoftCapHard)
+    {
+        result.HardCapCloseCalls++;
+    }
+
+    if (before < cfg.CloseThreshold * 0.95m && bank.MachineCredits >= cfg.CloseThreshold * 0.95m)
+    {
+        result.CriticalCloseCalls++;
+    }
+
     if (!bank.PendingReset && before < cfg.CloseThreshold && bank.MachineCredits >= cfg.CloseThreshold)
     {
         bank.PendingReset = true;
@@ -569,6 +595,8 @@ static void PrintEnhancedSummary(string label, SimulationResult result)
     Console.WriteLine($"{label,-32} | RTP {result.TotalRtp:P2} | Base {result.BaseRtp:P2} | Jackpot {result.JackpotRtp:P2} | DU {result.DoubleUpRtp:P2}");
     Console.WriteLine($"  Paying spins {result.DirectPayingSpinFrequency:P2} | Medium+ {result.MediumOrBetterFrequency:P2} | DU offer/win {result.OfferRateOnWinningRounds:P2} | Accept {result.AcceptRate:P2}");
     Console.WriteLine($"  Entered DU gain {result.RealizedIncrementalGainPerEnteredChain:P2} of trigger win | Avg scale {result.AveragePayoutScale:F3} | 40M closes {result.MachineCloses40M:N0} | 50M take-half+continue {result.Over50MViaTakeHalfContinuation:N0}");
+    Console.WriteLine($"  Jackpots {result.JackpotHits:N0} | Largest jackpot {result.LargestJackpot:N0} | Largest bank event {result.LargestBankedCreditEvent:N0} | Max credits {result.MaxMachineCredits:N0}");
+    Console.WriteLine($"  Close suspense: >=28M {result.SoftCapWarningTouches:N0} | >=35M {result.HardCapCloseCalls:N0} | >=38M {result.CriticalCloseCalls:N0}");
     
     // Enhanced telemetry
     Console.WriteLine($"  Warmup activations: {result.WarmupActivations:N0} | Pity activations: {result.PityActivations:N0} | Crisis activations: {result.CrisisActivations:N0}");
@@ -584,6 +612,27 @@ static void PrintEnhancedSummary(string label, SimulationResult result)
     }
 }
 
+void PrintVarianceReport()
+{
+    Console.WriteLine();
+    Console.WriteLine("--- Variance / Suspense Report ---");
+
+    var samples10k = Enumerable.Range(0, 9)
+        .Select(sample => RunSimulation(10_000, PlayerBehavior.Balanced, sample))
+        .OrderBy(result => result.TotalRtp)
+        .ToArray();
+    var median10k = samples10k[samples10k.Length / 2];
+    var min10k = samples10k.First();
+    var max10k = samples10k.Last();
+    Console.WriteLine($"Balanced 10k sample band       | min {min10k.TotalRtp:P2} | median {median10k.TotalRtp:P2} | max {max10k.TotalRtp:P2}");
+
+    var balanced100k = RunSimulation(100_000, PlayerBehavior.Balanced, 0);
+    PrintEnhancedSummary("Balanced 100k", balanced100k);
+
+    var aggressive200k = RunSimulation(200_000, PlayerBehavior.AggressiveCabinetClosing, 0);
+    PrintEnhancedSummary("Aggressive close 200k", aggressive200k);
+}
+
 static string DescribeBehavior(PlayerBehavior behavior) => behavior switch
 {
     PlayerBehavior.ConservativeCollectFirst => "Conservative collect-first",
@@ -591,6 +640,25 @@ static string DescribeBehavior(PlayerBehavior behavior) => behavior switch
     PlayerBehavior.AggressiveCabinetClosing => "Aggressive cabinet-closing",
     _ => behavior.ToString()
 };
+
+static bool TryParseBehavior(string value, out PlayerBehavior behavior)
+{
+    behavior = value.Trim().ToLowerInvariant() switch
+    {
+        "conservative" or "collect" or "collect-first" => PlayerBehavior.ConservativeCollectFirst,
+        "balanced" => PlayerBehavior.Balanced,
+        "aggressive" or "close" or "cabinet-closing" => PlayerBehavior.AggressiveCabinetClosing,
+        _ => PlayerBehavior.Balanced
+    };
+
+    return value.Trim().Equals("conservative", StringComparison.OrdinalIgnoreCase)
+        || value.Trim().Equals("collect", StringComparison.OrdinalIgnoreCase)
+        || value.Trim().Equals("collect-first", StringComparison.OrdinalIgnoreCase)
+        || value.Trim().Equals("balanced", StringComparison.OrdinalIgnoreCase)
+        || value.Trim().Equals("aggressive", StringComparison.OrdinalIgnoreCase)
+        || value.Trim().Equals("close", StringComparison.OrdinalIgnoreCase)
+        || value.Trim().Equals("cabinet-closing", StringComparison.OrdinalIgnoreCase);
+}
 
 enum PlayerBehavior
 {
@@ -640,9 +708,16 @@ sealed class SimulationResult(PlayerBehavior behavior, int rounds)
     public int DoubleUpResolutionWins { get; set; }
     public int DoubleUpResolutionLosses { get; set; }
     public int LuckySwitchHits { get; set; }
+    public int JackpotHits { get; set; }
     public int MachineCloses40M { get; set; }
     public int Over50MViaTakeHalfContinuation { get; set; }
     public int SessionsStarted { get; set; }
+    public int SoftCapWarningTouches { get; set; }
+    public int HardCapCloseCalls { get; set; }
+    public int CriticalCloseCalls { get; set; }
+    public decimal MaxMachineCredits { get; set; }
+    public decimal LargestJackpot { get; set; }
+    public decimal LargestBankedCreditEvent { get; set; }
     public decimal FinalObservedRtp { get; set; }
     public decimal FinalBaseRtp { get; set; }
     public decimal FinalJackpotRtp { get; set; }

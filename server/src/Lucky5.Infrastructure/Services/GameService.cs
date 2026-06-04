@@ -504,7 +504,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         }
 
         var ledger = await RequireMachineLedgerAsync(round.MachineId);
-        var alteredDeck = MachinePolicy.BuildDoubleUpDeck(
+        var playDeck = MachinePolicy.BuildDoubleUpPlayDeck(
             FiveCardDrawEngine.BuildStandardDeck(),
             round.RoundEntropySeed,
             ledger.RoundsSinceLucky5Hit,
@@ -516,7 +516,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
         var session = Lucky5DoubleUpEngine.CreateSessionFromDeck(
             round.RoundEntropySeed,
-            FiveCardDrawEngine.ShuffleDeck(round.RoundEntropySeed, "double-up", alteredDeck),
+            playDeck,
             startingAmount,
             machineCreditBaseline,
             new Lucky5DoubleUpOptions(MaxCreditLimit: Decimal.ToInt32(EngineCfg.CloseThreshold)));

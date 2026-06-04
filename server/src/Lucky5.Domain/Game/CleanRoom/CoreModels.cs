@@ -316,10 +316,11 @@ public sealed record EngineConfig(
     // === Double-Up Deck Pressure ===
     int DoubleUpPressureMinRounds = 12,
     decimal DoubleUpPressureSoftDrift = 0.020m,
-    int DoubleUpPressureMaxKeyRemovals = 17,
+    int DoubleUpPressureMaxKeyRemovals = 29,
     int DoubleUpPressureRecoveryDroughtRounds = 28,
-    int DoubleUpMinDeckSize = 34,
+    int DoubleUpMinDeckSize = 23,
     decimal DoubleUpCloseCallPressureStart = 0.70m,
+    decimal DoubleUpSequencePressureStart = 0.72m,
 
     // === Deck Alteration Bounds ===
     int MaxColdRemovals = 1,

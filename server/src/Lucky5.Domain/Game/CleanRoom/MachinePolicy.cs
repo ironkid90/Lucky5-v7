@@ -468,6 +468,36 @@ public static class MachinePolicy
             : BuildRecoveryDoubleUpDeck(standardDeck, -pressure, roundsSinceLucky5Hit, rng, cfg);
     }
 
+    public static CleanRoomCard[] BuildDoubleUpPlayDeck(
+        CleanRoomCard[] standardDeck,
+        ulong entropySeed,
+        int roundsSinceLucky5Hit,
+        decimal netSinceLastClose,
+        PolicyDistributionMode roundPolicyMode,
+        MachinePolicyState? state,
+        int openingAmount,
+        int machineCreditBaseline,
+        EngineConfig? config = null)
+    {
+        var cfg = config ?? Cfg;
+        var pressure = ComputeDoubleUpDeckPressure(state, roundsSinceLucky5Hit, netSinceLastClose, roundPolicyMode, openingAmount, machineCreditBaseline, cfg);
+        var pressureDeck = BuildDoubleUpDeck(
+            standardDeck,
+            entropySeed,
+            roundsSinceLucky5Hit,
+            netSinceLastClose,
+            roundPolicyMode,
+            state,
+            openingAmount,
+            machineCreditBaseline,
+            cfg);
+        var shuffledDeck = FiveCardDrawEngine.ShuffleDeck(entropySeed, "double-up", pressureDeck);
+
+        return pressure >= cfg.DoubleUpSequencePressureStart
+            ? BuildPressureSequenceDeck(shuffledDeck, pressure, entropySeed)
+            : shuffledDeck;
+    }
+
     public static decimal ComputeDoubleUpDeckPressure(
         MachinePolicyState? state,
         int roundsSinceLucky5Hit,
@@ -566,7 +596,53 @@ public static class MachinePolicy
             removals += RemoveMatching(deck, card => card.Rank is 3 or 12, removalBudget - removals, rng, cfg);
         }
 
+        if (pressure >= 0.74m && removals < removalBudget)
+        {
+            removals += RemoveMatching(deck, card => card.Rank is 4 or 11, removalBudget - removals, rng, cfg);
+        }
+
+        if (pressure >= 0.86m && removals < removalBudget)
+        {
+            removals += RemoveMatching(
+                deck,
+                card => (card.Rank == 5 || card.Rank == 10) && !(card.Rank == FiveOfSpades.Rank && card.Suit == FiveOfSpades.Suit),
+                removalBudget - removals,
+                rng,
+                cfg);
+        }
+
         return deck.ToArray();
+    }
+
+    private static CleanRoomCard[] BuildPressureSequenceDeck(CleanRoomCard[] deck, decimal pressure, ulong entropySeed)
+    {
+        var rng = new SplitMix64Rng(DeterministicSeed.Derive(entropySeed, "double-up-sequence-pressure"));
+        var groups = deck
+            .GroupBy(card => card.Rank)
+            .OrderByDescending(group => group.Key)
+            .Select(group =>
+            {
+                var cards = group.ToList();
+                rng.Shuffle(cards);
+                return cards;
+            })
+            .ToList();
+
+        if (pressure < 0.90m)
+        {
+            var middleGroups = groups
+                .Where(group => group[0].Rank is >= 6 and <= 10)
+                .ToList();
+            rng.Shuffle(middleGroups);
+
+            var edgeGroups = groups
+                .Where(group => group[0].Rank is < 6 or > 10)
+                .ToList();
+
+            return middleGroups.Concat(edgeGroups).SelectMany(group => group).ToArray();
+        }
+
+        return groups.SelectMany(group => group).ToArray();
     }
 
     private static CleanRoomCard[] BuildRecoveryDoubleUpDeck(

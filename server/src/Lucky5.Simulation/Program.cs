@@ -38,7 +38,7 @@ var paytable = PaytableProfile.Lebanese;
 Console.WriteLine("=== Lucky5 RTP Monte Carlo Simulation ===");
 Console.WriteLine($"Bet: {Bet:N0} | Paytable: {paytable.Name}");
 Console.WriteLine($"Target RTP: {cfg.TargetRtp:P2} = Base {cfg.TargetScaledBaseRtp:P2} + Jackpot {cfg.TargetJackpotRtp:P2} + Double-Up {cfg.TargetDoubleUpRtp:P2}");
-Console.WriteLine($"Machine close threshold: {cfg.CloseThreshold:N0} | Double-up offer floor: {cfg.DoubleUpOfferFloor:P0} | Offer ceiling: {cfg.DoubleUpOfferMax:P0}");
+Console.WriteLine($"Machine close threshold: {cfg.CloseThreshold:N0} | Double-up always-on | DU pressure removals: {cfg.DoubleUpPressureMaxKeyRemovals} | Min DU deck: {cfg.DoubleUpMinDeckSize}");
 Console.WriteLine($"Run type: {(isCertificationRun ? "Certification" : "CI Gate")} | Rounds: {rounds:N0} | RTP range: [{minRtp:P2}, {maxRtp:P2}]");
 Console.WriteLine();
 
@@ -216,7 +216,7 @@ SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIn
                 result.EnteredDoubleUpChains++;
                 result.EnteredTriggerCredits += payout;
 
-                var chainResult = PlayDoubleUpChain(seed, policyMode, behavior, session, payout, result);
+                var chainResult = PlayDoubleUpChain(seed, policyMode, behavior, session, payout, offerState, result);
                 result.DoubleUpOverlayOut += chainResult.Delta;
                 ledger.CapitalOut += chainResult.Delta;
                 ledger.DoubleUpCapitalOut += chainResult.Delta;
@@ -303,14 +303,18 @@ DoubleUpChainResult PlayDoubleUpChain(
     PlayerBehavior behavior,
     SessionState bank,
     int openingAmount,
+    MachinePolicyState policyState,
     SimulationResult result)
 {
     var duDeck = MachinePolicy.BuildDoubleUpDeck(
         FiveCardDrawEngine.BuildStandardDeck(),
         roundSeed,
-        0,
-        0m,
-        policyMode);
+        policyState.RoundsSinceLucky5Hit,
+        policyState.NetSinceLastClose,
+        policyMode,
+        policyState,
+        openingAmount,
+        Decimal.ToInt32(Math.Min(bank.MachineCredits, int.MaxValue)));
 
     var session = Lucky5DoubleUpEngine.CreateSessionFromDeck(
         roundSeed,
@@ -558,13 +562,6 @@ void ApplyJackpotContributions(MachineLedgerState ledger)
     }
     ledger.JackpotFullHouse = Math.Min(ledger.JackpotFullHouse + cfg.JackpotFullHouseContribution, cfg.JackpotFullHouseCap);
     ledger.JackpotStraightFlush = Math.Min(ledger.JackpotStraightFlush + cfg.JackpotStraightFlushContribution, cfg.JackpotStraightFlushCap);
-}
-
-static void PrintSummary(string label, SimulationResult result)
-{
-    Console.WriteLine($"{label,-32} | RTP {result.TotalRtp:P2} | Base {result.BaseRtp:P2} | Jackpot {result.JackpotRtp:P2} | DU {result.DoubleUpRtp:P2}");
-    Console.WriteLine($"  Paying spins {result.DirectPayingSpinFrequency:P2} | Medium+ {result.MediumOrBetterFrequency:P2} | DU offer/win {result.OfferRateOnWinningRounds:P2} | Accept {result.AcceptRate:P2}");
-    Console.WriteLine($"  Entered DU gain {result.RealizedIncrementalGainPerEnteredChain:P2} of trigger win | Avg scale {result.AveragePayoutScale:F3} | 40M closes {result.MachineCloses40M:N0} | 50M take-half+continue {result.Over50MViaTakeHalfContinuation:N0}");
 }
 
 static void PrintEnhancedSummary(string label, SimulationResult result)

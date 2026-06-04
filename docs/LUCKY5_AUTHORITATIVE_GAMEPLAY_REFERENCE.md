@@ -265,6 +265,7 @@ Meaning:
 - **ACE COUNTS** — the Ace card (`Rank == 14`) triggers the Ace multiplier on the round payout. Rendered in `GameRound.AceMultiplier` and `AceMultiplierFired`.
 - **HI OR LO** — guess direction labels.
 - **5 ♠ NEVER LOSE WHEN BUYING** — if the player has activated the Lucky 5 buy/no-lose state (`IsNoLoseActive == true`) and the next dealt double-up card is the **5 of Spades**, a wrong guess does **not** forfeit credits; the round resolves as `SafeFail` returning the accumulated amount.
+- **Availability invariant** — every positive base-game win remains eligible for double-up. RTP tuning must not hide or skip the double-up screen; balancing belongs in base-game scaling and bounded server-side double-up deck pressure.
 
 **Visual binding:**
 
@@ -616,7 +617,8 @@ Three operational invariants the cabinet must enforce, captured here so they don
 ### 16.1 40M credit machine-close cap
 
 - A machine **stops accepting play once `MachineSession.MachineCredits >= 40_000_000`** (`EngineConfig.CloseThreshold`).
-- The cabinet must show a **MACHINE CLOSED** overlay; only `MENU` (lobby return) and `CASH OUT` are enabled.
+- The cabinet must show a **MACHINE CLOSED** overlay. Lobby/menu controls stay available, and the player can explicitly `TAKE SCORE` / `CASH OUT`; bet, cash-in, deal, hold, and double-up actions stay disabled until the closed session has been paid out.
+- A player reset or closed-machine reopen **must not auto-cash-out machine credits**. Positive machine credits remain in the closed session and block further play until the player explicitly cashes out to wallet. Zero-credit resets may still clear an empty machine.
 - The two highest-leverage paths to hitting the cap are:
   1. **Straight Flush jackpot** — biggest single payout event in the game (currently `JackpotStraightFlushCap = 7,500,000`, but the live capture showed `S/N: 10,000,000` aligned with this pool; values rotate per machine).
   2. **Ranked Full House jackpot** — the rank-armed Full House (`JackpotFullHouse`, e.g., 35M at capture).
@@ -643,5 +645,7 @@ Three operational invariants the cabinet must enforce, captured here so they don
 
 | Date       | Change                                                                                                                                                                                                                                  |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-04 | Clarified double-up availability and RTP tuning: every positive base-game win remains eligible for double-up; balancing uses base-game scaling and bounded server-side double-up deck pressure. |
+| 2026-06-04 | Clarified 40M close persistence: reset/reopen does not auto-cash-out positive machine credits; closed sessions remain blocked until explicit player cash-out. |
 | 2026-05-05 | Initial authoritative capture from `ai9poker.com/install`.                                                                                                                                                                            |
 | 2026-05-05 | Corrected §5 Kent: progressive (no reset on non-Kent, only resets on jackpot payout); ascending **or** descending qualifies. Added §4.1 player-initiated FH-rank switch (HOLD[0]). Added §7.5 settlement-drain animation tiers. Added §16 (40M cap, S/N, win floor). Removed duplicate §5. |

@@ -21,7 +21,7 @@ public sealed class MachinePolicyState
     public decimal BaseCreditsOut { get; set; }
     public decimal JackpotCreditsOut { get; set; }
     public decimal DoubleUpCreditsOut { get; set; }
-    public decimal TargetRtp { get; set; } = 0.85m;
+    public decimal TargetRtp { get; set; } = EngineConfig.Default.TargetRtp;
     public int RoundCount { get; set; }
 
     public int ConsecutiveLosses { get; set; }
@@ -48,9 +48,14 @@ public sealed class MachinePolicyState
             return TargetRtp;
         }
 
-        var sampleWeight = Math.Min(1m, rounds / (decimal)Math.Max(cfg.RtpMinSamplesForControl, 1));
-        var windowWeight = Math.Min(1m, CreditsIn / window);
-        var blend = Math.Min(1m, Math.Max(sampleWeight, windowWeight));
+        var minSamples = Math.Max(1, cfg.RtpMinSamplesForControl);
+        if (rounds < minSamples)
+        {
+            return TargetRtp;
+        }
+
+        var windowAfterWarmup = Math.Max(1, window - minSamples + 1);
+        var blend = Math.Min(1m, (rounds - minSamples + 1m) / (decimal)windowAfterWarmup);
 
         return decimal.Round((ObservedRtp * blend) + (TargetRtp * (1m - blend)), 4);
     }
@@ -186,8 +191,7 @@ public static class MachinePolicy
     private static PayoutScaleResult ResolveLivePayoutScale(MachinePolicyState state, decimal jitter, EngineConfig cfg)
     {
         var observedBaseRtp = Math.Max(state.BaseRtp, cfg.MinimumObservedBaseRtp);
-        var targetRtp = state.TargetRtp == 0m ? cfg.TargetRtp : state.TargetRtp;
-        var targetBaseRtp = Math.Max(0.10m, targetRtp - cfg.TargetDoubleUpRtp - state.JackpotRtp);
+        var targetBaseRtp = ComputeTargetBaseRtp(state, cfg);
         var equilibriumScale = targetBaseRtp / observedBaseRtp;
         var rampFactor = cfg.ConvergenceHorizon <= 0
             ? 1m
@@ -288,9 +292,16 @@ public static class MachinePolicy
     private static decimal ComputeBaseScale(MachinePolicyState state, EngineConfig cfg)
     {
         var observedBaseRtp = Math.Max(state.BaseRtp, cfg.MinimumObservedBaseRtp);
-        var targetRtp = state.TargetRtp == 0m ? cfg.TargetRtp : state.TargetRtp;
-        var targetBaseRtp = Math.Max(0.10m, targetRtp - cfg.TargetDoubleUpRtp - state.JackpotRtp);
+        var targetBaseRtp = ComputeTargetBaseRtp(state, cfg);
         return targetBaseRtp / observedBaseRtp;
+    }
+
+    private static decimal ComputeTargetBaseRtp(MachinePolicyState state, EngineConfig cfg)
+    {
+        var targetRtp = state.TargetRtp == 0m ? cfg.TargetRtp : state.TargetRtp;
+        var effectiveJackpotRtp = Math.Max(state.JackpotRtp, cfg.TargetJackpotRtp);
+        var effectiveDoubleUpRtp = Math.Max(state.DoubleUpRtp, cfg.TargetDoubleUpRtp);
+        return Math.Max(0.10m, targetRtp - effectiveDoubleUpRtp - effectiveJackpotRtp);
     }
 
     private static decimal ComputeCorrectionGainAdjustment(MachinePolicyState state, EngineConfig cfg)
@@ -376,51 +387,12 @@ public static class MachinePolicy
         };
     }
 
-    // ---------- Double-Up Offer Curve ----------
-
-    public static decimal ComputeDoubleUpOfferRate(MachinePolicyState state, EngineConfig? config = null)
-    {
-        var cfg = config ?? Cfg;
-        var drift = state.Drift;
-
-        if (drift >= cfg.DoubleUpHighDriftThreshold)
-        {
-            return cfg.DoubleUpOfferFloor;
-        }
-
-        if (drift >= cfg.DoubleUpTargetUpperThreshold)
-        {
-            var overTargetT = (drift - cfg.DoubleUpTargetUpperThreshold)
-                / (cfg.DoubleUpHighDriftThreshold - cfg.DoubleUpTargetUpperThreshold);
-
-            return Lerp(cfg.DoubleUpOfferOverTargetBand, cfg.DoubleUpOfferFloor, Math.Clamp(overTargetT, 0m, 1m));
-        }
-
-        if (drift >= cfg.DoubleUpTargetLowerThreshold)
-        {
-            return cfg.DoubleUpOfferTargetBand;
-        }
-
-        if (drift >= cfg.DoubleUpRecoveryThreshold)
-        {
-            var recoveryT = (cfg.DoubleUpTargetLowerThreshold - drift)
-                / (cfg.DoubleUpTargetLowerThreshold - cfg.DoubleUpRecoveryThreshold);
-
-            return Lerp(cfg.DoubleUpOfferTargetBand, cfg.DoubleUpOfferRecoveryBand, Math.Clamp(recoveryT, 0m, 1m));
-        }
-
-        return cfg.DoubleUpOfferMax;
-    }
-
     /// <summary>
-    /// Returns true if double-up should be offered to the player this round.
+    /// Double-up is a cabinet rule, not a balancing lever. RTP control must happen through
+    /// base-game scaling and double-up deck pressure while keeping this feature available.
     /// </summary>
     public static bool ShouldOfferDoubleUp(MachinePolicyState state, ulong entropySeed, EngineConfig? config = null)
-    {
-        // Double-up is always available to players without exception. 
-        // We manipulate the deck instead of the offer availability.
-        return true;
-    }
+        => true;
 
     // ---------- Cooldown ----------
 
@@ -452,7 +424,7 @@ public static class MachinePolicy
         };
     }
 
-    // ---------- Double-Up Deck (no alteration — standard deck only) ----------
+    // ---------- Double-Up Deck Pressure ----------
 
     public static CleanRoomCard[] BuildDoubleUpDeck(
         CleanRoomCard[] standardDeck,
@@ -461,8 +433,190 @@ public static class MachinePolicy
         decimal netSinceLastClose,
         PolicyDistributionMode roundPolicyMode)
     {
-        // Per architecture: remove all DU deck alteration. Return standard deck only.
-        return standardDeck;
+        return BuildDoubleUpDeck(
+            standardDeck,
+            entropySeed,
+            roundsSinceLucky5Hit,
+            netSinceLastClose,
+            roundPolicyMode,
+            state: null,
+            openingAmount: 0,
+            machineCreditBaseline: 0);
+    }
+
+    public static CleanRoomCard[] BuildDoubleUpDeck(
+        CleanRoomCard[] standardDeck,
+        ulong entropySeed,
+        int roundsSinceLucky5Hit,
+        decimal netSinceLastClose,
+        PolicyDistributionMode roundPolicyMode,
+        MachinePolicyState? state,
+        int openingAmount,
+        int machineCreditBaseline,
+        EngineConfig? config = null)
+    {
+        var cfg = config ?? Cfg;
+        var pressure = ComputeDoubleUpDeckPressure(state, roundsSinceLucky5Hit, netSinceLastClose, roundPolicyMode, openingAmount, machineCreditBaseline, cfg);
+        if (Math.Abs(pressure) < 0.12m)
+        {
+            return standardDeck;
+        }
+
+        var rng = new SplitMix64Rng(DeterministicSeed.Derive(entropySeed, "double-up-deck-pressure"));
+        return pressure > 0m
+            ? BuildPressureDoubleUpDeck(standardDeck, pressure, roundsSinceLucky5Hit, rng, cfg)
+            : BuildRecoveryDoubleUpDeck(standardDeck, -pressure, roundsSinceLucky5Hit, rng, cfg);
+    }
+
+    public static decimal ComputeDoubleUpDeckPressure(
+        MachinePolicyState? state,
+        int roundsSinceLucky5Hit,
+        decimal netSinceLastClose,
+        PolicyDistributionMode roundPolicyMode,
+        int openingAmount,
+        int machineCreditBaseline,
+        EngineConfig? config = null)
+    {
+        var cfg = config ?? Cfg;
+        decimal pressure = roundPolicyMode switch
+        {
+            PolicyDistributionMode.Cold => 0.22m,
+            PolicyDistributionMode.Hot => -0.16m,
+            _ => 0m
+        };
+
+        if (state is not null)
+        {
+            if (state.RoundCount >= cfg.DoubleUpPressureMinRounds)
+            {
+                var drift = state.ComputeSmoothedDrift(cfg);
+                if (Math.Abs(drift) > cfg.DoubleUpPressureSoftDrift)
+                {
+                    pressure += (drift / Math.Max(cfg.MaxDriftClamp, 0.0001m)) * 0.52m;
+                }
+
+                var doubleUpExcess = state.DoubleUpRtp - cfg.TargetDoubleUpRtp;
+                pressure += (doubleUpExcess / Math.Max(cfg.TargetDoubleUpRtp, 0.0001m)) * 0.38m;
+            }
+
+            if (state.ConsecutiveLosses >= cfg.StreakHardThreshold)
+            {
+                pressure -= 0.20m;
+            }
+            else if (state.ConsecutiveLosses >= cfg.StreakSoftThreshold)
+            {
+                pressure -= 0.10m;
+            }
+
+            if (state.RoundsSinceMediumWin >= cfg.MediumWinDroughtThreshold)
+            {
+                pressure -= 0.08m;
+            }
+        }
+
+        if (cfg.CloseThreshold > 0m && machineCreditBaseline > 0 && openingAmount > 0)
+        {
+            var projectedWin = machineCreditBaseline + (openingAmount * 2m);
+            var closeCallStart = cfg.CloseThreshold * cfg.DoubleUpCloseCallPressureStart;
+            if (projectedWin >= closeCallStart)
+            {
+                var closePressure = (projectedWin - closeCallStart) / Math.Max(cfg.CloseThreshold - closeCallStart, 1m);
+                pressure += Math.Clamp(closePressure, 0m, 1m) * 0.24m;
+            }
+        }
+
+        if (roundsSinceLucky5Hit >= cfg.DoubleUpPressureRecoveryDroughtRounds)
+        {
+            pressure -= 0.18m;
+        }
+
+        if (netSinceLastClose >= cfg.SoftCapHard)
+        {
+            pressure += 0.18m;
+        }
+
+        return Math.Clamp(pressure, -1m, 1m);
+    }
+
+    private static CleanRoomCard[] BuildPressureDoubleUpDeck(
+        CleanRoomCard[] standardDeck,
+        decimal pressure,
+        int roundsSinceLucky5Hit,
+        SplitMix64Rng rng,
+        EngineConfig cfg)
+    {
+        var deck = new List<CleanRoomCard>(standardDeck);
+        var removalBudget = Math.Clamp((int)Math.Ceiling(pressure * cfg.DoubleUpPressureMaxKeyRemovals), 1, cfg.DoubleUpPressureMaxKeyRemovals);
+        var removals = 0;
+
+        removals += RemoveMatching(deck, card => card.Rank == 14, removalBudget - removals, rng, cfg);
+
+        if (roundsSinceLucky5Hit < cfg.DoubleUpPressureRecoveryDroughtRounds && pressure >= 0.42m && removals < removalBudget)
+        {
+            removals += RemoveMatching(deck, card => card.Rank == FiveOfSpades.Rank && card.Suit == FiveOfSpades.Suit, 1, rng, cfg);
+        }
+
+        if (pressure >= 0.28m && removals < removalBudget)
+        {
+            removals += RemoveMatching(deck, card => card.Rank is 2 or 13, removalBudget - removals, rng, cfg);
+        }
+
+        if (pressure >= 0.58m && removals < removalBudget)
+        {
+            removals += RemoveMatching(deck, card => card.Rank is 3 or 12, removalBudget - removals, rng, cfg);
+        }
+
+        return deck.ToArray();
+    }
+
+    private static CleanRoomCard[] BuildRecoveryDoubleUpDeck(
+        CleanRoomCard[] standardDeck,
+        decimal recovery,
+        int roundsSinceLucky5Hit,
+        SplitMix64Rng rng,
+        EngineConfig cfg)
+    {
+        var deck = new List<CleanRoomCard>(standardDeck);
+        if (roundsSinceLucky5Hit < cfg.DoubleUpPressureRecoveryDroughtRounds && recovery < 0.40m)
+        {
+            return deck.ToArray();
+        }
+
+        var removableMiddleRanks = recovery >= 0.65m
+            ? new HashSet<int> { 7, 8, 9, 10 }
+            : new HashSet<int> { 8, 9 };
+        var removalBudget = recovery >= 0.65m ? 2 : 1;
+        RemoveMatching(deck, card => removableMiddleRanks.Contains(card.Rank), removalBudget, rng, cfg);
+        return deck.ToArray();
+    }
+
+    private static int RemoveMatching(
+        List<CleanRoomCard> deck,
+        Func<CleanRoomCard, bool> predicate,
+        int maxRemovals,
+        SplitMix64Rng rng,
+        EngineConfig cfg)
+    {
+        var removed = 0;
+        while (removed < maxRemovals && deck.Count > cfg.DoubleUpMinDeckSize)
+        {
+            var candidates = deck
+                .Select((card, index) => new { card, index })
+                .Where(candidate => predicate(candidate.card))
+                .Select(candidate => candidate.index)
+                .ToArray();
+
+            if (candidates.Length == 0)
+            {
+                break;
+            }
+
+            var removeIndex = candidates[rng.NextInt(candidates.Length)];
+            deck.RemoveAt(removeIndex);
+            removed++;
+        }
+
+        return removed;
     }
 
     // ---------- Streak Boost ----------

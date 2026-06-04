@@ -26,8 +26,8 @@ public static class GameServiceRegressionTests
         await GetActiveRoundKeepsDrawnStateUntilPayoutSettledAsync(failures);
         await GetActiveRoundRestoresActiveDoubleUpPhaseAsync(failures);
         await ClosedMachineCashOutIsIdempotentAsync(failures);
-        await PlayerResetAfterCloseAutoCashesOutAndClearsSessionAsync(failures);
-        await PlayerResetAfterCloseClearsCachedSessionAsync(failures);
+        await PlayerResetAfterClosePreservesClosedSessionUntilExplicitCashOutAsync(failures);
+        await PlayerResetAfterCloseKeepsCachedClosedSessionAsync(failures);
         await PlayerResetBlocksRecoverableRoundAsync(failures);
         await AdminResetBlocksRecoverableRoundsAsync(failures);
         await AdminResetAllowsClosedSessionsWithoutActiveRoundsAsync(failures);
@@ -116,6 +116,22 @@ public static class GameServiceRegressionTests
         store.MachineSessions[session.SessionId] = session;
 
         _ = await service.GetMachineSessionAsync(userId, machineId, CancellationToken.None);
+
+        var closedCashInBlocked = false;
+        try
+        {
+            await service.CashInAsync(userId, machineId, 200_000m, CancellationToken.None);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Machine is closed", StringComparison.Ordinal))
+        {
+            closedCashInBlocked = true;
+        }
+
+        Assert(
+            failures,
+            "Cash-in should be blocked while a closed machine still has credits waiting for explicit cash-out.",
+            closedCashInBlocked);
+
         var cashout = await service.CashOutAsync(userId, machineId, CancellationToken.None);
 
         Assert(
@@ -524,7 +540,7 @@ public static class GameServiceRegressionTests
             second is not null && second.MachineCredits == 0m && !second.IsMachineClosed && second.WalletBalance == first.WalletBalance);
     }
 
-    private static async Task PlayerResetAfterCloseAutoCashesOutAndClearsSessionAsync(List<string> failures)
+    private static async Task PlayerResetAfterClosePreservesClosedSessionUntilExplicitCashOutAsync(List<string> failures)
     {
         var store = new InMemoryDataStore();
         var service = CreateService(store);
@@ -549,23 +565,37 @@ public static class GameServiceRegressionTests
         store.MachineSessions[session.SessionId] = session;
 
         var walletBefore = store.MemberProfiles[userId].WalletBalance;
-        await service.ResetMachineAsync(userId, machineId, CancellationToken.None);
+        var resetBlocked = false;
+        try
+        {
+            await service.ResetMachineAsync(userId, machineId, CancellationToken.None);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Cash out machine credits", StringComparison.Ordinal))
+        {
+            resetBlocked = true;
+        }
 
         Assert(
             failures,
-            "Player machine reset after close should auto-cash-out the closed machine balance.",
-            store.MemberProfiles[userId].WalletBalance == walletBefore + 40_000_000m);
+            "Player machine reset after close should require explicit cash-out instead of auto-cashing-out the closed balance.",
+            resetBlocked && store.MemberProfiles[userId].WalletBalance == walletBefore);
         Assert(
             failures,
-            "Player machine reset after close should delete the stale machine session.",
-            !store.MachineSessions.Values.Any(existing => existing.UserId == userId && existing.MachineId == machineId));
+            "Player machine reset after close should preserve the closed machine session until explicit cash-out.",
+            store.MachineSessions.Values.Any(existing => existing.SessionId == session.SessionId && existing.IsMachineClosed && existing.MachineCredits == 40_000_000m));
         Assert(
             failures,
             "Player machine reset should preserve the machine ledger because machine close is gameplay state, not a hidden ledger reset.",
             store.MachineLedgers[machineId].CapitalIn == 900_000m && store.MachineLedgers[machineId].CapitalOut == 700_000m);
+
+        var cashout = await service.CashOutAsync(userId, machineId, CancellationToken.None);
+        Assert(
+            failures,
+            "Explicit cash-out after a blocked player reset should still drain and reopen the machine session.",
+            cashout.MachineCredits == 0m && !cashout.IsMachineClosed && cashout.WalletBalance == walletBefore + 40_000_000m);
     }
 
-    private static async Task PlayerResetAfterCloseClearsCachedSessionAsync(List<string> failures)
+    private static async Task PlayerResetAfterCloseKeepsCachedClosedSessionAsync(List<string> failures)
     {
         var store = new InMemoryDataStore();
         var service = CreateService(store, cache: new InMemoryMachineStateCache(new MachineCacheTtlOptions()));
@@ -586,13 +616,22 @@ public static class GameServiceRegressionTests
         store.MachineSessions[session.SessionId] = session;
 
         _ = await service.GetMachineSessionAsync(userId, machineId, CancellationToken.None);
-        await service.ResetMachineAsync(userId, machineId, CancellationToken.None);
-        var freshSession = await service.GetMachineSessionAsync(userId, machineId, CancellationToken.None);
+        var resetBlocked = false;
+        try
+        {
+            await service.ResetMachineAsync(userId, machineId, CancellationToken.None);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Cash out machine credits", StringComparison.Ordinal))
+        {
+            resetBlocked = true;
+        }
+
+        var preservedSession = await service.GetMachineSessionAsync(userId, machineId, CancellationToken.None);
 
         Assert(
             failures,
-            "Player reset should invalidate cached closed-session state so the next session read creates a fresh open machine session.",
-            freshSession.SessionId != session.SessionId && freshSession.MachineCredits == 0m && freshSession.TotalCashIn == 0m && !freshSession.IsMachineClosed);
+            "Player reset should preserve cached closed-session state instead of creating a fresh open machine session.",
+            resetBlocked && preservedSession.SessionId == session.SessionId && preservedSession.MachineCredits == 40_000_000m && preservedSession.TotalCashIn == 1_000_000m && preservedSession.IsMachineClosed);
     }
 
     private static async Task PlayerResetBlocksRecoverableRoundAsync(List<string> failures)

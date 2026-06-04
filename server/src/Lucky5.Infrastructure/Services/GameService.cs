@@ -102,6 +102,8 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
 
         if (amount < CashInUnit || amount > MaxSessionCashIn || amount % CashInUnit != 0)
             throw new InvalidOperationException("Cash in must be in 200,000 increments up to 1,000,000");
+        if (session.IsMachineClosed)
+            throw new InvalidOperationException("Machine is closed - cash out to wallet before continuing");
         if (session.TotalCashIn + amount > MaxSessionCashIn)
             throw new InvalidOperationException("Maximum session cash-in is 1,000,000");
         var totalAvailable = profile.WalletBalance + profile.Credit;
@@ -446,7 +448,6 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
         round.OriginalWinAmount = payout;
         round.JackpotWinAmount = jackpotWon;
 
-        // Double-up is always available on every win
         bool doubleUpAvailable = payout > 0;
         round.DoubleUpOffered = doubleUpAvailable;
 
@@ -468,8 +469,6 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             throw new KeyNotFoundException("Round not found");
 
         var sessionBank = await RequireMachineSessionAsync(userId, round.MachineId, createIfMissing: false);
-        // Double-up is always offered, override any previous checks
-        round.DoubleUpOffered = true;
 
         var result = await GuessDoubleUpAsync(userId, request.RoundId, request.Guess, cancellationToken);
         var status = result.Status switch
@@ -491,7 +490,6 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             throw new InvalidOperationException("Payout already settled");
         if (!round.IsCompleted || round.WinAmount <= 0)
             throw new InvalidOperationException("No win to double up");
-        // Double-up is always offered, overriding any previous checks
         round.DoubleUpOffered = true;
 
         var sessionBank = await RequireMachineSessionAsync(userId, round.MachineId, createIfMissing: false);
@@ -499,22 +497,22 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             throw new InvalidOperationException("Machine closed - take score and cash out to wallet");
         var machineCreditBaseline = (int)Math.Min(sessionBank.MachineCredits, int.MaxValue);
 
-        CleanRoomCard[] alteredDeck;
-
-        var ledger = await RequireMachineLedgerAsync(round.MachineId);
-        alteredDeck = MachinePolicy.BuildDoubleUpDeck(
-            FiveCardDrawEngine.BuildStandardDeck(),
-            round.RoundEntropySeed,
-            ledger.RoundsSinceLucky5Hit,
-            ledger.NetSinceLastClose,
-            round.PolicyMode);
-
-        // Apply ace multiplier to double-up starting amount if applicable
         var startingAmount = (int)round.WinAmount;
         if (round.AceMultiplierFired && round.AceMultiplier > 1)
         {
             startingAmount *= round.AceMultiplier;
         }
+
+        var ledger = await RequireMachineLedgerAsync(round.MachineId);
+        var alteredDeck = MachinePolicy.BuildDoubleUpDeck(
+            FiveCardDrawEngine.BuildStandardDeck(),
+            round.RoundEntropySeed,
+            ledger.RoundsSinceLucky5Hit,
+            ledger.NetSinceLastClose,
+            round.PolicyMode,
+            BuildMachinePolicyState(ledger),
+            startingAmount,
+            machineCreditBaseline);
 
         var session = Lucky5DoubleUpEngine.CreateSessionFromDeck(
             round.RoundEntropySeed,
@@ -1650,7 +1648,7 @@ return guessResult;
             ResultCards: resultCards,
             HeldIndexes: heldIndexes,
             PendingWinAmount: round.WinAmount,
-            DoubleUpAvailable: round.DoubleUpOffered && round.WinAmount > 0,
+            DoubleUpAvailable: round.WinAmount > 0 && !round.IsPayoutSettled,
             TakeHalfUsed: round.TakeHalfUsed,
             DoubleUpSession: duDto);
 
@@ -1713,22 +1711,7 @@ return guessResult;
 
         if (session.MachineCredits > 0m)
         {
-            if (!CanCashOut(session))
-                throw new InvalidOperationException("Cash out is only available when the machine is closed or credits reach the 2x session threshold");
-
-            var amount = session.MachineCredits;
-            profile.WalletBalance += amount;
-            await store.UpdateProfileAsync(profile);
-
-            await store.AddWalletLedgerEntryAsync(new WalletLedgerEntry
-            {
-                UserId = userId,
-                Amount = amount,
-                TransactionType = "MachineCashOut",
-                ReferenceId = $"machine:{machineId}:reset",
-                BalanceAfter = profile.WalletBalance,
-                CreatedUtc = DateTime.UtcNow
-            });
+            throw new InvalidOperationException("Cash out machine credits before resetting the machine");
         }
 
         await store.DeleteMachineSessionAsync(session.SessionId);
@@ -2013,11 +1996,16 @@ return guessResult;
         }
         else if (gameState is "win" or "double_up")
         {
-            buttons.Add("big");
-            buttons.Add("small");
-            buttons.Add("swap_double_up_card");
+            var doubleUpControlsAvailable = gameState == "double_up" || (activeRound?.PendingWinAmount ?? 0m) > 0m;
+            if (doubleUpControlsAvailable)
+            {
+                buttons.Add("big");
+                buttons.Add("small");
+                buttons.Add("swap_double_up_card");
+            }
+
             buttons.Add("take_score");
-            if ((activeRound?.PendingWinAmount ?? 0m) > 1m && activeRound?.TakeHalfUsed != true)
+            if (doubleUpControlsAvailable && (activeRound?.PendingWinAmount ?? 0m) > 1m && activeRound?.TakeHalfUsed != true)
             {
                 buttons.Add("take_half");
             }

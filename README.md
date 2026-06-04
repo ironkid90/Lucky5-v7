@@ -4,7 +4,7 @@ A clean-room recreation of a Lebanese amusement video poker machine (1990-2010 e
 
 **Godot 4.6 portrait cabinet** + **.NET 9 API server**
 
-Features authentic Lebanese arcade aesthetics, machine-credit vs wallet-credit economy, progressive jackpots, inline double-up Hi-Lo mechanic, switch-only Lucky 5 protection, admin telemetry, agent lobby, daily reward bonuses, agent-based user tracking, and deterministic policy logic targeting ~85% RTP.
+Features authentic Lebanese arcade aesthetics, machine-credit vs wallet-credit economy, progressive jackpots, inline double-up Hi-Lo mechanic, switch-only Lucky 5 protection, admin telemetry, agent lobby, daily reward bonuses, agent-based user tracking, and deterministic policy logic targeting ~80% RTP.
 
 ## Prerequisites
 

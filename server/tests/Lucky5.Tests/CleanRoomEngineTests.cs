@@ -137,8 +137,9 @@ public static class CleanRoomEngineTests
 
         var defaultConfig = EngineConfig.Default;
         Assert(failures, "Approved RTP target should default to the current tuned baseline", defaultConfig.TargetRtp == 0.80m);
+        Assert(failures, "Machine policy state should inherit the approved RTP target by default", new MachinePolicyState().TargetRtp == defaultConfig.TargetRtp);
         Assert(failures, "Approved close threshold should default to 40,000,000", defaultConfig.CloseThreshold == 40_000_000m);
-        Assert(failures, "Approved payout-scale defaults should match the v8 tuned architecture", defaultConfig.DefaultPayoutScale == 1.60m && defaultConfig.MinPayoutScale == 1.08m && defaultConfig.MaxPayoutScale == 2.05m);
+        Assert(failures, "Approved payout-scale defaults should match the v8 tuned architecture", defaultConfig.DefaultPayoutScale == 1.60m && defaultConfig.MinPayoutScale == 1.09m && defaultConfig.MaxPayoutScale == 2.05m);
 
         var defaultCloseSession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
             seedRoot: seed,
@@ -199,6 +200,39 @@ public static class CleanRoomEngineTests
                 && equilibriumScale.SmallScale <= equilibriumScale.MediumScale
                 && equilibriumScale.MediumScale <= equilibriumScale.BigScale);
 
+        var zeroJackpotBasePolicy = MachinePolicy.ResolvePolicy(
+            new MachinePolicyState
+            {
+                CreditsIn = 1_000_000m,
+                CreditsOut = 380_000m,
+                BaseCreditsOut = 380_000m,
+                TargetRtp = defaultConfig.TargetRtp,
+                RoundCount = defaultConfig.ConvergenceHorizon
+            },
+            seed);
+        var expectedBaseScale = defaultConfig.TargetScaledBaseRtp / defaultConfig.MinimumObservedBaseRtp;
+        Assert(
+            failures,
+            "Base payout scale should reserve the configured jackpot RTP budget even before a fresh machine has seen jackpot wins.",
+            Math.Abs(zeroJackpotBasePolicy.Telemetry.BaseScale - expectedBaseScale) < 0.0001m);
+
+        var hotDoubleUpBasePolicy = MachinePolicy.ResolvePolicy(
+            new MachinePolicyState
+            {
+                CreditsIn = 1_000_000m,
+                CreditsOut = 530_000m,
+                BaseCreditsOut = 380_000m,
+                DoubleUpCreditsOut = 150_000m,
+                TargetRtp = defaultConfig.TargetRtp,
+                RoundCount = defaultConfig.ConvergenceHorizon
+            },
+            seed);
+        var expectedHotDoubleUpBaseScale = (defaultConfig.TargetRtp - defaultConfig.TargetJackpotRtp - 0.1500m) / defaultConfig.MinimumObservedBaseRtp;
+        Assert(
+            failures,
+            "Base payout scale should reserve observed double-up RTP when that layer runs above its target.",
+            Math.Abs(hotDoubleUpBasePolicy.Telemetry.BaseScale - expectedHotDoubleUpBaseScale) < 0.0001m);
+
         var earlyOutlierState = new MachinePolicyState
         {
             CreditsIn = 200_000m,
@@ -213,15 +247,85 @@ public static class CleanRoomEngineTests
         var smoothedDrift = earlyOutlierState.ComputeSmoothedDrift(defaultConfig);
         Assert(failures, "Adaptive RTP smoothing should damp early outlier drift versus raw drift", Math.Abs(smoothedDrift) < Math.Abs(rawDrift));
 
-        var overTargetOfferRate = MachinePolicy.ComputeDoubleUpOfferRate(
-            new MachinePolicyState
-            {
-                CreditsIn = 1_000m,
-                CreditsOut = 950m,
-                TargetRtp = defaultConfig.TargetRtp,
-                RoundCount = defaultConfig.ConvergenceHorizon
-            });
-        Assert(failures, "Double-up offer rate should keep a nonzero floor when RTP is above target", overTargetOfferRate == defaultConfig.DoubleUpOfferFloor);
+        var firstBuyInOutlierState = new MachinePolicyState
+        {
+            CreditsIn = 200_000m,
+            CreditsOut = 40_000_000m,
+            BaseCreditsOut = 40_000_000m,
+            RoundCount = 1
+        };
+        Assert(
+            failures,
+            "Adaptive RTP smoothing should not fully trust a one-round sample just because the first buy-in has many credits.",
+            firstBuyInOutlierState.ComputeSmoothedObservedRtp(defaultConfig) == defaultConfig.TargetRtp);
+
+        var overTargetOfferState = new MachinePolicyState
+        {
+            CreditsIn = 1_000m,
+            CreditsOut = 950m,
+            TargetRtp = defaultConfig.TargetRtp,
+            RoundCount = defaultConfig.ConvergenceHorizon
+        };
+        Assert(
+            failures,
+            "Double-up is a fixed cabinet rule and should remain available even while the machine is hot.",
+            Enumerable.Range(0, 200).All(index => MachinePolicy.ShouldOfferDoubleUp(overTargetOfferState, DeterministicSeed.Derive(seed, "du-always-on-test", index))));
+
+        var highPressureDoubleUpState = new MachinePolicyState
+        {
+            CreditsIn = 1_000_000m,
+            CreditsOut = 920_000m,
+            BaseCreditsOut = 600_000m,
+            DoubleUpCreditsOut = 220_000m,
+            TargetRtp = defaultConfig.TargetRtp,
+            RoundCount = defaultConfig.ConvergenceHorizon,
+            NetSinceLastClose = defaultConfig.SoftCapHard + 1m
+        };
+        var highPressureDeck = MachinePolicy.BuildDoubleUpDeck(
+            FiveCardDrawEngine.BuildStandardDeck(),
+            seed,
+            roundsSinceLucky5Hit: 4,
+            netSinceLastClose: highPressureDoubleUpState.NetSinceLastClose,
+            roundPolicyMode: PolicyDistributionMode.Cold,
+            state: highPressureDoubleUpState,
+            openingAmount: 250_000,
+            machineCreditBaseline: 33_000_000);
+        Assert(
+            failures,
+            "High double-up pressure should reduce auto-win key cards instead of hiding the double-up feature.",
+            highPressureDeck.Count(card => card.Rank == 14) < 4
+                && !highPressureDeck.Any(card => card.Rank == 5 && card.Suit == 'S')
+                && highPressureDeck.Length >= defaultConfig.DoubleUpMinDeckSize);
+        Assert(
+            failures,
+            "Double-up pressure deck should still be a no-duplicate card set after bounded removals.",
+            highPressureDeck.Distinct().Count() == highPressureDeck.Length);
+
+        var recoveryDoubleUpState = new MachinePolicyState
+        {
+            CreditsIn = 1_000_000m,
+            CreditsOut = 650_000m,
+            BaseCreditsOut = 550_000m,
+            DoubleUpCreditsOut = 60_000m,
+            TargetRtp = defaultConfig.TargetRtp,
+            RoundCount = defaultConfig.ConvergenceHorizon,
+            ConsecutiveLosses = defaultConfig.StreakHardThreshold,
+            RoundsSinceMediumWin = defaultConfig.MediumWinDroughtThreshold
+        };
+        var recoveryDeck = MachinePolicy.BuildDoubleUpDeck(
+            FiveCardDrawEngine.BuildStandardDeck(),
+            DeterministicSeed.Derive(seed, "du-recovery"),
+            roundsSinceLucky5Hit: defaultConfig.DoubleUpPressureRecoveryDroughtRounds + 8,
+            netSinceLastClose: 0m,
+            PolicyDistributionMode.Hot,
+            recoveryDoubleUpState,
+            openingAmount: 50_000,
+            machineCreditBaseline: 0);
+        Assert(
+            failures,
+            "Recovery double-up pressure should preserve Lucky 5 and all ace auto-win cards during long droughts.",
+            recoveryDeck.Count(card => card.Rank == 14) == 4
+                && recoveryDeck.Any(card => card.Rank == 5 && card.Suit == 'S'));
 
         var noiseA = PresentationNoiseGenerator.Build(seed, 4);
         var noiseB = PresentationNoiseGenerator.Build(seed, 4);

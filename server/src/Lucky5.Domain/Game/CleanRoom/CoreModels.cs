@@ -276,8 +276,8 @@ public sealed record PresentationNoisePlan(
 ///   - DoubleUpRtpHardCap raised 0.110 -> 0.130 in sync so the leak clamp engages on sustained overshoot
 ///     rather than every round.
 ///   - Warmup opening scales lowered (1.65/1.70/1.75 -> 1.55/1.58/1.60) to trim fresh-session over-pay.
-///   - DefaultPayoutScale lowered 1.75 -> 1.60, MinPayoutScale lowered 1.18 -> 1.08 so the correction
-///     loop has additional downward headroom when live RTP trends hot.
+///   - DefaultPayoutScale lowered 1.75 -> 1.60, MinPayoutScale lowered 1.18 -> 1.09 so the correction
+///     loop has additional downward headroom when live RTP trends hot without starving short runs.
 ///   - CrisisScaleBoost trimmed 0.07 -> 0.05 to avoid pity-driven overshoot during long loss streaks.
 /// </summary>
 public sealed record EngineConfig(
@@ -286,7 +286,7 @@ public sealed record EngineConfig(
     decimal TargetDoubleUpRtp = 0.1200m,
     decimal MinimumObservedBaseRtp = 0.3800m,
     decimal DefaultPayoutScale = 1.60m,
-    decimal MinPayoutScale = 1.08m,
+    decimal MinPayoutScale = 1.09m,
     decimal MaxPayoutScale = 2.05m,
     int WarmupRounds = 60,
     int ConvergenceHorizon = 320,
@@ -313,16 +313,13 @@ public sealed record EngineConfig(
     decimal DoubleUpRtpHardCap = 0.130m,
     decimal PityBoostCap = 0.14m,
 
-    // === Double-Up Offer Curve ===
-    decimal DoubleUpOfferFloor = 0.15m,
-    decimal DoubleUpOfferOverTargetBand = 0.20m,
-    decimal DoubleUpOfferTargetBand = 0.30m,
-    decimal DoubleUpOfferRecoveryBand = 0.50m,
-    decimal DoubleUpOfferMax = 0.65m,
-    decimal DoubleUpHighDriftThreshold = 0.050m,
-    decimal DoubleUpTargetUpperThreshold = 0.020m,
-    decimal DoubleUpTargetLowerThreshold = -0.010m,
-    decimal DoubleUpRecoveryThreshold = -0.040m,
+    // === Double-Up Deck Pressure ===
+    int DoubleUpPressureMinRounds = 12,
+    decimal DoubleUpPressureSoftDrift = 0.020m,
+    int DoubleUpPressureMaxKeyRemovals = 17,
+    int DoubleUpPressureRecoveryDroughtRounds = 28,
+    int DoubleUpMinDeckSize = 34,
+    decimal DoubleUpCloseCallPressureStart = 0.70m,
 
     // === Deck Alteration Bounds ===
     int MaxColdRemovals = 1,
@@ -361,7 +358,7 @@ public sealed record EngineConfig(
     public static EngineConfig Default { get; } = new();
 
     // Computed properties for convenience
-    public decimal TargetJackpotRtp => 0.0275m;
+    public decimal TargetJackpotRtp => 0.0325m;
     public decimal TargetScaledBaseRtp => TargetRtp - TargetJackpotRtp - TargetDoubleUpRtp;
     public decimal BoundedHouseEdgeBuffer => Math.Min(1m - TargetRtp, HouseEdgeBufferCap);
 }

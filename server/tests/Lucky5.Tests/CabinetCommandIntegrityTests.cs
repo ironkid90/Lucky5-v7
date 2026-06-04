@@ -14,7 +14,8 @@ public static class CabinetCommandIntegrityTests
         await CashInCommandUsesAuthoritativeDualWalletAndIsIdempotentAsync(failures);
         await DuplicateCommandWithDifferentContentIsRejectedAsync(failures);
         await StaleExpectedStateVersionRejectsBeforeMutationAsync(failures);
-        await SwapDoubleUpCardCommandAliasesDealerSwitchAsync(failures);
+        await DoubleUpSwitchCommandsConsumeNextDealerAsync(failures);
+        await JackpotRankChangeCommandUpdatesIdleFundedSessionAsync(failures);
     }
 
     private static async Task CashInCommandUsesAuthoritativeDualWalletAndIsIdempotentAsync(List<string> failures)
@@ -191,12 +192,51 @@ public static class CabinetCommandIntegrityTests
             && store.Ledger.Count(row => row.UserId == userId) == ledgerCountAfterFirst);
     }
 
-    private static async Task SwapDoubleUpCardCommandAliasesDealerSwitchAsync(List<string> failures)
+    private static async Task DoubleUpSwitchCommandsConsumeNextDealerAsync(List<string> failures)
+    {
+        await AssertDoubleUpDealerSwitchCommandAsync(
+            failures,
+            commandType: "double_up_switch",
+            userId: Guid.Parse("22000000-0000-0000-0000-000000000004"),
+            roundId: Guid.Parse("33000000-0000-0000-0000-000000000001"),
+            commandId: Guid.Parse("22000000-1000-0000-0000-000000000006"),
+            secondCommandId: Guid.Parse("22000000-1000-0000-0000-000000000009"),
+            username: "cabinet-du-switch",
+            idempotencyKey: "du-switch-command-0001",
+            secondIdempotencyKey: "du-switch-command-0002",
+            acceptedMessage: "double_up_switch cabinet command should be accepted as the BET dealer-switch action.",
+            mutationMessage: "double_up_switch cabinet command should consume the next deterministic double-up dealer card.");
+
+        await AssertDoubleUpDealerSwitchCommandAsync(
+            failures,
+            commandType: "swap_double_up_card",
+            userId: Guid.Parse("22000000-0000-0000-0000-000000000006"),
+            roundId: Guid.Parse("33000000-0000-0000-0000-000000000002"),
+            commandId: Guid.Parse("22000000-1000-0000-0000-000000000008"),
+            secondCommandId: Guid.Parse("22000000-1000-0000-0000-000000000010"),
+            username: "cabinet-du-switch-legacy",
+            idempotencyKey: "du-switch-legacy-command-0001",
+            secondIdempotencyKey: "du-switch-legacy-command-0002",
+            acceptedMessage: "Legacy swap_double_up_card cabinet command should be accepted as the dealer-switch action used by older clients.",
+            mutationMessage: "Legacy swap_double_up_card command should consume the next deterministic double-up dealer card.");
+    }
+
+    private static async Task AssertDoubleUpDealerSwitchCommandAsync(
+        List<string> failures,
+        string commandType,
+        Guid userId,
+        Guid roundId,
+        Guid commandId,
+        Guid secondCommandId,
+        string username,
+        string idempotencyKey,
+        string secondIdempotencyKey,
+        string acceptedMessage,
+        string mutationMessage)
     {
         var store = new InMemoryDataStore();
         var service = CreateService(store);
-        var userId = Guid.Parse("22000000-0000-0000-0000-000000000004");
-        SeedPlayer(store, userId, "cabinet-du-switch", walletBalance: 1_000_000m, credit: 0m);
+        SeedPlayer(store, userId, username, walletBalance: 1_000_000m, credit: 0m);
         var machineId = store.Machines.Values.First(machine => machine.IsOpen).Id;
         var session = await service.GetMachineSessionAsync(userId, machineId, CancellationToken.None);
 
@@ -216,7 +256,7 @@ public static class CabinetCommandIntegrityTests
             machineCreditBaseline: 500_000);
         var round = new GameRound
         {
-            RoundId = Guid.Parse("33000000-0000-0000-0000-000000000001"),
+            RoundId = roundId,
             UserId = userId,
             MachineId = machineId,
             BetAmount = 5_000m,
@@ -234,32 +274,115 @@ public static class CabinetCommandIntegrityTests
 
         store.ActiveRounds[round.RoundId] = round;
         var snapshot = await service.GetCabinetSnapshotAsync(userId, machineId, CancellationToken.None);
+        var payload = new Dictionary<string, object?> { ["round_id"] = round.RoundId };
+        if (commandType == "swap_double_up_card")
+        {
+            payload["swap_position"] = 0;
+        }
+
         var command = BuildCommand(
-            commandId: Guid.Parse("22000000-1000-0000-0000-000000000006"),
-            type: "swap_double_up_card",
+            commandId,
+            type: commandType,
             machineId,
             session.SessionId,
             expectedStateVersion: snapshot.StateVersion,
-            idempotencyKey: "du-switch-command-0001",
-            payload: new Dictionary<string, object?> { ["round_id"] = round.RoundId, ["swap_position"] = 0 });
+            idempotencyKey,
+            payload);
 
         var accepted = await service.SubmitCabinetCommandAsync(userId, command, CancellationToken.None);
         var saved = store.ActiveRounds[round.RoundId];
 
         Assert(
             failures,
-            "Legacy swap_double_up_card cabinet command should be accepted as the dealer-switch action used by BET.",
+            acceptedMessage,
             accepted.Accepted
             && accepted.Status == "accepted"
             && accepted.Error is null
             && accepted.StateVersion == snapshot.StateVersion + 1);
         Assert(
             failures,
-            "Dealer-switch command should consume the next deterministic double-up card instead of rejecting swap_position 0.",
+            mutationMessage,
             saved.DoubleUpSession is not null
             && saved.DoubleUpSession.DealerIndex == 1
             && saved.DoubleUpSession.SwitchCountInRound == 1
             && saved.DoubleUpSession.DealerCard.Code == "AS");
+        Assert(
+            failures,
+            "Cabinet snapshot should keep BET/dealer-switch enabled while switches remain.",
+            accepted.Snapshot?.DoubleUp.SwitchesRemaining == 1
+            && accepted.Snapshot.Buttons.Any(button => button.Id == "double_up_switch" && button.Enabled && button.Visible));
+
+        var secondPayload = new Dictionary<string, object?> { ["round_id"] = round.RoundId };
+        if (commandType == "swap_double_up_card")
+        {
+            secondPayload["swap_position"] = 0;
+        }
+
+        var secondCommand = BuildCommand(
+            secondCommandId,
+            type: commandType,
+            machineId,
+            session.SessionId,
+            expectedStateVersion: accepted.StateVersion,
+            secondIdempotencyKey,
+            secondPayload);
+
+        var secondAccepted = await service.SubmitCabinetCommandAsync(userId, secondCommand, CancellationToken.None);
+        var secondSaved = store.ActiveRounds[round.RoundId];
+
+        Assert(
+            failures,
+            "Cabinet dealer switch should accept the final remaining switch in the current double-up round.",
+            secondAccepted.Accepted
+            && secondAccepted.Status == "accepted"
+            && secondAccepted.Error is null
+            && secondSaved.DoubleUpSession is not null
+            && secondSaved.DoubleUpSession.DealerIndex == 2
+            && secondSaved.DoubleUpSession.SwitchCountInRound == 2
+            && secondSaved.DoubleUpSession.DealerCard.Code == "4C");
+        Assert(
+            failures,
+            "Cabinet snapshot should disable BET/dealer-switch after switches_remaining reaches zero.",
+            secondAccepted.Snapshot?.DoubleUp.SwitchesRemaining == 0
+            && secondAccepted.Snapshot.Buttons.Any(button => button.Id == "double_up_switch" && !button.Enabled && button.Visible));
+    }
+
+    private static async Task JackpotRankChangeCommandUpdatesIdleFundedSessionAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = CreateService(store);
+        var userId = Guid.Parse("22000000-0000-0000-0000-000000000005");
+        SeedPlayer(store, userId, "cabinet-fh-switch", walletBalance: 1_000_000m, credit: 0m);
+        var machineId = store.Machines.Values.First(machine => machine.IsOpen).Id;
+
+        await service.CashInAsync(userId, machineId, 200_000m, CancellationToken.None);
+        var session = GetSession(store, userId, machineId);
+        var snapshot = await service.GetCabinetSnapshotAsync(userId, machineId, CancellationToken.None);
+        var command = BuildCommand(
+            commandId: Guid.Parse("22000000-1000-0000-0000-000000000007"),
+            type: "jackpot_rank_change",
+            machineId,
+            session.SessionId,
+            expectedStateVersion: snapshot.StateVersion,
+            idempotencyKey: "fh-rank-command-0001",
+            payload: new Dictionary<string, object?> { ["rank"] = 13 });
+
+        var accepted = await service.SubmitCabinetCommandAsync(userId, command, CancellationToken.None);
+        var ledger = store.MachineLedgers[machineId];
+
+        Assert(
+            failures,
+            "Idle funded cabinet snapshots should enable HOLD[0] as the player-facing Full House rank switch.",
+            snapshot.GameState == "idle"
+            && snapshot.Buttons.Any(button => button.Id == "hold_0" && button.Enabled && button.Visible));
+        Assert(
+            failures,
+            "Cabinet jackpot_rank_change should update the authoritative Full House rank through the command envelope.",
+            accepted.Accepted
+            && accepted.Status == "accepted"
+            && accepted.Event?.EventType == "jackpot_updated"
+            && ledger.JackpotFullHouseRank == 13
+            && accepted.Snapshot?.Jackpot.FullHouseRank == 13);
     }
 
     private static CabinetCommandDto BuildCommand(

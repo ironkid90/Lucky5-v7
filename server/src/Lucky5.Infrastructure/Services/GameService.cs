@@ -841,6 +841,21 @@ return guessResult;
         return SnapshotJackpots(ledger);
     }
 
+    private async Task<JackpotInfoDto> ChangeCabinetJackpotRankAsync(Guid userId, int machineId, int rank, CancellationToken cancellationToken)
+    {
+        var session = await RequireMachineSessionAsync(userId, machineId, createIfMissing: false);
+        if (session.IsMachineClosed || session.MachineCredits <= 0m)
+            throw new InvalidOperationException("Full House rank can only be changed from an active funded session");
+
+        var activeRound = await GetActiveRoundAsync(userId, machineId, cancellationToken);
+        if (activeRound is not null)
+            throw new InvalidOperationException("Full House rank can only be changed before a round is dealt");
+
+        var result = await ChangeJackpotRankAsync(machineId, rank, cancellationToken);
+        InvalidateCaches(userId, machineId);
+        return result;
+    }
+
     public async Task<CabinetSnapshotDto> GetCabinetSnapshotAsync(Guid userId, int machineId, CancellationToken cancellationToken)
     {
         var machine = await RequireMachineAsync(machineId);
@@ -1215,7 +1230,7 @@ return guessResult;
                 return;
 
             case "jackpot_rank_change":
-                await ChangeJackpotRankAsync(command.MachineId, GetRequiredIntPayload(command.Payload, "rank"), cancellationToken);
+                await ChangeCabinetJackpotRankAsync(userId, command.MachineId, GetRequiredIntPayload(command.Payload, "rank"), cancellationToken);
                 return;
 
             case "reset_machine":
@@ -2093,7 +2108,10 @@ return guessResult;
             {
                 buttons.Add("big");
                 buttons.Add("small");
-                buttons.Add("double_up_switch");
+                if (CanSwitchDoubleUpDealer(gameState, activeRound))
+                {
+                    buttons.Add("double_up_switch");
+                }
             }
 
             buttons.Add("take_score");
@@ -2109,6 +2127,7 @@ return guessResult;
             if (!session.IsMachineClosed && session.MachineCredits > 0m)
             {
                 buttons.Add("deal_draw");
+                buttons.Add("hold_0");
             }
         }
         else if (gameState == "closed")
@@ -2124,6 +2143,9 @@ return guessResult;
 
         return buttons;
     }
+
+    private static bool CanSwitchDoubleUpDealer(string gameState, ActiveRoundStateDto? activeRound)
+        => gameState == "double_up" && (activeRound?.DoubleUpSession?.SwitchesRemaining ?? 0) > 0;
 
     private static string BuildButtonDisabledReason(string buttonId, string gameState, bool recoveryRequired)
     {
@@ -2316,6 +2338,7 @@ return guessResult;
         else if (!session.IsMachineClosed && session.MachineCredits > 0m)
         {
             buttons.Add("deal");
+            buttons.Add("hold_0");
         }
 
         if (CanCashOut(session))

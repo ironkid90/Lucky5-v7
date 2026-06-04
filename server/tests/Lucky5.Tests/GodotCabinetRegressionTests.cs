@@ -246,8 +246,8 @@ public static class GodotCabinetRegressionTests
             failures,
             "Godot cabinet must reveal dealt cards and drawn replacements through sequential AI9Poker-style arcade card movement",
             rootScript.Contains("func _queue_card_reveal", StringComparison.Ordinal)
-                && rootScript.Contains("const DEAL_DURATION := 0.15", StringComparison.Ordinal)
-                && rootScript.Contains("const DEAL_STAGGER := 0.15", StringComparison.Ordinal)
+                && rootScript.Contains("const DEAL_DURATION := 0.19", StringComparison.Ordinal)
+                && rootScript.Contains("const DEAL_STAGGER := 0.19", StringComparison.Ordinal)
                 && rootScript.Contains("const DRAW_OUT_DURATION := 0.10", StringComparison.Ordinal)
                 && rootScript.Contains("const DRAW_IN_DURATION := 0.15", StringComparison.Ordinal)
                 && rootScript.Contains("const DRAW_STAGGER := 0.15", StringComparison.Ordinal)
@@ -306,7 +306,9 @@ public static class GodotCabinetRegressionTests
             rootScript.Contains("const AI9_CARD_ASPECT := 313.0 / 528.0", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_BOARD_CARD_SIZE := Vector2(92, 155)", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_TRAIL_CARD_SIZE := Vector2(122, 206)", StringComparison.Ordinal)
+                && rootScript.Contains("const DU_SWITCH_DURATION := 0.60", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_SHUFFLE_INTERVAL := 0.075", StringComparison.Ordinal)
+                && rootScript.Contains("const DU_SHUFFLE_TICKS := 8", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_REVEAL_SETTLE_SECONDS := 0.90", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_END_HOLD_SECONDS := 0.90", StringComparison.Ordinal)
                 && rootScript.Contains("const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 0.90", StringComparison.Ordinal)
@@ -399,6 +401,7 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("var page_start := _du_page_start_for_dealer_index(dealer_position, slot_count)", StringComparison.Ordinal)
                 && rootScript.Contains("func _du_timeline_entries(du_data: Dictionary) -> Array:", StringComparison.Ordinal)
                 && rootScript.Contains("func _du_page_start_for_dealer_index(dealer_position: int, slot_count: int) -> int:", StringComparison.Ordinal)
+                && rootScript.Contains("AI9 pages reuse the fifth card as slot 0 of the next deck row.", StringComparison.Ordinal)
                 && rootScript.Contains("var stride: int = max(1, slot_count - 1)", StringComparison.Ordinal)
                 && rootScript.Contains("if dealer_position < stride:", StringComparison.Ordinal)
                 && rootScript.Contains("return int(floor(float(dealer_position) / float(stride))) * stride", StringComparison.Ordinal)
@@ -562,11 +565,20 @@ public static class GodotCabinetRegressionTests
             "take_half.png", "take_half_on.png",
             "take_score.png", "take_score_on.png",
         };
+        var ai9CabinetImageAssetNames = new[]
+        {
+            "ASX.png", "AHX.png", "ADX.png", "ACX.png",
+            "machine2.png", "machine21.png", "menu.png", "splash.png",
+        };
+        var ai9CabinetAnimationAssetNames = new[]
+        {
+            "spinner.gif", "treasurecoins.gif", "treasureempty.gif",
+        };
 
         Assert(
             failures,
-            "Godot cabinet physical controls must use the same AI9Poker-style photographed button assets as the web/API client",
-            rootScript.Contains("const BUTTON_ASSET_BASE_PATH := \"res://skins/lucky5/buttons/\"", StringComparison.Ordinal)
+            "Godot cabinet physical controls must use the same AI9Poker-style photographed button assets from the dedicated AI9 cabinet skin",
+            rootScript.Contains("const BUTTON_ASSET_BASE_PATH := \"res://skins/cabinet_ai9/buttons/\"", StringComparison.Ordinal)
                 && rootScript.Contains("func _apply_button_asset_styles(button: Button, asset_key: String) -> bool:", StringComparison.Ordinal)
                 && rootScript.Contains("var style := StyleBoxTexture.new()", StringComparison.Ordinal)
                 && rootScript.Contains("ResourceLoader.load(path) as Texture2D", StringComparison.Ordinal)
@@ -574,9 +586,13 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("button_asset_textures[asset_name] = texture", StringComparison.Ordinal)
                 && rootScript.Contains("button.set_meta(\"uses_ai9_button_asset\", true)", StringComparison.Ordinal)
                 && rootScript.Contains("_make_button(\"HOLD\", CONTROL_HOLD_BUTTON_HEIGHT, COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK, \"hold\")", StringComparison.Ordinal)
+                && rootScript.Contains("return \"hold_off\"", StringComparison.Ordinal)
+                && rootScript.Contains("return \"hold_on\"", StringComparison.Ordinal)
                 && rootScript.Contains("var asset_key := str(def[0])", StringComparison.Ordinal)
                 && rootScript.Contains("hold_button.text = \"HELD\" if held else (\"\" if _button_uses_asset(hold_button) else (\"FH\" if fh_switch else \"HOLD\"))", StringComparison.Ordinal)
-                && ai9ButtonAssetNames.All(name => RepoFileExists("godot", "cabinet", "skins", "lucky5", "buttons", name)));
+                && ai9ButtonAssetNames.All(name => RepoFileExists("godot", "cabinet", "skins", "cabinet_ai9", "buttons", name))
+                && ai9CabinetImageAssetNames.All(name => RepoFileExists("godot", "cabinet", "skins", "cabinet_ai9", "images", name))
+                && ai9CabinetAnimationAssetNames.All(name => RepoFileExists("godot", "cabinet", "skins", "cabinet_ai9", "animations", name)));
 
         Assert(
             failures,

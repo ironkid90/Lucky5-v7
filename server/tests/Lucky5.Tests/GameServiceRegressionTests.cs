@@ -865,7 +865,7 @@ public static class GameServiceRegressionTests
             HandRank = "NoWin",
             IsCompleted = false,
             IsPayoutSettled = false,
-            CleanRoomState = CreateState(RoundPhase.Dealt, RoundState.AwaitHold, ["AS", "KD", "7C", "4H", "2S"])
+            CleanRoomState = CreateState(RoundPhase.Dealt, RoundState.Hold, ["AS", "KD", "7C", "4H", "2S"])
         };
         store.Ledger.Add(new WalletLedgerEntry
         {

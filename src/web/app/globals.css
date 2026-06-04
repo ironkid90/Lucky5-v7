@@ -131,17 +131,23 @@ select {
 }
 
 .cabinet-shell {
-  width: min(1040px, 100%);
+  width: min(540px, calc(100vw - 16px));
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 700px) minmax(180px, 260px);
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: center;
   align-items: start;
+}
+
+.cabinet-shell:has(.side-column) {
+  width: min(1040px, 100%);
+  grid-template-columns: minmax(0, 700px) minmax(180px, 260px);
 }
 
 .cabinet {
   position: relative;
-  border-radius: 34px;
-  padding: 18px 18px 22px;
+  border-radius: 22px;
+  padding: 10px 10px 12px;
   background: linear-gradient(180deg, #9b531f 0%, #5c2a0e 24%, #241209 100%);
   box-shadow:
     inset 0 2px 0 rgba(255, 255, 255, 0.2),
@@ -152,22 +158,22 @@ select {
 .cabinet::before {
   content: "";
   position: absolute;
-  inset: 12px;
-  border-radius: 26px;
+  inset: 7px;
+  border-radius: 18px;
   border: 1px solid rgba(255, 226, 173, 0.25);
   pointer-events: none;
 }
 
 .screen {
-  border-radius: 26px 26px 18px 18px;
+  border-radius: 16px 16px 12px 12px;
   background:
     linear-gradient(180deg, rgba(11, 11, 11, 0.98), rgba(3, 3, 3, 0.995)),
     radial-gradient(circle at top, rgba(255, 176, 42, 0.08), transparent 34%);
   border: 2px solid rgba(255, 200, 93, 0.25);
-  padding: 14px;
-  min-height: 820px;
+  padding: 8px;
+  min-height: min(850px, calc(100dvh - 24px));
   display: grid;
-  gap: 12px;
+  gap: 7px;
 }
 
 /* Sprint 1 visual checkpoints:
@@ -904,14 +910,14 @@ select {
 /* ═══════════════════════════════════════════════════════════════
    APK clone layout — cabinet-faithful classes
    Mirrors the portrait cabinet coordinate system from the APK
-   screenshots: paytable left 62%, credit/stake right 38%,
+   screenshots: paytable fills the left, CREDIT is the only outside meter,
    3-row wood control deck, clone rainbow paytable colors.
 ═══════════════════════════════════════════════════════════════ */
 
 /* ── Top band ───────────────────────────────────────────────── */
 .apk-top-band {
   display: grid;
-  grid-template-columns: 1.6fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(102px, 128px);
   gap: 0;
   background: #000;
   border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -950,15 +956,19 @@ select {
   min-width: 5rem;
 }
 
-/* ── Credit / Stake ─────────────────────────────────────────── */
+/* ── Credit meter ───────────────────────────────────────────── */
 .apk-credit-stake {
-  padding: 6px 10px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
   background: #000;
+}
+
+.apk-credit-only {
+  min-width: 0;
 }
 
 .apk-credit-label {
@@ -1019,9 +1029,40 @@ select {
 .apk-card-stage {
   background: #000;
   padding: 10px 8px;
-  min-height: 140px;
+  min-height: 238px;
   display: flex;
   align-items: center;
+}
+
+.apk-idle-stage {
+  width: 100%;
+  min-height: 218px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at center, rgba(28, 28, 28, 0.72), transparent 58%),
+    #000;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.apk-idle-stage--fh {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.apk-idle-logo {
+  font-family: var(--display-font);
+  font-size: clamp(1.05rem, 7vw, 2.35rem);
+  color: #ffdd45;
+  letter-spacing: 0;
+  text-shadow:
+    0 0 8px rgba(255,221,69,0.55),
+    0 0 18px rgba(255,76,34,0.28);
+}
+
+.apk-idle-fh-card {
+  width: min(100px, 28vw);
 }
 
 .apk-card-row,
@@ -1271,16 +1312,9 @@ select {
   letter-spacing: 0.04em;
 }
 
-/* ── Win amount display ─────────────────────────────────────── */
+/* ── Win amount display is retired; active wins drain in paytable rows. */
 .apk-win-amount {
-  text-align: center;
-  font-family: var(--display-font);
-  font-size: 1.4rem;
-  color: #ffd700;
-  text-shadow: 0 0 10px rgba(255,215,0,0.5);
-  letter-spacing: 0.06em;
-  padding: 4px 0;
-  background: #000;
+  display: none;
 }
 
 /* ── Machine info block ─────────────────────────────────────── */
@@ -1479,9 +1513,11 @@ select {
   transform: translateX(-50%);
   background: #1a1208;
   border: 1px solid rgba(255,212,71,0.28);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 10px;
-  width: 200px;
+  width: min(320px, calc(100vw - 28px));
+  max-height: min(520px, calc(100dvh - 160px));
+  overflow-y: auto;
   z-index: 100;
   gap: 6px;
   flex-direction: column;
@@ -1650,6 +1686,13 @@ select {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   padding: 10px;
+}
+
+.cash-console-menu {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0 0 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255,212,71,0.18);
 }
 
 .cash-console-button,

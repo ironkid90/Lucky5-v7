@@ -95,6 +95,7 @@ const CARD_SLOT_COUNT = 5;
 const CARD_SLOT_INDEXES = Array.from({ length: CARD_SLOT_COUNT }, (_, index) => index);
 const CARD_REVEAL_STAGGER_MS = 110;
 const CARD_REVEAL_ANIMATION_MS = 260;
+const IDLE_FH_REVEAL_DELAY_MS = 60000;
 
 function formatMoney(value: number) {
     return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
@@ -204,6 +205,10 @@ function buildDoubleUpBoardSlots(viewModel: DoubleUpViewModel | null): DoubleUpB
 
     const dealerCard = viewModel.dealerCard;
     const revealCard = viewModel.challengerCard;
+    const status = viewModel.status.toLowerCase();
+    const dealerSwitchOnly = !!dealerCard
+        && !revealCard
+        && (status.includes("switch") || status.includes("lucky5"));
     const maxTrailCards = Math.max(
         0,
         DOUBLE_UP_BOARD_SLOT_COUNT - (dealerCard ? 1 : 0) - 1,
@@ -240,7 +245,7 @@ function buildDoubleUpBoardSlots(viewModel: DoubleUpViewModel | null): DoubleUpB
         });
     }
 
-    if (slots.length < DOUBLE_UP_BOARD_SLOT_COUNT) {
+    if (!dealerSwitchOnly && slots.length < DOUBLE_UP_BOARD_SLOT_COUNT) {
         slots.push({
             key: revealCard ? `challenger-${normalizeCardCode(revealCard)}` : "active-reveal",
             card: revealCard ?? null,
@@ -330,11 +335,13 @@ function PaytablePanel({
     activeHand,
     jackpotFh,
     stake,
+    activeWinAmount = 0,
 }: {
     payouts: Record<string, number>;
     activeHand?: string | null;
     jackpotFh?: number;
     stake: number | string;
+    activeWinAmount?: number;
 }) {
     const stakeValue = Math.max(0, Number(stake) || 0);
 
@@ -342,12 +349,14 @@ function PaytablePanel({
         <div className="apk-paytable">
             {PAYTABLE_ROWS.map(({ key, label, color }) => {
                 const multiplier = payouts[key];
+                const isActive = activeHand === key;
                 const display = key === "FullHouse" && jackpotFh
                     ? formatMoney(jackpotFh)
+                    : isActive && activeWinAmount > 0
+                        ? formatMoney(activeWinAmount)
                     : multiplier !== undefined
                         ? formatMoney(multiplier * stakeValue)
                         : "0";
-                const isActive = activeHand === key;
                 return (
                     <div
                         key={key}
@@ -363,14 +372,12 @@ function PaytablePanel({
     );
 }
 
-// ── CreditStakeBar ───────────────────────────────────────────────────────────
-function CreditStakeBar({ credit, stake }: { credit: number; stake: number | string }) {
+// ── CreditBar ───────────────────────────────────────────────────────────────
+function CreditBar({ credit }: { credit: number }) {
     return (
-        <div className="apk-credit-stake">
+        <div className="apk-credit-stake apk-credit-only">
             <div className="apk-credit-label">CREDIT</div>
             <div className="apk-credit-value">{formatMoney(credit)}</div>
-            <div className="apk-stake-label">STAKE</div>
-            <div className="apk-stake-value">{typeof stake === "number" ? formatMoney(stake) : stake}</div>
         </div>
     );
 }
@@ -499,6 +506,11 @@ export function Lucky5Cabinet() {
     const hasWin = (drawResult?.winAmount ?? 0) > 0;
     const doubleUpViewModel = mapDoubleUpResultToViewModel(doubleUpResult);
     const doubleUpAmount = doubleUpViewModel?.currentAmount ?? drawResult?.winAmount ?? 0;
+    const displayedWinAmount = isDraining ? drainAmount : doubleUpAmount;
+    const cabinetCredit = machineSession?.machineCredits
+        ?? selectedLobbyMachine?.session?.machineCredits
+        ?? profile?.credit
+        ?? 0;
     const isInDoubleUp = doubleUpViewModel !== null && !doubleUpViewModel.isTerminal;
     const canEnterDoubleUp = hasWin && !!drawResult && !isInDoubleUp;
     const canGuessBigSmall = isInDoubleUp ? !!doubleUpViewModel?.canGuess : canEnterDoubleUp;
@@ -1234,28 +1246,35 @@ export function Lucky5Cabinet() {
 
     const bonusText = "4 OF A KIND   WINS BONUS";
 
-    // Rotating idle FH face-up card in the middle slot (zero-based index 2) when not in a round.
     useEffect(() => {
         if (dealResult || drawResult || isInDoubleUp) {
             setIdleFhCard(null);
             return;
         }
 
-        // Generate a random FH card based on current jackpot rank
         const currentRank = jackpotSnapshot?.fullHouseRank ?? 2;
         const suits = ["H", "D", "C", "S"];
-        const randomSuit = suits[Math.floor(Math.random() * suits.length)];
         const rankLabel = rankLabelFromValue(currentRank);
+        let rotationTimer: number | undefined;
 
-        setIdleFhCard({ rank: rankLabel, suit: randomSuit, code: `${rankLabel}${randomSuit}` });
+        setIdleFhCard(null);
 
-        // Rotate every 3 seconds
-        const rotationTimer = window.setInterval(() => {
-            const newSuit = suits[Math.floor(Math.random() * suits.length)];
-            setIdleFhCard({ rank: rankLabel, suit: newSuit, code: `${rankLabel}${newSuit}` });
-        }, 3000);
+        const revealTimer = window.setTimeout(() => {
+            const setRandomFhCard = () => {
+                const suit = suits[Math.floor(Math.random() * suits.length)];
+                setIdleFhCard({ rank: rankLabel, suit, code: `${rankLabel}${suit}` });
+            };
 
-        return () => window.clearInterval(rotationTimer);
+            setRandomFhCard();
+            rotationTimer = window.setInterval(setRandomFhCard, 3000);
+        }, IDLE_FH_REVEAL_DELAY_MS);
+
+        return () => {
+            window.clearTimeout(revealTimer);
+            if (rotationTimer !== undefined) {
+                window.clearInterval(rotationTimer);
+            }
+        };
     }, [dealResult, drawResult, isInDoubleUp, jackpotSnapshot?.fullHouseRank]);
 
     return (
@@ -1270,11 +1289,9 @@ export function Lucky5Cabinet() {
                             activeHand={drawResult?.handRank ?? null}
                             jackpotFh={jackpotSnapshot?.fullHouse}
                             stake={betAmount || "5000"}
+                            activeWinAmount={displayedWinAmount}
                         />
-                        <CreditStakeBar
-                            credit={profile?.walletBalance ?? 0}
-                            stake={betAmount || "5000"}
-                        />
+                        <CreditBar credit={cabinetCredit} />
                     </div>
 
                     {/* ── Label band ── */}
@@ -1286,17 +1303,22 @@ export function Lucky5Cabinet() {
                     <div className="apk-card-stage">
                         {isInDoubleUp ? (
                             <DoubleUpBoard viewModel={doubleUpViewModel} />
+                        ) : !dealResult && !drawResult ? (
+                            <div className={`apk-idle-stage${idleFhCard ? " apk-idle-stage--fh" : ""}`}>
+                                <div className="apk-idle-logo">LUCKY 5</div>
+                                {idleFhCard && (
+                                    <div className="apk-idle-fh-card">
+                                        <PlayingCard card={idleFhCard} label="FULL HOUSE" />
+                                    </div>
+                                )}
+                            </div>
                         ) : (
                             /* Normal 5-card row with hold-click */
                             <div className="apk-card-row">
                                 {Array.from({ length: CARD_SLOT_COUNT }, (_, index) => {
-                                    // Idle FH face-up card in the middle slot (zero-based index 2) when not in a round.
-                                    const isIdleSlot = index === 2 && !dealResult && !drawResult && !isInDoubleUp;
-                                    const cardToDisplay = isIdleSlot
-                                        ? idleFhCard
-                                        : visibleCardIndexSet.has(index)
-                                            ? (activeCards[index] ?? null)
-                                            : null;
+                                    const cardToDisplay = visibleCardIndexSet.has(index)
+                                        ? (activeCards[index] ?? null)
+                                        : null;
                                     return (
                                         <PlayingCard
                                             key={`card-${index}`}
@@ -1310,13 +1332,6 @@ export function Lucky5Cabinet() {
                             </div>
                         )}
                     </div>
-
-                    {/* ── Win amount display ── */}
-                    {(drawResult?.winAmount ?? 0) > 0 && (
-                        <div className="apk-win-amount">
-                            {isDraining ? formatMoney(drainAmount) : formatMoney(doubleUpAmount)}
-                        </div>
-                    )}
 
                     {/* ── Machine info block ── */}
                     <MachineInfoBlock
@@ -1405,45 +1420,6 @@ export function Lucky5Cabinet() {
                             </div>
                         ) : (
                             <>
-                                <div className="cash-console">
-                                    <div className="cash-console-card">
-                                        <span>Wallet</span>
-                                        <strong>{formatMoney(machineSession?.walletBalance ?? profile.walletBalance)}</strong>
-                                    </div>
-                                    <div className="cash-console-card">
-                                        <span>Machine credits</span>
-                                        <strong>{formatMoney(machineSession?.machineCredits ?? selectedLobbyMachine?.session?.machineCredits ?? 0)}</strong>
-                                    </div>
-                                    <div className="cash-console-card">
-                                        <span>Cash-in total</span>
-                                        <strong>{formatMoney(machineSession?.totalCashIn ?? selectedLobbyMachine?.session?.totalCashIn ?? 0)}</strong>
-                                    </div>
-                                    <button
-                                        className="cash-console-button"
-                                        type="button"
-                                        onClick={() => void handleCashIn(200000)}
-                                        disabled={busy || isInDoubleUp || (!!dealResult && !drawResult) || hasWin || !!doubleUpResult}
-                                    >
-                                        CASH IN 200K
-                                    </button>
-                                    <button
-                                        className="cash-console-button"
-                                        type="button"
-                                        onClick={() => void handleCashIn(1000000)}
-                                        disabled={busy || isInDoubleUp || (!!dealResult && !drawResult) || hasWin || !!doubleUpResult}
-                                    >
-                                        CASH IN 1M
-                                    </button>
-                                    <button
-                                        className="cash-console-button cash-console-out"
-                                        type="button"
-                                        onClick={() => void handleCashOutToWallet()}
-                                        disabled={busy || isInDoubleUp || (!!dealResult && !drawResult) || hasWin || !!doubleUpResult || !(machineSession?.canCashOut ?? false)}
-                                    >
-                                        CASH OUT
-                                    </button>
-                                </div>
-
                                 {/* Row 1 — HOLD buttons */}
                                 <div className="apk-hold-row">
                                     {Array.from({ length: CARD_SLOT_COUNT }, (_, index) => (
@@ -1526,6 +1502,48 @@ export function Lucky5Cabinet() {
                                     <div className="apk-menu-wrap">
                                         <div className="apk-menu-btn-label">MENU</div>
                                         <div className="apk-menu-popup">
+                                            <div className="cash-console cash-console-menu">
+                                                <div className="cash-console-card">
+                                                    <span>Wallet</span>
+                                                    <strong>{formatMoney(machineSession?.walletBalance ?? profile.walletBalance)}</strong>
+                                                </div>
+                                                <div className="cash-console-card">
+                                                    <span>Credits</span>
+                                                    <strong>{formatMoney(cabinetCredit)}</strong>
+                                                </div>
+                                                <div className="cash-console-card">
+                                                    <span>Stake</span>
+                                                    <strong>{formatMoney(Number(betAmount) || 0)}</strong>
+                                                </div>
+                                                <div className="cash-console-card">
+                                                    <span>Cash-in</span>
+                                                    <strong>{formatMoney(machineSession?.totalCashIn ?? selectedLobbyMachine?.session?.totalCashIn ?? 0)}</strong>
+                                                </div>
+                                                <button
+                                                    className="cash-console-button"
+                                                    type="button"
+                                                    onClick={() => void handleCashIn(200000)}
+                                                    disabled={busy || isInDoubleUp || (!!dealResult && !drawResult) || hasWin || !!doubleUpResult}
+                                                >
+                                                    CASH IN 200K
+                                                </button>
+                                                <button
+                                                    className="cash-console-button"
+                                                    type="button"
+                                                    onClick={() => void handleCashIn(1000000)}
+                                                    disabled={busy || isInDoubleUp || (!!dealResult && !drawResult) || hasWin || !!doubleUpResult}
+                                                >
+                                                    CASH IN 1M
+                                                </button>
+                                                <button
+                                                    className="cash-console-button cash-console-out"
+                                                    type="button"
+                                                    onClick={() => void handleCashOutToWallet()}
+                                                    disabled={busy || isInDoubleUp || (!!dealResult && !drawResult) || hasWin || !!doubleUpResult || !(machineSession?.canCashOut ?? false)}
+                                                >
+                                                    CASH OUT
+                                                </button>
+                                            </div>
                                             {machines.map((machine) => (
                                                 <button
                                                     key={machine.id}
@@ -1646,9 +1664,9 @@ export function Lucky5Cabinet() {
                 </div>
             )}
 
-            {/* ── Side column: telemetry + history ── */}
+            {/* ── Side column: admin-only telemetry ── */}
+            {isAdmin && (
             <aside className="side-column">
-                {isAdmin && (
                     <section className="admin-agent-panel">
                         <div className="admin-panel-head">
                             <div>
@@ -1997,64 +2015,8 @@ export function Lucky5Cabinet() {
                             </div>
                         )}
                     </section>
-                )}
-
-                <section className="diagnostics diagnostics-secondary">
-                    <div className="section-title">Machine telemetry</div>
-                    <div className="section-subtitle">Operational backend state.</div>
-                    <div className="diagnostic-grid">
-                        <div className="diagnostic-card">
-                            <span>Observed RTP</span>
-                            <strong>{machineState ? formatPercent(machineState.observedRtp) : "--"}</strong>
-                        </div>
-                        <div className="diagnostic-card">
-                            <span>Target RTP</span>
-                            <strong>{machineState ? formatPercent(machineState.targetRtp) : "--"}</strong>
-                        </div>
-                        <div className="diagnostic-card">
-                            <span>Phase</span>
-                            <strong>{machineState?.phase ?? "--"}</strong>
-                        </div>
-                        <div className="diagnostic-card">
-                            <span>Active rounds</span>
-                            <strong>{machineState?.activeRounds ?? 0}</strong>
-                        </div>
-                        <div className="diagnostic-card">
-                            <span>Loss streak</span>
-                            <strong>{machineState?.consecutiveLosses ?? 0}</strong>
-                        </div>
-                        <div className="diagnostic-card">
-                            <span>Cooldown</span>
-                            <strong>{machineState?.cooldownRemaining ?? 0}</strong>
-                        </div>
-                        <div className="diagnostic-card">
-                            <span>Full house pot</span>
-                            <strong>{machineState ? formatMoney(machineState.jackpots.fullHouse) : "--"}</strong>
-                        </div>
-                        <div className="diagnostic-card">
-                            <span>Straight flush</span>
-                            <strong>{machineState ? formatMoney(machineState.jackpots.straightFlush) : "--"}</strong>
-                        </div>
-                    </div>
-                </section>
-
-                <section className="history-panel">
-                    <div className="section-title">Wallet trail</div>
-                    <div className="history-list">
-                        {history.length === 0 ? <div className="hint">No wallet activity yet.</div> : null}
-                        {history.slice(0, 8).map((entry) => (
-                            <div className="history-item" key={entry.id}>
-                                <strong>{entry.type}</strong>
-                                <span>{entry.reference.slice(0, 8)}</span>
-                                <strong className={`history-amount ${entry.amount >= 0 ? "positive" : "negative"}`}>
-                                    {entry.amount >= 0 ? "+" : ""}
-                                    {formatMoney(entry.amount)}
-                                </strong>
-                            </div>
-                        ))}
-                    </div>
-                </section>
             </aside>
+            )}
         </div>
     );
 }

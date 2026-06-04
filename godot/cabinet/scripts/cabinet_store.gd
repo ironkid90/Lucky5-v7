@@ -106,27 +106,49 @@ func apply_round_update(payload: Dictionary) -> bool:
 	var game_state_value: Variant = _first_value(payload, ["game_state", "gameState"], null)
 	if game_state_value != null:
 		snapshot["game_state"] = game_state_value
-	if payload.has("hand"):
-		snapshot["hand"] = payload["hand"]
-	if payload.has("evaluation"):
-		snapshot["evaluation"] = payload["evaluation"]
-	if payload.has("buttons"):
-		snapshot["buttons"] = payload["buttons"]
-	if payload.has("presentation"):
-		snapshot["presentation"] = payload["presentation"]
+	for key_pair in [
+		["buttons"],
+		["credits"],
+		["evaluation"],
+		["hand"],
+		["jackpot", "jackpots"],
+		["presentation"],
+		["recovery"]
+	]:
+		var value: Variant = _first_value(payload, key_pair, null)
+		if value != null:
+			snapshot[str(key_pair[0])] = value
 	var double_up_value: Variant = _first_value(payload, ["double_up", "doubleUp", "doubleUpSession"], null)
 	if double_up_value != null:
 		snapshot["double_up"] = double_up_value
+	if payload.has("buttons"):
+		_normalize_button_ids(snapshot)
 	return true
 
 func apply_double_up(payload: Dictionary) -> bool:
 	if payload.is_empty():
 		return false
+	var game_state_value: Variant = _first_value(payload, ["game_state", "gameState"], null)
+	if game_state_value != null:
+		snapshot["game_state"] = game_state_value
+	for key_pair in [
+		["buttons"],
+		["credits"],
+		["evaluation"],
+		["presentation"],
+		["recovery"],
+		["hand"]
+	]:
+		var value: Variant = _first_value(payload, key_pair, null)
+		if value != null:
+			snapshot[str(key_pair[0])] = value
 	var double_up_value: Variant = _first_value(payload, ["double_up", "doubleUp", "doubleUpSession"], null)
 	if double_up_value != null:
 		snapshot["double_up"] = double_up_value
 	else:
 		snapshot["double_up"] = payload
+	if payload.has("buttons"):
+		_normalize_button_ids(snapshot)
 	return true
 
 func apply_credits(payload: Dictionary) -> bool:

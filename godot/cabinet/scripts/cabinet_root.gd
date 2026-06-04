@@ -65,7 +65,8 @@ const CREDIT_DRAIN_MIN_DURATION := 1.20
 const CREDIT_DRAIN_MAX_DURATION := 2.00
 const CREDIT_DRAIN_JACKPOT_DURATION := 5.00
 const JACKPOT_TRICKLE_DURATION := 0.30
-const JACKPOT_DRAIN_DURATION := 2.80
+const JACKPOT_DRAIN_MIN_DURATION := 2.80
+const JACKPOT_DRAIN_MAX_DURATION := 5.50
 const COMMAND_TIMEOUT_SECONDS := 15.0
 
 # ─── state vars ───
@@ -1809,7 +1810,7 @@ func _refresh_du_trail(du_data: Dictionary, dealer_code: String, challenger_code
 	if slot_count <= 0:
 		return
 
-	var max_trail_per_page: int = max(1, min(4, slot_count - 1))
+	var max_trail_per_page: int = max(0, slot_count - 2)
 	var trail_entries := [] if dealer_replace_only else _du_visible_trail_entries(du_data, dealer_code, max_trail_per_page)
 	var dealer_index: int = min(trail_entries.size(), slot_count - 1)
 	var reveal_index: int = min(dealer_index + 1, slot_count - 1)
@@ -2143,10 +2144,17 @@ func _animate_jackpot_counter(slot_key: String, from_value: int, to_value: int) 
 		if existing != null and existing.is_valid():
 			existing.kill()
 	jackpot_counter_targets[slot_key] = to_value
-	var duration := JACKPOT_DRAIN_DURATION if to_value < from_value else JACKPOT_TRICKLE_DURATION
+	var duration := _jackpot_counter_duration(from_value, to_value)
+	if to_value < from_value:
+		_pulse_jackpot_counter(slot_key)
 	var tween := create_tween()
 	jackpot_counter_tweens[slot_key] = tween
 	tween.tween_method(Callable(self, "_set_jackpot_counter_display").bind(slot_key), float(from_value), float(to_value), duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+func _jackpot_counter_duration(from_value: int, to_value: int) -> float:
+	if to_value >= from_value:
+		return JACKPOT_TRICKLE_DURATION
+	return clampf(float(abs(to_value - from_value)) / 500000.0 * 3.0, JACKPOT_DRAIN_MIN_DURATION, JACKPOT_DRAIN_MAX_DURATION)
 
 func _set_jackpot_counter_display(value: float, slot_key: String) -> void:
 	var amount: int = max(0, int(round(value)))
@@ -2154,6 +2162,15 @@ func _set_jackpot_counter_display(value: float, slot_key: String) -> void:
 	var label: Label = jackpot_counters.get(slot_key, null)
 	if label != null:
 		label.text = _format_amount(amount)
+
+func _pulse_jackpot_counter(slot_key: String) -> void:
+	var counter_panel: Panel = jackpot_counter_panels.get(slot_key, null)
+	if counter_panel == null:
+		return
+	counter_panel.pivot_offset = counter_panel.size * 0.5
+	counter_panel.scale = Vector2(1.05, 1.05)
+	var pulse := create_tween()
+	pulse.tween_property(counter_panel, "scale", Vector2(1.0, 1.0), 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 func _set_jackpot_counter_active(slot_key: String, active: bool) -> void:
 	var counter_panel: Panel = jackpot_counter_panels.get(slot_key, null)
@@ -2397,6 +2414,11 @@ func _refresh_credit_display() -> void:
 
 	var credit_gain: int = machine_credits - displayed_machine_credit_amount
 	var visible_win: int = max(win_displayed_amount, win_target_amount)
+	var jackpot_win: int = _current_jackpot_win_amount()
+	if credit_gain > 0 and jackpot_win > 0:
+		var drain_amount: int = max(jackpot_win, max(visible_win, credit_gain))
+		_animate_credit_transfer(displayed_machine_credit_amount, machine_credits, drain_amount)
+		return
 	var settling_score := pending_command_type == "take_score" or pending_command_type == "cash_out"
 	if credit_gain > 0 and settling_score:
 		var drain_amount: int = visible_win if visible_win > 0 else credit_gain
@@ -2432,6 +2454,10 @@ func _set_credit_display_amount(value: Variant) -> void:
 		return
 	credit_label.text = _credit_line_for_amount(displayed_machine_credit_amount)
 
+func _current_jackpot_win_amount() -> int:
+	var eval: Dictionary = _evaluation_data()
+	return store._to_int(_du_first_value(eval, ["jackpot_won", "jackpotWon", "JackpotWon"], 0))
+
 func _animate_credit_transfer(from_amount: int, to_amount: int, drain_amount: int) -> void:
 	if credit_counter_tween != null and credit_counter_tween.is_valid():
 		credit_counter_tween.kill()
@@ -2460,7 +2486,7 @@ func _animate_credit_transfer(from_amount: int, to_amount: int, drain_amount: in
 
 func _settlement_drain_duration(amount: int) -> float:
 	var eval: Dictionary = _evaluation_data()
-	var jackpot_won := store._to_int(_du_first_value(eval, ["jackpot_won", "jackpotWon", "JackpotWon"], 0))
+	var jackpot_won := _current_jackpot_win_amount()
 	var hand_rank := str(_du_first_value(eval, ["hand_rank", "handRank", "HandRank"], ""))
 	if jackpot_won > 0 or hand_rank == "RoyalFlush":
 		return CREDIT_DRAIN_JACKPOT_DURATION
@@ -2617,7 +2643,9 @@ func _can_switch_double_up_dealer() -> bool:
 	if store.current_round_id().is_empty():
 		return false
 	var du := _double_up_data()
-	return _is_double_up_active(du) and _du_switches_remaining(du) > 0 and store.can_press("double_up_switch")
+	if not _is_double_up_active(du) or _du_switches_remaining(du) <= 0:
+		return false
+	return store.can_press("double_up_switch") or _is_double_up_state_name(store.game_state())
 
 func _can_start_double_up_from_win() -> bool:
 	if access_token.is_empty() or _has_pending_command() or not store.commands_allowed():

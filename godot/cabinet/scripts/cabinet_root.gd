@@ -19,6 +19,12 @@ const COLOR_WHITE := Color(0.95, 0.95, 0.95, 1.0)
 const COLOR_GREY := Color(0.4, 0.4, 0.4, 1.0)
 const COLOR_PANEL_BG := Color(0.196, 0.125, 0.051, 0.97)    # #32200d
 const COLOR_PANEL_BORDER := Color(0.651, 0.486, 0.078, 1.0)
+const COLOR_CONTROL_DECK := Color(0.165, 0.075, 0.024, 0.98)
+const COLOR_BUTTON_YELLOW := Color(1.0, 0.710, 0.070, 1.0)
+const COLOR_BUTTON_ORANGE := Color(0.890, 0.345, 0.078, 1.0)
+const COLOR_BUTTON_RED := Color(0.820, 0.055, 0.055, 1.0)
+const COLOR_BUTTON_GREEN := Color(0.047, 0.645, 0.137, 1.0)
+const COLOR_BUTTON_BLACK := Color(0.035, 0.035, 0.035, 1.0)
 
 const CARD_SIZE := Vector2(110, 154)
 const CARD_SMALL_SIZE := Vector2(80, 112)
@@ -26,6 +32,11 @@ const CARD_GAP := 6
 const DEAL_DURATION := 0.35
 const DEAL_STAGGER := 0.12
 const DU_SWITCH_DURATION := 0.22
+const DU_MAIN_CARD_SIZE := Vector2(150, 210)
+const DU_TRAIL_CARD_SIZE := Vector2(34, 48)
+const DU_SHUFFLE_INTERVAL := 0.08
+const DU_SHUFFLE_TICKS := 8
+const DU_SHUFFLE_CODES := ["AS", "KH", "QD", "JC", "10S", "9H", "8D", "7C"]
 const COMMAND_TIMEOUT_SECONDS := 15.0
 
 # ─── state vars ───
@@ -38,6 +49,7 @@ var refresh_token := ""
 var token_expires_at := 0.0
 var auth_username := "admin"
 var auth_password := "admin123"
+var kiosk_auth_configured := false
 var configured_machine_id := 1
 var selected_bet := 200000
 var cash_in_amount := 200000
@@ -73,6 +85,9 @@ var otp_edit: LineEdit
 var cash_in_edit: LineEdit
 var bet_label: Label
 var action_buttons: Dictionary = {}
+var hold_buttons: Array = []
+var menu_panel: VBoxContainer
+var menu_open := false
 var card_container: HBoxContainer
 var du_dealer_rect: TextureRect
 var du_challenger_rect: TextureRect
@@ -92,6 +107,7 @@ var machine_info_bg: Panel
 var machine_serie_label: Label
 var machine_kent_label: Label
 var machine_serial_label: Label
+var bonus_message_label: Label
 var lucky5_banner: Label
 var crt_overlay: ColorRect
 var heartbeat_timer: Timer
@@ -99,9 +115,14 @@ var replay_timer: Timer
 var token_refresh_timer: Timer
 var command_timeout_timer: Timer
 var deal_timer: Timer
+var du_shuffle_timer: Timer
 var deal_queue: Array = []
 var deal_queue_index := 0
 var du_anim_queue: Array = []
+var du_shuffle_ticks_remaining := 0
+var du_shuffle_index := 0
+var du_shuffle_target_dealer := ""
+var du_shuffle_target_challenger := ""
 var _prev_dealer_code := ""
 var _prev_challenger_code := ""
 
@@ -131,7 +152,13 @@ func _ready() -> void:
 	deal_timer = Timer.new(); deal_timer.wait_time = DEAL_STAGGER; deal_timer.one_shot = true
 	deal_timer.timeout.connect(_process_deal_queue); add_child(deal_timer)
 
+	du_shuffle_timer = Timer.new(); du_shuffle_timer.wait_time = DU_SHUFFLE_INTERVAL; du_shuffle_timer.one_shot = false
+	du_shuffle_timer.timeout.connect(_process_du_shuffle); add_child(du_shuffle_timer)
+
 	if access_token.is_empty():
+		if kiosk_auth_configured and _has_auth_credentials():
+			_authenticate_and_sync("Kiosk credentials found. Connecting to backend...")
+			return
 		store.apply_transport_error("Log in to play against the local Lucky5 API.")
 		_refresh_ui()
 	else:
@@ -143,10 +170,13 @@ func _load_environment() -> void:
 	var env_base := OS.get_environment("LUCKY5_API_BASE_URL")
 	if not env_base.is_empty(): api_base_url = env_base
 	access_token = OS.get_environment("LUCKY5_ACCESS_TOKEN")
-	auth_username = OS.get_environment("LUCKY5_AUTH_USERNAME")
-	if auth_username.is_empty(): auth_username = OS.get_environment("LUCKY5_USERNAME")
-	auth_password = OS.get_environment("LUCKY5_AUTH_PASSWORD")
-	if auth_password.is_empty(): auth_password = OS.get_environment("LUCKY5_PASSWORD")
+	var env_username := OS.get_environment("LUCKY5_AUTH_USERNAME")
+	if env_username.is_empty(): env_username = OS.get_environment("LUCKY5_USERNAME")
+	var env_password := OS.get_environment("LUCKY5_AUTH_PASSWORD")
+	if env_password.is_empty(): env_password = OS.get_environment("LUCKY5_PASSWORD")
+	kiosk_auth_configured = not env_username.is_empty() and not env_password.is_empty()
+	auth_username = env_username
+	auth_password = env_password
 	var env_machine := OS.get_environment("LUCKY5_MACHINE_ID")
 	if not env_machine.is_empty() and env_machine.is_valid_int(): configured_machine_id = int(env_machine)
 
@@ -177,6 +207,11 @@ func _make_button(text_str: String, min_h: int, bg: Color, fg: Color, border: Co
 	var hover := style.duplicate()
 	hover.bg_color = bg.lightened(0.1)
 	b.add_theme_stylebox_override("hover", hover)
+	var pressed := style.duplicate()
+	pressed.bg_color = bg.darkened(0.18)
+	pressed.content_margin_top = 10
+	pressed.content_margin_bottom = 6
+	b.add_theme_stylebox_override("pressed", pressed)
 	var disabled := style.duplicate()
 	disabled.bg_color = Color(bg.r * 0.25, bg.g * 0.25, bg.b * 0.25, 0.5)
 	b.add_theme_stylebox_override("disabled", disabled)
@@ -246,53 +281,123 @@ func _build_ui() -> void:
 	recovery_label = _make_label("", 14, COLOR_RED, HORIZONTAL_ALIGNMENT_CENTER)
 	content.add_child(recovery_label)
 
-	var inputs := HBoxContainer.new()
-	inputs.add_theme_constant_override("separation", 8)
-	content.add_child(inputs)
-	var cash_label := _make_label("CASH IN", 12, COLOR_CREAM)
-	inputs.add_child(cash_label)
+	_build_control_deck(content)
+	_build_menu_panel(content)
+
+	_build_admin_screen(content)
+
+func _build_control_deck(parent: Node) -> void:
+	var deck := Panel.new()
+	var ps := StyleBoxFlat.new()
+	ps.bg_color = COLOR_CONTROL_DECK
+	ps.border_color = COLOR_PANEL_BORDER
+	ps.border_width_left = 2; ps.border_width_right = 2
+	ps.border_width_top = 2; ps.border_width_bottom = 3
+	ps.corner_radius_top_left = 8; ps.corner_radius_top_right = 8
+	ps.corner_radius_bottom_left = 8; ps.corner_radius_bottom_right = 8
+	deck.add_theme_stylebox_override("panel", ps)
+	deck.custom_minimum_size = Vector2(0, 202)
+	parent.add_child(deck)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	deck.add_child(margin)
+
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 8)
+	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	margin.add_child(rows)
+
+	var hold_row := HBoxContainer.new()
+	hold_row.name = "ArcadeHoldRow"
+	hold_row.add_theme_constant_override("separation", 6)
+	rows.add_child(hold_row)
+	hold_buttons.clear()
+	for index in range(5):
+		var hold_button := _make_button("HOLD", 44, COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK)
+		hold_button.name = "HoldButton%d" % (index + 1)
+		hold_button.pressed.connect(_on_hold_button_pressed.bind(index))
+		hold_buttons.append(hold_button)
+		hold_row.add_child(hold_button)
+
+	var action_row := HBoxContainer.new()
+	action_row.name = "ArcadeActionRow"
+	action_row.add_theme_constant_override("separation", 6)
+	rows.add_child(action_row)
+	var action_defs := [
+		["big", "BIG", COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK],
+		["small", "SMALL", COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK],
+		["cancel_hold", "CANCEL\nHOLD", COLOR_WHITE, COLOR_BG, COLOR_GREY],
+		["deal_draw", "DEAL\nDRAW", COLOR_BUTTON_RED, COLOR_WHITE, Color(0.950, 0.180, 0.180)],
+		["bet", "BET", COLOR_BUTTON_GREEN, COLOR_WHITE, Color(0.180, 0.900, 0.260)],
+	]
+	for def in action_defs:
+		_add_deck_action_button(action_row, def, 54)
+
+	var bottom_row := HBoxContainer.new()
+	bottom_row.name = "ArcadeBottomRow"
+	bottom_row.add_theme_constant_override("separation", 8)
+	rows.add_child(bottom_row)
+	var bottom_defs := [
+		["take_half", "TAKE\nHALF", COLOR_BUTTON_RED, COLOR_WHITE, Color(0.950, 0.180, 0.180)],
+		["menu", "MENU", COLOR_BUTTON_BLACK, COLOR_WHITE, COLOR_GREY],
+		["take_score", "TAKE\nSCORE", COLOR_BUTTON_ORANGE, COLOR_BG, COLOR_GOLD_DARK],
+	]
+	for def in bottom_defs:
+		_add_deck_action_button(bottom_row, def, 48)
+
+	bet_label = _make_label("BET %s" % selected_bet, 13, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	bet_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows.add_child(bet_label)
+
+func _add_deck_action_button(row: HBoxContainer, def: Array, min_h: int) -> void:
+	var button := _make_button(def[1], min_h, def[2], def[3], def[4])
+	button.name = "DeckButton_%s" % str(def[0])
+	button.pressed.connect(_on_action_pressed.bind(str(def[0])))
+	action_buttons[str(def[0])] = button
+	row.add_child(button)
+
+func _build_menu_panel(parent: Node) -> void:
+	menu_panel = VBoxContainer.new()
+	menu_panel.name = "CabinetMenuPanel"
+	menu_panel.visible = false
+	menu_panel.add_theme_constant_override("separation", 6)
+	parent.add_child(menu_panel)
+
+	var title := _make_label("MENU", 16, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	menu_panel.add_child(title)
+
+	var cash_row := HBoxContainer.new()
+	cash_row.add_theme_constant_override("separation", 8)
+	menu_panel.add_child(cash_row)
+	cash_row.add_child(_make_label("CASH IN", 12, COLOR_CREAM))
 	cash_in_edit = LineEdit.new()
 	cash_in_edit.text = str(cash_in_amount)
-	cash_in_edit.custom_minimum_size = Vector2(140, 36)
-	inputs.add_child(cash_in_edit)
-	bet_label = _make_label("BET %s" % selected_bet, 16, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
-	bet_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inputs.add_child(bet_label)
+	cash_in_edit.custom_minimum_size = Vector2(160, 36)
+	cash_in_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cash_row.add_child(cash_in_edit)
 
-	var grid := GridContainer.new()
-	grid.columns = 3
-	grid.add_theme_constant_override("h_separation", 6)
-	grid.add_theme_constant_override("v_separation", 6)
-	content.add_child(grid)
-
-	var gold_grad := Color(0.686, 0.396, 0.078, 1.0)
-	var red_grad := Color(0.733, 0.133, 0.133, 1.0)
-	var green_grad := Color(0.0, 0.533, 0.0, 1.0)
-	var blue_grad := Color(0.133, 0.4, 0.733, 1.0)
-
-	var btn_defs := [
-		["cash_in", "CASH IN", green_grad, COLOR_WHITE, Color(0.133, 0.733, 0.133)],
-		["bet", "BET", gold_grad, COLOR_BG, COLOR_GOLD_DARK],
-		["deal_draw", "DEAL", red_grad, COLOR_WHITE, Color(0.867, 0.133, 0.133)],
-		["cancel_hold", "CANCEL\nHOLD", Color(0.533, 0.267, 0.078, 1.0), COLOR_WHITE, COLOR_GOLD_DARK],
-		["big", "BIG", green_grad, COLOR_WHITE, Color(0.133, 0.733, 0.133)],
-		["small", "SMALL", red_grad, COLOR_WHITE, Color(0.867, 0.133, 0.133)],
-		["swap_double_up_card", "SWAP\nCARD", gold_grad, COLOR_BG, COLOR_GOLD_DARK],
-		["take_half", "TAKE\nHALF", blue_grad, COLOR_WHITE, Color(0.267, 0.533, 0.867)],
-		["take_score", "TAKE\nSCORE", gold_grad, COLOR_BG, COLOR_GOLD_DARK],
-		["cash_out", "CASH OUT", red_grad, COLOR_WHITE, Color(0.867, 0.133, 0.133)],
-		["reconnect_sync", "RECONNECT", blue_grad, COLOR_WHITE, Color(0.267, 0.533, 0.867)],
-		["back_to_lobby", "LOBBY", gold_grad, COLOR_BG, COLOR_GOLD_DARK],
+	var menu_defs := [
+		["cash_in", "CASH IN", COLOR_BUTTON_GREEN, COLOR_WHITE, Color(0.180, 0.900, 0.260)],
+		["cash_out", "CASH OUT", COLOR_BUTTON_RED, COLOR_WHITE, Color(0.950, 0.180, 0.180)],
+		["reconnect_sync", "RECONNECT", COLOR_PANEL_BG.lightened(0.2), COLOR_GOLD, COLOR_GOLD_DARK],
+		["back_to_lobby", "LOBBY", COLOR_PANEL_BG.lightened(0.15), COLOR_CREAM, COLOR_GOLD_DARK],
 		["admin_toggle", "ADMIN", Color(0.467, 0.133, 0.467, 1.0), COLOR_WHITE, Color(0.6, 0.2, 0.6)],
 		["logout", "LOGOUT", COLOR_GREY, COLOR_WHITE, Color(0.533, 0.533, 0.533)],
 	]
-	for def in btn_defs:
-		var b := _make_button(def[1], 56, def[2], def[3], def[4])
-		b.pressed.connect(_on_action_pressed.bind(def[0]))
-		action_buttons[def[0]] = b
-		grid.add_child(b)
+	for def in menu_defs:
+		var button := _make_button(def[1], 38, def[2], def[3], def[4])
+		button.pressed.connect(_on_action_pressed.bind(str(def[0])))
+		action_buttons[str(def[0])] = button
+		menu_panel.add_child(button)
 
-	_build_admin_screen(content)
+	var close_button := _make_button("CLOSE", 36, COLOR_BUTTON_BLACK, COLOR_WHITE, COLOR_GREY)
+	close_button.pressed.connect(_on_menu_close_pressed)
+	menu_panel.add_child(close_button)
 
 func _create_scanlines() -> void:
 	var sl := ColorRect.new()
@@ -326,6 +431,9 @@ func _build_auth_panel(parent: Node) -> void:
 		elif pair[0] == "PASSWORD": password_edit = e
 		elif pair[0] == "PHONE": phone_edit = e
 		elif pair[0] == "OTP": otp_edit = e
+
+	if not auth_username.is_empty(): username_edit.text = auth_username
+	if not auth_password.is_empty(): password_edit.text = auth_password
 
 	var btns := HBoxContainer.new()
 	btns.add_theme_constant_override("separation", 6)
@@ -415,7 +523,6 @@ func _build_card_area(parent: Node) -> void:
 		tr.custom_minimum_size = CARD_SIZE
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_SCALE
-		tr.modulate = Color(0, 0, 0, 0)
 		tr.mouse_filter = Control.MOUSE_FILTER_STOP
 		tr.gui_input.connect(_on_card_gui_input.bind(index))
 		slot.add_child(tr)
@@ -423,7 +530,15 @@ func _build_card_area(parent: Node) -> void:
 		var hold_label := _make_label("", 10, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 		slot.add_child(hold_label)
 
-		cards_texture_rects.append({"rect": tr, "hold_label": hold_label, "tween": null})
+		var slot_state := {
+			"rect": tr,
+			"hold_label": hold_label,
+			"tween": null,
+			"displayed_code": "",
+			"pending_code": ""
+		}
+		cards_texture_rects.append(slot_state)
+		_stage_card_back(slot_state, "", false)
 		card_container.add_child(slot)
 
 func _build_win_display(parent: Node) -> void:
@@ -438,21 +553,39 @@ func _build_win_display(parent: Node) -> void:
 
 func _build_machine_info(parent: Node) -> void:
 	var panel := Panel.new()
+	panel.custom_minimum_size = Vector2(0, 96)
 	var ps := StyleBoxFlat.new()
 	ps.bg_color = Color(0.078, 0.039, 0.016, 0.5)
+	ps.border_color = COLOR_GOLD_DARK
+	ps.border_width_left = 1; ps.border_width_right = 1
+	ps.border_width_top = 1; ps.border_width_bottom = 1
+	ps.corner_radius_top_left = 6; ps.corner_radius_top_right = 6
+	ps.corner_radius_bottom_left = 6; ps.corner_radius_bottom_right = 6
 	panel.add_theme_stylebox_override("panel", ps)
 	parent.add_child(panel)
 	machine_info_bg = panel
 
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	panel.add_child(margin)
+
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 2)
+	margin.add_child(rows)
+
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 14)
-	panel.add_child(hbox)
+	rows.add_child(hbox)
 
 	machine_serie_label = _make_label("SERIE 0", 11, COLOR_GREEN)
 	hbox.add_child(machine_serie_label)
-	machine_kent_label = _make_label("KENT 0", 11, COLOR_GREEN)
+	machine_kent_label = _make_label("KENT /3 : 0", 11, COLOR_GREEN)
 	hbox.add_child(machine_kent_label)
-	machine_serial_label = _make_label("S/N 0", 12, COLOR_GOLD)
+	machine_serial_label = _make_label("S/N: 0", 12, COLOR_GREEN)
 	machine_serial_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	machine_serial_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hbox.add_child(machine_serial_label)
@@ -460,7 +593,7 @@ func _build_machine_info(parent: Node) -> void:
 	var jp_row := HBoxContainer.new()
 	jp_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	jp_row.add_theme_constant_override("separation", 10)
-	panel.add_child(jp_row)
+	rows.add_child(jp_row)
 
 	for slot in [["4K-A", "4k-a", COLOR_GREEN_DIM], ["SF", "sf", COLOR_RED], ["4K-B", "4k-b", COLOR_GREEN_DIM], ["FH", "fh", Color(0.498, 0.843, 1.0)]]:
 		var tag := _make_label(slot[0], 10, slot[2])
@@ -468,6 +601,11 @@ func _build_machine_info(parent: Node) -> void:
 		var val := _make_label("0", 14, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 		jp_row.add_child(val)
 		jackpot_counters[slot[1]] = val
+
+	bonus_message_label = _make_label("4 OF A KIND   WINS BONUS", 16, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	bonus_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bonus_message_label.visible = true
+	rows.add_child(bonus_message_label)
 
 func _build_du_info(parent: Node) -> void:
 	du_info_panel = VBoxContainer.new()
@@ -480,10 +618,22 @@ func _build_du_info(parent: Node) -> void:
 
 	var du_cards_row := HBoxContainer.new()
 	du_cards_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	du_cards_row.add_theme_constant_override("separation", 8)
+	du_cards_row.add_theme_constant_override("separation", 10)
 	du_info_panel.add_child(du_cards_row)
 
+	var chall_slot := VBoxContainer.new()
+	chall_slot.alignment = BoxContainer.ALIGNMENT_CENTER
+	var cl := _make_label("BIG / SMALL ?", 9, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	chall_slot.add_child(cl)
+	du_challenger_rect = TextureRect.new()
+	du_challenger_rect.custom_minimum_size = DU_MAIN_CARD_SIZE
+	du_challenger_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	du_challenger_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	chall_slot.add_child(du_challenger_rect)
+	du_cards_row.add_child(chall_slot)
+
 	var dealer_slot := VBoxContainer.new()
+	dealer_slot.alignment = BoxContainer.ALIGNMENT_CENTER
 	var dl := _make_label("DEALER", 9, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	dealer_slot.add_child(dl)
 	du_dealer_rect = TextureRect.new()
@@ -492,19 +642,6 @@ func _build_du_info(parent: Node) -> void:
 	du_dealer_rect.stretch_mode = TextureRect.STRETCH_SCALE
 	dealer_slot.add_child(du_dealer_rect)
 	du_cards_row.add_child(dealer_slot)
-
-	var vs_label := _make_label("VS", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
-	du_cards_row.add_child(vs_label)
-
-	var chall_slot := VBoxContainer.new()
-	var cl := _make_label("YOU", 9, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
-	chall_slot.add_child(cl)
-	du_challenger_rect = TextureRect.new()
-	du_challenger_rect.custom_minimum_size = CARD_SMALL_SIZE
-	du_challenger_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	du_challenger_rect.stretch_mode = TextureRect.STRETCH_SCALE
-	chall_slot.add_child(du_challenger_rect)
-	du_cards_row.add_child(chall_slot)
 
 	var du_infos := HBoxContainer.new()
 	du_infos.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -773,12 +910,21 @@ func _refresh_ui() -> void:
 	_refresh_win_display()
 	_refresh_lucky5_banner()
 	admin_screen.visible = active_screen == "admin"
+	if menu_panel != null:
+		menu_panel.visible = menu_open and active_screen == "game"
 
 	for id in action_buttons.keys():
 		var button: Button = action_buttons[id]
 		button.disabled = not _is_action_enabled(id)
 		if id == "deal_draw":
-			button.text = "DRAW" if store.game_state() == "hold" else "DEAL"
+			button.text = "DEAL\nDRAW"
+
+	var held_indexes := store.held_indexes()
+	for index in range(hold_buttons.size()):
+		var hold_button: Button = hold_buttons[index]
+		var held := local_hold_indexes.has(index) or held_indexes.has(index)
+		hold_button.disabled = not _is_action_enabled("hold_%d" % index)
+		hold_button.text = "HELD" if held else "HOLD"
 
 func _refresh_cards(game_state: String, du_active: bool) -> void:
 	var cards := store.cards()
@@ -798,16 +944,19 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 			slot["hold_label"].text = "HELD" if held else ""
 
 			if code.length() >= 2:
-				if previous_codes[index] != code:
+				var previous_code: String = previous_codes[index] if index < previous_codes.size() else ""
+				var pending_code := str(slot.get("pending_code", ""))
+				if previous_code != code:
+					if pending_code != code:
+						_stage_card_back(slot, code, held)
 					_queue_card_reveal(index, code, held)
 				else:
+					slot["pending_code"] = ""
 					slot["rect"].modulate = Color(1, 1, 1, 1)
 			else:
-				slot["rect"].texture = null
-				slot["rect"].modulate = Color(0, 0, 0, 0)
+				_stage_card_back(slot, "", false)
 		else:
-			slot["rect"].texture = null
-			slot["rect"].modulate = Color(0, 0, 0, 0)
+			_stage_card_back(slot, "", false)
 			slot["hold_label"].text = ""
 
 	if not deal_queue.is_empty():
@@ -831,25 +980,38 @@ func _card_texture_from_code(code: String) -> Texture2D:
 	var suit := code.substr(code.length() - 1, 1)
 	return CardSkin_Lucky5.card_texture(rank, suit)
 
+func _card_back_texture(held: bool) -> Texture2D:
+	return CardSkin_Lucky5.back_texture(held)
+
+func _stage_card_back(slot: Dictionary, code: String, held: bool) -> void:
+	if slot["tween"] != null and slot["tween"].is_valid():
+		slot["tween"].kill()
+	slot["tween"] = null
+	slot["rect"].texture = _card_back_texture(held)
+	var rect: TextureRect = slot["rect"]
+	rect.modulate = Color(1, 1, 1, 1)
+	rect.scale = Vector2(1.0, 1.0)
+	slot["pending_code"] = code
+	if code.is_empty():
+		slot["displayed_code"] = ""
+
 func _show_queued_card(reveal: Dictionary) -> void:
 	var index := int(reveal.get("index", -1))
 	if index < 0 or index >= cards_texture_rects.size():
 		return
 	var slot: Dictionary = cards_texture_rects[index]
 	var rect: TextureRect = slot["rect"]
+	var code: String = str(reveal.get("code", ""))
 	rect.texture = reveal.get("texture", null)
+	slot["displayed_code"] = code
+	slot["pending_code"] = ""
 	slot["hold_label"].text = "HELD" if bool(reveal.get("held", false)) else ""
 	_animate_card_deal(index)
 
 func _get_displayed_card_codes() -> Array:
 	var result: Array = []
 	for slot in cards_texture_rects:
-		if slot["rect"].texture != null and slot["rect"].modulate.a > 0.1:
-			var path: String = str(slot["rect"].texture.resource_path)
-			var fname: String = path.get_file().trim_suffix(".png")
-			result.append(fname)
-		else:
-			result.append("")
+		result.append(str(slot.get("displayed_code", "")))
 	return result
 
 func _animate_card_deal(index: int) -> void:
@@ -871,6 +1033,11 @@ func _animate_card_deal(index: int) -> void:
 func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	du_info_panel.visible = du_active
 	if not du_active:
+		if du_shuffle_timer != null:
+			du_shuffle_timer.stop()
+		_set_du_card_texture(du_dealer_rect, "")
+		_set_du_card_texture(du_challenger_rect, "")
+		_refresh_du_trail({})
 		_prev_dealer_code = ""
 		_prev_challenger_code = ""
 		return
@@ -891,18 +1058,20 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	if typeof(challenger_card) == TYPE_DICTIONARY:
 		challenger_code = str(challenger_card.get("code", ""))
 
-	var dealer_changed := _prev_dealer_code != "" and _prev_dealer_code != dealer_code
-	var challenger_changed := _prev_challenger_code != "" and _prev_challenger_code != challenger_code
+	var dealer_changed := not dealer_code.is_empty() and _prev_dealer_code != "" and _prev_dealer_code != dealer_code
+	var challenger_changed := not challenger_code.is_empty() and _prev_challenger_code != challenger_code
 
-	if dealer_changed or challenger_changed:
-		_animate_du_switch(dealer_code, challenger_code)
+	if challenger_code.is_empty():
+		_set_du_card_texture(du_dealer_rect, dealer_code)
+		if du_shuffle_timer == null or du_shuffle_timer.is_stopped() or not du_shuffle_target_challenger.is_empty():
+			_start_du_card_shuffle(dealer_code, "")
+	elif dealer_changed or challenger_changed:
+		_start_du_card_shuffle(dealer_code, challenger_code)
 	else:
-		if dealer_code.length() >= 2:
-			du_dealer_rect.texture = CardSkin_Lucky5.card_texture(dealer_code.substr(0, dealer_code.length() - 1), dealer_code.substr(dealer_code.length() - 1, 1))
-			du_dealer_rect.modulate = Color(1, 1, 1, 1)
-		if challenger_code.length() >= 2:
-			du_challenger_rect.texture = CardSkin_Lucky5.card_texture(challenger_code.substr(0, challenger_code.length() - 1), challenger_code.substr(challenger_code.length() - 1, 1))
-			du_challenger_rect.modulate = Color(1, 1, 1, 1)
+		if du_shuffle_timer != null and not du_shuffle_timer.is_stopped():
+			du_shuffle_timer.stop()
+		_set_du_card_texture(du_dealer_rect, dealer_code)
+		_set_du_card_texture(du_challenger_rect, challenger_code)
 
 	_prev_dealer_code = dealer_code
 	_prev_challenger_code = challenger_code
@@ -911,25 +1080,92 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	var is_no_lose := bool(du_data.get("is_no_lose_active", false))
 	du_lucky_node.text = "5♠ NEVER LOSE" if is_lucky5 else ""
 	du_guess_node.text = "HI OR LO" if status == "guess" else ""
+	_refresh_du_trail(du_data)
 
 func _animate_du_switch(new_dealer_code: String, new_player_code: String) -> void:
-	var tw := create_tween()
-	tw.set_parallel(false)
+	_start_du_card_shuffle(new_dealer_code, new_player_code)
 
-	tw.tween_property(du_dealer_rect, "modulate:a", 0.0, DU_SWITCH_DURATION * 0.4).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_callback(_on_dealer_switch_mid.bind(new_dealer_code, new_player_code))
-	tw.tween_property(du_dealer_rect, "modulate:a", 1.0, DU_SWITCH_DURATION * 0.4).set_trans(Tween.TRANS_CUBIC)
+func _set_du_card_texture(rect: TextureRect, code: String) -> void:
+	if rect == null:
+		return
+	var tex := _card_texture_from_code(code)
+	if tex == null:
+		rect.texture = null
+		rect.modulate = Color(1, 1, 1, 0)
+		return
+	rect.texture = tex
+	rect.modulate = Color(1, 1, 1, 1)
 
-func _on_dealer_switch_mid(new_dealer_code: String, new_player_code: String) -> void:
-	if new_dealer_code.length() >= 2:
-		du_dealer_rect.texture = CardSkin_Lucky5.card_texture(new_dealer_code.substr(0, new_dealer_code.length() - 1), new_dealer_code.substr(new_dealer_code.length() - 1, 1))
+func _start_du_card_shuffle(new_dealer_code: String, new_player_code: String) -> void:
+	du_shuffle_target_dealer = new_dealer_code
+	du_shuffle_target_challenger = new_player_code
+	du_shuffle_ticks_remaining = DU_SHUFFLE_TICKS if new_player_code.length() >= 2 else -1
+	du_shuffle_index = 0
+	_set_du_card_texture(du_dealer_rect, new_dealer_code)
+	du_challenger_rect.modulate = Color(1, 1, 1, 1)
+	du_challenger_rect.scale = Vector2(0.92, 0.92)
+	_process_du_shuffle()
+	if du_shuffle_timer != null and du_shuffle_timer.is_stopped():
+		du_shuffle_timer.start()
 
-	if new_player_code.length() >= 2:
-		du_challenger_rect.texture = CardSkin_Lucky5.card_texture(new_player_code.substr(0, new_player_code.length() - 1), new_player_code.substr(new_player_code.length() - 1, 1))
-		du_challenger_rect.modulate = Color(1, 1, 1, 1)
-		du_challenger_rect.scale = Vector2(0.0, 1.0)
-		var tw2 := create_tween()
-		tw2.tween_property(du_challenger_rect, "scale", Vector2(1.0, 1.0), DU_SWITCH_DURATION * 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+func _process_du_shuffle() -> void:
+	var code: String = DU_SHUFFLE_CODES[du_shuffle_index % DU_SHUFFLE_CODES.size()]
+	du_shuffle_index += 1
+	_set_du_card_texture(du_challenger_rect, code)
+	if du_shuffle_ticks_remaining > 0:
+		du_shuffle_ticks_remaining -= 1
+		if du_shuffle_ticks_remaining <= 0:
+			_finish_du_card_shuffle()
+
+func _finish_du_card_shuffle() -> void:
+	if du_shuffle_timer != null:
+		du_shuffle_timer.stop()
+	_set_du_card_texture(du_dealer_rect, du_shuffle_target_dealer)
+	_set_du_card_texture(du_challenger_rect, du_shuffle_target_challenger)
+	if du_shuffle_target_challenger.length() >= 2:
+		du_challenger_rect.scale = Vector2(0.92, 0.92)
+		var tw := create_tween()
+		tw.tween_property(du_challenger_rect, "scale", Vector2(1.0, 1.0), DU_SWITCH_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+func _refresh_du_trail(du_data: Dictionary) -> void:
+	if du_trail_container == null:
+		return
+	for child in du_trail_container.get_children():
+		child.queue_free()
+
+	var trail_source: Variant = du_data.get("card_trail", [])
+	if typeof(trail_source) != TYPE_ARRAY:
+		return
+
+	var trail: Array = trail_source as Array
+	var start_index: int = max(0, trail.size() - 4)
+	for i in range(start_index, trail.size()):
+		var entry: Variant = trail[i]
+		var card_code := ""
+		var label_text := ""
+		if typeof(entry) == TYPE_DICTIONARY:
+			var entry_dict: Dictionary = entry
+			var card: Variant = entry_dict.get("card", entry_dict)
+			if typeof(card) == TYPE_DICTIONARY:
+				card_code = str(card.get("code", ""))
+			else:
+				card_code = str(entry_dict.get("code", ""))
+			label_text = str(entry_dict.get("label", ""))
+		if card_code.length() < 2:
+			continue
+
+		var trail_slot := VBoxContainer.new()
+		trail_slot.alignment = BoxContainer.ALIGNMENT_CENTER
+		trail_slot.add_theme_constant_override("separation", 1)
+		var trail_rect := TextureRect.new()
+		trail_rect.custom_minimum_size = DU_TRAIL_CARD_SIZE
+		trail_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		trail_rect.stretch_mode = TextureRect.STRETCH_SCALE
+		_set_du_card_texture(trail_rect, card_code)
+		trail_slot.add_child(trail_rect)
+		if not label_text.is_empty():
+			trail_slot.add_child(_make_label(label_text.substr(0, 6).to_upper(), 7, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER))
+		du_trail_container.add_child(trail_slot)
 
 func _refresh_jackpots() -> void:
 	var jp: Dictionary = store.snapshot.get("jackpot", {})
@@ -945,8 +1181,10 @@ func _refresh_jackpots() -> void:
 func _refresh_machine_info() -> void:
 	var machine: Dictionary = store.snapshot.get("machine", {})
 	machine_serie_label.text = "SERIE %s" % str(machine.get("machine_serie", "0"))
-	machine_kent_label.text = "KENT %s" % str(machine.get("machine_kent", "0"))
-	machine_serial_label.text = "S/N %s" % str(machine.get("machine_serial", "0"))
+	machine_kent_label.text = "KENT /3 : %s" % str(machine.get("machine_kent", "0"))
+	machine_serial_label.text = "S/N: %s" % str(machine.get("machine_serial", "0"))
+	if bonus_message_label != null:
+		bonus_message_label.visible = true
 
 func _refresh_win_display() -> void:
 	var credits: Dictionary = store.snapshot.get("credits", {})
@@ -976,6 +1214,7 @@ func _is_action_enabled(id: String) -> bool:
 	if access_token.is_empty(): return false
 	if _has_pending_command() and id not in ["menu", "reconnect_sync", "logout", "admin_toggle"]: return false
 	if id in ["reconnect_sync", "back_to_lobby", "logout", "admin_toggle"]: return true
+	if id == "bet" and store.game_state() == "double_up" and store.can_press("swap_double_up_card"): return true
 	if id == "take_score" and store.can_press("cash_out"): return true
 	return store.can_press(id)
 
@@ -1007,14 +1246,27 @@ func _refresh_admin_machines() -> void:
 # ─── input handlers ───
 func _on_card_gui_input(event: InputEvent, index: int) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		if _has_pending_command(): return
-		if not store.can_press("hold_%d" % index): return
-		if local_hold_indexes.has(index): local_hold_indexes.erase(index)
-		else: local_hold_indexes.append(index); local_hold_indexes.sort()
-		_refresh_ui()
+		_toggle_hold(index)
+
+func _on_hold_button_pressed(index: int) -> void:
+	_toggle_hold(index)
+
+func _toggle_hold(index: int) -> void:
+	if _has_pending_command(): return
+	if not store.can_press("hold_%d" % index): return
+	if local_hold_indexes.has(index): local_hold_indexes.erase(index)
+	else: local_hold_indexes.append(index); local_hold_indexes.sort()
+	_refresh_ui()
+
+func _on_menu_close_pressed() -> void:
+	menu_open = false
+	_refresh_ui()
 
 func _on_action_pressed(id: String) -> void:
 	match id:
+		"menu":
+			menu_open = not menu_open
+			_refresh_ui()
 		"cash_in":
 			cash_in_amount = _sanitize_cash_amount(cash_in_edit.text); cash_in_edit.text = str(cash_in_amount)
 			_send_command("cash_in", {"amount": str(cash_in_amount)})
@@ -1024,7 +1276,11 @@ func _on_action_pressed(id: String) -> void:
 				var round_id := store.current_round_id()
 				if not round_id.is_empty(): _send_command("draw", {"round_id": round_id, "hold_indexes": local_hold_indexes.duplicate()})
 			else: _send_command("deal", {"bet_amount": str(selected_bet)})
-		"bet": _cycle_bet()
+		"bet":
+			if store.game_state() == "double_up" and store.can_press("swap_double_up_card"):
+				var swap_round_id := store.current_round_id()
+				if not swap_round_id.is_empty(): _send_command("swap_double_up_card", {"round_id": swap_round_id, "swap_position": 0})
+			else: _cycle_bet()
 		"cancel_hold": local_hold_indexes.clear(); _send_command("clear_holds", {}); _refresh_ui()
 		"big": _send_double_up_guess("big")
 		"small": _send_double_up_guess("small")
@@ -1046,7 +1302,7 @@ func _on_action_pressed(id: String) -> void:
 			if access_token.is_empty(): pass
 			else: api.logout()
 			get_tree().quit()
-		"admin_toggle": active_screen = "admin" if active_screen != "admin" else "game"; _refresh_ui()
+		"admin_toggle": active_screen = "admin" if active_screen != "admin" else "game"; menu_open = false; _refresh_ui()
 		"admin_users": _on_admin_users()
 		"admin_machines": _on_admin_machines()
 

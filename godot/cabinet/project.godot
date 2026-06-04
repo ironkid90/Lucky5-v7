@@ -24,6 +24,10 @@ window/size/viewport_width=720
 window/size/viewport_height=1280
 window/handheld/orientation=1
 
+[dotnet]
+
+project/assembly_name="Lucky5 Cabinet"
+
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0

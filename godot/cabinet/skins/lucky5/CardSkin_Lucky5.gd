@@ -11,3 +11,6 @@ static func card_path(rank: String, suit: String) -> String:
 
 static func card_texture(rank: String, suit: String) -> Texture2D:
 	return load(card_path(rank, suit)) as Texture2D
+
+static func back_texture(held := false) -> Texture2D:
+	return load(HOLD_BACK if held else BACK) as Texture2D

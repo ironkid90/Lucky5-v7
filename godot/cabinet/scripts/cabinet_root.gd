@@ -32,7 +32,7 @@ const COLOR_BUTTON_GREEN := Color(0.047, 0.645, 0.137, 1.0)
 const COLOR_BUTTON_BLACK := Color(0.035, 0.035, 0.035, 1.0)
 const BUTTON_BEVEL_SHADOW_SIZE := 5
 const BUTTON_PRESSED_SHADOW_SIZE := 1
-const BUTTON_ASSET_BASE_PATH := "res://skins/lucky5/buttons/"
+const BUTTON_ASSET_BASE_PATH := "res://skins/cabinet_ai9/buttons/"
 const CABINET_AI9_SKIN_ROOT := "res://skins/cabinet_ai9/"
 const CABINET_BOARD_TEXTURE := "images/board.png"
 const CABINET_PRESS_SOUND := "audio/press.mp3"
@@ -48,12 +48,12 @@ const CONTROL_DECK_MIN_HEIGHT := 324
 const CONTROL_HOLD_BUTTON_HEIGHT := 70
 const CONTROL_ACTION_BUTTON_HEIGHT := 80
 const CONTROL_BOTTOM_BUTTON_HEIGHT := 72
-const DEAL_DURATION := 0.15
-const DEAL_STAGGER := 0.15
+const DEAL_DURATION := 0.19
+const DEAL_STAGGER := 0.19
 const DRAW_OUT_DURATION := 0.10
 const DRAW_IN_DURATION := 0.15
 const DRAW_STAGGER := 0.15
-const DU_SWITCH_DURATION := 0.20
+const DU_SWITCH_DURATION := 0.60
 const DU_BOARD_CARD_SIZE := Vector2(92, 155)
 const DU_TRAIL_CARD_SIZE := Vector2(122, 206)
 const BONUS_COIN_SIZE := Vector2(28, 28)
@@ -521,7 +521,7 @@ func _load_button_asset_texture(asset_name: String) -> Texture2D:
 
 func _button_asset_normal_name(asset_key: String) -> String:
 	if asset_key == "hold":
-		return "hold_on"
+		return "hold_off"
 	return asset_key
 
 func _button_asset_active_name(asset_key: String) -> String:
@@ -2037,6 +2037,7 @@ func _du_timeline_entries(du_data: Dictionary) -> Array:
 	return result
 
 func _du_page_start_for_dealer_index(dealer_position: int, slot_count: int) -> int:
+	# AI9 pages reuse the fifth card as slot 0 of the next deck row.
 	var stride: int = max(1, slot_count - 1)
 	if dealer_position < stride:
 		return 0

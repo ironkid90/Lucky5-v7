@@ -33,7 +33,9 @@ const DEAL_DURATION := 0.35
 const DEAL_STAGGER := 0.12
 const DU_SWITCH_DURATION := 0.22
 const DU_MAIN_CARD_SIZE := Vector2(150, 210)
+const DU_BOARD_CARD_SIZE := Vector2(78, 109)
 const DU_TRAIL_CARD_SIZE := Vector2(34, 48)
+const DOUBLE_UP_BOARD_SLOT_COUNT := 5
 const DU_SHUFFLE_INTERVAL := 0.08
 const DU_SHUFFLE_TICKS := 8
 const DU_SHUFFLE_CODES := ["AS", "KH", "QD", "JC", "10S", "9H", "8D", "7C"]
@@ -652,49 +654,45 @@ func _build_du_info(parent: Node) -> void:
 	du_label_node = _make_label("HI LO GAMBLE", 14, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	du_info_panel.add_child(du_label_node)
 
-	var du_cards_row := HBoxContainer.new()
-	du_cards_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	du_cards_row.add_theme_constant_override("separation", 10)
-	du_info_panel.add_child(du_cards_row)
+	du_trail_container = HBoxContainer.new()
+	du_trail_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	du_trail_container.add_theme_constant_override("separation", 5)
+	du_info_panel.add_child(du_trail_container)
 
-	var chall_slot := VBoxContainer.new()
-	chall_slot.alignment = BoxContainer.ALIGNMENT_CENTER
-	var cl := _make_label("BIG / SMALL ?", 9, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
-	chall_slot.add_child(cl)
-	du_challenger_rect = TextureRect.new()
-	du_challenger_rect.custom_minimum_size = DU_MAIN_CARD_SIZE
-	du_challenger_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	du_challenger_rect.stretch_mode = TextureRect.STRETCH_SCALE
-	chall_slot.add_child(du_challenger_rect)
-	du_cards_row.add_child(chall_slot)
+	du_cards.clear()
+	for index in range(DOUBLE_UP_BOARD_SLOT_COUNT):
+		var slot := VBoxContainer.new()
+		slot.alignment = BoxContainer.ALIGNMENT_CENTER
+		slot.add_theme_constant_override("separation", 1)
+		var slot_label := _make_label("", 8, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
+		slot_label.custom_minimum_size = Vector2(0, 14)
+		slot.add_child(slot_label)
+		var slot_rect := TextureRect.new()
+		slot_rect.custom_minimum_size = DU_BOARD_CARD_SIZE
+		slot_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		slot_rect.stretch_mode = TextureRect.STRETCH_SCALE
+		slot.add_child(slot_rect)
+		du_trail_container.add_child(slot)
+		du_cards.append({ "label": slot_label, "rect": slot_rect })
 
-	var dealer_slot := VBoxContainer.new()
-	dealer_slot.alignment = BoxContainer.ALIGNMENT_CENTER
-	var dl := _make_label("DEALER", 9, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
-	dealer_slot.add_child(dl)
-	du_dealer_rect = TextureRect.new()
-	du_dealer_rect.custom_minimum_size = CARD_SMALL_SIZE
-	du_dealer_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	du_dealer_rect.stretch_mode = TextureRect.STRETCH_SCALE
-	dealer_slot.add_child(du_dealer_rect)
-	du_cards_row.add_child(dealer_slot)
+	if du_cards.size() >= 2:
+		du_dealer_rect = du_cards[0]["rect"]
+		du_challenger_rect = du_cards[1]["rect"]
 
 	var du_infos := HBoxContainer.new()
 	du_infos.alignment = BoxContainer.ALIGNMENT_CENTER
-	du_infos.add_theme_constant_override("separation", 12)
+	du_infos.add_theme_constant_override("separation", 8)
 	du_info_panel.add_child(du_infos)
 
+	du_infos.add_child(_make_label("ACE COUNTS", 9, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER))
 	du_guess_node = _make_label("HI OR LO", 9, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
 	du_infos.add_child(du_guess_node)
-	du_switch_node = _make_label("", 9, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
-	du_infos.add_child(du_switch_node)
 	du_lucky_node = _make_label("5♠ NEVER LOSE", 9, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
 	du_infos.add_child(du_lucky_node)
+	du_infos.add_child(_make_label("WHEN BUYING", 9, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER))
 
-	du_trail_container = HBoxContainer.new()
-	du_trail_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	du_trail_container.add_theme_constant_override("separation", 4)
-	du_info_panel.add_child(du_trail_container)
+	du_switch_node = _make_label("", 9, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	du_info_panel.add_child(du_switch_node)
 
 func _build_admin_screen(parent: Node) -> void:
 	admin_screen = VBoxContainer.new()
@@ -1083,9 +1081,7 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	if not du_active:
 		if du_shuffle_timer != null:
 			du_shuffle_timer.stop()
-		_set_du_card_texture(du_dealer_rect, "")
-		_set_du_card_texture(du_challenger_rect, "")
-		_refresh_du_trail({})
+		_clear_du_board()
 		_prev_dealer_code = ""
 		_prev_challenger_code = ""
 		return
@@ -1105,6 +1101,8 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 
 	if typeof(challenger_card) == TYPE_DICTIONARY:
 		challenger_code = str(challenger_card.get("code", ""))
+
+	_prepare_du_board(du_data, dealer_code, challenger_code, status)
 
 	var dealer_changed := not dealer_code.is_empty() and _prev_dealer_code != "" and _prev_dealer_code != dealer_code
 	var challenger_changed := not challenger_code.is_empty() and _prev_challenger_code != challenger_code
@@ -1126,9 +1124,123 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 
 	var is_lucky5 := bool(du_data.get("is_lucky5_active", false))
 	var is_no_lose := bool(du_data.get("is_no_lose_active", false))
-	du_lucky_node.text = "5♠ NEVER LOSE" if is_lucky5 else ""
-	du_guess_node.text = "HI OR LO" if status == "guess" else ""
-	_refresh_du_trail(du_data)
+	du_lucky_node.text = "5♠ NEVER LOSE"
+	du_lucky_node.add_theme_color_override("font_color", COLOR_GREEN if is_lucky5 or is_no_lose else COLOR_BLUE)
+	du_guess_node.text = "HI OR LO"
+
+func _prepare_du_board(du_data: Dictionary, dealer_code: String, challenger_code: String, status: String) -> void:
+	if du_cards.is_empty():
+		return
+
+	_clear_du_board()
+	var reserved_slots := 1
+	if not dealer_code.is_empty():
+		reserved_slots += 1
+	var max_trail_cards: int = max(0, DOUBLE_UP_BOARD_SLOT_COUNT - reserved_slots)
+	var trail_codes := _du_visible_trail_codes(du_data, dealer_code, max_trail_cards)
+	var slot_index := 0
+
+	for code in trail_codes:
+		if slot_index >= DOUBLE_UP_BOARD_SLOT_COUNT:
+			break
+		_set_du_board_slot(slot_index, str(code), "PLAYED", _is_lucky_du_card(du_data, str(code)))
+		slot_index += 1
+
+	if not dealer_code.is_empty() and slot_index < DOUBLE_UP_BOARD_SLOT_COUNT:
+		_set_du_board_slot(slot_index, dealer_code, "DEALER", _is_lucky_du_card(du_data, dealer_code))
+		du_dealer_rect = du_cards[slot_index]["rect"]
+		slot_index += 1
+
+	if slot_index < DOUBLE_UP_BOARD_SLOT_COUNT:
+		du_challenger_rect = du_cards[slot_index]["rect"]
+		if not challenger_code.is_empty():
+			_set_du_board_slot(slot_index, challenger_code, _du_result_label(status), _is_lucky_du_card(du_data, challenger_code))
+		else:
+			_set_du_board_back(slot_index, "BIG / SMALL ?", 1.0)
+
+func _du_visible_trail_codes(du_data: Dictionary, dealer_code: String, max_count: int) -> Array:
+	var result: Array = []
+	if max_count <= 0:
+		return result
+
+	var trail_source: Variant = du_data.get("card_trail", [])
+	if typeof(trail_source) != TYPE_ARRAY:
+		return result
+
+	var codes: Array = []
+	for entry in trail_source:
+		var code := _du_entry_code(entry)
+		if code.length() >= 2:
+			codes.append(code)
+
+	if dealer_code.length() >= 2 and not codes.is_empty() and str(codes[codes.size() - 1]) == dealer_code:
+		codes.remove_at(codes.size() - 1)
+
+	var start_index := 0
+	if codes.size() > max_count:
+		var carry_step: int = max(1, max_count - 1)
+		var pages := int(ceil(float(codes.size() - max_count) / float(carry_step)))
+		start_index = pages * carry_step
+
+	var limit: int = min(codes.size(), start_index + max_count)
+	for i in range(start_index, limit):
+		result.append(str(codes[i]))
+	return result
+
+func _du_entry_code(entry: Variant) -> String:
+	if typeof(entry) == TYPE_DICTIONARY:
+		var entry_dict: Dictionary = entry
+		var card: Variant = entry_dict.get("card", entry_dict)
+		if typeof(card) == TYPE_DICTIONARY:
+			return str(card.get("code", ""))
+		return str(entry_dict.get("code", ""))
+	if typeof(entry) == TYPE_STRING:
+		return str(entry)
+	return ""
+
+func _du_result_label(status: String) -> String:
+	var normalized := status.to_upper()
+	if normalized.find("LOSE") >= 0:
+		return "LOSE"
+	if normalized.find("SAFE") >= 0:
+		return "SAFE"
+	if normalized.find("WIN") >= 0 or normalized.find("LUCKY") >= 0:
+		return "WIN"
+	return "BIG / SMALL ?"
+
+func _is_lucky_du_card(du_data: Dictionary, code: String) -> bool:
+	return code == "5S" and (bool(du_data.get("is_lucky5_active", false)) or bool(du_data.get("is_no_lose_active", false)))
+
+func _clear_du_board() -> void:
+	for index in range(du_cards.size()):
+		_set_du_board_back(index, "", 0.34)
+	if du_cards.size() > 0:
+		du_dealer_rect = du_cards[0]["rect"]
+	if du_cards.size() > 1:
+		du_challenger_rect = du_cards[1]["rect"]
+
+func _set_du_board_slot(index: int, code: String, label_text: String, highlighted: bool) -> void:
+	if index < 0 or index >= du_cards.size():
+		return
+	var slot: Dictionary = du_cards[index]
+	var label: Label = slot["label"]
+	var rect: TextureRect = slot["rect"]
+	label.text = label_text
+	label.add_theme_color_override("font_color", COLOR_GREEN if highlighted else COLOR_BLUE)
+	rect.scale = Vector2(1.0, 1.0)
+	_set_du_card_texture(rect, code)
+
+func _set_du_board_back(index: int, label_text: String, alpha: float) -> void:
+	if index < 0 or index >= du_cards.size():
+		return
+	var slot: Dictionary = du_cards[index]
+	var label: Label = slot["label"]
+	var rect: TextureRect = slot["rect"]
+	label.text = label_text
+	label.add_theme_color_override("font_color", COLOR_GOLD if not label_text.is_empty() else COLOR_BLUE)
+	rect.texture = _card_back_texture(false)
+	rect.modulate = Color(1, 1, 1, alpha)
+	rect.scale = Vector2(1.0, 1.0)
 
 func _animate_du_switch(new_dealer_code: String, new_player_code: String) -> void:
 	_start_du_card_shuffle(new_dealer_code, new_player_code)
@@ -1145,6 +1257,8 @@ func _set_du_card_texture(rect: TextureRect, code: String) -> void:
 	rect.modulate = Color(1, 1, 1, 1)
 
 func _start_du_card_shuffle(new_dealer_code: String, new_player_code: String) -> void:
+	if du_challenger_rect == null:
+		return
 	du_shuffle_target_dealer = new_dealer_code
 	du_shuffle_target_challenger = new_player_code
 	du_shuffle_ticks_remaining = DU_SHUFFLE_TICKS if new_player_code.length() >= 2 else -1
@@ -1174,46 +1288,6 @@ func _finish_du_card_shuffle() -> void:
 		du_challenger_rect.scale = Vector2(0.92, 0.92)
 		var tw := create_tween()
 		tw.tween_property(du_challenger_rect, "scale", Vector2(1.0, 1.0), DU_SWITCH_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-
-func _refresh_du_trail(du_data: Dictionary) -> void:
-	if du_trail_container == null:
-		return
-	for child in du_trail_container.get_children():
-		child.queue_free()
-
-	var trail_source: Variant = du_data.get("card_trail", [])
-	if typeof(trail_source) != TYPE_ARRAY:
-		return
-
-	var trail: Array = trail_source as Array
-	var start_index: int = max(0, trail.size() - 4)
-	for i in range(start_index, trail.size()):
-		var entry: Variant = trail[i]
-		var card_code := ""
-		var label_text := ""
-		if typeof(entry) == TYPE_DICTIONARY:
-			var entry_dict: Dictionary = entry
-			var card: Variant = entry_dict.get("card", entry_dict)
-			if typeof(card) == TYPE_DICTIONARY:
-				card_code = str(card.get("code", ""))
-			else:
-				card_code = str(entry_dict.get("code", ""))
-			label_text = str(entry_dict.get("label", ""))
-		if card_code.length() < 2:
-			continue
-
-		var trail_slot := VBoxContainer.new()
-		trail_slot.alignment = BoxContainer.ALIGNMENT_CENTER
-		trail_slot.add_theme_constant_override("separation", 1)
-		var trail_rect := TextureRect.new()
-		trail_rect.custom_minimum_size = DU_TRAIL_CARD_SIZE
-		trail_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		trail_rect.stretch_mode = TextureRect.STRETCH_SCALE
-		_set_du_card_texture(trail_rect, card_code)
-		trail_slot.add_child(trail_rect)
-		if not label_text.is_empty():
-			trail_slot.add_child(_make_label(label_text.substr(0, 6).to_upper(), 7, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER))
-		du_trail_container.add_child(trail_slot)
 
 func _refresh_jackpots() -> void:
 	var jp: Dictionary = store.snapshot.get("jackpot", {})

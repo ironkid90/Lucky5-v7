@@ -1,0 +1,7 @@
+{
+  "name": "Lucky5-v7",
+  "private": true,
+  "dependencies": {
+    "godot": "^0.7.10"
+  }
+}

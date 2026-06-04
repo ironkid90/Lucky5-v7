@@ -37,6 +37,7 @@ import type {
 import {
     isTerminalDoubleUpStatus,
     mapDoubleUpResultToViewModel,
+    type DoubleUpViewModel,
 } from "@/models/DoubleUpViewModel";
 
 const DEFAULT_USERNAME = "tester";
@@ -56,6 +57,15 @@ const PAYTABLE_ROWS: Array<{ key: string; label: string; color: string }> = [
 ];
 
 type MessageTone = "ready" | "warning" | "danger";
+type DoubleUpBoardSlot = {
+    key: string;
+    card: PokerCard | null;
+    label: string;
+    kind: "trail" | "dealer" | "active" | "challenger" | "empty";
+    isLucky?: boolean;
+};
+
+const DOUBLE_UP_BOARD_SLOT_COUNT = 5;
 
 function formatMoney(value: number) {
     return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
@@ -63,6 +73,23 @@ function formatMoney(value: number) {
 
 function formatPercent(value: number) {
     return `${(value * 100).toFixed(1)}%`;
+}
+
+function rankLabelFromValue(rank?: number | null) {
+    const value = Number(rank ?? 2);
+    if (value === 11) {
+        return "J";
+    }
+    if (value === 12) {
+        return "Q";
+    }
+    if (value === 13) {
+        return "K";
+    }
+    if (value === 14) {
+        return "A";
+    }
+    return String(value);
 }
 
 function cardSuitGlyph(suit: string) {
@@ -118,6 +145,94 @@ function cardImgSrc(card: PokerCard): string {
     return `${LUCKY5_CARD_ASSET_ROOT}/${code}.svg`;
 }
 
+function sameCard(left?: PokerCard | null, right?: PokerCard | null) {
+    return !!left && !!right && normalizeCardCode(left) === normalizeCardCode(right);
+}
+
+function doubleUpResultLabel(status: string) {
+    const normalized = status.replace(/([a-z])([A-Z])/g, "$1 $2").toUpperCase();
+    if (normalized.includes("LOSE")) {
+        return "LOSE";
+    }
+    if (normalized.includes("SAFE")) {
+        return "SAFE";
+    }
+    if (normalized.includes("WIN") || normalized.includes("LUCKY")) {
+        return "WIN";
+    }
+    return "BIG / SMALL ?";
+}
+
+function buildDoubleUpBoardSlots(viewModel: DoubleUpViewModel | null): DoubleUpBoardSlot[] {
+    if (!viewModel) {
+        return Array.from({ length: DOUBLE_UP_BOARD_SLOT_COUNT }, (_, index) => ({
+            key: `empty-${index}`,
+            card: null,
+            label: "",
+            kind: "empty",
+        }));
+    }
+
+    const dealerCard = viewModel.dealerCard;
+    const revealCard = viewModel.challengerCard;
+    const maxTrailCards = Math.max(
+        0,
+        DOUBLE_UP_BOARD_SLOT_COUNT - (dealerCard ? 1 : 0) - 1,
+    );
+    let trail = viewModel.cardTrail ?? [];
+
+    if (dealerCard && trail.length > 0 && sameCard(trail[trail.length - 1], dealerCard)) {
+        trail = trail.slice(0, -1);
+    }
+
+    const carryStep = Math.max(1, maxTrailCards - 1);
+    let startIndex = 0;
+    if (maxTrailCards > 0 && trail.length > maxTrailCards) {
+        startIndex = Math.ceil((trail.length - maxTrailCards) / carryStep) * carryStep;
+    }
+
+    const slots: DoubleUpBoardSlot[] = trail
+        .slice(startIndex, startIndex + maxTrailCards)
+        .map((card, index) => ({
+            key: `trail-${startIndex + index}-${normalizeCardCode(card)}`,
+            card,
+            label: "PLAYED",
+            kind: "trail",
+            isLucky: normalizeCardCode(card) === "5S",
+        }));
+
+    if (dealerCard && slots.length < DOUBLE_UP_BOARD_SLOT_COUNT) {
+        slots.push({
+            key: `dealer-${normalizeCardCode(dealerCard)}`,
+            card: dealerCard,
+            label: "DEALER",
+            kind: "dealer",
+            isLucky: normalizeCardCode(dealerCard) === "5S",
+        });
+    }
+
+    if (slots.length < DOUBLE_UP_BOARD_SLOT_COUNT) {
+        slots.push({
+            key: revealCard ? `challenger-${normalizeCardCode(revealCard)}` : "active-reveal",
+            card: revealCard ?? null,
+            label: revealCard ? doubleUpResultLabel(viewModel.status) : "BIG / SMALL ?",
+            kind: revealCard ? "challenger" : "active",
+            isLucky: revealCard ? normalizeCardCode(revealCard) === "5S" : false,
+        });
+    }
+
+    while (slots.length < DOUBLE_UP_BOARD_SLOT_COUNT) {
+        slots.push({
+            key: `empty-${slots.length}`,
+            card: null,
+            label: "",
+            kind: "empty",
+        });
+    }
+
+    return slots.slice(0, DOUBLE_UP_BOARD_SLOT_COUNT);
+}
+
 function PlayingCard({ card, label, held, onClick }: {
     card?: PokerCard | null;
     label?: string;
@@ -142,16 +257,47 @@ function PlayingCard({ card, label, held, onClick }: {
     );
 }
 
+function DoubleUpBoard({ viewModel }: { viewModel: DoubleUpViewModel | null }) {
+    const slots = buildDoubleUpBoardSlots(viewModel);
+    const luckyCopyActive = viewModel?.isLucky5Active || viewModel?.isNoLoseActive;
+
+    return (
+        <div className="apk-du-panel">
+            <div className="apk-du-board">
+                {slots.map((slot, index) => (
+                    <div
+                        key={`${slot.key}-${index}`}
+                        className={`apk-du-slot apk-du-slot--${slot.kind}${slot.isLucky ? " apk-du-slot--lucky" : ""}`}
+                    >
+                        <PlayingCard card={slot.card} label={slot.label} />
+                    </div>
+                ))}
+            </div>
+            <div className="apk-du-copy-row">
+                <span className="apk-du-copy">HI LO GAMBLE</span>
+                <span className="apk-du-copy">ACE COUNTS</span>
+                <span className="apk-du-copy">HI OR LO</span>
+                <span className={`apk-du-copy${luckyCopyActive ? " apk-du-copy--lucky" : ""}`}>5 ♠ NEVER LOSE</span>
+                <span className="apk-du-copy">WHEN BUYING</span>
+            </div>
+        </div>
+    );
+}
+
 // ── PaytablePanel ────────────────────────────────────────────────────────────
 function PaytablePanel({
     payouts,
     activeHand,
     jackpotFh,
+    stake,
 }: {
     payouts: Record<string, number>;
     activeHand?: string | null;
     jackpotFh?: number;
+    stake: number | string;
 }) {
+    const stakeValue = Math.max(0, Number(stake) || 0);
+
     return (
         <div className="apk-paytable">
             {PAYTABLE_ROWS.map(({ key, label, color }) => {
@@ -159,7 +305,7 @@ function PaytablePanel({
                 const display = key === "FullHouse" && jackpotFh
                     ? formatMoney(jackpotFh)
                     : multiplier !== undefined
-                        ? String(multiplier * 5000)
+                        ? formatMoney(multiplier * stakeValue)
                         : "0";
                 const isActive = activeHand === key;
                 return (
@@ -198,6 +344,7 @@ function MachineInfoBlock({
     bonusText,
     machineSerial,
     kentStreak,
+    fullHouseRank,
 }: {
     machineName?: string | null;
     jackpots?: MachineState["jackpots"] | null;
@@ -206,6 +353,7 @@ function MachineInfoBlock({
     bonusText?: string | null;
     machineSerial?: string | null;
     kentStreak?: number | null;
+    fullHouseRank?: number | null;
 }) {
     return (
         <div className="apk-machine-info">
@@ -237,7 +385,7 @@ function MachineInfoBlock({
                 </div>
             </div>
             <div className="apk-jp-fh-row">
-                <span className="apk-jp-fh-label">K</span>
+                <span className="apk-jp-fh-label">{rankLabelFromValue(fullHouseRank)}</span>
                 <span className="apk-jp-fh-val">{jackpots ? formatMoney(jackpots.fullHouse) : "--"}</span>
             </div>
             {bonusText && <div className="apk-bonus-bar">{bonusText}</div>}
@@ -627,7 +775,7 @@ export function Lucky5Cabinet() {
         const currentRank = jackpotSnapshot?.fullHouseRank ?? 2;
         const suits = ["H", "D", "C", "S"];
         const randomSuit = suits[Math.floor(Math.random() * suits.length)];
-        const rankLabel = currentRank === 11 ? "J" : currentRank === 12 ? "Q" : currentRank === 13 ? "K" : currentRank === 14 ? "A" : String(currentRank);
+        const rankLabel = rankLabelFromValue(currentRank);
 
         setIdleFhCard({ rank: rankLabel, suit: randomSuit, code: `${rankLabel}${randomSuit}` });
 
@@ -651,6 +799,7 @@ export function Lucky5Cabinet() {
                             payouts={rules?.payoutMultipliers ?? {}}
                             activeHand={drawResult?.handRank ?? null}
                             jackpotFh={jackpotSnapshot?.fullHouse}
+                            stake={betAmount || "5000"}
                         />
                         <CreditStakeBar
                             credit={profile?.walletBalance ?? 0}
@@ -666,11 +815,7 @@ export function Lucky5Cabinet() {
                     {/* ── Card stage ── */}
                     <div className="apk-card-stage">
                         {isInDoubleUp ? (
-                            /* Double-up view: dealer card left + challenger card right */
-                            <div className="apk-du-card-row">
-                                <PlayingCard card={doubleUpViewModel?.dealerCard ?? null} label={doubleUpViewModel?.isLucky5Active ? "LUCKY 5!" : "DEALER"} />
-                                <PlayingCard card={doubleUpViewModel?.challengerCard ?? null} label="BIG / SMALL ?" />
-                            </div>
+                            <DoubleUpBoard viewModel={doubleUpViewModel} />
                         ) : (
                             /* Normal 5-card row with hold-click */
                             <div className="apk-card-row">
@@ -707,6 +852,7 @@ export function Lucky5Cabinet() {
                         bonusText={bonusText}
                         machineSerial={jackpotSnapshot?.machineSerial}
                         kentStreak={jackpotSnapshot?.kentStreak}
+                        fullHouseRank={jackpotSnapshot?.fullHouseRank}
                     />
 
                     {/* ── Control deck ── */}
@@ -922,7 +1068,7 @@ export function Lucky5Cabinet() {
                         <div className="apk-fh-picker-ranks">
                             {Array.from({ length: 13 }, (_, i) => {
                                 const rank = i + 2;
-                                const rankLabel = rank === 11 ? "J" : rank === 12 ? "Q" : rank === 13 ? "K" : rank === 14 ? "A" : String(rank);
+                                const rankLabel = rankLabelFromValue(rank);
                                 const currentRank = jackpotSnapshot?.fullHouseRank ?? 2;
                                 return (
                                     <button

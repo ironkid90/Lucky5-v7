@@ -1,3 +1,6 @@
+/*!*************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[3]!./app/globals.css ***!
+  \*************************************************************************************************************************************************************************************************************************************************************/
 /* Lucky5 cabinet display font. Sourced from the .NET API at
    /assets/fonts/ARCADE.ttf, proxied through next.config.mjs in dev. */
 @font-face {
@@ -74,6 +77,7 @@ input {
 .cabinet-shell {
   width: min(1040px, 100%);
   display: grid;
+  grid-gap: 18px;
   gap: 18px;
   grid-template-columns: minmax(0, 700px) minmax(180px, 260px);
   align-items: start;
@@ -108,6 +112,7 @@ input {
   padding: 14px;
   min-height: 820px;
   display: grid;
+  grid-gap: 12px;
   gap: 12px;
 }
 
@@ -120,12 +125,14 @@ input {
 .screen-body,
 .playfield-stack {
   display: grid;
+  grid-gap: 12px;
   gap: 12px;
 }
 
 .screen-header {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
+  grid-gap: 12px;
   gap: 12px;
 }
 
@@ -183,6 +190,7 @@ input {
 .double-up-panel,
 .auth-panel {
   display: grid;
+  grid-gap: 10px;
   gap: 10px;
 }
 
@@ -342,6 +350,7 @@ input {
 
 .jackpot-strip {
   display: grid;
+  grid-gap: 10px;
   gap: 10px;
   padding: 12px 14px;
   border-radius: 14px;
@@ -355,6 +364,7 @@ input {
 .jackpot-strip-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  grid-gap: 12px;
   gap: 12px;
   align-items: end;
 }
@@ -370,11 +380,13 @@ input {
 .jackpot-strip-grid {
   display: grid;
   grid-template-columns: 0.9fr 1fr 1fr 0.9fr;
+  grid-gap: 8px;
   gap: 8px;
 }
 
 .jackpot-meter {
   display: grid;
+  grid-gap: 6px;
   gap: 6px;
   padding: 10px 8px;
   border-radius: 12px;
@@ -410,11 +422,13 @@ input {
 .card-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-gap: 10px;
   gap: 10px;
 }
 
 .card-slot {
   display: grid;
+  grid-gap: 8px;
   gap: 8px;
 }
 
@@ -477,6 +491,7 @@ input {
 .hold-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-gap: 8px;
   gap: 8px;
   margin-bottom: 6px;
 }
@@ -484,6 +499,7 @@ input {
 .deal-banner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  grid-gap: 12px;
   gap: 12px;
   align-items: center;
   background: rgba(255, 159, 26, 0.09);
@@ -545,6 +561,7 @@ input {
 .bet-input label,
 .auth-panel label {
   display: grid;
+  grid-gap: 6px;
   gap: 6px;
   text-transform: uppercase;
   color: #f7ddb1;
@@ -646,6 +663,7 @@ input {
 .history-item {
   display: grid;
   grid-template-columns: auto 1fr auto;
+  grid-gap: 12px;
   gap: 12px;
   align-items: center;
   padding: 12px;
@@ -705,6 +723,7 @@ input {
 .apk-top-band {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
+  grid-gap: 0;
   gap: 0;
   background: #000;
   border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -735,7 +754,7 @@ input {
 }
 
 .apk-hand-name {
-  flex: 1;
+  flex: 1 1;
 }
 
 .apk-pay-amount {
@@ -821,6 +840,7 @@ input {
 .apk-du-card-row,
 .apk-du-board {
   display: grid;
+  grid-gap: 6px;
   gap: 6px;
   width: 100%;
 }
@@ -889,6 +909,7 @@ input {
 .apk-du-copy-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-gap: 4px;
   gap: 4px;
   align-items: center;
 }
@@ -1017,6 +1038,7 @@ input {
 .apk-jp-counters {
   display: grid;
   grid-template-columns: 1fr 1.2fr 1fr;
+  grid-gap: 6px;
   gap: 6px;
   align-items: center;
   margin-bottom: 2px;
@@ -1072,6 +1094,7 @@ input {
     linear-gradient(180deg, #7a3410 0%, #3e1908 40%, #1e0b04 100%);
   border-top: 2px solid rgba(255,224,157,0.22);
   display: grid;
+  grid-gap: 8px;
   gap: 8px;
 }
 
@@ -1079,6 +1102,7 @@ input {
 .apk-hold-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-gap: 6px;
   gap: 6px;
 }
 
@@ -1111,6 +1135,7 @@ input {
 .apk-action-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-gap: 6px;
   gap: 6px;
 }
 
@@ -1118,6 +1143,7 @@ input {
 .apk-bottom-row {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
+  grid-gap: 6px;
   gap: 6px;
   align-items: start;
 }
@@ -1172,7 +1198,9 @@ input {
   color: #fff;
   letter-spacing: 0.06em;
   box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-  user-select: none;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
 }
 
 .apk-menu-popup {
@@ -1201,6 +1229,7 @@ input {
 .apk-du-action-row {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
+  grid-gap: 6px;
   gap: 6px;
   align-items: center;
   padding: 6px 0 0;
@@ -1291,3 +1320,4 @@ input {
   .apk-hold-row { grid-template-columns: repeat(3, 1fr); }
   .apk-action-row { grid-template-columns: repeat(3, 1fr); }
 }
+

@@ -14,6 +14,14 @@ public sealed class AdminController(
     IAdminAuditService auditService,
     ICabinetDeviceAuthService cabinetDeviceAuthService) : ControllerBase
 {
+    [HttpGet("dashboard")]
+    public async Task<ActionResult<ApiResponse<AdminDashboardDto>>> GetDashboard(CancellationToken cancellationToken)
+    {
+        HttpContext.RequireAdminRole();
+        var dashboard = await adminService.GetDashboardAsync(cancellationToken);
+        return Ok(ApiResponse<AdminDashboardDto>.Ok(dashboard, traceId: HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("audit")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<AdminAuditEntryDto>>>> ListAudit([FromQuery] int take, CancellationToken cancellationToken)
     {
@@ -45,6 +53,14 @@ public sealed class AdminController(
         HttpContext.RequireAdminRole();
         var user = await adminService.GetUserAsync(userId, cancellationToken);
         return Ok(ApiResponse<AdminUserDto>.Ok(user, traceId: HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("users/{userId:guid}/detail")]
+    public async Task<ActionResult<ApiResponse<AdminUserDetailDto>>> GetUserDetail(Guid userId, CancellationToken cancellationToken)
+    {
+        HttpContext.RequireAdminRole();
+        var user = await adminService.GetUserDetailAsync(userId, cancellationToken);
+        return Ok(ApiResponse<AdminUserDetailDto>.Ok(user, traceId: HttpContext.TraceIdentifier));
     }
 
     [HttpPost("users/credit")]
@@ -114,6 +130,14 @@ public sealed class AdminController(
         HttpContext.RequireAdminRole();
         var machine = await adminService.GetMachineAsync(machineId, cancellationToken);
         return Ok(ApiResponse<AdminMachineDto>.Ok(machine, traceId: HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("machines/{machineId:int}/detail")]
+    public async Task<ActionResult<ApiResponse<AdminMachineDetailDto>>> GetMachineDetail(int machineId, CancellationToken cancellationToken)
+    {
+        HttpContext.RequireAdminRole();
+        var machine = await adminService.GetMachineDetailAsync(machineId, cancellationToken);
+        return Ok(ApiResponse<AdminMachineDetailDto>.Ok(machine, traceId: HttpContext.TraceIdentifier));
     }
 
     [HttpPost("machines/{machineId:int}/reset")]

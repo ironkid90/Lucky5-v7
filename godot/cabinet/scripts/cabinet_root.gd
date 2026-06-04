@@ -56,6 +56,7 @@ const DRAW_STAGGER := 0.15
 const DU_SWITCH_DURATION := 0.20
 const DU_BOARD_CARD_SIZE := Vector2(92, 155)
 const DU_TRAIL_CARD_SIZE := Vector2(122, 206)
+const BONUS_COIN_SIZE := Vector2(28, 28)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
 const DU_SHUFFLE_INTERVAL := 0.075
 const DU_SHUFFLE_TICKS := 8
@@ -192,6 +193,7 @@ var du_promote_timer: Timer
 var du_end_hold_timer: Timer
 var auto_double_up_timer: Timer
 var idle_fh_timer: Timer
+var idle_fh_rank_revealed := false
 var deal_queue: Array = []
 var deal_queue_index := 0
 var du_anim_queue: Array = []
@@ -208,6 +210,8 @@ var du_last_active_data: Dictionary = {}
 var du_end_hold_data: Dictionary = {}
 var du_end_hold_active := false
 var du_was_active := false
+var auto_double_up_round_ids: Array = []
+var auto_double_up_pending_round_id := ""
 var _prev_dealer_code := ""
 var _prev_challenger_code := ""
 var _prev_switches_remaining := -1
@@ -220,6 +224,7 @@ var win_pulse_tween: Tween
 var credit_pulse_tween: Tween
 var credit_counter_tween: Tween
 var bonus_stage_tween: Tween
+var bonus_stage_key := ""
 var last_machine_credit_amount := -1
 var displayed_machine_credit_amount := -1
 var credit_target_amount := -1
@@ -1510,6 +1515,7 @@ func _refresh_ui() -> void:
 			button.text = "DEAL\nDRAW"
 
 	var held_indexes := _visual_hold_indexes()
+	var fh_switch := _can_switch_full_house_rank()
 	for index in range(hold_buttons.size()):
 		var hold_button: Button = hold_buttons[index]
 		var held := held_indexes.has(index)
@@ -1553,6 +1559,25 @@ func _on_du_end_hold_timeout() -> void:
 	du_was_active = false
 	_refresh_ui()
 
+func _sync_idle_fh_timer(is_blank_idle: bool) -> void:
+	if idle_fh_timer == null:
+		idle_fh_rank_revealed = is_blank_idle
+		return
+	if not is_blank_idle:
+		idle_fh_rank_revealed = false
+		idle_fh_timer.stop()
+		return
+	if idle_fh_rank_revealed:
+		if not idle_fh_timer.is_stopped():
+			idle_fh_timer.stop()
+		return
+	if idle_fh_timer.is_stopped():
+		idle_fh_timer.start()
+
+func _on_idle_fh_timer_timeout() -> void:
+	idle_fh_rank_revealed = true
+	_refresh_ui()
+
 func _refresh_card_area_layout(du_active: bool) -> void:
 	if card_area_panel == null:
 		return
@@ -1575,8 +1600,8 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 
 	var is_blank_idle := game_state == "idle" and not du_active and cards.is_empty()
 	_sync_idle_fh_timer(is_blank_idle)
-	var show_idle_title := is_blank_idle and not idle_fh_rank_revealed
-	var show_idle_rank_card := is_blank_idle and idle_fh_rank_revealed
+	var show_idle_title := false
+	var show_idle_rank_card := game_state == "idle" and not du_active and cards.is_empty()
 	if idle_title_label != null:
 		idle_title_label.visible = show_idle_title and not du_active
 	if card_container != null:
@@ -2302,54 +2327,6 @@ func _refresh_jackpots() -> void:
 	_refresh_paytable_highlights()
 	_refresh_bonus_stage()
 
-func _refresh_jackpot_counter(slot_key: String, target_value: int) -> void:
-	if not jackpot_counters.has(slot_key):
-		return
-	var target: int = max(0, target_value)
-	if not displayed_jackpots.has(slot_key):
-		displayed_jackpots[slot_key] = target
-		jackpot_counter_targets[slot_key] = target
-		_set_jackpot_counter_display(float(target), slot_key)
-		return
-	var current_target := int(jackpot_counter_targets.get(slot_key, displayed_jackpots.get(slot_key, 0)))
-	if current_target == target:
-		return
-	_animate_jackpot_counter(slot_key, int(displayed_jackpots.get(slot_key, current_target)), target)
-
-func _animate_jackpot_counter(slot_key: String, from_value: int, to_value: int) -> void:
-	if jackpot_counter_tweens.has(slot_key):
-		var existing: Tween = jackpot_counter_tweens[slot_key]
-		if existing != null and existing.is_valid():
-			existing.kill()
-	jackpot_counter_targets[slot_key] = to_value
-	var duration := _jackpot_counter_duration(from_value, to_value)
-	if to_value < from_value:
-		_pulse_jackpot_counter(slot_key)
-	var tween := create_tween()
-	jackpot_counter_tweens[slot_key] = tween
-	tween.tween_method(Callable(self, "_set_jackpot_counter_display").bind(slot_key), float(from_value), float(to_value), duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-
-func _jackpot_counter_duration(from_value: int, to_value: int) -> float:
-	if to_value >= from_value:
-		return JACKPOT_TRICKLE_DURATION
-	return clampf(float(abs(to_value - from_value)) / 500000.0 * 3.0, JACKPOT_DRAIN_MIN_DURATION, JACKPOT_DRAIN_MAX_DURATION)
-
-func _set_jackpot_counter_display(value: float, slot_key: String) -> void:
-	var amount: int = max(0, int(round(value)))
-	displayed_jackpots[slot_key] = amount
-	var label: Label = jackpot_counters.get(slot_key, null)
-	if label != null:
-		label.text = _format_amount(amount)
-
-func _pulse_jackpot_counter(slot_key: String) -> void:
-	var counter_panel: Panel = jackpot_counter_panels.get(slot_key, null)
-	if counter_panel == null:
-		return
-	counter_panel.pivot_offset = counter_panel.size * 0.5
-	counter_panel.scale = Vector2(1.05, 1.05)
-	var pulse := create_tween()
-	pulse.tween_property(counter_panel, "scale", Vector2(1.0, 1.0), 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-
 func _refresh_jackpot_counter(slot_key: String, target_value) -> void:
 	if not jackpot_counters.has(slot_key):
 		return
@@ -2930,6 +2907,39 @@ func _can_start_double_up_from_win() -> bool:
 	if not (game_state in ["win", "drawn", "result"]):
 		return false
 	return _evaluation_double_up_available(_evaluation_data())
+
+func _maybe_auto_start_double_up(game_state: String, du_active: bool) -> void:
+	if du_active or not (game_state in ["win", "drawn", "result"]):
+		_cancel_auto_double_up_timer()
+		return
+	if not _can_start_double_up_from_win():
+		_cancel_auto_double_up_timer()
+		return
+	var round_id := store.current_round_id()
+	if round_id.is_empty() or auto_double_up_round_ids.has(round_id):
+		_cancel_auto_double_up_timer()
+		return
+	if auto_double_up_pending_round_id == round_id and auto_double_up_timer != null and not auto_double_up_timer.is_stopped():
+		return
+	auto_double_up_pending_round_id = round_id
+	if auto_double_up_timer != null:
+		auto_double_up_timer.stop()
+		auto_double_up_timer.start()
+
+func _cancel_auto_double_up_timer() -> void:
+	auto_double_up_pending_round_id = ""
+	if auto_double_up_timer != null:
+		auto_double_up_timer.stop()
+
+func _on_auto_double_up_timer_timeout() -> void:
+	var round_id := auto_double_up_pending_round_id
+	auto_double_up_pending_round_id = ""
+	if round_id.is_empty() or auto_double_up_round_ids.has(round_id):
+		return
+	if not _can_start_double_up_from_win():
+		return
+	auto_double_up_round_ids.append(round_id)
+	_send_command("double_up_start", {"round_id": round_id})
 
 func _is_double_up_state_name(value: String) -> bool:
 	var normalized := value.strip_edges().to_lower()

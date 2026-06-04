@@ -32,6 +32,38 @@ export interface MachineSession {
   walletBalance: number;
 }
 
+export interface ActiveRoundState {
+  roundId: string;
+  machineId: number;
+  betAmount: number;
+  phase: string;
+  handRank: string;
+  pendingWinAmount: number;
+  doubleUpAvailable: boolean;
+}
+
+export interface PlayerLobbyMachine {
+  id: number;
+  name: string;
+  isOpen: boolean;
+  minBet: number;
+  maxBet: number;
+  jackpots: JackpotInfo;
+  observedRtp: number;
+  phase: string;
+  roundCount: number;
+  session?: MachineSession | null;
+  activeRound?: ActiveRoundState | null;
+}
+
+export interface PlayerLobby {
+  userId: string;
+  username: string;
+  walletBalance: number;
+  credit: number;
+  machines: PlayerLobbyMachine[];
+}
+
 export interface DealResult {
   roundId: string;
   cards: PokerCard[];
@@ -99,6 +131,8 @@ export interface MemberProfile {
   email: string;
   phoneNumber: string;
   walletBalance: number;
+  credit?: number;
+  agentId?: number | null;
   lastSeenUtc: string;
   role: string;
 }
@@ -162,6 +196,109 @@ export interface AdminMachine {
   activeRounds: number;
   activePlayers: number;
   sessions: AdminMachineSession[];
+}
+
+export interface AdminDashboard {
+  userCount: number;
+  playerCount: number;
+  adminCount: number;
+  totalWalletBalance: number;
+  totalMachineCredits: number;
+  machineCount: number;
+  openMachineCount: number;
+  closedMachineCount: number;
+  activeMachineSessions: number;
+  recoverableRounds: number;
+  cabinetDeviceCount: number;
+  activeCabinetDeviceSessions: number;
+  revokedCabinetDeviceCount: number;
+  totalCapitalIn: number;
+  totalCapitalOut: number;
+  observedRtp: number;
+}
+
+export interface AdminActiveRound {
+  roundId: string;
+  userId: string;
+  username: string;
+  machineId: number;
+  machineName: string;
+  betAmount: number;
+  phase: string;
+  handRank: string;
+  winAmount: number;
+  isCompleted: boolean;
+  isPayoutSettled: boolean;
+  enteredDoubleUp: boolean;
+  createdUtc: string;
+  ageSeconds: number;
+}
+
+export interface AdminUserSession {
+  sessionId: string;
+  machineId: number;
+  machineName: string;
+  machineCredits: number;
+  totalCashIn: number;
+  isMachineClosed: boolean;
+  counterplayScore: number;
+  createdUtc: string;
+  lastUpdatedUtc: string;
+}
+
+export interface AdminUserDetail {
+  user: AdminUser;
+  email: string;
+  fullName: string;
+  credit: number;
+  agentId?: number | null;
+  generatedId: string;
+  minimumOut: number;
+  bonusDate?: string | null;
+  bonusRechargeCount: number;
+  sessionNetLoss: number;
+  totalWins: number;
+  recentLedger: WalletLedgerEntry[];
+  sessions: AdminUserSession[];
+  activeRounds: AdminActiveRound[];
+}
+
+export interface CabinetDevice {
+  deviceId: string;
+  machineId: number;
+  machineName: string;
+  displayName: string;
+  serialNumber: string;
+  secretFingerprint: string;
+  createdUtc: string;
+  createdByAdminId: string;
+  lastAuthenticatedUtc?: string | null;
+  lastSeenUtc?: string | null;
+  lastFirmwareVersion: string;
+  lastClientVersion: string;
+  isRevoked: boolean;
+  revokedUtc?: string | null;
+  revokedByAdminId?: string | null;
+  revocationReason: string;
+  activeSessionCount: number;
+}
+
+export interface AdminMachineDetail {
+  machine: AdminMachine;
+  doorState: string;
+  active: boolean;
+  ready: boolean;
+  capitalIn: number;
+  capitalOut: number;
+  baseCapitalOut: number;
+  jackpotCapitalOut: number;
+  doubleUpCapitalOut: number;
+  machineAmount: number;
+  currentUserAmount: number;
+  openAmount: number;
+  profit: number;
+  activeRounds: AdminActiveRound[];
+  cabinetDevices: CabinetDevice[];
 }
 
 export interface AgentInfo {

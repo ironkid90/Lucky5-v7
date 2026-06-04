@@ -30,6 +30,8 @@ public static class GameServiceRegressionTests
         await PlayerResetAfterClosePreservesClosedSessionUntilExplicitCashOutAsync(failures);
         await PlayerResetAfterCloseKeepsCachedClosedSessionAsync(failures);
         await PlayerResetBlocksRecoverableRoundAsync(failures);
+        await PlayerLobbyExposesWalletMachineSessionAndActiveRoundAsync(failures);
+        await AdminDashboardAndDetailsExposeOperationalStateAsync(failures);
         await AdminResetBlocksRecoverableRoundsAsync(failures);
         await AdminResetAllowsClosedSessionsWithoutActiveRoundsAsync(failures);
         await CabinetSnapshotExposesAutoHoldAdviceAsync(failures);
@@ -802,6 +804,106 @@ public static class GameServiceRegressionTests
             failures,
             "Admin reset should reject completed-but-unsettled rounds because they are still recoverable player state.",
             blocked);
+    }
+
+    private static async Task PlayerLobbyExposesWalletMachineSessionAndActiveRoundAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = CreateService(store);
+        var userId = Guid.Parse("22000000-0000-0000-0000-000000000001");
+
+        SeedPlayer(store, userId, "lobby-player", 1_000_000m);
+        var machine = store.Machines.Values.First(candidate => candidate.IsOpen);
+
+        await service.CashInAsync(userId, machine.Id, 200_000m, CancellationToken.None);
+        await service.DealAsync(userId, new DealRequest(machine.Id, machine.MinBet), CancellationToken.None);
+
+        var lobby = await service.GetLobbyAsync(userId, CancellationToken.None);
+        var lobbyMachine = lobby.Machines.Single(row => row.Id == machine.Id);
+
+        Assert(
+            failures,
+            "Player lobby should expose the authoritative wallet balance after cash-in.",
+            lobby.WalletBalance == 800_000m);
+        Assert(
+            failures,
+            "Player lobby machine cards should include the current machine session credits.",
+            lobbyMachine.Session is not null && lobbyMachine.Session.MachineCredits == 200_000m - machine.MinBet);
+        Assert(
+            failures,
+            "Player lobby should expose recoverable active round state for resume controls.",
+            lobbyMachine.ActiveRound is not null && lobbyMachine.ActiveRound.Phase == "Dealt");
+    }
+
+    private static async Task AdminDashboardAndDetailsExposeOperationalStateAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var adminService = CreateAdminService(store);
+        var adminId = Guid.Parse("22000000-0000-0000-0000-000000000002");
+        var userId = Guid.Parse("22000000-0000-0000-0000-000000000003");
+
+        SeedPlayer(store, adminId, "lobby-admin", 900_000m, role: "Admin");
+        SeedPlayer(store, userId, "detail-player", 700_000m);
+        var machine = store.Machines.Values.First(candidate => candidate.IsOpen);
+        var session = new MachineSessionState
+        {
+            UserId = userId,
+            MachineId = machine.Id,
+            MachineCredits = 300_000m,
+            TotalCashIn = 200_000m,
+            LastUpdatedUtc = DateTime.UtcNow
+        };
+        store.MachineSessions[session.SessionId] = session;
+        store.MachineLedgers[machine.Id].CapitalIn = 500_000m;
+        store.MachineLedgers[machine.Id].CapitalOut = 250_000m;
+        store.ActiveRounds[Guid.Parse("32000000-0000-0000-0000-000000000001")] = new GameRound
+        {
+            RoundId = Guid.Parse("32000000-0000-0000-0000-000000000001"),
+            UserId = userId,
+            MachineId = machine.Id,
+            BetAmount = machine.MinBet,
+            HandRank = "NoWin",
+            IsCompleted = false,
+            IsPayoutSettled = false,
+            CleanRoomState = CreateState(RoundPhase.Dealt, RoundState.AwaitHold, ["AS", "KD", "7C", "4H", "2S"])
+        };
+        store.Ledger.Add(new WalletLedgerEntry
+        {
+            UserId = userId,
+            Amount = 25_000m,
+            BalanceAfter = 725_000m,
+            Type = "AdminCredit",
+            Reference = "test-credit"
+        });
+        var device = new CabinetDevice
+        {
+            MachineId = machine.Id,
+            DisplayName = "Floor Cabinet Detail",
+            SerialNumber = "DETAIL-CAB-001",
+            SecretFingerprint = "abc123",
+            CreatedByAdminId = adminId
+        };
+        store.CabinetDevices[device.Id] = device;
+
+        var dashboard = await adminService.GetDashboardAsync(CancellationToken.None);
+        var userDetail = await adminService.GetUserDetailAsync(userId, CancellationToken.None);
+        var machineDetail = await adminService.GetMachineDetailAsync(machine.Id, CancellationToken.None);
+
+        Assert(
+            failures,
+            "Admin dashboard should aggregate active sessions and recoverable rounds for control-room visibility.",
+            dashboard.ActiveMachineSessions >= 1 && dashboard.RecoverableRounds >= 1 && dashboard.ObservedRtp == 0.5m);
+        Assert(
+            failures,
+            "Admin user detail should include wallet ledger, sessions, and active rounds for the selected player.",
+            userDetail.RecentLedger.Count == 1 && userDetail.Sessions.Count == 1 && userDetail.ActiveRounds.Count == 1);
+        Assert(
+            failures,
+            "Admin machine detail should include ledger totals, active rounds, and cabinet devices.",
+            machineDetail.CapitalIn == 500_000m
+            && machineDetail.CapitalOut == 250_000m
+            && machineDetail.ActiveRounds.Count == 1
+            && machineDetail.CabinetDevices.Count == 1);
     }
 
     private static async Task AdminResetAllowsClosedSessionsWithoutActiveRoundsAsync(List<string> failures)

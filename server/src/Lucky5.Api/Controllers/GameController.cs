@@ -14,6 +14,13 @@ public class GameController(IGameService gameService) : ControllerBase
 {
     private Guid UserId => HttpContext.RequireUserId();
 
+    [HttpGet("lobby")]
+    public async Task<ActionResult<ApiResponse<PlayerLobbyDto>>> GetLobby(CancellationToken cancellationToken)
+    {
+        var lobby = await gameService.GetLobbyAsync(UserId, cancellationToken);
+        return Ok(ApiResponse<PlayerLobbyDto>.Ok(lobby, traceId: HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("machines")]
     [HttpGet("games/machines")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<MachineListingDto>>>> GetMachines(CancellationToken cancellationToken)

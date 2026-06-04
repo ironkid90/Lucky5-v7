@@ -59,6 +59,40 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             .Select(x => new MachineListingDto(x.Id, x.Name, x.IsOpen, x.MinBet, x.MaxBet))
             .ToArray();
 
+    public async Task<PlayerLobbyDto> GetLobbyAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var profile = await RequireProfileAsync(userId);
+        var machines = (await store.GetMachinesAsync())
+            .OrderBy(machine => machine.Id)
+            .ToArray();
+        var lobbyMachines = new List<PlayerLobbyMachineDto>(machines.Length);
+
+        foreach (var machine in machines)
+        {
+            var ledger = await RequireMachineLedgerAsync(machine.Id);
+            var session = await store.GetMachineSessionAsync(userId, machine.Id);
+            var sessionDto = session is null
+                ? null
+                : await ToMachineSessionDtoAsync(userId, session, profile.WalletBalance);
+            var activeRound = await GetActiveRoundAsync(userId, machine.Id, cancellationToken);
+
+            lobbyMachines.Add(new PlayerLobbyMachineDto(
+                machine.Id,
+                machine.Name,
+                machine.IsOpen,
+                machine.MinBet,
+                machine.MaxBet,
+                SnapshotJackpots(ledger),
+                ledger.ObservedRtp,
+                ledger.LastDistributionMode.ToString(),
+                ledger.RoundCount,
+                sessionDto,
+                activeRound));
+        }
+
+        return new PlayerLobbyDto(profile.UserId, profile.Username, profile.WalletBalance, profile.Credit, lobbyMachines);
+    }
+
     public Task<DefaultRulesDto> GetDefaultRulesAsync(CancellationToken cancellationToken)
         => Task.FromResult(new DefaultRulesDto(new Dictionary<string, decimal>(Rules)));
 

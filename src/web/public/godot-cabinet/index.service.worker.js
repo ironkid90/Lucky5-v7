@@ -4,7 +4,7 @@
 // Incrementing CACHE_VERSION will kick off the install event and force
 // previously cached resources to be updated from the network.
 /** @type {string} */
-const CACHE_VERSION = '1780584876|4328110';
+const CACHE_VERSION = '1780614031|9986388';
 /** @type {string} */
 const CACHE_PREFIX = 'Lucky5 Cabinet-sw-cache-';
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;

@@ -3,15 +3,23 @@
 import { useCallback, startTransition, useEffect, useRef, useState } from "react";
 
 import {
+    adjustAdminUserWallet,
+    applyRechargeBonus,
     assignUserToAgent,
+    cashInMachine,
+    cashOutMachine,
     cashoutDoubleUp,
     createAgent,
     deal,
     draw,
+    getAdminDashboard,
+    getAdminMachineDetail,
+    getAdminUserDetail,
     getDefaultRules,
     getMachineSession,
     getMachineState,
     getMemberHistory,
+    getPlayerLobby,
     getProfile,
     guessDoubleUp,
     listAdminMachines,
@@ -20,7 +28,9 @@ import {
     listMachines,
     login,
     loadAgentCredit,
+    resetAdminMachine,
     searchAdminUsers,
+    setAdminMachineDoorState,
     signup,
     switchDealer,
     switchFhRank,
@@ -28,8 +38,11 @@ import {
     verifyOtp,
 } from "@/lib/api";
 import type {
+    AdminDashboard,
     AdminMachine,
+    AdminMachineDetail,
     AdminUser,
+    AdminUserDetail,
     AgentInfo,
     DealResult,
     DefaultRules,
@@ -40,6 +53,8 @@ import type {
     MachineSession,
     MachineState,
     MemberProfile,
+    PlayerLobby,
+    PlayerLobbyMachine,
     PokerCard,
     WalletLedgerEntry,
 } from "@/lib/types";
@@ -66,7 +81,7 @@ const PAYTABLE_ROWS: Array<{ key: string; label: string; color: string }> = [
 ];
 
 type MessageTone = "ready" | "warning" | "danger";
-type AdminPanelTab = "users" | "agents" | "machines";
+type AdminPanelTab = "overview" | "users" | "agents" | "machines";
 type DoubleUpBoardSlot = {
     key: string;
     card: PokerCard | null;
@@ -424,15 +439,19 @@ export function Lucky5Cabinet() {
     const [otpCode, setOtpCode] = useState(DEFAULT_OTP);
     const [profile, setProfile] = useState<MemberProfile | null>(null);
     const [accessToken, setAccessToken] = useState<string | null>(null);
+    const [lobby, setLobby] = useState<PlayerLobby | null>(null);
     const [machines, setMachines] = useState<MachineListing[]>([]);
     const [machineId, setMachineId] = useState<number | null>(null);
     const [machineState, setMachineState] = useState<MachineState | null>(null);
     const [machineSession, setMachineSession] = useState<MachineSession | null>(null);
     const [rules, setRules] = useState<DefaultRules | null>(null);
     const [history, setHistory] = useState<WalletLedgerEntry[]>([]);
-    const [adminTab, setAdminTab] = useState<AdminPanelTab>("agents");
+    const [adminTab, setAdminTab] = useState<AdminPanelTab>("overview");
+    const [adminDashboard, setAdminDashboard] = useState<AdminDashboard | null>(null);
     const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
     const [adminMachines, setAdminMachines] = useState<AdminMachine[]>([]);
+    const [adminUserDetail, setAdminUserDetail] = useState<AdminUserDetail | null>(null);
+    const [adminMachineDetail, setAdminMachineDetail] = useState<AdminMachineDetail | null>(null);
     const [agents, setAgents] = useState<AgentInfo[]>([]);
     const [adminSearch, setAdminSearch] = useState("");
     const [adminSearchQuery, setAdminSearchQuery] = useState("");
@@ -440,6 +459,9 @@ export function Lucky5Cabinet() {
     const [agentCode, setAgentCode] = useState("");
     const [agentPhone, setAgentPhone] = useState("");
     const [agentCredit, setAgentCredit] = useState("100000");
+    const [walletToolAmount, setWalletToolAmount] = useState("100000");
+    const [walletToolReason, setWalletToolReason] = useState("operator adjustment");
+    const [rechargeAmount, setRechargeAmount] = useState("500000");
     const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
     const [selectedUserId, setSelectedUserId] = useState("");
     const [betAmount, setBetAmount] = useState("5000");
@@ -462,6 +484,16 @@ export function Lucky5Cabinet() {
     const MACHINE_CREDIT_LIMIT = 40000000;
 
     const selectedMachine = machines.find((machine) => machine.id === machineId) ?? null;
+    const selectedLobbyMachine = lobby?.machines.find((machine) => machine.id === machineId) ?? null;
+    const lobbyMachineCards = lobby?.machines ?? machines.map((machine) => ({
+        ...machine,
+        jackpots: null,
+        observedRtp: 0,
+        phase: "Neutral",
+        roundCount: 0,
+        session: null,
+        activeRound: null,
+    } as unknown as PlayerLobbyMachine));
     const activeCards = drawResult?.cards ?? dealResult?.cards ?? [];
     const openRoundId = dealResult?.roundId ?? null;
     const hasWin = (drawResult?.winAmount ?? 0) > 0;
@@ -546,30 +578,48 @@ export function Lucky5Cabinet() {
         (left, right) => Number(right[1]) - Number(left[1]),
     );
 
+    const refreshLobby = useCallback(async () => {
+        if (!accessToken) {
+            return null;
+        }
+
+        const nextLobby = await getPlayerLobby(accessToken);
+        setLobby(nextLobby);
+        setMachines(nextLobby.machines.map((machine) => ({
+            id: machine.id,
+            name: machine.name,
+            isOpen: machine.isOpen,
+            minBet: machine.minBet,
+            maxBet: machine.maxBet,
+        })));
+        setProfile((current) => current ? { ...current, walletBalance: nextLobby.walletBalance, credit: nextLobby.credit } : current);
+        return nextLobby;
+    }, [accessToken]);
+
     const refreshBootstrap = useCallback(async () => {
         if (!accessToken) {
             return;
         }
 
-        const [nextProfile, nextMachines, nextRules, nextHistory] = await Promise.all([
+        const [nextProfile, nextLobby, nextRules, nextHistory] = await Promise.all([
             getProfile(accessToken),
-            listMachines(accessToken),
+            getPlayerLobby(accessToken),
             getDefaultRules(),
             getMemberHistory(accessToken),
         ]);
 
-        setProfile(nextProfile);
-        setMachines(nextMachines);
+        setProfile({ ...nextProfile, walletBalance: nextLobby.walletBalance, credit: nextLobby.credit });
+        setLobby(nextLobby);
+        setMachines(nextLobby.machines.map((machine) => ({
+            id: machine.id,
+            name: machine.name,
+            isOpen: machine.isOpen,
+            minBet: machine.minBet,
+            maxBet: machine.maxBet,
+        })));
         setRules(nextRules);
         setHistory(nextHistory);
-
-        if (!machineId && nextMachines.length > 0) {
-            startTransition(() => {
-                setMachineId(nextMachines[0].id);
-                setBetAmount(String(nextMachines[0].minBet));
-            });
-        }
-    }, [accessToken, machineId]);
+    }, [accessToken]);
 
     const refreshHistory = useCallback(async () => {
         if (!accessToken) {
@@ -595,8 +645,25 @@ export function Lucky5Cabinet() {
         setMachineSession(await getMachineSession(machineId, accessToken));
     }, [accessToken, machineId]);
 
+    async function refreshSelectedSessionSnapshot() {
+        if (!accessToken || !machineId) {
+            return null;
+        }
+
+        const nextSession = await getMachineSession(machineId, accessToken);
+        setMachineSession(nextSession);
+        syncWallet(nextSession.walletBalance);
+        return nextSession;
+    }
+
     const refreshAdminPanel = useCallback(async () => {
         if (!accessToken || !isAdmin) {
+            return;
+        }
+
+        setAdminDashboard(await getAdminDashboard(accessToken));
+
+        if (adminTab === "overview") {
             return;
         }
 
@@ -685,7 +752,8 @@ export function Lucky5Cabinet() {
             const authenticated = await login(username, password);
             setAccessToken(authenticated.tokens.accessToken);
             setProfile(authenticated.profile);
-            setMessage("Cabinet synced. Pick a machine and press DEAL.");
+            setMachineId(null);
+            setMessage("Cabinet synced. Choose a lobby machine, cash in, then deal.");
             setMessageTone("ready");
         });
     }
@@ -706,9 +774,48 @@ export function Lucky5Cabinet() {
 
         if (accessToken) {
             await runAction(async () => {
-                setMachineState(await getMachineState(machine.id, accessToken));
+                const [nextMachineState, nextSession] = await Promise.all([
+                    getMachineState(machine.id, accessToken),
+                    getMachineSession(machine.id, accessToken),
+                ]);
+                setMachineState(nextMachineState);
+                setMachineSession(nextSession);
+                syncWallet(nextSession.walletBalance);
+                await refreshLobby();
             });
         }
+    }
+
+    async function handleCashIn(amount: number) {
+        if (!accessToken || !machineId) {
+            setMessage("Select a machine before cashing in.");
+            setMessageTone("warning");
+            return;
+        }
+
+        await runAction(async () => {
+            const session = await cashInMachine(machineId, amount, accessToken);
+            setMachineSession(session);
+            syncWallet(session.walletBalance);
+            setMessage(`Cashed in ${formatMoney(amount)} to ${selectedMachine?.name ?? "machine"}.`);
+            setMessageTone("ready");
+            await Promise.all([refreshHistory(), refreshMachineState(), refreshLobby()]);
+        });
+    }
+
+    async function handleCashOutToWallet() {
+        if (!accessToken || !machineId) {
+            return;
+        }
+
+        await runAction(async () => {
+            const session = await cashOutMachine(machineId, accessToken);
+            setMachineSession(session);
+            syncWallet(session.walletBalance);
+            setMessage("Machine credits returned to wallet.");
+            setMessageTone("ready");
+            await Promise.all([refreshHistory(), refreshMachineState(), refreshLobby()]);
+        });
     }
 
     async function handleDealOrDraw() {
@@ -733,14 +840,18 @@ export function Lucky5Cabinet() {
                 setDrawResult(result);
                 setDoubleUpResult(null);
                 playCardReveal(CARD_SLOT_INDEXES.filter((index) => !heldSlots.includes(index)), heldSlots);
-                syncWallet(result.walletBalanceAfterRound);
                 setMessage(
                     result.winAmount > 0
                         ? `${result.handRank} paid ${formatMoney(result.winAmount)}. Take score or press BIG/SMALL.`
                         : `${result.handRank}. Round settled, ready for the next deal.`,
                 );
                 setMessageTone(result.winAmount > 0 ? "ready" : "warning");
-                await Promise.all([refreshHistory(), refreshMachineState()]);
+                if (machineId) {
+                    const nextSession = await getMachineSession(machineId, accessToken);
+                    setMachineSession(nextSession);
+                    syncWallet(nextSession.walletBalance);
+                }
+                await Promise.all([refreshHistory(), refreshMachineState(), refreshLobby()]);
             });
             return;
         }
@@ -752,10 +863,12 @@ export function Lucky5Cabinet() {
             setDoubleUpResult(null);
             setHoldIndexes([]);
             playCardReveal(CARD_SLOT_INDEXES);
-            syncWallet(result.walletBalanceAfterBet);
+            const nextSession = await getMachineSession(machineId, accessToken);
+            setMachineSession(nextSession);
+            syncWallet(nextSession.walletBalance);
             setMessage("Choose the cards to HOLD, then press DRAW.");
             setMessageTone("ready");
-            await Promise.all([refreshHistory(), refreshMachineState()]);
+            await Promise.all([refreshHistory(), refreshMachineState(), refreshLobby()]);
         });
     }
 
@@ -771,10 +884,10 @@ export function Lucky5Cabinet() {
         await runAction(async () => {
             const result = await switchDealer(openRoundId, accessToken);
             setDoubleUpResult(result);
-            syncWallet(result.walletBalance);
+            await refreshSelectedSessionSnapshot();
             setMessage(`Dealer switched. Status: ${result.status}.`);
             setMessageTone(toneForStatus(result.status));
-            await Promise.all([refreshHistory(), refreshMachineState()]);
+            await Promise.all([refreshHistory(), refreshMachineState(), refreshLobby()]);
         });
     }
 
@@ -806,13 +919,13 @@ export function Lucky5Cabinet() {
             await runAction(async () => {
                 const result = await guessDoubleUp(drawResult.roundId, guess, accessToken);
                 setDoubleUpResult(result);
-                syncWallet(result.walletBalance);
+                await refreshSelectedSessionSnapshot();
                 setMessage(`${guess.toUpperCase()} resolved: ${result.status}. Current amount ${formatMoney(result.currentAmount)}.`);
                 setMessageTone(toneForStatus(result.status));
                 if (isTerminalDoubleUpStatus(result.status)) {
                     clearActiveRoundState();
                 }
-                await Promise.all([refreshHistory(), refreshMachineState()]);
+                await Promise.all([refreshHistory(), refreshMachineState(), refreshLobby()]);
             });
             return;
         }
@@ -825,13 +938,13 @@ export function Lucky5Cabinet() {
         await runAction(async () => {
             const result = await guessDoubleUp(roundId, guess, accessToken);
             setDoubleUpResult(result);
-            syncWallet(result.walletBalance);
+            await refreshSelectedSessionSnapshot();
             setMessage(`${guess.toUpperCase()} resolved: ${result.status}. Current amount ${formatMoney(result.currentAmount)}.`);
             setMessageTone(toneForStatus(result.status));
             if (isTerminalDoubleUpStatus(result.status)) {
                 clearActiveRoundState();
             }
-            await Promise.all([refreshHistory(), refreshMachineState()]);
+            await Promise.all([refreshHistory(), refreshMachineState(), refreshLobby()]);
         });
     }
 
@@ -869,11 +982,11 @@ export function Lucky5Cabinet() {
                     requestAnimationFrame(animate);
                 } else {
                     setIsDraining(false);
-                    syncWallet(result.walletBalance);
+                    void refreshSelectedSessionSnapshot();
                     setMessage(`Score taken: ${formatMoney(result.currentAmount)}.`);
                     setMessageTone("ready");
                     clearActiveRoundState();
-                    void Promise.all([refreshHistory(), refreshMachineState()]);
+                    void Promise.all([refreshHistory(), refreshMachineState(), refreshLobby()]);
                 }
             };
 
@@ -893,13 +1006,13 @@ export function Lucky5Cabinet() {
         await runAction(async () => {
             const result = await takeHalf(openRoundId, accessToken);
             setDoubleUpResult(result);
-            syncWallet(result.walletBalance);
+            await refreshSelectedSessionSnapshot();
             setMessage(`Half banked. ${formatMoney(result.currentAmount)} stays in play.`);
             setMessageTone("warning");
             if (isTerminalDoubleUpStatus(result.status)) {
                 clearActiveRoundState();
             }
-            await Promise.all([refreshHistory(), refreshMachineState()]);
+            await Promise.all([refreshHistory(), refreshMachineState(), refreshLobby()]);
         });
     }
 
@@ -967,7 +1080,110 @@ export function Lucky5Cabinet() {
         await runAction(async () => {
             await assignUserToAgent(selectedAgentId, userId, accessToken);
             setSelectedUserId(userId);
+            setAdminUserDetail(await getAdminUserDetail(userId, accessToken));
             setMessage(`User assigned to ${selectedAgent?.code ?? "agent"}.`);
+            setMessageTone("ready");
+        });
+    }
+
+    async function handleLoadAdminUserDetail(userId: string) {
+        if (!accessToken) {
+            return;
+        }
+
+        await runAction(async () => {
+            setSelectedUserId(userId);
+            setAdminUserDetail(await getAdminUserDetail(userId, accessToken));
+        });
+    }
+
+    async function handleAdjustUserWallet(direction: 1 | -1) {
+        if (!accessToken || !selectedUserId) {
+            setMessage("Select a user before adjusting wallet credit.");
+            setMessageTone("warning");
+            return;
+        }
+
+        const amount = Number(walletToolAmount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+            setMessage("Enter a positive wallet amount.");
+            setMessageTone("warning");
+            return;
+        }
+
+        const reason = walletToolReason.trim();
+        if (!reason) {
+            setMessage("Wallet adjustments require a reason.");
+            setMessageTone("warning");
+            return;
+        }
+
+        await runAction(async () => {
+            await adjustAdminUserWallet(selectedUserId, amount * direction, reason, accessToken);
+            setAdminUserDetail(await getAdminUserDetail(selectedUserId, accessToken));
+            await refreshAdminPanel();
+            setMessage(`${direction > 0 ? "Credited" : "Debited"} ${formatMoney(amount)}.`);
+            setMessageTone("ready");
+        });
+    }
+
+    async function handleRechargeBonus() {
+        if (!accessToken || !selectedUserId) {
+            setMessage("Select a user before applying recharge bonus.");
+            setMessageTone("warning");
+            return;
+        }
+
+        const amount = Number(rechargeAmount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+            setMessage("Enter a positive recharge amount.");
+            setMessageTone("warning");
+            return;
+        }
+
+        await runAction(async () => {
+            await applyRechargeBonus(selectedUserId, amount, accessToken);
+            setAdminUserDetail(await getAdminUserDetail(selectedUserId, accessToken));
+            await refreshAdminPanel();
+            setMessage(`Recharge bonus applied for ${formatMoney(amount)}.`);
+            setMessageTone("ready");
+        });
+    }
+
+    async function handleLoadAdminMachineDetail(machineIdToLoad: number) {
+        if (!accessToken) {
+            return;
+        }
+
+        await runAction(async () => {
+            setAdminMachineDetail(await getAdminMachineDetail(machineIdToLoad, accessToken));
+        });
+    }
+
+    async function handleResetAdminMachine(machineIdToReset: number) {
+        if (!accessToken || !window.confirm("Reset this machine ledger and sessions? Active recoverable rounds will block the action.")) {
+            return;
+        }
+
+        await runAction(async () => {
+            await resetAdminMachine(machineIdToReset, accessToken);
+            setAdminMachineDetail(await getAdminMachineDetail(machineIdToReset, accessToken));
+            await refreshAdminPanel();
+            setMessage("Machine reset completed.");
+            setMessageTone("ready");
+        });
+    }
+
+    async function handleSetAdminMachineDoor(machineIdToUpdate: number, doorState: 0 | 1) {
+        if (!accessToken) {
+            return;
+        }
+
+        await runAction(async () => {
+            await setAdminMachineDoorState(machineIdToUpdate, doorState, accessToken);
+            setAdminMachineDetail(await getAdminMachineDetail(machineIdToUpdate, accessToken));
+            await refreshAdminPanel();
+            setMessage(`Machine door marked ${doorState === 1 ? "open" : "closed"}.`);
             setMessageTone("ready");
         });
     }
@@ -1141,8 +1357,93 @@ export function Lucky5Cabinet() {
                                     {busy ? "BOOTING" : "SIGN UP / LOGIN"}
                                 </button>
                             </div>
+                        ) : !machineId ? (
+                            <div className="player-lobby-panel">
+                                <div className="player-lobby-head">
+                                    <div>
+                                        <div className="section-title">Lucky5 lobby</div>
+                                        <div className="section-subtitle">Choose a cabinet, cash in from wallet, then play.</div>
+                                    </div>
+                                    <div className="lobby-wallet-chip">
+                                        <span>Wallet</span>
+                                        <strong>{formatMoney(lobby?.walletBalance ?? profile.walletBalance)}</strong>
+                                    </div>
+                                </div>
+                                <div className="player-lobby-grid">
+                                    {lobbyMachineCards.map((machine) => (
+                                        <button
+                                            key={machine.id}
+                                            className={`player-machine-card${machine.activeRound ? " has-round" : ""}`}
+                                            type="button"
+                                            onClick={() => void handleMachineSelection(machine)}
+                                            disabled={!machine.isOpen || busy}
+                                        >
+                                            <span className="machine-card-top">
+                                                <strong>{machine.name}</strong>
+                                                <em>{machine.isOpen ? "OPEN" : "CLOSED"}</em>
+                                            </span>
+                                            <span className="machine-card-meta">
+                                                BET {formatMoney(machine.minBet)}-{formatMoney(machine.maxBet)} · {machine.phase}
+                                            </span>
+                                            <span className="machine-card-meter">
+                                                RTP {formatPercent(machine.observedRtp)} · ROUNDS {machine.roundCount}
+                                            </span>
+                                            <span className="machine-card-jackpots">
+                                                FH {machine.jackpots ? formatMoney(machine.jackpots.fullHouse) : "--"} · SF {machine.jackpots ? formatMoney(machine.jackpots.straightFlush) : "--"}
+                                            </span>
+                                            <span className="machine-card-session">
+                                                {machine.session
+                                                    ? `CREDITS ${formatMoney(machine.session.machineCredits)} · IN ${formatMoney(machine.session.totalCashIn)}`
+                                                    : "NO ACTIVE SESSION"}
+                                            </span>
+                                            <span className="machine-card-action">
+                                                {machine.activeRound ? "RESUME ROUND" : "ENTER CABINET"}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         ) : (
                             <>
+                                <div className="cash-console">
+                                    <div className="cash-console-card">
+                                        <span>Wallet</span>
+                                        <strong>{formatMoney(machineSession?.walletBalance ?? profile.walletBalance)}</strong>
+                                    </div>
+                                    <div className="cash-console-card">
+                                        <span>Machine credits</span>
+                                        <strong>{formatMoney(machineSession?.machineCredits ?? selectedLobbyMachine?.session?.machineCredits ?? 0)}</strong>
+                                    </div>
+                                    <div className="cash-console-card">
+                                        <span>Cash-in total</span>
+                                        <strong>{formatMoney(machineSession?.totalCashIn ?? selectedLobbyMachine?.session?.totalCashIn ?? 0)}</strong>
+                                    </div>
+                                    <button
+                                        className="cash-console-button"
+                                        type="button"
+                                        onClick={() => void handleCashIn(200000)}
+                                        disabled={busy || isInDoubleUp || (!!dealResult && !drawResult) || hasWin || !!doubleUpResult}
+                                    >
+                                        CASH IN 200K
+                                    </button>
+                                    <button
+                                        className="cash-console-button"
+                                        type="button"
+                                        onClick={() => void handleCashIn(1000000)}
+                                        disabled={busy || isInDoubleUp || (!!dealResult && !drawResult) || hasWin || !!doubleUpResult}
+                                    >
+                                        CASH IN 1M
+                                    </button>
+                                    <button
+                                        className="cash-console-button cash-console-out"
+                                        type="button"
+                                        onClick={() => void handleCashOutToWallet()}
+                                        disabled={busy || isInDoubleUp || (!!dealResult && !drawResult) || hasWin || !!doubleUpResult || !(machineSession?.canCashOut ?? false)}
+                                    >
+                                        CASH OUT
+                                    </button>
+                                </div>
+
                                 {/* Row 1 — HOLD buttons */}
                                 <div className="apk-hold-row">
                                     {Array.from({ length: CARD_SLOT_COUNT }, (_, index) => (
@@ -1243,11 +1544,14 @@ export function Lucky5Cabinet() {
                                                 disabled={!machineId || busy}
                                                 onClick={() => {
                                                     setMachineId(null);
+                                                    setMachineState(null);
+                                                    setMachineSession(null);
                                                     setDealResult(null);
                                                     setDrawResult(null);
                                                     setDoubleUpResult(null);
                                                     setMessage("Returned to lobby. Pick a machine.");
                                                     setMessageTone("ready");
+                                                    void refreshLobby();
                                                 }}
                                             >
                                                 <strong>BACK TO LOBBY</strong>
@@ -1362,7 +1666,7 @@ export function Lucky5Cabinet() {
                         </div>
 
                         <div className="admin-tabs" role="tablist" aria-label="Admin menu">
-                            {(["agents", "users", "machines"] as AdminPanelTab[]).map((tab) => (
+                            {(["overview", "agents", "users", "machines"] as AdminPanelTab[]).map((tab) => (
                                 <button
                                     key={tab}
                                     className={`admin-tab${adminTab === tab ? " active" : ""}`}
@@ -1373,6 +1677,45 @@ export function Lucky5Cabinet() {
                                 </button>
                             ))}
                         </div>
+
+                        {adminTab === "overview" && (
+                            <div className="admin-stack">
+                                <div className="admin-metric-grid">
+                                    <div className="admin-metric-card">
+                                        <span>Players</span>
+                                        <strong>{adminDashboard?.playerCount ?? 0}</strong>
+                                    </div>
+                                    <div className="admin-metric-card">
+                                        <span>Wallet bank</span>
+                                        <strong>{formatMoney(adminDashboard?.totalWalletBalance ?? 0)}</strong>
+                                    </div>
+                                    <div className="admin-metric-card">
+                                        <span>Machine credits</span>
+                                        <strong>{formatMoney(adminDashboard?.totalMachineCredits ?? 0)}</strong>
+                                    </div>
+                                    <div className="admin-metric-card">
+                                        <span>Open machines</span>
+                                        <strong>{adminDashboard?.openMachineCount ?? 0}/{adminDashboard?.machineCount ?? 0}</strong>
+                                    </div>
+                                    <div className="admin-metric-card">
+                                        <span>Active sessions</span>
+                                        <strong>{adminDashboard?.activeMachineSessions ?? 0}</strong>
+                                    </div>
+                                    <div className="admin-metric-card warning">
+                                        <span>Recoverable rounds</span>
+                                        <strong>{adminDashboard?.recoverableRounds ?? 0}</strong>
+                                    </div>
+                                    <div className="admin-metric-card">
+                                        <span>Cabinet devices</span>
+                                        <strong>{adminDashboard?.activeCabinetDeviceSessions ?? 0}/{adminDashboard?.cabinetDeviceCount ?? 0}</strong>
+                                    </div>
+                                    <div className="admin-metric-card">
+                                        <span>Floor RTP</span>
+                                        <strong>{formatPercent(adminDashboard?.observedRtp ?? 0)}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {adminTab === "agents" && (
                             <div className="admin-stack">
@@ -1501,6 +1844,14 @@ export function Lucky5Cabinet() {
                                             <button
                                                 className="admin-mini-button"
                                                 type="button"
+                                                onClick={() => void handleLoadAdminUserDetail(user.userId)}
+                                                disabled={busy}
+                                            >
+                                                DETAILS
+                                            </button>
+                                            <button
+                                                className="admin-mini-button"
+                                                type="button"
                                                 onClick={() => void handleAssignUserToAgent(user.userId)}
                                                 disabled={busy || !selectedAgentId}
                                             >
@@ -1509,24 +1860,140 @@ export function Lucky5Cabinet() {
                                         </div>
                                     ))}
                                 </div>
+                                {adminUserDetail && (
+                                    <div className="admin-detail-card">
+                                        <div className="admin-detail-head">
+                                            <strong>{adminUserDetail.user.username}</strong>
+                                            <span>{adminUserDetail.generatedId || "no generated id"}</span>
+                                        </div>
+                                        <div className="admin-detail-grid">
+                                            <span>Wallet {formatMoney(adminUserDetail.user.walletBalance)}</span>
+                                            <span>Credit {formatMoney(adminUserDetail.credit)}</span>
+                                            <span>Agent {adminUserDetail.agentId ?? "none"}</span>
+                                            <span>Wins {adminUserDetail.totalWins}</span>
+                                            <span>Sessions {adminUserDetail.sessions.length}</span>
+                                            <span>Rounds {adminUserDetail.activeRounds.length}</span>
+                                        </div>
+                                        <div className="admin-tool-grid">
+                                            <input
+                                                aria-label="Wallet tool amount"
+                                                inputMode="numeric"
+                                                value={walletToolAmount}
+                                                onChange={(event) => setWalletToolAmount(event.target.value)}
+                                            />
+                                            <input
+                                                aria-label="Wallet adjustment reason"
+                                                value={walletToolReason}
+                                                onChange={(event) => setWalletToolReason(event.target.value)}
+                                            />
+                                            <button className="admin-mini-button" type="button" onClick={() => void handleAdjustUserWallet(1)} disabled={busy}>
+                                                CREDIT
+                                            </button>
+                                            <button className="admin-mini-button" type="button" onClick={() => void handleAdjustUserWallet(-1)} disabled={busy}>
+                                                DEBIT
+                                            </button>
+                                        </div>
+                                        <div className="admin-tool-grid admin-tool-grid-compact">
+                                            <input
+                                                aria-label="Recharge amount"
+                                                inputMode="numeric"
+                                                value={rechargeAmount}
+                                                onChange={(event) => setRechargeAmount(event.target.value)}
+                                            />
+                                            <button className="admin-mini-button" type="button" onClick={() => void handleRechargeBonus()} disabled={busy}>
+                                                RECHARGE BONUS
+                                            </button>
+                                        </div>
+                                        <div className="admin-mini-list">
+                                            {adminUserDetail.activeRounds.length === 0 && <span>No recoverable rounds.</span>}
+                                            {adminUserDetail.activeRounds.slice(0, 3).map((round) => (
+                                                <span key={round.roundId}>{round.machineName} · {round.phase} · {formatMoney(round.betAmount)}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
                         {adminTab === "machines" && (
-                            <div className="admin-list">
-                                {adminMachines.length === 0 && <div className="hint">No machines loaded.</div>}
-                                {adminMachines.slice(0, 6).map((machine) => (
-                                    <div className="admin-list-row admin-machine-row" key={machine.machineId}>
-                                        <span>
-                                            <strong>{machine.name}</strong>
-                                            <small>
-                                                {machine.phase} · {machine.activePlayers} players · {machine.activeRounds} rounds
-                                            </small>
-                                        </span>
-                                        <em>{formatPercent(machine.observedRtp)}</em>
-                                        <small>{machine.isOpen ? "OPEN" : "CLOSED"}</small>
+                            <div className="admin-stack">
+                                <div className="admin-list">
+                                    {adminMachines.length === 0 && <div className="hint">No machines loaded.</div>}
+                                    {adminMachines.slice(0, 6).map((machine) => (
+                                        <button
+                                            className={`admin-list-row admin-machine-row admin-list-row-button${adminMachineDetail?.machine.machineId === machine.machineId ? " active" : ""}`}
+                                            key={machine.machineId}
+                                            type="button"
+                                            onClick={() => void handleLoadAdminMachineDetail(machine.machineId)}
+                                            disabled={busy}
+                                        >
+                                            <span>
+                                                <strong>{machine.name}</strong>
+                                                <small>
+                                                    {machine.phase} · {machine.activePlayers} players · {machine.activeRounds} rounds
+                                                </small>
+                                            </span>
+                                            <em>{formatPercent(machine.observedRtp)}</em>
+                                            <small>{machine.isOpen ? "OPEN" : "CLOSED"}</small>
+                                        </button>
+                                    ))}
+                                </div>
+                                {adminMachineDetail && (
+                                    <div className="admin-detail-card">
+                                        <div className="admin-detail-head">
+                                            <strong>{adminMachineDetail.machine.name}</strong>
+                                            <span>{adminMachineDetail.doorState} · {adminMachineDetail.ready ? "READY" : "NOT READY"}</span>
+                                        </div>
+                                        <div className="admin-detail-grid">
+                                            <span>In {formatMoney(adminMachineDetail.capitalIn)}</span>
+                                            <span>Out {formatMoney(adminMachineDetail.capitalOut)}</span>
+                                            <span>Base {formatMoney(adminMachineDetail.baseCapitalOut)}</span>
+                                            <span>Jackpot {formatMoney(adminMachineDetail.jackpotCapitalOut)}</span>
+                                            <span>Double {formatMoney(adminMachineDetail.doubleUpCapitalOut)}</span>
+                                            <span>Profit {formatMoney(adminMachineDetail.profit)}</span>
+                                        </div>
+                                        <div className="admin-tool-grid admin-tool-grid-compact">
+                                            <button
+                                                className="admin-mini-button"
+                                                type="button"
+                                                onClick={() => void handleSetAdminMachineDoor(adminMachineDetail.machine.machineId, 1)}
+                                                disabled={busy}
+                                            >
+                                                DOOR OPEN
+                                            </button>
+                                            <button
+                                                className="admin-mini-button"
+                                                type="button"
+                                                onClick={() => void handleSetAdminMachineDoor(adminMachineDetail.machine.machineId, 0)}
+                                                disabled={busy}
+                                            >
+                                                DOOR CLOSED
+                                            </button>
+                                            <button
+                                                className="admin-mini-button danger"
+                                                type="button"
+                                                onClick={() => void handleResetAdminMachine(adminMachineDetail.machine.machineId)}
+                                                disabled={busy || adminMachineDetail.activeRounds.length > 0}
+                                            >
+                                                RESET
+                                            </button>
+                                        </div>
+                                        <div className="admin-mini-list">
+                                            <strong>Active rounds</strong>
+                                            {adminMachineDetail.activeRounds.length === 0 && <span>No recoverable rounds.</span>}
+                                            {adminMachineDetail.activeRounds.slice(0, 3).map((round) => (
+                                                <span key={round.roundId}>{round.username} · {round.phase} · {formatMoney(round.winAmount || round.betAmount)}</span>
+                                            ))}
+                                        </div>
+                                        <div className="admin-mini-list">
+                                            <strong>Cabinet devices</strong>
+                                            {adminMachineDetail.cabinetDevices.length === 0 && <span>No provisioned devices.</span>}
+                                            {adminMachineDetail.cabinetDevices.slice(0, 3).map((device) => (
+                                                <span key={device.deviceId}>{device.displayName} · {device.activeSessionCount} sessions · {device.isRevoked ? "revoked" : "active"}</span>
+                                            ))}
+                                        </div>
                                     </div>
-                                ))}
+                                )}
                             </div>
                         )}
                     </section>

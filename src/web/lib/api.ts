@@ -1,6 +1,9 @@
 import type {
+  AdminDashboard,
   AdminMachine,
+  AdminMachineDetail,
   AdminUser,
+  AdminUserDetail,
   AgentInfo,
   DealResult,
   DefaultRules,
@@ -12,6 +15,7 @@ import type {
   MachineSession,
   MachineState,
   MemberProfile,
+  PlayerLobby,
   SignupResult,
   WalletLedgerEntry,
 } from "@/lib/types";
@@ -66,18 +70,55 @@ export async function getMemberHistory(token: string): Promise<WalletLedgerEntry
   return apiFetch<WalletLedgerEntry[]>("GET", "/api/Auth/MemberHistory", token);
 }
 
+export async function getPlayerLobby(token: string): Promise<PlayerLobby> {
+  return apiFetch<PlayerLobby>("GET", "/api/Game/lobby", token);
+}
+
 // ── Admin / agent desk ──────────────────────────────────────────────────────
 
 export async function listAdminUsers(token: string): Promise<AdminUser[]> {
   return apiFetch<AdminUser[]>("GET", "/api/Admin/users", token);
 }
 
+export async function getAdminDashboard(token: string): Promise<AdminDashboard> {
+  return apiFetch<AdminDashboard>("GET", "/api/Admin/dashboard", token);
+}
+
 export async function searchAdminUsers(query: string, token: string): Promise<AdminUser[]> {
   return apiFetch<AdminUser[]>("GET", `/api/Admin/users/search?q=${encodeURIComponent(query)}`, token);
 }
 
+export async function getAdminUserDetail(userId: string, token: string): Promise<AdminUserDetail> {
+  return apiFetch<AdminUserDetail>("GET", `/api/Admin/users/${userId}/detail`, token);
+}
+
+export async function adjustAdminUserWallet(
+  targetUserId: string,
+  amount: number,
+  reason: string,
+  token: string,
+): Promise<WalletLedgerEntry> {
+  return apiFetch<WalletLedgerEntry>("POST", "/api/Admin/users/credit", token, { targetUserId, amount, reason });
+}
+
+export async function applyRechargeBonus(userId: string, rechargeAmount: number, token: string): Promise<WalletLedgerEntry> {
+  return apiFetch<WalletLedgerEntry>("POST", "/api/Admin/users/recharge-bonus", token, { userId, rechargeAmount });
+}
+
 export async function listAdminMachines(token: string): Promise<AdminMachine[]> {
   return apiFetch<AdminMachine[]>("GET", "/api/Admin/machines", token);
+}
+
+export async function getAdminMachineDetail(machineId: number, token: string): Promise<AdminMachineDetail> {
+  return apiFetch<AdminMachineDetail>("GET", `/api/Admin/machines/${machineId}/detail`, token);
+}
+
+export async function resetAdminMachine(machineId: number, token: string): Promise<AdminMachine> {
+  return apiFetch<AdminMachine>("POST", `/api/Admin/machines/${machineId}/reset`, token);
+}
+
+export async function setAdminMachineDoorState(machineId: number, doorState: 0 | 1, token: string): Promise<number> {
+  return apiFetch<number>("POST", `/api/Admin/machines/${machineId}/door-state`, token, { doorState });
 }
 
 export async function listAgents(token: string): Promise<AgentInfo[]> {
@@ -115,6 +156,14 @@ export async function getMachineState(machineId: number, token: string): Promise
 
 export async function getMachineSession(machineId: number, token: string): Promise<MachineSession> {
   return apiFetch<MachineSession>("GET", `/api/Game/machine/${machineId}/session`, token);
+}
+
+export async function cashInMachine(machineId: number, amount: number, token: string): Promise<MachineSession> {
+  return apiFetch<MachineSession>("POST", `/api/Game/machine/${machineId}/cash-in`, token, { amount });
+}
+
+export async function cashOutMachine(machineId: number, token: string): Promise<MachineSession> {
+  return apiFetch<MachineSession>("POST", `/api/Game/machine/${machineId}/cash-out`, token);
 }
 
 // ── Player-initiated FH-rank switch (cabinet HOLD[0] picker) ──

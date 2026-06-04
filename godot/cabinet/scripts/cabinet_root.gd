@@ -274,6 +274,7 @@ func _ready() -> void:
 		_request_snapshot()
 
 func _exit_tree() -> void:
+	_release_cabinet_resource_refs(self)
 	_release_button_asset_styles(self)
 	for style in button_asset_styleboxes:
 		if style is StyleBoxTexture:
@@ -282,7 +283,24 @@ func _exit_tree() -> void:
 	button_asset_textures.clear()
 	cabinet_texture_cache.clear()
 	cabinet_audio_cache.clear()
+	arcade_font = null
+	impact_font = null
+	ui_font = null
+	press_sound = null
+	press_audio_player = null
 	_stop_timers_for_exit()
+
+func _release_cabinet_resource_refs(node: Node) -> void:
+	if node is Label:
+		(node as Label).remove_theme_font_override("font")
+	elif node is TextureRect:
+		(node as TextureRect).texture = null
+	elif node is AudioStreamPlayer:
+		var audio_player := node as AudioStreamPlayer
+		audio_player.stop()
+		audio_player.stream = null
+	for child in node.get_children():
+		_release_cabinet_resource_refs(child)
 
 func _release_button_asset_styles(node: Node) -> void:
 	if node is Button:
@@ -319,9 +337,10 @@ func _load_environment() -> void:
 	if not env_machine.is_empty() and env_machine.is_valid_int(): configured_machine_id = int(env_machine)
 
 func _load_cabinet_skin_resources() -> void:
-	arcade_font = _load_cabinet_font("fonts/ARCADE.ttf")
-	impact_font = _load_cabinet_font("fonts/Impact.ttf")
-	ui_font = _load_cabinet_font("fonts/InterSemiBold.ttf")
+	if DisplayServer.get_name() != "headless":
+		arcade_font = _load_cabinet_font("fonts/ARCADE.ttf")
+		impact_font = _load_cabinet_font("fonts/Impact.ttf")
+		ui_font = _load_cabinet_font("fonts/InterSemiBold.ttf")
 	press_sound = _load_cabinet_audio(CABINET_PRESS_SOUND)
 
 func _cabinet_resource_path(relative_path: String) -> String:

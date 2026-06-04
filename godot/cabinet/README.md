@@ -23,6 +23,9 @@ targets. `godot/cabinet/export_presets.cfg` keeps three explicit lanes:
 - `Web` exports a portrait PWA shell to `artifacts/godot-web/`.
 - `Android` exports an unsigned portrait APK to `artifacts/godot-android/`.
 
+All lanes exclude `addons/*` from the shipped package. The runtime cabinet does
+not load editor plugins, and keeping them out reduces web/mobile payload size.
+
 Use the Windows kiosk script for release packages because it enforces the
 readiness gate and asset manifest policy. The web and Android presets are dev
 compatibility lanes until signing, store policy, and device QA are approved:
@@ -30,6 +33,13 @@ compatibility lanes until signing, store policy, and device QA are approved:
 ```powershell
 godot --headless --path godot/cabinet --export-release "Web" artifacts/godot-web/dev/index.html
 godot --headless --path godot/cabinet --export-release "Android" artifacts/godot-android/dev/Lucky5Cabinet.apk
+```
+
+For the merged web app, export Godot into the ignored Next public bundle and
+open `/godot` from the web server:
+
+```powershell
+.\scripts\godot\Export-GodotWebCabinet.ps1 -Clean
 ```
 
 Android exports require local Android tooling and export templates. Web exports

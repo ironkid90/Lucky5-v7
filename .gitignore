@@ -130,6 +130,7 @@ Inspect TLS encrypted traffic using mitmproxy and wireshark.md
 # ── Node / frontend ───────────────────────────────────────────────────────────
 node_modules/
 .pnpm-store/
+src/web/public/godot-cabinet/
 godot/**/.godot/
 
 # ── Python ────────────────────────────────────────────────────────────────────

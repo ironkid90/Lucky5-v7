@@ -12,9 +12,13 @@ public static class GodotCabinetRegressionTests
         string apiScript;
         string cardSkinScript;
         string devScript;
+        string webExportScript;
         string webLayout;
         string webManifest;
         string webIcon;
+        string webGodotRoute;
+        string webPackageJson;
+        string gitIgnore;
         try
         {
             project = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "project.godot"));
@@ -25,9 +29,13 @@ public static class GodotCabinetRegressionTests
             apiScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_api.gd"));
             cardSkinScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "skins", "lucky5", "CardSkin_Lucky5.gd"));
             devScript = await File.ReadAllTextAsync(ResolveRepoFilePath("dev.ps1"));
+            webExportScript = await File.ReadAllTextAsync(ResolveRepoFilePath("scripts", "godot", "Export-GodotWebCabinet.ps1"));
             webLayout = await File.ReadAllTextAsync(ResolveRepoFilePath("src", "web", "app", "layout.tsx"));
             webManifest = await File.ReadAllTextAsync(ResolveRepoFilePath("src", "web", "app", "manifest.ts"));
             webIcon = await File.ReadAllTextAsync(ResolveRepoFilePath("src", "web", "public", "icon.svg"));
+            webGodotRoute = await File.ReadAllTextAsync(ResolveRepoFilePath("src", "web", "app", "godot", "page.tsx"));
+            webPackageJson = await File.ReadAllTextAsync(ResolveRepoFilePath("src", "web", "package.json"));
+            gitIgnore = await File.ReadAllTextAsync(ResolveRepoFilePath(".gitignore"));
         }
         catch (Exception ex)
         {
@@ -43,7 +51,7 @@ public static class GodotCabinetRegressionTests
         Assert(
             failures,
             "Godot cabinet project must stay portrait, iconed, and GL Compatibility based so the same 2D client can ship to kiosk, web, and Android lanes",
-            project.Contains("config/icon=\"res://icon.svg\"", StringComparison.Ordinal)
+            project.Contains("config/icon=\"res://icon-512.png\"", StringComparison.Ordinal)
                 && project.Contains("config/features=PackedStringArray(\"4.6\", \"GL Compatibility\")", StringComparison.Ordinal)
                 && project.Contains("window/size/viewport_width=720", StringComparison.Ordinal)
                 && project.Contains("window/size/viewport_height=1280", StringComparison.Ordinal)
@@ -62,9 +70,13 @@ public static class GodotCabinetRegressionTests
                 && exportPresets.Contains("custom_features=\"web\"", StringComparison.Ordinal)
                 && exportPresets.Contains("export_path=\"../../artifacts/godot-web/dev/index.html\"", StringComparison.Ordinal)
                 && exportPresets.Contains("variant/thread_support=false", StringComparison.Ordinal)
+                && exportPresets.Contains("vram_texture_compression/for_mobile=false", StringComparison.Ordinal)
                 && exportPresets.Contains("progressive_web_app/enabled=true", StringComparison.Ordinal)
                 && exportPresets.Contains("progressive_web_app/display=1", StringComparison.Ordinal)
                 && exportPresets.Contains("progressive_web_app/orientation=2", StringComparison.Ordinal)
+                && exportPresets.Contains("progressive_web_app/icon_144x144=\"res://icon-144.png\"", StringComparison.Ordinal)
+                && exportPresets.Contains("progressive_web_app/icon_180x180=\"res://icon-180.png\"", StringComparison.Ordinal)
+                && exportPresets.Contains("progressive_web_app/icon_512x512=\"res://icon-512.png\"", StringComparison.Ordinal)
                 && exportPresets.Contains("name=\"Android\"", StringComparison.Ordinal)
                 && exportPresets.Contains("platform=\"Android\"", StringComparison.Ordinal)
                 && exportPresets.Contains("custom_features=\"android\"", StringComparison.Ordinal)
@@ -75,6 +87,11 @@ public static class GodotCabinetRegressionTests
                 && exportPresets.Contains("screen/immersive_mode=true", StringComparison.Ordinal)
                 && exportPresets.Contains("permissions/internet=true", StringComparison.Ordinal)
                 && exportPresets.Contains("permissions/access_network_state=true", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet export presets must exclude editor/plugin addons from every shared package lane",
+            CountOccurrences(exportPresets, "exclude_filter=\"addons/*\"") == 3);
 
         Assert(
             failures,
@@ -166,6 +183,24 @@ public static class GodotCabinetRegressionTests
                 && webManifest.Contains("purpose: \"maskable\"", StringComparison.Ordinal)
                 && webIcon.Contains("LUCKY5", StringComparison.Ordinal)
                 && webIcon.Contains("CABINET", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Merged web shell must host the generated Godot cabinet at /godot without committing the heavy export bundle",
+            webExportScript.Contains("--export-release", StringComparison.Ordinal)
+                && webExportScript.Contains("$PresetName = 'Web'", StringComparison.Ordinal)
+                && webExportScript.Contains("$OutputPath = 'src/web/public/godot-cabinet/index.html'", StringComparison.Ordinal)
+                && webExportScript.Contains("lucky5.godot_web_export.v1", StringComparison.Ordinal)
+                && webExportScript.Contains("entry_url = '/godot'", StringComparison.Ordinal)
+                && webExportScript.Contains("asset_url = '/godot-cabinet/index.html'", StringComparison.Ordinal)
+                && webGodotRoute.Contains("fs.existsSync(exportPath)", StringComparison.Ordinal)
+                && webGodotRoute.Contains("dynamic = \"force-dynamic\"", StringComparison.Ordinal)
+                && webGodotRoute.Contains("src=\"/godot-cabinet/index.html\"", StringComparison.Ordinal)
+                && webGodotRoute.Contains("className=\"godot-web-frame\"", StringComparison.Ordinal)
+                && webGodotRoute.Contains("Godot export missing", StringComparison.Ordinal)
+                && webPackageJson.Contains("\"godot:export\"", StringComparison.Ordinal)
+                && webPackageJson.Contains("Export-GodotWebCabinet.ps1", StringComparison.Ordinal)
+                && gitIgnore.Contains("src/web/public/godot-cabinet/", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -268,10 +303,13 @@ public static class GodotCabinetRegressionTests
             "Godot cabinet paytable must mirror AI9Poker with dynamic stake payouts plus a solid Full House rank jackpot selection tag",
             rootScript.Contains("var paytable_rows: Dictionary = {}", StringComparison.Ordinal)
                 && rootScript.Contains("var paytable_amount_labels: Dictionary = {}", StringComparison.Ordinal)
+                && rootScript.Contains("var paytable_multipliers: Dictionary = {}", StringComparison.Ordinal)
                 && rootScript.Contains("var full_house_rank_label: Label", StringComparison.Ordinal)
                 && rootScript.Contains("var full_house_jackpot_label: Label", StringComparison.Ordinal)
                 && rootScript.Contains("paytable_rows[str(hand[0])] = row_panel", StringComparison.Ordinal)
                 && rootScript.Contains("paytable_amount_labels[str(hand[0])] = amount_l", StringComparison.Ordinal)
+                && rootScript.Contains("paytable_multipliers[str(hand[0])] = int(hand[2])", StringComparison.Ordinal)
+                && rootScript.Contains("amount_l.text = _format_amount(stake * multiplier)", StringComparison.Ordinal)
                 && rootScript.Contains("full_house_rank_label.text = _full_house_rank_text()", StringComparison.Ordinal)
                 && rootScript.Contains("full_house_jackpot_label.text = _format_amount(jp.get(\"full_house\", 0))", StringComparison.Ordinal)
                 && rootScript.Contains("_refresh_paytable_values()", StringComparison.Ordinal)
@@ -323,5 +361,18 @@ public static class GodotCabinetRegressionTests
         {
             failures.Add(message);
         }
+    }
+
+    private static int CountOccurrences(string source, string value)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = source.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
     }
 }

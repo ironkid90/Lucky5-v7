@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "godot:export": "pwsh -NoProfile -ExecutionPolicy Bypass -File ../../scripts/godot/Export-GodotWebCabinet.ps1 -Clean",
     "assets:generate": "node scripts/generate-lucky5-assets.mjs",
     "assets:smoke": "npm run assets:generate && node scripts/smoke-lucky5-assets.mjs"
   },

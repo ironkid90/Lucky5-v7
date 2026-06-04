@@ -12,6 +12,9 @@ Godot 4 portrait cabinet is now the default playable client for Lucky5.
   `src/web/app/manifest.ts` and `src/web/public/icon.svg` so the same cabinet
   surface can be tested as a web/Android-compatible app while Godot remains the
   primary playable client
+- The merged web shell can host the exported Godot cabinet at `/godot` after
+  `.\scripts\godot\Export-GodotWebCabinet.ps1 -Clean`; the legacy React cabinet
+  remains available at `/` as the fallback surface
 - Godot cabinet export presets now cover Windows Desktop, Web PWA, and unsigned
   Android APK compatibility lanes from the same portrait `CabinetRoot.tscn`
   client. The project uses GL Compatibility to avoid splitting renderer behavior

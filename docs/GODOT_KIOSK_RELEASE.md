@@ -109,11 +109,18 @@ godot --headless --path godot/cabinet --export-release "Web" artifacts/godot-web
 godot --headless --path godot/cabinet --export-release "Android" artifacts/godot-android/dev/Lucky5Cabinet.apk
 ```
 
+Use `.\scripts\godot\Export-GodotWebCabinet.ps1 -Clean` when the web shell
+should host the shared Godot cabinet at `/godot`. The script writes the export to
+the ignored `src/web/public/godot-cabinet/` folder and records
+`lucky5.godot_web_export.v1` metadata beside the generated bundle.
+
 The Godot project is pinned to GL Compatibility because this 2D cabinet must
 share a renderer path across desktop kiosk, browser, and Android targets. Keep
 the Web preset single-threaded unless the hosting server is prepared for the
 required cross-origin isolation headers. Android APKs from this preset are
-unsigned dev artifacts; release signing keys stay outside the repository.
+unsigned dev artifacts; release signing keys stay outside the repository. Export
+presets exclude `addons/*`; do not ship editor/plugin payloads unless a reviewed
+runtime dependency is added.
 
 ## Asset manifest policy
 

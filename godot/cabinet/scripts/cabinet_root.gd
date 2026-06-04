@@ -77,6 +77,7 @@ var pending_command_type := ""
 var title_label: Label
 var paytable_rows: Dictionary = {}
 var paytable_amount_labels: Dictionary = {}
+var paytable_multipliers: Dictionary = {}
 var full_house_rank_label: Label
 var full_house_jackpot_label: Label
 var credit_label: Label
@@ -470,6 +471,7 @@ func _build_auth_panel(parent: Node) -> void:
 func _build_paytable(parent: Node) -> void:
 	paytable_rows.clear()
 	paytable_amount_labels.clear()
+	paytable_multipliers.clear()
 
 	var panel := Panel.new()
 	panel.custom_minimum_size = Vector2(0, 0)
@@ -488,14 +490,14 @@ func _build_paytable(parent: Node) -> void:
 	panel.add_child(pbox)
 
 	var hands := [
-		["ROYAL FLUSH", 1000, Color(1.0, 0.847, 0.302)],
-		["STRAIGHT FLUSH", 75, COLOR_RED],
-		["FOUR OF A KIND", 15, COLOR_GREEN_DIM],
-		["FULL HOUSE", 12, Color(0.498, 0.843, 1.0)],
-		["FLUSH", 10, COLOR_RED],
-		["STRAIGHT", 8, COLOR_WHITE],
-		["THREE OF A KIND", 3, COLOR_BLUE],
-		["TWO PAIR", 2, COLOR_WHITE],
+		["RoyalFlush", "ROYAL FLUSH", 1000, Color(1.0, 0.847, 0.302)],
+		["StraightFlush", "STRAIGHT FLUSH", 75, COLOR_RED],
+		["FourOfAKind", "FOUR OF A KIND", 15, COLOR_GREEN_DIM],
+		["FullHouse", "FULL HOUSE", 12, Color(0.498, 0.843, 1.0)],
+		["Flush", "FLUSH", 10, COLOR_RED],
+		["Straight", "STRAIGHT", 8, COLOR_WHITE],
+		["ThreeOfAKind", "THREE OF A KIND", 3, COLOR_BLUE],
+		["TwoPair", "TWO PAIR", 2, COLOR_WHITE],
 	]
 	for hand in hands:
 		var row_panel := Panel.new()
@@ -505,13 +507,14 @@ func _build_paytable(parent: Node) -> void:
 		row_panel.add_theme_stylebox_override("panel", rps)
 		var row := HBoxContainer.new()
 		row_panel.add_child(row)
-		var name_l := _make_label(hand[0], 12, hand[2])
+		var name_l := _make_label(hand[1], 12, hand[3])
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(name_l)
-		var amount_l := _make_label("x%s" % hand[1], 12, hand[2], HORIZONTAL_ALIGNMENT_RIGHT)
+		var amount_l := _make_label("0", 12, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
 		row.add_child(amount_l)
 		paytable_rows[str(hand[0])] = row_panel
 		paytable_amount_labels[str(hand[0])] = amount_l
+		paytable_multipliers[str(hand[0])] = int(hand[2])
 		pbox.add_child(row_panel)
 
 	var fh_rank_row := HBoxContainer.new()
@@ -1463,27 +1466,24 @@ func _full_house_rank_card_code() -> String:
 
 func _refresh_paytable_values() -> void:
 	if full_house_jackpot_label == null or full_house_rank_label == null: return
+	var stake: int = max(0, store.stake())
+	for key in paytable_amount_labels.keys():
+		var amount_l: Label = paytable_amount_labels.get(key, null)
+		if amount_l == null: continue
+		var multiplier: int = int(paytable_multipliers.get(key, 0))
+		amount_l.text = _format_amount(stake * multiplier)
 	var jp: Dictionary = store.snapshot.get("jackpot", {})
 	full_house_jackpot_label.text = _format_amount(jp.get("full_house", 0))
 	full_house_rank_label.text = _full_house_rank_text()
 
 func _refresh_paytable_highlights() -> void:
-	var hand_rank := store.hand_rank()
+	var hand_rank: String = store.hand_rank()
 	for key in paytable_rows.keys():
 		var row_panel: Panel = paytable_rows.get(key, null)
 		if row_panel == null: continue
 		var sty := row_panel.get_theme_stylebox("panel", "") as StyleBoxFlat
 		if sty == null: continue
-		var highlighted := false
-		match hand_rank:
-			"RoyalFlush": highlighted = key == "ROYAL FLUSH"
-			"StraightFlush": highlighted = key == "STRAIGHT FLUSH"
-			"FourOfAKind": highlighted = key == "FOUR OF A KIND"
-			"FullHouse": highlighted = key == "FULL HOUSE"
-			"Flush": highlighted = key == "FLUSH"
-			"Straight": highlighted = key == "STRAIGHT"
-			"ThreeOfAKind": highlighted = key == "THREE OF A KIND"
-			"TwoPair": highlighted = key == "TWO PAIR"
+		var highlighted: bool = str(key) == hand_rank
 		sty.bg_color = Color(1.0, 1.0, 0.3, 0.25) if highlighted else Color(0, 0, 0, 0)
 
 func _refresh_machine_info() -> void:

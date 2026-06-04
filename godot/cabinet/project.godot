@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Lucky5 Cabinet"
-config/icon="res://icon.svg"
+config/icon="res://icon-512.png"
 run/main_scene="res://scenes/CabinetRoot.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 

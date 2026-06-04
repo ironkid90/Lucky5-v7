@@ -72,6 +72,64 @@ select {
   padding: 32px 20px 48px;
 }
 
+.godot-web-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  min-height: 100dvh;
+  background: #060606;
+}
+
+.godot-web-frame {
+  width: 100%;
+  height: 100dvh;
+  border: 0;
+  background: #060606;
+}
+
+.godot-web-missing {
+  width: min(560px, calc(100vw - 32px));
+  align-self: center;
+  justify-self: center;
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(12, 12, 12, 0.94);
+  box-shadow: var(--shadow);
+}
+
+.godot-web-missing h1,
+.godot-web-missing p {
+  margin: 0;
+}
+
+.godot-web-missing h1 {
+  color: var(--amber-hot);
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+
+.godot-web-missing p {
+  color: #f6e9c9;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.godot-web-kicker {
+  color: var(--status-cyan);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+}
+
+.godot-web-missing code {
+  overflow-wrap: anywhere;
+  color: var(--signal);
+  font-size: 0.78rem;
+}
+
 .cabinet-shell {
   width: min(1040px, 100%);
   display: grid;

@@ -211,13 +211,13 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
-            "Godot cabinet idle screen must show the armed Full House rank as the middle card like the reference cabinet",
+"Godot cabinet idle screen must show the armed Full House rank as the middle card like the reference cabinet",
             rootScript.Contains("var show_idle_rank_card := game_state == \"idle\" and not du_active and cards.is_empty()", StringComparison.Ordinal)
                 && rootScript.Contains("if show_idle_rank_card and index == 2:", StringComparison.Ordinal)
                 && rootScript.Contains("var rank_code := _full_house_rank_card_code()", StringComparison.Ordinal)
                 && rootScript.Contains("slot[\"hold_label\"].text = \"FH\"", StringComparison.Ordinal)
                 && rootScript.Contains("func _full_house_rank_card_code() -> String:", StringComparison.Ordinal)
-                && rootScript.Contains("return _full_house_rank_text() + \"S\"", StringComparison.Ordinal));
+                && rootScript.Contains("return str(max(2, rank_value)) + \"S\" if rank_value > 0 else \"AS\"", StringComparison.Ordinal));
     }
 
     private static string ResolveRepoFilePath(params string[] segments)

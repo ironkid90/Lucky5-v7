@@ -1264,7 +1264,16 @@ func _full_house_rank_text() -> String:
 		_: return "FH RANK: %d" % rank_value
 
 func _full_house_rank_card_code() -> String:
-	return _full_house_rank_text() + "S"
+	var jp: Dictionary = store.snapshot.get("jackpot", {})
+	var rank: Variant = jp.get("full_house_rank", 0)
+	var rank_value: int = store._to_int(rank)
+	match rank_value:
+		14: return "AS"
+		13: return "KS"
+		12: return "QS"
+		11: return "JS"
+		10: return "10S"
+		_: return str(max(2, rank_value)) + "S" if rank_value > 0 else "AS"
 
 func _refresh_paytable_values() -> void:
 	if full_house_jackpot_label == null or full_house_rank_label == null: return

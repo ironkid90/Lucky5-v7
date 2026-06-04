@@ -9,7 +9,9 @@ var local_connected: bool = false
 const BUTTON_ID_ALIASES := {
 	"deal": "deal_draw",
 	"cancel": "cancel_hold",
-	"swap_double_up_card": "double_up_switch"
+	"swap_double_up_card": "double_up_switch",
+	"doubleup_switch": "double_up_switch",
+	"switch_dealer": "double_up_switch"
 }
 
 func apply_snapshot(next_snapshot: Dictionary, force: bool = false) -> bool:
@@ -357,11 +359,11 @@ func _to_bool(value) -> bool:
 	return bool(value)
 
 func can_press(button_id: String) -> bool:
-	var button: Dictionary = button_state.get(button_id, {})
+	var button: Dictionary = button_state.get(_normalize_button_id(button_id), {})
 	return _to_bool(_first_value(button, ["visible", "Visible"], true)) and _to_bool(_first_value(button, ["enabled", "Enabled"], false)) and commands_allowed()
 
 func button_reason(button_id: String) -> String:
-	var button: Dictionary = button_state.get(button_id, {})
+	var button: Dictionary = button_state.get(_normalize_button_id(button_id), {})
 	return str(_first_value(button, ["reason", "Reason"], ""))
 
 func commands_allowed() -> bool:

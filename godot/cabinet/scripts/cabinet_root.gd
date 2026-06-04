@@ -2657,19 +2657,6 @@ func _refresh_paytable_highlights() -> void:
 			sty.border_width_top = 0; sty.border_width_bottom = 0
 		row_panel.queue_redraw()
 
-func _paytable_rank_key(raw_rank: String) -> String:
-	var normalized := raw_rank.strip_edges().replace(" ", "").replace("_", "").to_lower()
-	match normalized:
-		"royalflush": return "RoyalFlush"
-		"straightflush": return "StraightFlush"
-		"fourofakind", "fourkind": return "FourOfAKind"
-		"fullhouse": return "FullHouse"
-		"flush": return "Flush"
-		"straight": return "Straight"
-		"threeofakind", "threekind": return "ThreeOfAKind"
-		"twopair": return "TwoPair"
-		_: return raw_rank
-
 func _refresh_machine_info() -> void:
 	var machine: Dictionary = store.snapshot.get("machine", {})
 	machine_serie_label.text = "SERIE %s" % str(machine.get("machine_serie", "0"))

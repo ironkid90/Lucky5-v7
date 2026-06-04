@@ -27,6 +27,11 @@ targets. `godot/cabinet/export_presets.cfg` keeps three explicit lanes:
 - `Android` exports an unsigned portrait APK to `artifacts/godot-android/` with
   arm64 and x86_64 ABIs for device and emulator smoke tests.
 
+Desktop and Web keep Godot GL Compatibility. Android uses the mobile renderer
+override with ETC2/ASTC texture import enabled so the same cabinet can smoke on
+emulators and later Android hardware without hitting the prior GLES uniform
+limit.
+
 All lanes exclude `addons/*` from the shipped package. The runtime cabinet does
 not load editor plugins, and keeping them out reduces web/mobile payload size.
 

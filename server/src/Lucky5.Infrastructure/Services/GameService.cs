@@ -1848,7 +1848,6 @@ return guessResult;
         var jackpot = SnapshotJackpots(ledger);
         var message = BuildCabinetMessage(gameState, pendingWin, session);
         var doubleUpSession = activeRound?.DoubleUpSession;
-        var advisedHolds = BuildCabinetAdvisedHolds(gameState, activeRound);
         var bonusPresentation = BuildCabinetBonusPresentation(gameState, activeRound, doubleUpSession, pendingWin);
 
         return new CabinetSnapshotDto(

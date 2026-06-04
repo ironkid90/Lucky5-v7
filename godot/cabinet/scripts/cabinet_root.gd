@@ -35,8 +35,8 @@ const BUTTON_PRESSED_SHADOW_SIZE := 1
 const BUTTON_ASSET_BASE_PATH := "res://skins/lucky5/buttons/"
 const BUTTON_ASSET_FONT_SIZE := 13
 
-const CARD_AREA_MIN_HEIGHT := 180
-const CARD_SIZE := Vector2(122, 171)
+const CARD_AREA_MIN_HEIGHT := 248
+const CARD_SIZE := Vector2(132, 185)
 const CARD_SMALL_SIZE := Vector2(80, 112)
 const CARD_GAP := 6
 const CONTROL_DECK_MIN_HEIGHT := 324
@@ -49,8 +49,8 @@ const DRAW_OUT_DURATION := 0.055
 const DRAW_IN_DURATION := 0.075
 const DRAW_STAGGER := 0.045
 const DU_SWITCH_DURATION := 0.22
-const DU_BOARD_CARD_SIZE := Vector2(92, 129)
-const DU_TRAIL_CARD_SIZE := Vector2(92, 129)
+const DU_BOARD_CARD_SIZE := Vector2(104, 146)
+const DU_TRAIL_CARD_SIZE := Vector2(104, 146)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
 const DU_SHUFFLE_INTERVAL := 0.08
 const DU_SHUFFLE_TICKS := 8
@@ -104,6 +104,7 @@ var pending_command_id := ""
 var pending_idempotency_key := ""
 var pending_command_type := ""
 var button_asset_textures: Dictionary = {}
+var button_asset_styleboxes: Array = []
 
 # ─── node refs ───
 var title_label: Label
@@ -129,6 +130,7 @@ var action_buttons: Dictionary = {}
 var hold_buttons: Array = []
 var menu_overlay: PanelContainer
 var menu_panel: VBoxContainer
+var menu_balance_label: Label
 var menu_open := false
 var card_area_panel: Panel
 var card_container: HBoxContainer
@@ -183,13 +185,15 @@ var du_shuffle_ticks_remaining := 0
 var du_shuffle_index := 0
 var du_shuffle_target_dealer := ""
 var du_shuffle_target_challenger := ""
+var du_shuffle_replace_dealer_only := false
 var du_pending_promote_dealer := ""
 var _prev_dealer_code := ""
 var _prev_challenger_code := ""
 var _prev_switches_remaining := -1
-var du_trail_anchor_code := ""
+var du_last_switch_dealer_code := ""
 var win_displayed_amount := 0
 var win_target_amount := 0
+var win_paytable_rank_key := ""
 var win_counter_tween: Tween
 var win_pulse_tween: Tween
 var credit_pulse_tween: Tween
@@ -251,6 +255,32 @@ func _ready() -> void:
 	else:
 		auth_status = "SIGNED IN - LOADING CABINET"
 		_request_snapshot()
+
+func _exit_tree() -> void:
+	_release_button_asset_styles(self)
+	for style in button_asset_styleboxes:
+		if style is StyleBoxTexture:
+			(style as StyleBoxTexture).texture = null
+	button_asset_styleboxes.clear()
+	button_asset_textures.clear()
+	_stop_timers_for_exit()
+
+func _release_button_asset_styles(node: Node) -> void:
+	if node is Button:
+		var button := node as Button
+		if _button_uses_asset(button):
+			for state in ["normal", "hover", "pressed", "disabled"]:
+				var style := button.get_theme_stylebox(state, "") as StyleBoxTexture
+				if style != null:
+					style.texture = null
+				button.remove_theme_stylebox_override(state)
+	for child in node.get_children():
+		_release_button_asset_styles(child)
+
+func _stop_timers_for_exit() -> void:
+	for timer in [heartbeat_timer, replay_timer, token_refresh_timer, command_timeout_timer, deal_timer, du_shuffle_timer, du_promote_timer, auto_double_up_timer, idle_fh_timer]:
+		if timer != null:
+			timer.stop()
 
 # ─── env loader ───
 func _load_environment() -> void:
@@ -353,19 +383,18 @@ func _make_button_asset_style(asset_name: String, tint := Color(1, 1, 1, 1)) -> 
 	style.modulate_color = tint
 	style.content_margin_left = 6; style.content_margin_right = 6
 	style.content_margin_top = 8; style.content_margin_bottom = 8
+	button_asset_styleboxes.append(style)
 	return style
 
 func _load_button_asset_texture(asset_name: String) -> Texture2D:
 	if button_asset_textures.has(asset_name):
 		return button_asset_textures[asset_name] as Texture2D
 	var path := BUTTON_ASSET_BASE_PATH + asset_name + ".png"
-	if not FileAccess.file_exists(path):
+	if not ResourceLoader.exists(path):
 		return null
-	var image := Image.new()
-	var result := image.load(path)
-	if result != OK:
+	var texture := ResourceLoader.load(path) as Texture2D
+	if texture == null:
 		return null
-	var texture := ImageTexture.create_from_image(image)
 	button_asset_textures[asset_name] = texture
 	return texture
 
@@ -379,7 +408,7 @@ func _button_asset_active_name(asset_key: String) -> String:
 		return "hold_on"
 	var active_name := "%s_on" % asset_key
 	var active_path := BUTTON_ASSET_BASE_PATH + active_name + ".png"
-	return active_name if FileAccess.file_exists(active_path) else _button_asset_normal_name(asset_key)
+	return active_name if ResourceLoader.exists(active_path) else _button_asset_normal_name(asset_key)
 
 func _button_asset_disabled_name(asset_key: String) -> String:
 	if asset_key == "hold":
@@ -418,25 +447,26 @@ func _build_ui() -> void:
 
 	var vbox := VBoxContainer.new()
 	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vbox.add_theme_constant_override("separation", 8)
+	vbox.add_theme_constant_override("separation", 4)
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(vbox)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 14)
-	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_top", 10)
-	margin.add_theme_constant_override("margin_bottom", 10)
+	margin.add_theme_constant_override("margin_left", 6)
+	margin.add_theme_constant_override("margin_right", 6)
+	margin.add_theme_constant_override("margin_top", 2)
+	margin.add_theme_constant_override("margin_bottom", 2)
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(margin)
 	var content := VBoxContainer.new()
 	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 6)
+	content.add_theme_constant_override("separation", 4)
 	margin.add_child(content)
 
-	title_label = _make_label("LUCKY 5\nLucky5 Classic", 28, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	title_label = _make_label("", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	title_label.visible = false
 	content.add_child(title_label)
 
 	_build_auth_panel(content)
@@ -463,8 +493,7 @@ func _build_ui() -> void:
 
 	var bottom_spacer := Control.new()
 	bottom_spacer.name = "CabinetBottomDeckSpacer"
-	bottom_spacer.custom_minimum_size = Vector2(0, 8)
-	bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	bottom_spacer.custom_minimum_size = Vector2(0, 4)
 	content.add_child(bottom_spacer)
 
 	_build_control_deck(content)
@@ -623,6 +652,10 @@ func _build_menu_panel(parent: Node) -> void:
 
 	var title := _make_label("MENU", 16, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	menu_panel.add_child(title)
+
+	menu_balance_label = _make_label("", 11, COLOR_GREEN, HORIZONTAL_ALIGNMENT_CENTER)
+	menu_balance_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	menu_panel.add_child(menu_balance_label)
 
 	var cash_row := HBoxContainer.new()
 	cash_row.add_theme_constant_override("separation", 8)
@@ -790,12 +823,18 @@ func _build_card_area(parent: Node) -> void:
 	cps.corner_radius_bottom_left = 8; cps.corner_radius_bottom_right = 8
 	card_area_panel.add_theme_stylebox_override("panel", cps)
 	card_area_panel.custom_minimum_size = Vector2(0, CARD_AREA_MIN_HEIGHT)
+	card_area_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	parent.add_child(card_area_panel)
+
+	var card_center := CenterContainer.new()
+	card_center.name = "CardAreaCenter"
+	card_center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	card_area_panel.add_child(card_center)
 
 	card_container = HBoxContainer.new()
 	card_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	card_container.add_theme_constant_override("separation", CARD_GAP)
-	card_area_panel.add_child(card_container)
+	card_center.add_child(card_container)
 
 	idle_title_label = _make_label(IDLE_TITLE_TEXT, 42, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	idle_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -831,19 +870,15 @@ func _build_card_area(parent: Node) -> void:
 		_stage_card_back(slot_state, "", false)
 		card_container.add_child(slot)
 
-func _build_win_display(parent: Node) -> void:
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 8)
-	parent.add_child(row)
+func _build_win_display(_parent: Node) -> void:
 	win_slot_label = _make_label("", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
-	row.add_child(win_slot_label)
+	win_slot_label.visible = false
 	win_amount_label = _make_label("", 22, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	win_amount_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
 	win_amount_label.add_theme_constant_override("shadow_offset_x", 2)
 	win_amount_label.add_theme_constant_override("shadow_offset_y", 2)
 	win_amount_label.add_theme_constant_override("shadow_outline_size", 2)
-	row.add_child(win_amount_label)
+	win_amount_label.visible = false
 
 func _build_machine_info(parent: Node) -> void:
 	var panel := Panel.new()
@@ -1289,8 +1324,9 @@ func _apply_snapshot(next_snapshot: Dictionary) -> void:
 # ─── UI refresh ───
 func _refresh_ui() -> void:
 	_refresh_auth_panel()
-	title_label.text = "%s\n%s" % [store.machine_name(), str(store.snapshot.get("variant", {}).get("display_name", "Lucky5 Classic"))]
+	title_label.text = ""
 	_refresh_credit_display()
+	_refresh_menu_balance()
 	var game_state := store.game_state()
 	message_label.text = store.message()
 	if game_state == "hold" and local_hold_indexes.is_empty() and not auto_holds_cancelled and not store.advised_hold_indexes().is_empty():
@@ -1305,8 +1341,8 @@ func _refresh_ui() -> void:
 		local_hold_indexes.clear()
 	last_game_state = game_state
 
-	var du_data: Dictionary = store.snapshot.get("double_up", {})
-	var du_active := bool(du_data.get("active", false))
+	var du_data := _double_up_data()
+	var du_active := _is_double_up_active(du_data)
 	_maybe_auto_start_double_up(game_state, du_active)
 	_refresh_card_area_layout(du_active)
 
@@ -1469,7 +1505,7 @@ func _maybe_auto_start_double_up(game_state: String, du_active: bool) -> void:
 		_cancel_auto_double_up_timer()
 		return
 	var evaluation: Dictionary = store.snapshot.get("evaluation", {})
-	if not bool(evaluation.get("double_up_available", false)):
+	if not _evaluation_double_up_available(evaluation):
 		_cancel_auto_double_up_timer()
 		return
 	var round_id := store.current_round_id()
@@ -1503,10 +1539,10 @@ func _auto_start_double_up(round_id: String) -> void:
 	if not (game_state in ["win", "drawn", "result"]):
 		return
 	var evaluation: Dictionary = store.snapshot.get("evaluation", {})
-	if not bool(evaluation.get("double_up_available", false)):
+	if not _evaluation_double_up_available(evaluation):
 		return
-	var du_data: Dictionary = store.snapshot.get("double_up", {})
-	if bool(du_data.get("active", false)):
+	var du_data := _double_up_data()
+	if _is_double_up_active(du_data):
 		return
 	auto_double_up_round_ids.append(round_id)
 	if auto_double_up_round_ids.size() > 32:
@@ -1678,6 +1714,7 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	if not du_active:
 		if du_shuffle_timer != null:
 			du_shuffle_timer.stop()
+		du_shuffle_replace_dealer_only = false
 		if du_promote_timer != null:
 			du_promote_timer.stop()
 		_clear_du_board()
@@ -1685,28 +1722,21 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 		_prev_dealer_code = ""
 		_prev_challenger_code = ""
 		_prev_switches_remaining = -1
-		du_trail_anchor_code = ""
+		du_last_switch_dealer_code = ""
 		return
 
-	var status := str(du_data.get("status", ""))
-	var switches := int(du_data.get("switches_remaining", 0))
+	var status := _du_status(du_data)
+	var switches := _du_switches_remaining(du_data)
 	du_switch_node.text = "SWAPS: %d" % switches if switches > 0 else ""
 
-	var dealer_card: Variant = du_data.get("dealer_card", {})
-	var challenger_card: Variant = du_data.get("challenger_card", {})
-
-	var dealer_code := ""
-	var challenger_code := ""
-
-	if typeof(dealer_card) == TYPE_DICTIONARY:
-		dealer_code = str(dealer_card.get("code", ""))
-
-	if typeof(challenger_card) == TYPE_DICTIONARY:
-		challenger_code = str(challenger_card.get("code", ""))
+	var dealer_code := _du_card_code(du_data, ["dealer_card", "dealerCard", "DealerCard", "double_up_card", "doubleUpCard", "DoubleUpCard"])
+	var challenger_code := _du_card_code(du_data, ["challenger_card", "challengerCard", "ChallengerCard", "picked_card", "pickedCard", "PickedCard"])
 
 	var dealer_changed := not dealer_code.is_empty() and _prev_dealer_code != "" and _prev_dealer_code != dealer_code
 	var challenger_changed := not challenger_code.is_empty() and _prev_challenger_code != challenger_code
-	var switch_replaced_dealer := challenger_code.is_empty() and dealer_changed and _prev_switches_remaining >= 0 and switches < _prev_switches_remaining
+	var command_switched_dealer := (pending_command_type == "double_up_switch" or pending_command_type == "swap_double_up_card") and challenger_code.is_empty() and dealer_changed
+	var switch_count_decreased := _prev_switches_remaining >= 0 and switches < _prev_switches_remaining
+	var switch_replaced_dealer := challenger_code.is_empty() and dealer_changed and (switch_count_decreased or command_switched_dealer)
 	var inferred_win_reveal := challenger_code.is_empty() and dealer_changed and not switch_replaced_dealer
 	var board_dealer_code := _prev_dealer_code if inferred_win_reveal else dealer_code
 	var board_challenger_code := dealer_code if inferred_win_reveal else challenger_code
@@ -1715,12 +1745,13 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	_prepare_du_board(du_data, board_dealer_code, board_challenger_code, board_status, switch_replaced_dealer)
 
 	if switch_replaced_dealer:
-		du_trail_anchor_code = dealer_code
 		if du_promote_timer != null:
 			du_promote_timer.stop()
 		du_pending_promote_dealer = ""
-		_start_du_card_shuffle(dealer_code, "")
+		du_last_switch_dealer_code = dealer_code
+		_start_du_dealer_replace_shuffle(dealer_code)
 	elif inferred_win_reveal:
+		du_last_switch_dealer_code = ""
 		if du_promote_timer != null:
 			du_promote_timer.stop()
 		_start_du_card_shuffle(board_dealer_code, board_challenger_code)
@@ -1730,15 +1761,18 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 			du_promote_timer.stop()
 		du_pending_promote_dealer = ""
 		_set_du_card_texture(du_dealer_rect, dealer_code)
-		if du_shuffle_timer == null or du_shuffle_timer.is_stopped() or not du_shuffle_target_challenger.is_empty():
+		var showing_switched_dealer := not du_last_switch_dealer_code.is_empty() and du_last_switch_dealer_code == dealer_code
+		if not showing_switched_dealer and (du_shuffle_timer == null or du_shuffle_timer.is_stopped() or not du_shuffle_target_challenger.is_empty()):
 			_start_du_card_shuffle(dealer_code, "")
 	elif dealer_changed or challenger_changed:
+		du_last_switch_dealer_code = ""
 		_start_du_card_shuffle(dealer_code, challenger_code)
 		if challenger_changed and _du_should_promote_after_reveal(status, challenger_code):
 			_queue_du_dealer_promotion(challenger_code)
 	else:
 		if du_shuffle_timer != null and not du_shuffle_timer.is_stopped():
 			du_shuffle_timer.stop()
+		du_shuffle_replace_dealer_only = false
 		_set_du_card_texture(du_dealer_rect, dealer_code)
 		_set_du_card_texture(du_challenger_rect, challenger_code)
 
@@ -1746,8 +1780,8 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	_prev_challenger_code = challenger_code
 	_prev_switches_remaining = switches
 
-	var is_lucky5 := bool(du_data.get("is_lucky5_active", false))
-	var is_no_lose := bool(du_data.get("is_no_lose_active", false))
+	var is_lucky5 := _du_bool(du_data, ["is_lucky5_active", "isLucky5Active", "IsLucky5Active", "lucky5", "Lucky5", "winLucky5", "WinLucky5"])
+	var is_no_lose := _du_bool(du_data, ["is_no_lose_active", "isNoLoseActive", "IsNoLoseActive"])
 	du_lucky_node.text = "5♠ NEVER LOSE"
 	du_lucky_node.add_theme_color_override("font_color", COLOR_GREEN if is_lucky5 or is_no_lose else COLOR_BLUE)
 	du_guess_node.text = "HI OR LO"
@@ -1758,101 +1792,69 @@ func _prepare_du_board(du_data: Dictionary, dealer_code: String, challenger_code
 	_refresh_du_trail(du_data, dealer_code, challenger_code, status, dealer_replace_only)
 
 func _refresh_du_trail(du_data: Dictionary, dealer_code: String, challenger_code: String, status: String, dealer_replace_only: bool = false) -> void:
-	var trail_codes := _du_visible_deck_codes(du_data, dealer_code, challenger_code, du_cards.size())
+	var hit_codes := _du_visible_hit_codes(du_data, dealer_code, challenger_code, max(0, du_cards.size() - 2))
 	if dealer_replace_only:
-		trail_codes = []
+		hit_codes = []
+
+	if not du_cards.is_empty():
 		if dealer_code.length() >= 2:
-			trail_codes.append(dealer_code)
-	var dealer_index := _du_last_code_index(trail_codes, dealer_code)
-	var challenger_index := _du_last_code_index(trail_codes, challenger_code)
-	var shuffle_index := -1
-	if challenger_code.is_empty() and dealer_code.length() >= 2:
-		shuffle_index = min(trail_codes.size(), du_cards.size() - 1)
-
-	for index in range(du_cards.size()):
-		if index < trail_codes.size():
-			var code := str(trail_codes[index])
-			var label_text := "DEALER" if index == dealer_index else "HIT"
-			if index == challenger_index:
-				label_text = _du_result_label(status)
-			_set_du_board_slot(index, code, label_text, _is_lucky_du_card(du_data, code))
-			if index == dealer_index:
-				_set_du_dealer_slot(index)
-			if index == challenger_index:
-				_set_du_challenger_slot(index)
-		elif index == shuffle_index:
-			_set_du_board_back(index, "BIG / SMALL ?", 1.0)
-			_set_du_challenger_slot(index)
+			_set_du_board_slot(0, dealer_code, "DEALER", _is_lucky_du_card(du_data, dealer_code))
 		else:
-			_set_du_board_back(index, "", 0.18)
-
-	if dealer_index < 0 and not trail_codes.is_empty():
+			_set_du_board_back(0, "", 0.18)
 		_set_du_dealer_slot(0)
-		_set_du_board_slot(0, str(trail_codes[0]), "DEALER", _is_lucky_du_card(du_data, str(trail_codes[0])))
-	if du_challenger_rect == null and du_cards.size() > 1:
+
+	if du_cards.size() > 1:
 		_set_du_challenger_slot(1)
+		if challenger_code.length() >= 2:
+			_set_du_board_slot(1, challenger_code, _du_result_label(status), _is_lucky_du_card(du_data, challenger_code))
+		elif dealer_code.length() >= 2:
+			_set_du_board_back(1, "BIG / SMALL ?", 1.0)
+		else:
+			_set_du_board_back(1, "", 0.18)
+
+	for slot_index in range(2, du_cards.size()):
+		var hit_index := slot_index - 2
+		if hit_index < hit_codes.size():
+			var hit_code := str(hit_codes[hit_index])
+			_set_du_board_slot(slot_index, hit_code, "HIT", _is_lucky_du_card(du_data, hit_code))
+		else:
+			_set_du_board_back(slot_index, "", 0.18)
 
 func _du_visible_deck_codes(du_data: Dictionary, dealer_code: String, challenger_code: String, max_count: int) -> Array:
-	var result := _du_visible_trail_codes(du_data, "", max_count)
-	if not du_trail_anchor_code.is_empty():
-		var anchor_index := _du_first_code_index(result, du_trail_anchor_code)
-		if anchor_index >= 0:
-			var anchored_result := []
-			for index in range(anchor_index, result.size()):
-				anchored_result.append(result[index])
-			result = anchored_result
-	if dealer_code.length() >= 2 and (result.is_empty() or str(result[result.size() - 1]) != dealer_code):
+	var result: Array = []
+	if max_count <= 0:
+		return result
+	if dealer_code.length() >= 2:
 		result.append(dealer_code)
-	if challenger_code.length() >= 2 and (result.is_empty() or str(result[result.size() - 1]) != challenger_code):
+	if challenger_code.length() >= 2 and result.size() < max_count:
 		result.append(challenger_code)
-	while result.size() > max_count:
-		result.remove_at(0)
+	var remaining: int = max(0, max_count - result.size())
+	for code in _du_visible_hit_codes(du_data, dealer_code, challenger_code, remaining):
+		result.append(str(code))
 	return result
 
-func _du_first_code_index(codes: Array, target_code: String) -> int:
-	if target_code.length() < 2:
-		return -1
-	for index in range(codes.size()):
-		if str(codes[index]) == target_code:
-			return index
-	return -1
-
-func _du_visible_trail_codes(du_data: Dictionary, dealer_code: String, max_count: int) -> Array:
+func _du_visible_hit_codes(du_data: Dictionary, dealer_code: String, challenger_code: String, max_count: int) -> Array:
 	var result: Array = []
 	if max_count <= 0:
 		return result
 
-	var trail_source: Variant = du_data.get("card_trail", [])
+	var trail_source := _du_array(du_data, ["card_trail", "cardTrail", "CardTrail"])
 	if typeof(trail_source) != TYPE_ARRAY:
 		return result
 
-	var codes: Array = []
 	for entry in trail_source:
 		var code := _du_entry_code(entry)
-		if code.length() >= 2:
-			codes.append(code)
+		if code.length() < 2:
+			continue
+		if code == dealer_code or code == challenger_code:
+			continue
+		if not result.is_empty() and str(result[result.size() - 1]) == code:
+			continue
+		result.append(code)
 
-	if dealer_code.length() >= 2 and not codes.is_empty() and str(codes[codes.size() - 1]) == dealer_code:
-		codes.remove_at(codes.size() - 1)
-
-	var start_index := 0
-	if codes.size() > max_count:
-		var carry_step: int = max(1, max_count - 1)
-		var pages := int(ceil(float(codes.size() - max_count) / float(carry_step)))
-		start_index = pages * carry_step
-
-	var limit: int = min(codes.size(), start_index + max_count)
-	for i in range(start_index, limit):
-		result.append(str(codes[i]))
+	while result.size() > max_count:
+		result.remove_at(0)
 	return result
-
-func _du_last_code_index(codes: Array, target_code: String) -> int:
-	if target_code.length() < 2:
-		return -1
-	for index in range(codes.size() - 1, -1, -1):
-		if str(codes[index]) == target_code:
-			return index
-	return -1
 
 func _du_entry_code(entry: Variant) -> String:
 	if typeof(entry) == TYPE_DICTIONARY:
@@ -1893,18 +1895,21 @@ func _queue_du_dealer_promotion(next_dealer_code: String) -> void:
 func _on_du_promote_timeout() -> void:
 	if du_pending_promote_dealer.length() < 2:
 		return
-	var du_data: Dictionary = store.snapshot.get("double_up", {})
-	if not bool(du_data.get("active", false)):
+	var du_data := _double_up_data()
+	if not _is_double_up_active(du_data):
 		du_pending_promote_dealer = ""
 		return
-	if not _du_should_promote_after_reveal(str(du_data.get("status", "")), du_pending_promote_dealer):
+	if not _du_should_promote_after_reveal(_du_status(du_data), du_pending_promote_dealer):
 		du_pending_promote_dealer = ""
 		return
 	_start_du_card_shuffle(du_pending_promote_dealer, "")
 	du_pending_promote_dealer = ""
 
 func _is_lucky_du_card(du_data: Dictionary, code: String) -> bool:
-	return code == "5S" and (bool(du_data.get("is_lucky5_active", false)) or bool(du_data.get("is_no_lose_active", false)))
+	return code == "5S" and (
+		_du_bool(du_data, ["is_lucky5_active", "isLucky5Active", "IsLucky5Active", "lucky5", "Lucky5", "winLucky5", "WinLucky5"])
+		or _du_bool(du_data, ["is_no_lose_active", "isNoLoseActive", "IsNoLoseActive"])
+	)
 
 func _clear_du_board() -> void:
 	for index in range(du_cards.size()):
@@ -1966,7 +1971,10 @@ func _set_du_board_back(index: int, label_text: String, alpha: float) -> void:
 	rect.scale = Vector2(1.0, 1.0)
 
 func _animate_du_switch(new_dealer_code: String, new_player_code: String) -> void:
-	_start_du_card_shuffle(new_dealer_code, new_player_code)
+	if new_player_code.is_empty():
+		_start_du_dealer_replace_shuffle(new_dealer_code)
+	else:
+		_start_du_card_shuffle(new_dealer_code, new_player_code)
 
 func _set_du_card_texture(rect: TextureRect, code: String) -> void:
 	if rect == null:
@@ -1984,11 +1992,39 @@ func _start_du_card_shuffle(new_dealer_code: String, new_player_code: String) ->
 		return
 	du_shuffle_target_dealer = new_dealer_code
 	du_shuffle_target_challenger = new_player_code
+	du_shuffle_replace_dealer_only = false
 	du_shuffle_ticks_remaining = DU_SHUFFLE_TICKS if new_player_code.length() >= 2 else -1
 	du_shuffle_index = 0
 	_set_du_card_texture(du_dealer_rect, new_dealer_code)
+	if du_challenger_label != null and new_player_code.is_empty():
+		du_challenger_label.text = "BIG / SMALL ?"
+		du_challenger_label.add_theme_color_override("font_color", COLOR_GOLD)
 	du_challenger_rect.modulate = Color(1, 1, 1, 1)
 	du_challenger_rect.scale = Vector2(0.92, 0.92)
+	_process_du_shuffle()
+	if du_shuffle_timer != null and du_shuffle_timer.is_stopped():
+		du_shuffle_timer.start()
+
+func _start_du_dealer_replace_shuffle(new_dealer_code: String) -> void:
+	if du_dealer_rect == null:
+		return
+	du_shuffle_target_dealer = new_dealer_code
+	du_shuffle_target_challenger = ""
+	du_shuffle_replace_dealer_only = true
+	du_shuffle_ticks_remaining = DU_SHUFFLE_TICKS
+	du_shuffle_index = 0
+	if du_dealer_label != null:
+		du_dealer_label.text = "DEALER"
+		du_dealer_label.add_theme_color_override("font_color", COLOR_BLUE)
+	if du_challenger_label != null:
+		du_challenger_label.text = "BIG / SMALL ?"
+		du_challenger_label.add_theme_color_override("font_color", COLOR_GOLD)
+	if du_challenger_rect != null:
+		du_challenger_rect.texture = _card_back_texture(false)
+		du_challenger_rect.modulate = Color(1, 1, 1, 1.0)
+		du_challenger_rect.scale = Vector2(1.0, 1.0)
+	du_dealer_rect.modulate = Color(1, 1, 1, 1)
+	du_dealer_rect.scale = Vector2(0.92, 0.92)
 	_process_du_shuffle()
 	if du_shuffle_timer != null and du_shuffle_timer.is_stopped():
 		du_shuffle_timer.start()
@@ -1996,7 +2032,10 @@ func _start_du_card_shuffle(new_dealer_code: String, new_player_code: String) ->
 func _process_du_shuffle() -> void:
 	var code: String = DU_SHUFFLE_CODES[du_shuffle_index % DU_SHUFFLE_CODES.size()]
 	du_shuffle_index += 1
-	_set_du_card_texture(du_challenger_rect, code)
+	var target_rect: TextureRect = du_challenger_rect
+	if target_rect == null:
+		target_rect = du_dealer_rect
+	_set_du_card_texture(target_rect, code)
 	if du_shuffle_ticks_remaining > 0:
 		du_shuffle_ticks_remaining -= 1
 		if du_shuffle_ticks_remaining <= 0:
@@ -2006,18 +2045,29 @@ func _finish_du_card_shuffle() -> void:
 	if du_shuffle_timer != null:
 		du_shuffle_timer.stop()
 	_set_du_card_texture(du_dealer_rect, du_shuffle_target_dealer)
+	if du_shuffle_replace_dealer_only:
+		if du_challenger_rect != null:
+			du_challenger_rect.texture = _card_back_texture(false)
+			du_challenger_rect.modulate = Color(1, 1, 1, 1.0)
+			du_challenger_rect.scale = Vector2(1.0, 1.0)
+		if du_dealer_rect != null:
+			du_dealer_rect.scale = Vector2(0.92, 0.92)
+			var dealer_tw := create_tween()
+			dealer_tw.tween_property(du_dealer_rect, "scale", Vector2(1.0, 1.0), DU_SWITCH_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		du_shuffle_replace_dealer_only = false
+		return
 	_set_du_card_texture(du_challenger_rect, du_shuffle_target_challenger)
-	if du_shuffle_target_challenger.length() >= 2:
+	if du_shuffle_target_challenger.length() >= 2 and du_challenger_rect != null:
 		du_challenger_rect.scale = Vector2(0.92, 0.92)
 		var tw := create_tween()
 		tw.tween_property(du_challenger_rect, "scale", Vector2(1.0, 1.0), DU_SWITCH_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 func _refresh_jackpots() -> void:
-	var jp: Dictionary = store.snapshot.get("jackpot", {})
-	var active_4k: String = str(jp.get("active_four_of_a_kind_slot", "A"))
-	_refresh_jackpot_counter("4k-a", store._to_int(jp.get("four_of_a_kind_a", 0)))
-	_refresh_jackpot_counter("sf", store._to_int(jp.get("straight_flush", 0)))
-	_refresh_jackpot_counter("4k-b", store._to_int(jp.get("four_of_a_kind_b", 0)))
+	var jp: Dictionary = _jackpot_data()
+	var active_4k: String = _jackpot_active_4k_slot(jp)
+	_refresh_jackpot_counter("4k-a", store._to_int(_du_first_value(jp, ["four_of_a_kind_a", "fourOfAKindA", "FourOfAKindA"], 0)))
+	_refresh_jackpot_counter("sf", store._to_int(_du_first_value(jp, ["straight_flush", "straightFlush", "StraightFlush"], 0)))
+	_refresh_jackpot_counter("4k-b", store._to_int(_du_first_value(jp, ["four_of_a_kind_b", "fourOfAKindB", "FourOfAKindB"], 0)))
 	_set_jackpot_counter_active("4k-a", active_4k == "A")
 	_set_jackpot_counter_active("4k-b", active_4k == "B")
 	_refresh_paytable_values()
@@ -2076,17 +2126,17 @@ func _refresh_bonus_stage() -> void:
 	if bonus_stage_panel == null or bonus_stage_card == null:
 		return
 	var bonus: Dictionary = _bonus_presentation()
-	var active := bool(bonus.get("active", false))
+	var active := _du_bool(bonus, ["active", "isActive", "Active"])
 	if not active:
 		var fallback := _fallback_bonus_presentation()
-		if bool(fallback.get("active", false)):
+		if _du_bool(fallback, ["active", "isActive", "Active"]):
 			bonus = fallback
 			active = true
 
-	var kind := str(bonus.get("kind", "free_games"))
-	var amount := store._to_int(bonus.get("amount", 0))
-	var free_count := store._to_int(bonus.get("free_game_count", 0))
-	var message := str(bonus.get("message", "FREE GAMES BONUS"))
+	var kind := str(_du_first_value(bonus, ["kind", "Kind"], "free_games"))
+	var amount := store._to_int(_du_first_value(bonus, ["amount", "Amount", "current_amount", "currentAmount", "CurrentAmount"], 0))
+	var free_count := store._to_int(_du_first_value(bonus, ["free_game_count", "freeGameCount", "FreeGameCount"], 0))
+	var message := str(_du_first_value(bonus, ["message", "Message"], "FREE GAMES BONUS"))
 	var card_code := _bonus_presentation_card_code(bonus)
 	if card_code.is_empty() and kind == "lucky5":
 		card_code = "5S"
@@ -2119,25 +2169,25 @@ func _refresh_bonus_stage() -> void:
 
 func _bonus_presentation() -> Dictionary:
 	var presentation: Dictionary = store.snapshot.get("presentation", {})
-	var bonus: Variant = presentation.get("bonus", {})
+	var bonus: Variant = _du_first_value(presentation, ["bonus", "Bonus"], {})
 	if typeof(bonus) == TYPE_DICTIONARY:
 		return bonus
 	return {}
 
 func _bonus_presentation_card_code(bonus: Dictionary) -> String:
-	var card: Variant = bonus.get("card", {})
+	var card: Variant = _du_first_value(bonus, ["card", "Card"], {})
 	if typeof(card) == TYPE_DICTIONARY:
-		return str(card.get("code", ""))
-	return str(bonus.get("card_code", ""))
+		return str(_du_first_value(card, ["code", "Code"], ""))
+	return str(_du_first_value(bonus, ["card_code", "cardCode", "CardCode"], ""))
 
 func _fallback_bonus_presentation() -> Dictionary:
-	var du: Dictionary = store.snapshot.get("double_up", {})
-	if store.game_state() == "double_up" and bool(du.get("is_lucky5_active", false)):
+	var du: Dictionary = _double_up_data()
+	if _is_double_up_state_name(store.game_state()) and _du_bool(du, ["is_lucky5_active", "isLucky5Active", "IsLucky5Active"]):
 		return {
 			"active": true,
 			"kind": "lucky5",
 			"card_code": "5S",
-			"amount": du.get("current_amount", 0),
+			"amount": _du_first_value(du, ["current_amount", "currentAmount", "CurrentAmount"], 0),
 			"free_game_count": 0,
 			"message": "5 NEVER LOSE"
 		}
@@ -2214,8 +2264,8 @@ func _animate_bonus_stage(active: bool) -> void:
 		bonus_stage_tween.tween_property(bonus_stage_card, "scale", Vector2(1.0, 1.0), 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _full_house_rank_text() -> String:
-	var jp: Dictionary = store.snapshot.get("jackpot", {})
-	var rank: Variant = jp.get("full_house_rank", 0)
+	var jp: Dictionary = _jackpot_data()
+	var rank: Variant = _du_first_value(jp, ["full_house_rank", "fullHouseRank", "FullHouseRank"], 0)
 	var rank_value: int = store._to_int(rank)
 	if rank_value <= 0: return "FH RANK"
 	match rank_value:
@@ -2232,8 +2282,8 @@ func _full_house_rank_text() -> String:
 		_: return "FH RANK: %d" % rank_value
 
 func _full_house_rank_card_code() -> String:
-	var jp: Dictionary = store.snapshot.get("jackpot", {})
-	var rank: Variant = jp.get("full_house_rank", 0)
+	var jp: Dictionary = _jackpot_data()
+	var rank: Variant = _du_first_value(jp, ["full_house_rank", "fullHouseRank", "FullHouseRank"], 0)
 	var rank_value: int = store._to_int(rank)
 	match rank_value:
 		14: return "AS"
@@ -2246,23 +2296,32 @@ func _full_house_rank_card_code() -> String:
 func _refresh_paytable_values() -> void:
 	if full_house_jackpot_label == null or full_house_rank_label == null: return
 	var stake: int = max(0, store.stake())
+	var score_key := win_paytable_rank_key
+	if score_key.is_empty() and win_displayed_amount > 0:
+		score_key = _paytable_rank_key(store.hand_rank())
 	for key in paytable_amount_labels.keys():
 		var amount_l: Label = paytable_amount_labels.get(key, null)
 		if amount_l == null: continue
+		if win_displayed_amount > 0 and str(key) == score_key:
+			amount_l.text = "+%s" % _format_amount(win_displayed_amount)
+			continue
 		var multiplier: int = int(paytable_multipliers.get(key, 0))
 		amount_l.text = _format_amount(stake * multiplier)
-	var jp: Dictionary = store.snapshot.get("jackpot", {})
-	full_house_jackpot_label.text = _format_amount(jp.get("full_house", 0))
+	var jp: Dictionary = _jackpot_data()
+	full_house_jackpot_label.text = _format_amount(_du_first_value(jp, ["full_house", "fullHouse", "FullHouse"], 0))
 	full_house_rank_label.text = _full_house_rank_text()
 
 func _refresh_paytable_highlights() -> void:
 	var hand_rank: String = store.hand_rank()
+	var score_key := win_paytable_rank_key
+	if score_key.is_empty() and win_displayed_amount > 0:
+		score_key = _paytable_rank_key(hand_rank)
 	for key in paytable_rows.keys():
 		var row_panel: PanelContainer = paytable_rows.get(key, null)
 		if row_panel == null: continue
 		var sty := row_panel.get_theme_stylebox("panel", "") as StyleBoxFlat
 		if sty == null: continue
-		var highlighted: bool = str(key) == hand_rank
+		var highlighted: bool = str(key) == hand_rank or (win_displayed_amount > 0 and str(key) == score_key)
 		sty.bg_color = Color(1.0, 1.0, 0.3, 0.25) if highlighted else Color(0, 0, 0, 0)
 
 func _refresh_machine_info() -> void:
@@ -2302,13 +2361,21 @@ func _refresh_credit_display() -> void:
 	last_machine_credit_amount = machine_credits
 
 func _credit_line_for_amount(machine_credit_amount: int) -> String:
+	return "CREDIT %s" % _format_amount(machine_credit_amount)
+
+func _menu_balance_line() -> String:
 	return "CREDIT %s\nWALLET %s\nBONUS %s\nSTAKE %s\nIN %s" % [
-		_format_amount(machine_credit_amount),
+		_format_amount(store.machine_credits()),
 		_format_amount(store.wallet_balance()),
 		_format_amount(store.credit_balance()),
 		_format_amount(store.stake()),
 		_format_amount(store.total_cash_in())
 	]
+
+func _refresh_menu_balance() -> void:
+	if menu_balance_label == null:
+		return
+	menu_balance_label.text = _menu_balance_line()
 
 func _set_credit_display_amount(value: Variant) -> void:
 	displayed_machine_credit_amount = max(0, int(round(float(value))))
@@ -2329,9 +2396,10 @@ func _animate_credit_transfer(from_amount: int, to_amount: int, drain_amount: in
 	var start_win: int = max(max(0, drain_amount), max(win_displayed_amount, win_target_amount))
 	var duration := _settlement_drain_duration(start_win)
 
-	var eval: Dictionary = store.snapshot.get("evaluation", {})
-	if win_slot_label != null and win_slot_label.text.is_empty():
-		win_slot_label.text = str(eval.get("hand_rank", "WIN"))
+	var eval: Dictionary = _evaluation_data()
+	win_paytable_rank_key = _paytable_rank_key(str(_du_first_value(eval, ["hand_rank", "handRank", "HandRank"], store.hand_rank())))
+	if win_slot_label != null:
+		win_slot_label.text = win_paytable_rank_key
 
 	credit_counter_tween = create_tween()
 	credit_counter_tween.set_parallel(true)
@@ -2342,9 +2410,9 @@ func _animate_credit_transfer(from_amount: int, to_amount: int, drain_amount: in
 	_pulse_win_display()
 
 func _settlement_drain_duration(amount: int) -> float:
-	var eval: Dictionary = store.snapshot.get("evaluation", {})
-	var jackpot_won := store._to_int(eval.get("jackpot_won", 0))
-	var hand_rank := str(eval.get("hand_rank", ""))
+	var eval: Dictionary = _evaluation_data()
+	var jackpot_won := store._to_int(_du_first_value(eval, ["jackpot_won", "jackpotWon", "JackpotWon"], 0))
+	var hand_rank := str(_du_first_value(eval, ["hand_rank", "handRank", "HandRank"], ""))
 	if jackpot_won > 0 or hand_rank == "RoyalFlush":
 		return CREDIT_DRAIN_JACKPOT_DURATION
 	return clampf(float(abs(amount)) / 12000000.0, CREDIT_DRAIN_MIN_DURATION, CREDIT_DRAIN_MAX_DURATION)
@@ -2371,26 +2439,35 @@ func _refresh_win_display() -> void:
 	if credit_transfer_active:
 		return
 	var pending := store.pending_win_amount()
-	var eval: Dictionary = store.snapshot.get("evaluation", {})
+	var eval: Dictionary = _evaluation_data()
 	if pending > 0:
-		win_slot_label.text = str(eval.get("hand_rank", "WIN"))
+		win_paytable_rank_key = _paytable_rank_key(str(_du_first_value(eval, ["hand_rank", "handRank", "HandRank"], store.hand_rank())))
+		if win_slot_label != null:
+			win_slot_label.text = win_paytable_rank_key
 		if pending != win_target_amount:
 			_animate_win_amount_to(pending)
-		elif win_amount_label.text.is_empty():
+		elif win_displayed_amount <= 0:
 			_set_win_display_amount(float(pending))
 	else:
 		if win_target_amount > 0 or win_displayed_amount > 0:
 			_animate_win_amount_to(0)
 		else:
-			win_slot_label.text = ""
-			win_amount_label.text = ""
+			win_paytable_rank_key = ""
+			if win_slot_label != null:
+				win_slot_label.text = ""
+			if win_amount_label != null:
+				win_amount_label.text = ""
+			_refresh_paytable_values()
+			_refresh_paytable_highlights()
 
 func _animate_win_amount_to(target_amount: int) -> void:
-	if win_amount_label == null:
+	if paytable_amount_labels.is_empty():
 		return
 	if win_counter_tween != null and win_counter_tween.is_valid():
 		win_counter_tween.kill()
 	win_target_amount = max(0, target_amount)
+	if win_target_amount > 0 and win_paytable_rank_key.is_empty():
+		win_paytable_rank_key = _paytable_rank_key(store.hand_rank())
 	var distance: int = abs(win_target_amount - win_displayed_amount)
 	var duration: float = clampf(float(distance) / 12000000.0, WIN_COUNTER_MIN_DURATION, WIN_COUNTER_MAX_DURATION)
 	win_counter_tween = create_tween()
@@ -2400,32 +2477,73 @@ func _animate_win_amount_to(target_amount: int) -> void:
 
 func _set_win_display_amount(value: Variant) -> void:
 	win_displayed_amount = max(0, int(round(float(value))))
-	if win_amount_label == null:
-		return
-	if win_displayed_amount > 0:
-		win_amount_label.text = "+%s" % _format_amount(win_displayed_amount)
-	else:
+	if win_amount_label != null:
 		win_amount_label.text = ""
+		if win_displayed_amount > 0:
+			win_amount_label.text = "+%s" % _format_amount(win_displayed_amount)
+	_refresh_paytable_values()
+	_refresh_paytable_highlights()
 
 func _pulse_win_display() -> void:
-	if win_amount_label == null:
+	var score_label := _active_win_paytable_amount_label()
+	if score_label == null:
 		return
 	if win_pulse_tween != null and win_pulse_tween.is_valid():
 		win_pulse_tween.kill()
-	win_amount_label.pivot_offset = win_amount_label.size * 0.5
-	win_amount_label.scale = Vector2(1.10, 1.10)
+	score_label.pivot_offset = score_label.size * 0.5
+	score_label.scale = Vector2(1.10, 1.10)
 	win_pulse_tween = create_tween()
-	win_pulse_tween.tween_property(win_amount_label, "scale", Vector2(1.0, 1.0), 0.24).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	win_pulse_tween.tween_property(score_label, "scale", Vector2(1.0, 1.0), 0.24).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _on_win_counter_finished() -> void:
 	if win_target_amount <= 0 and win_displayed_amount <= 0:
-		win_slot_label.text = ""
-		win_amount_label.text = ""
-		win_amount_label.scale = Vector2(1.0, 1.0)
+		var score_label := _active_win_paytable_amount_label()
+		if score_label != null:
+			score_label.scale = Vector2(1.0, 1.0)
+		win_paytable_rank_key = ""
+		if win_slot_label != null:
+			win_slot_label.text = ""
+		if win_amount_label != null:
+			win_amount_label.text = ""
+			win_amount_label.scale = Vector2(1.0, 1.0)
+		_refresh_paytable_values()
+		_refresh_paytable_highlights()
+
+func _active_win_paytable_amount_label() -> Label:
+	var key := win_paytable_rank_key
+	if key.is_empty():
+		key = _paytable_rank_key(store.hand_rank())
+	if key.is_empty() or not paytable_amount_labels.has(key):
+		return null
+	return paytable_amount_labels.get(key, null) as Label
+
+func _paytable_rank_key(raw_rank: String) -> String:
+	var key := raw_rank.strip_edges()
+	if paytable_amount_labels.has(key):
+		return key
+	var normalized := key.replace(" ", "").replace("_", "").replace("-", "").to_lower()
+	match normalized:
+		"royalflush":
+			return "RoyalFlush"
+		"straightflush":
+			return "StraightFlush"
+		"fourofakind", "fourkind":
+			return "FourOfAKind"
+		"fullhouse":
+			return "FullHouse"
+		"flush":
+			return "Flush"
+		"straight":
+			return "Straight"
+		"threeofakind", "threekind":
+			return "ThreeOfAKind"
+		"twopair":
+			return "TwoPair"
+	return ""
 
 func _refresh_lucky5_banner() -> void:
-	var du: Dictionary = store.snapshot.get("double_up", {})
-	var is_lucky5 := bool(du.get("is_lucky5_active", false))
+	var du := _double_up_data()
+	var is_lucky5 := _du_bool(du, ["is_lucky5_active", "isLucky5Active", "IsLucky5Active", "lucky5", "Lucky5", "winLucky5", "WinLucky5"])
 	lucky5_banner.visible = is_lucky5
 	lucky5_banner.text = "LUCKY 5 IS ACTIVE" if is_lucky5 else ""
 
@@ -2440,9 +2558,116 @@ func _is_action_enabled(id: String) -> bool:
 	if access_token.is_empty(): return false
 	if _has_pending_command() and id not in ["menu", "reconnect_sync", "logout", "admin_toggle"]: return false
 	if id in ["reconnect_sync", "back_to_lobby", "logout", "admin_toggle"]: return true
-	if id == "bet" and store.game_state() == "double_up" and store.can_press("double_up_switch"): return true
+	if id == "bet" and _can_switch_double_up_dealer(): return true
 	if id == "take_score" and store.can_press("cash_out"): return true
 	return store.can_press(id)
+
+func _can_switch_double_up_dealer() -> bool:
+	if access_token.is_empty() or _has_pending_command() or not store.commands_allowed():
+		return false
+	if store.current_round_id().is_empty():
+		return false
+	var du := _double_up_data()
+	return _is_double_up_active(du) and _du_switches_remaining(du) > 0
+
+func _is_double_up_state_name(value: String) -> bool:
+	var normalized := value.strip_edges().to_lower()
+	normalized = normalized.replace("-", "_").replace(" ", "_")
+	return normalized == "double_up" or normalized == "doubleup"
+
+func _double_up_data() -> Dictionary:
+	var source: Variant = store.snapshot.get("double_up", null)
+	if typeof(source) != TYPE_DICTIONARY:
+		source = store.snapshot.get("doubleUp", null)
+	if typeof(source) != TYPE_DICTIONARY:
+		source = store.snapshot.get("doubleUpSession", null)
+	if typeof(source) != TYPE_DICTIONARY:
+		var active_round: Variant = store.snapshot.get("activeRound", {})
+		if typeof(active_round) == TYPE_DICTIONARY:
+			source = active_round.get("double_up", active_round.get("doubleUpSession", null))
+	return source if typeof(source) == TYPE_DICTIONARY else {}
+
+func _jackpot_data() -> Dictionary:
+	var source: Variant = store.snapshot.get("jackpot", null)
+	if typeof(source) != TYPE_DICTIONARY:
+		source = store.snapshot.get("jackpots", null)
+	return source if typeof(source) == TYPE_DICTIONARY else {}
+
+func _jackpot_active_4k_slot(jp: Dictionary) -> String:
+	var raw: Variant = _du_first_value(jp, ["active_four_of_a_kind_slot", "activeFourOfAKindSlot", "ActiveFourOfAKindSlot"], "A")
+	if typeof(raw) == TYPE_INT or typeof(raw) == TYPE_FLOAT:
+		return "B" if store._to_int(raw) == 1 else "A"
+	var normalized := str(raw).strip_edges().to_upper()
+	if normalized == "1":
+		return "B"
+	if normalized == "0":
+		return "A"
+	return "B" if normalized == "B" else "A"
+
+func _evaluation_data() -> Dictionary:
+	var source: Variant = store.snapshot.get("evaluation", {})
+	return source if typeof(source) == TYPE_DICTIONARY else {}
+
+func _is_double_up_active(du_data: Dictionary) -> bool:
+	var active: Variant = _du_first_value(du_data, ["active", "isActive", "Active", "InDoubleUp", "inDoubleUp"], null)
+	if typeof(active) == TYPE_BOOL:
+		return bool(active)
+	if _is_double_up_state_name(store.game_state()):
+		return true
+	var phase := str(_snapshot_first_value(["phase", "Phase", "gameState", "game_state"], ""))
+	if _is_double_up_state_name(phase):
+		return true
+	var dealer_code := _du_card_code(du_data, ["dealer_card", "dealerCard", "DealerCard", "double_up_card", "doubleUpCard", "DoubleUpCard"])
+	if dealer_code.length() < 2:
+		return false
+	var normalized_status := _du_status(du_data).strip_edges().to_lower()
+	return normalized_status.is_empty() or (
+		normalized_status.find("lose") < 0
+		and normalized_status.find("lost") < 0
+		and normalized_status.find("cash") < 0
+		and normalized_status.find("complete") < 0
+	)
+
+func _evaluation_double_up_available(evaluation: Dictionary) -> bool:
+	return _du_bool(evaluation, ["double_up_available", "doubleUpAvailable", "DoubleUpAvailable"])
+
+func _du_switches_remaining(du_data: Dictionary) -> int:
+	return store._to_int(_du_first_value(du_data, ["switches_remaining", "switchesRemaining", "SwitchesRemaining", "swap_active_remaining", "swapActiveRemaining", "SwapActiveRemaining"], 0))
+
+func _du_status(du_data: Dictionary) -> String:
+	return str(_du_first_value(du_data, ["status", "Status", "outcome", "Outcome"], ""))
+
+func _du_card_code(du_data: Dictionary, keys: Array) -> String:
+	return _du_entry_code(_du_first_value(du_data, keys, {}))
+
+func _du_bool(du_data: Dictionary, keys: Array) -> bool:
+	var value: Variant = _du_first_value(du_data, keys, false)
+	if typeof(value) == TYPE_BOOL:
+		return value
+	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
+		return store._to_int(value) != 0
+	if typeof(value) == TYPE_STRING:
+		var normalized := str(value).strip_edges().to_lower()
+		return normalized == "true" or normalized == "1" or normalized == "yes"
+	return false
+
+func _du_array(du_data: Dictionary, keys: Array) -> Array:
+	var value: Variant = _du_first_value(du_data, keys, [])
+	return value if typeof(value) == TYPE_ARRAY else []
+
+func _du_first_value(du_data: Dictionary, keys: Array, fallback: Variant = null) -> Variant:
+	for key in keys:
+		var name := str(key)
+		if du_data.has(name):
+			return du_data[name]
+	return fallback
+
+func _snapshot_first_value(keys: Array, fallback: Variant = null) -> Variant:
+	for key in keys:
+		var name := str(key)
+		if store.snapshot.has(name):
+			return store.snapshot[name]
+	return fallback
 
 func _refresh_admin_users() -> void:
 	for c in admin_users_list.get_children(): c.queue_free()
@@ -2535,7 +2760,7 @@ func _on_action_pressed(id: String) -> void:
 				if not round_id.is_empty(): _send_command("draw", {"round_id": round_id, "hold_indexes": _draw_hold_indexes()})
 			else: _send_command("deal", {"bet_amount": str(selected_bet)})
 		"bet":
-			if store.game_state() == "double_up" and store.can_press("double_up_switch"):
+			if _can_switch_double_up_dealer():
 				var switch_round_id := store.current_round_id()
 				if not switch_round_id.is_empty(): _send_command("double_up_switch", {"round_id": switch_round_id})
 			else: _cycle_bet()

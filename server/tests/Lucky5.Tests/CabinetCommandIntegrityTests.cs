@@ -3,6 +3,7 @@ namespace Lucky5.Tests;
 using Lucky5.Application.Contracts;
 using Lucky5.Application.Dtos;
 using Lucky5.Domain.Entities;
+using Lucky5.Domain.Game.CleanRoom;
 using Lucky5.Infrastructure.Data.Repositories;
 using Lucky5.Infrastructure.Services;
 
@@ -13,6 +14,7 @@ public static class CabinetCommandIntegrityTests
         await CashInCommandUsesAuthoritativeDualWalletAndIsIdempotentAsync(failures);
         await DuplicateCommandWithDifferentContentIsRejectedAsync(failures);
         await StaleExpectedStateVersionRejectsBeforeMutationAsync(failures);
+        await SwapDoubleUpCardCommandAliasesDealerSwitchAsync(failures);
     }
 
     private static async Task CashInCommandUsesAuthoritativeDualWalletAndIsIdempotentAsync(List<string> failures)
@@ -187,6 +189,77 @@ public static class CabinetCommandIntegrityTests
             && duplicateStale.Status == "duplicate"
             && store.MemberProfiles[userId].WalletBalance == walletAfterFirst
             && store.Ledger.Count(row => row.UserId == userId) == ledgerCountAfterFirst);
+    }
+
+    private static async Task SwapDoubleUpCardCommandAliasesDealerSwitchAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = CreateService(store);
+        var userId = Guid.Parse("22000000-0000-0000-0000-000000000004");
+        SeedPlayer(store, userId, "cabinet-du-switch", walletBalance: 1_000_000m, credit: 0m);
+        var machineId = store.Machines.Values.First(machine => machine.IsOpen).Id;
+        var session = await service.GetMachineSessionAsync(userId, machineId, CancellationToken.None);
+
+        var hand = FiveCardDrawEngine.ParseCards(["AH", "AD", "8C", "8H", "2S"]).ToArray();
+        var drawn = new FiveCardDrawState(
+            SeedToken: 0xD055UL,
+            Deck: hand,
+            Hand: hand,
+            DrawIndex: 5,
+            Held: [false, false, false, false, false],
+            Phase: RoundPhase.Drawn,
+            State: RoundState.Evaluate);
+        var duSession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
+            seedRoot: 0xD0B1EUL,
+            deck: FiveCardDrawEngine.ParseCards(["9H", "AS", "4C", "2D"]),
+            openingAmount: 10_000,
+            machineCreditBaseline: 500_000);
+        var round = new GameRound
+        {
+            RoundId = Guid.Parse("33000000-0000-0000-0000-000000000001"),
+            UserId = userId,
+            MachineId = machineId,
+            BetAmount = 5_000m,
+            InitialCards = hand.Select(card => card.ToLegacyPokerCard()).ToList(),
+            FinalCards = hand.Select(card => card.ToLegacyPokerCard()).ToList(),
+            HandRank = "TwoPair",
+            WinAmount = 10_000m,
+            OriginalWinAmount = 10_000m,
+            IsCompleted = true,
+            IsPayoutSettled = false,
+            DoubleUpOffered = true,
+            DoubleUpSession = duSession,
+            CleanRoomState = drawn
+        };
+
+        store.ActiveRounds[round.RoundId] = round;
+        var snapshot = await service.GetCabinetSnapshotAsync(userId, machineId, CancellationToken.None);
+        var command = BuildCommand(
+            commandId: Guid.Parse("22000000-1000-0000-0000-000000000006"),
+            type: "swap_double_up_card",
+            machineId,
+            session.SessionId,
+            expectedStateVersion: snapshot.StateVersion,
+            idempotencyKey: "du-switch-command-0001",
+            payload: new Dictionary<string, object?> { ["round_id"] = round.RoundId, ["swap_position"] = 0 });
+
+        var accepted = await service.SubmitCabinetCommandAsync(userId, command, CancellationToken.None);
+        var saved = store.ActiveRounds[round.RoundId];
+
+        Assert(
+            failures,
+            "Legacy swap_double_up_card cabinet command should be accepted as the dealer-switch action used by BET.",
+            accepted.Accepted
+            && accepted.Status == "accepted"
+            && accepted.Error is null
+            && accepted.StateVersion == snapshot.StateVersion + 1);
+        Assert(
+            failures,
+            "Dealer-switch command should consume the next deterministic double-up card instead of rejecting swap_position 0.",
+            saved.DoubleUpSession is not null
+            && saved.DoubleUpSession.DealerIndex == 1
+            && saved.DoubleUpSession.SwitchCountInRound == 1
+            && saved.DoubleUpSession.DealerCard.Code == "AS");
     }
 
     private static CabinetCommandDto BuildCommand(

@@ -2296,7 +2296,7 @@ func _is_action_enabled(id: String) -> bool:
 	if access_token.is_empty(): return false
 	if _has_pending_command() and id not in ["menu", "reconnect_sync", "logout", "admin_toggle"]: return false
 	if id in ["reconnect_sync", "back_to_lobby", "logout", "admin_toggle"]: return true
-	if id == "bet" and store.game_state() == "double_up" and store.can_press("swap_double_up_card"): return true
+	if id == "bet" and store.game_state() == "double_up" and store.can_press("double_up_switch"): return true
 	if id == "take_score" and store.can_press("cash_out"): return true
 	return store.can_press(id)
 
@@ -2388,16 +2388,16 @@ func _on_action_pressed(id: String) -> void:
 				if not round_id.is_empty(): _send_command("draw", {"round_id": round_id, "hold_indexes": _draw_hold_indexes()})
 			else: _send_command("deal", {"bet_amount": str(selected_bet)})
 		"bet":
-			if store.game_state() == "double_up" and store.can_press("swap_double_up_card"):
-				var swap_round_id := store.current_round_id()
-				if not swap_round_id.is_empty(): _send_command("swap_double_up_card", {"round_id": swap_round_id, "swap_position": 0})
+			if store.game_state() == "double_up" and store.can_press("double_up_switch"):
+				var switch_round_id := store.current_round_id()
+				if not switch_round_id.is_empty(): _send_command("double_up_switch", {"round_id": switch_round_id})
 			else: _cycle_bet()
 		"cancel_hold": local_hold_indexes.clear(); auto_holds_cancelled = true; _send_command("clear_holds", {}); _refresh_ui()
 		"big": _send_double_up_guess("big")
 		"small": _send_double_up_guess("small")
 		"swap_double_up_card":
-			var swap_round_id := store.current_round_id()
-			if not swap_round_id.is_empty(): _send_command("swap_double_up_card", {"round_id": swap_round_id, "swap_position": 0})
+			var switch_round_id := store.current_round_id()
+			if not switch_round_id.is_empty(): _send_command("double_up_switch", {"round_id": switch_round_id})
 		"take_half":
 			var round_id := store.current_round_id()
 			if not round_id.is_empty(): _send_command("take_half", {"round_id": round_id})

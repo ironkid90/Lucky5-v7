@@ -292,9 +292,9 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
-            "Godot cabinet double-up must use the arcade presentation: large centered challenger, small dealer reference, rapid card shuffle, and backend card trail",
-            rootScript.Contains("const DU_MAIN_CARD_SIZE := Vector2(150, 210)", StringComparison.Ordinal)
-                && rootScript.Contains("const DU_BOARD_CARD_SIZE := Vector2(54, 76)", StringComparison.Ordinal)
+            "Godot cabinet double-up must use one visible deck row: current dealer in the revealed trail, shuffle in the next slot, no separate winning hand/stage",
+            rootScript.Contains("const DU_BOARD_CARD_SIZE := Vector2(92, 129)", StringComparison.Ordinal)
+                && rootScript.Contains("const DU_TRAIL_CARD_SIZE := Vector2(92, 129)", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_SHUFFLE_INTERVAL := 0.08", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_REVEAL_SETTLE_SECONDS := 0.50", StringComparison.Ordinal)
                 && rootScript.Contains("var card_area_panel: Panel", StringComparison.Ordinal)
@@ -313,11 +313,21 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("var auto_double_up_round_ids: Array = []", StringComparison.Ordinal)
                 && rootScript.Contains("du_shuffle_timer.timeout.connect(_process_du_shuffle)", StringComparison.Ordinal)
                 && rootScript.Contains("du_promote_timer.timeout.connect(_on_du_promote_timeout)", StringComparison.Ordinal)
-                && rootScript.Contains("du_focus_stage.name = \"DoubleUpSingleCardStage\"", StringComparison.Ordinal)
-                && rootScript.Contains("challenger_slot.name = \"DoubleUpChallengerStage\"", StringComparison.Ordinal)
-                && rootScript.Contains("dealer_slot.name = \"DoubleUpDealerReference\"", StringComparison.Ordinal)
-                && rootScript.Contains("challenger_slot.anchor_left = 0.5", StringComparison.Ordinal)
-                && rootScript.Contains("du_challenger_rect.custom_minimum_size = DU_MAIN_CARD_SIZE", StringComparison.Ordinal)
+                && rootScript.Contains("du_trail_container.name = \"DoubleUpDeckRow\"", StringComparison.Ordinal)
+                && rootScript.Contains("slot.name = \"DoubleUpDeckSlot%d\" % index", StringComparison.Ordinal)
+                && rootScript.Contains("if index == 0:", StringComparison.Ordinal)
+                && rootScript.Contains("du_dealer_rect = slot_rect", StringComparison.Ordinal)
+                && rootScript.Contains("elif index == 1:", StringComparison.Ordinal)
+                && rootScript.Contains("du_challenger_rect = slot_rect", StringComparison.Ordinal)
+                && rootScript.Contains("func _du_visible_deck_codes", StringComparison.Ordinal)
+                && rootScript.Contains("var shuffle_index := -1", StringComparison.Ordinal)
+                && rootScript.Contains("shuffle_index = min(trail_codes.size(), du_cards.size() - 1)", StringComparison.Ordinal)
+                && rootScript.Contains("_set_du_board_back(index, \"BIG / SMALL ?\", 1.0)", StringComparison.Ordinal)
+                && rootScript.Contains("_set_du_challenger_slot(index)", StringComparison.Ordinal)
+                && !rootScript.Contains("du_focus_stage.name = \"DoubleUpSingleCardStage\"", StringComparison.Ordinal)
+                && !rootScript.Contains("challenger_slot.name = \"DoubleUpChallengerStage\"", StringComparison.Ordinal)
+                && !rootScript.Contains("dealer_slot.name = \"DoubleUpDealerReference\"", StringComparison.Ordinal)
+                && !rootScript.Contains("du_challenger_rect.custom_minimum_size = DU_MAIN_CARD_SIZE", StringComparison.Ordinal)
                 && !rootScript.Contains("du_focus_row.add_child(dealer_slot)", StringComparison.Ordinal)
                 && !rootScript.Contains("var vs_label := _make_label(\"VS\"", StringComparison.Ordinal)
                 && rootScript.Contains("func _start_du_card_shuffle", StringComparison.Ordinal)
@@ -329,8 +339,8 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("func _queue_du_dealer_promotion(next_dealer_code: String) -> void:", StringComparison.Ordinal)
                 && rootScript.Contains("func _on_du_promote_timeout() -> void:", StringComparison.Ordinal)
                 && rootScript.Contains("_start_du_card_shuffle(du_pending_promote_dealer, \"\")", StringComparison.Ordinal)
-                && rootScript.Contains("func _refresh_du_trail", StringComparison.Ordinal)
-                && rootScript.Contains("_refresh_du_trail(du_data)", StringComparison.Ordinal)
+                && rootScript.Contains("func _refresh_du_trail(du_data: Dictionary, dealer_code: String, challenger_code: String, status: String) -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("_refresh_du_trail(du_data, dealer_code, challenger_code, status)", StringComparison.Ordinal)
                 && rootScript.Contains("du_data.get(\"card_trail\", [])", StringComparison.Ordinal));
 
         Assert(
@@ -364,8 +374,12 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("[\"menu\", \"MENU\"", StringComparison.Ordinal)
                 && rootScript.Contains("[\"take_score\", \"TAKE\\nSCORE\"", StringComparison.Ordinal)
                 && rootScript.Contains("_on_hold_button_pressed.bind(index)", StringComparison.Ordinal)
-                && rootScript.Contains("if store.game_state() == \"double_up\" and store.can_press(\"swap_double_up_card\"):", StringComparison.Ordinal)
-                && rootScript.Contains("_send_command(\"swap_double_up_card\"", StringComparison.Ordinal)
+                && rootScript.Contains("if store.game_state() == \"double_up\" and store.can_press(\"double_up_switch\"):", StringComparison.Ordinal)
+                && rootScript.Contains("_send_command(\"double_up_switch\", {\"round_id\": switch_round_id})", StringComparison.Ordinal)
+                && storeScript.Contains("\"swap_double_up_card\": \"double_up_switch\"", StringComparison.Ordinal)
+                && storeScript.Contains("\"double_up_switch\"", StringComparison.Ordinal)
+                && gameService.Contains("\"big\", \"small\", \"double_up_switch\", \"take_half\"", StringComparison.Ordinal)
+                && gameService.Contains("buttons.Add(\"double_up_switch\")", StringComparison.Ordinal)
                 && !rootScript.Contains("_build_menu_panel(content)", StringComparison.Ordinal)
                 && !rootScript.Contains("[\"swap_double_up_card\", \"SWAP\\nCARD\"", StringComparison.Ordinal));
 

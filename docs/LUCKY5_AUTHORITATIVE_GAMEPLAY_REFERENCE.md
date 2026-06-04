@@ -77,7 +77,7 @@ This file is the canonical reference for:
 | `K  35,000,000` jackpot tag              | `JackpotFullHouseRank` + `JackpotFullHouse`                | Rank glyph + value                                   |
 | `CREDIT`                                 | `MachineSessionState.MachineCredits`                         | Top-right green digits                               |
 | `STAKE`                                  | `GameRound.BetAmount`                                        | Top-right yellow digits                              |
-| 5 card slots (idle)                        | Slot 3 = rotating FH rank card; slots 1,2,4,5 = card backs     | See §4                                              |
+| 5 card slots (idle)                        | Black `LUCKY 5` title first; after the idle delay, slot 3 = rotating FH rank card and the other slots are empty | See §4                                              |
 | 5 card slots (dealt)                       | `GameRound.InitialCards` then `GameRound.FinalCards`       | See §3                                              |
 | `HOLD` badge under a card                | `bool[5] held` per card                                      | Cyan text under card image                           |
 | `PRESS HOLDS TO KEEP CARD`               | UI hint when phase =`Dealt`                                  | Cyan retro pixel font                                |
@@ -91,7 +91,7 @@ This file is the canonical reference for:
 
 ## 3. Base Game Flow (Five-Card Draw Poker)
 
-1. **Idle** — middle slot shows the **rotating Full House rank card** (the rank currently armed for the Full House jackpot, e.g., a King face). Other 4 slots show card backs.
+1. **Idle** — the cabinet first shows a black CRT field with the **`LUCKY 5`** title. After the idle delay, the middle slot shows the **rotating Full House rank card** (the rank currently armed for the Full House jackpot, e.g., a King face) and the other slots remain empty.
 2. **Bet adjust** — `BET` button cycles `STAKE` (e.g., 20,000 → 40,000 → ...). Paytable values scale instantly.
 3. **DEAL DRAW press** — deducts stake from `CREDIT`, animates a **classic arcade deal**:
    - Cards arrive **one at a time**, left-to-right, slot 1 → slot 5.
@@ -117,7 +117,7 @@ This file is the canonical reference for:
 
 **Why:** The classic cabinet teases the player — *"Full House of Kings is paying 35M right now"* — visible at all times so the player anchors their bet.
 
-**Other 4 slots while idle:** `bside.png` (card back) — same uniform back used during deal animation.
+**Other 4 slots while idle:** empty/blank after the delayed FH rank reveal. Do not render a full facedown five-card deck in idle title mode; card backs still appear during deal staging and double-up unused board slots.
 
 **Transition on DEAL:** the middle FH card is *replaced* by the dealt card; it does **not** persist or stack.
 
@@ -516,7 +516,7 @@ Every label/sprite reads from `CabinetStateStore.current_snapshot` via signals. 
 
 | `CabinetSnapshot.game_state` | Playfield                                 | Hint label                 | Active buttons                                    |
 | ------------------------------ | ----------------------------------------- | -------------------------- | ------------------------------------------------- |
-| `idle`                       | Slot 2 = rotating FH card; others = backs | ""                         | `BET`, `DEAL DRAW`                            |
+| `idle`                       | `LUCKY 5` title, then delayed slot 2 FH card alone | ""                         | `BET`, `DEAL DRAW`                            |
 | `dealing`                    | Cards animating in                        | "" (or muted)              | none                                              |
 | `dealt`                      | 5 face-up cards                           | "PRESS HOLDS TO KEEP CARD" | `HOLD[0..4]`, `CANCEL HOLD`, `DEAL DRAW`    |
 | `drawn`                      | 5 final cards, paytable row lit           | win amount                 | `TAKE HALF`, `TAKE SCORE`, `BIG`, `SMALL` |

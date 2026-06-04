@@ -8,7 +8,8 @@ var local_connected: bool = false
 
 const BUTTON_ID_ALIASES := {
 	"deal": "deal_draw",
-	"cancel": "cancel_hold"
+	"cancel": "cancel_hold",
+	"swap_double_up_card": "double_up_switch"
 }
 
 func apply_snapshot(next_snapshot: Dictionary, force: bool = false) -> bool:
@@ -263,7 +264,7 @@ func _buttons_from_legacy(ui_hints: Dictionary) -> Array:
 	var enabled_lookup := {}
 	for id in _as_array(ui_hints.get("enabled_buttons", [])):
 		enabled_lookup[_normalize_button_id(str(id))] = true
-	var ids := ["menu", "bet", "deal_draw", "cancel_hold", "hold_0", "hold_1", "hold_2", "hold_3", "hold_4", "big", "small", "swap_double_up_card", "take_half", "take_score", "cash_in", "cash_out", "back_to_lobby", "logout"]
+	var ids := ["menu", "bet", "deal_draw", "cancel_hold", "hold_0", "hold_1", "hold_2", "hold_3", "hold_4", "big", "small", "double_up_switch", "take_half", "take_score", "cash_in", "cash_out", "back_to_lobby", "logout"]
 	var buttons := []
 	for id in ids:
 		buttons.append({

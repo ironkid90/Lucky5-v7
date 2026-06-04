@@ -2,7 +2,7 @@
 
 Primary source: the local gameplay recording set, with curated sample frames tracked in `docs/assets/recording/`
 
-Secondary source: the ai9poker clone screenshot (Google Drive `Recording-2026-03-09-203618.mp4`), which is the closest existing implementation to the target feel.
+Secondary source: the ai9poker clone screenshot (Google Drive `Recording-2026-03-09-203618.mp4`), which is the closest existing implementation to the target feel. Current live-capture notes are tracked in `docs/contracts/godot-cabinet/ai9poker-reference-2026-06-04.md`.
 
 ## Capture Metadata
 
@@ -22,7 +22,7 @@ Secondary source: the ai9poker clone screenshot (Google Drive `Recording-2026-03
 
 ## ai9poker Clone Visual Reference (Authoritative Target)
 
-The clone at ai9poker.com is the closest existing playable reference for our target aesthetic. Below is a pixel-accurate breakdown of its layout, extracted from a 720×1280 screenshot during double-up mode at STAKE 5,000.
+The clone at ai9poker.com is the closest existing playable reference for our target aesthetic. The older 720x1280 recording remains useful for color, button, and cabinet proportions; the 2026-06-04 live capture and `temp/main.dart.js` source bundle supersede it for double-up board and idle timing details.
 
 ### Layout Zones (top to bottom)
 
@@ -39,7 +39,8 @@ The clone at ai9poker.com is the closest existing playable reference for our tar
 
 3. **Card Area** — Center of screen, large
    - During normal play: 5 cards across
-   - During double-up: **single large card centered** (not two side-by-side), with ace showing full card art
+   - During double-up: **one visible five-slot deck row** with the current dealer/revealed trail in the left slots, the active reveal slot shuffling/asking `BIG / SMALL ?`, and unused slots dimmed as backs
+   - During idle: black CRT field shows the `LUCKY 5` title first; after the idle delay, show only the armed Full House rank card in the middle slot
    - Card art is crisp, white background with standard suit/rank imagery
 
 4. **Win Amount Display** — Below cards during double-up
@@ -98,8 +99,8 @@ The clone at ai9poker.com is the closest existing playable reference for our tar
 
 ### Double-Up Mode
 
-- Single card displayed large and centered (the challenger card)
-- Dealer card result overlaid or shown adjacent
+- Five-slot progressive board displayed in the same cabinet rhythm as base cards
+- Dealer/result cards remain in the visible trail; the next available slot shuffles until the backend returns the challenger card
 - "HI LO GAMBLE" and "ACE ALWAYS WINS" text visible
 - Card shuffle animation while waiting for player choice
 - BIG = 8 or higher wins, SMALL = 6 or lower wins (7 is a push/lose depending on config)

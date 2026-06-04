@@ -1203,9 +1203,7 @@ return guessResult;
                 return;
 
             case "swap_double_up_card":
-                await SwapDoubleUpCardAsync(userId, GetRequiredGuidPayload(command.Payload, "round_id"),
-                    command.Payload.TryGetValue("swap_position", out var posObj) && posObj is int pos ? pos : 0,
-                    cancellationToken);
+                await SwitchDealerAsync(userId, GetRequiredGuidPayload(command.Payload, "round_id"), cancellationToken);
                 return;
 
             case "take_half":
@@ -1566,6 +1564,7 @@ return guessResult;
             or "double_up_start"
             or "double_up_guess"
             or "double_up_switch"
+            or "swap_double_up_card"
             or "take_half"
             or "take_score"
             or "bet_change"
@@ -2061,7 +2060,7 @@ return guessResult;
         string[] buttonIds =
         [
             "menu", "bet", "deal_draw", "cancel_hold", "hold_0", "hold_1", "hold_2", "hold_3", "hold_4",
-            "big", "small", "swap_double_up_card", "take_half", "take_score", "cash_in", "cash_out", "reset_machine", "back_to_lobby", "logout"
+            "big", "small", "double_up_switch", "take_half", "take_score", "cash_in", "cash_out", "reset_machine", "back_to_lobby", "logout"
         ];
 
         return buttonIds
@@ -2094,7 +2093,7 @@ return guessResult;
             {
                 buttons.Add("big");
                 buttons.Add("small");
-                buttons.Add("swap_double_up_card");
+                buttons.Add("double_up_switch");
             }
 
             buttons.Add("take_score");

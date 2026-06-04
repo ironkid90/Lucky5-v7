@@ -39,8 +39,13 @@ const DOUBLE_UP_BOARD_SLOT_COUNT := 5
 const DU_SHUFFLE_INTERVAL := 0.08
 const DU_SHUFFLE_TICKS := 8
 const DU_SHUFFLE_CODES := ["AS", "KH", "QD", "JC", "10S", "9H", "8D", "7C"]
+const DU_REVEAL_SETTLE_SECONDS := 0.50
+const IDLE_FH_CARD_DELAY_SECONDS := 60.0
+const IDLE_TITLE_TEXT := "LUCKY 5"
 const WIN_COUNTER_MIN_DURATION := 0.18
 const WIN_COUNTER_MAX_DURATION := 0.75
+const JACKPOT_TRICKLE_DURATION := 0.30
+const JACKPOT_DRAIN_DURATION := 2.80
 const COMMAND_TIMEOUT_SECONDS := 15.0
 
 # ─── state vars ───
@@ -59,6 +64,9 @@ var selected_bet := 200000
 var cash_in_amount := 200000
 var client_sequence := 0
 var local_hold_indexes: Array = []
+var auto_holds_cancelled := false
+var auto_double_up_round_ids: Array = []
+var idle_fh_rank_revealed := false
 var last_game_state := ""
 var authenticating := false
 var pending_signup_username := ""
@@ -101,6 +109,7 @@ var menu_overlay: PanelContainer
 var menu_panel: VBoxContainer
 var menu_open := false
 var card_container: HBoxContainer
+var idle_title_label: Label
 var du_dealer_rect: TextureRect
 var du_challenger_rect: TextureRect
 var du_dealer_label: Label
@@ -137,6 +146,8 @@ var token_refresh_timer: Timer
 var command_timeout_timer: Timer
 var deal_timer: Timer
 var du_shuffle_timer: Timer
+var du_promote_timer: Timer
+var idle_fh_timer: Timer
 var deal_queue: Array = []
 var deal_queue_index := 0
 var du_anim_queue: Array = []
@@ -144,6 +155,7 @@ var du_shuffle_ticks_remaining := 0
 var du_shuffle_index := 0
 var du_shuffle_target_dealer := ""
 var du_shuffle_target_challenger := ""
+var du_pending_promote_dealer := ""
 var _prev_dealer_code := ""
 var _prev_challenger_code := ""
 var win_displayed_amount := 0
@@ -152,6 +164,9 @@ var win_counter_tween: Tween
 var win_pulse_tween: Tween
 var credit_pulse_tween: Tween
 var last_machine_credit_amount := -1
+var displayed_jackpots: Dictionary = {}
+var jackpot_counter_targets: Dictionary = {}
+var jackpot_counter_tweens: Dictionary = {}
 
 # ─── lifecycle ───
 func _ready() -> void:
@@ -181,6 +196,12 @@ func _ready() -> void:
 
 	du_shuffle_timer = Timer.new(); du_shuffle_timer.wait_time = DU_SHUFFLE_INTERVAL; du_shuffle_timer.one_shot = false
 	du_shuffle_timer.timeout.connect(_process_du_shuffle); add_child(du_shuffle_timer)
+
+	du_promote_timer = Timer.new(); du_promote_timer.wait_time = DU_REVEAL_SETTLE_SECONDS; du_promote_timer.one_shot = true
+	du_promote_timer.timeout.connect(_on_du_promote_timeout); add_child(du_promote_timer)
+
+	idle_fh_timer = Timer.new(); idle_fh_timer.wait_time = IDLE_FH_CARD_DELAY_SECONDS; idle_fh_timer.one_shot = true
+	idle_fh_timer.timeout.connect(_on_idle_fh_timer_timeout); add_child(idle_fh_timer)
 
 	if access_token.is_empty():
 		if kiosk_auth_configured and _has_auth_credentials():
@@ -612,6 +633,14 @@ func _build_card_area(parent: Node) -> void:
 	card_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	card_container.add_theme_constant_override("separation", CARD_GAP)
 	bg_panel.add_child(card_container)
+
+	idle_title_label = _make_label(IDLE_TITLE_TEXT, 42, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	idle_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	idle_title_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	idle_title_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
+	idle_title_label.add_theme_constant_override("shadow_outline_size", 4)
+	idle_title_label.visible = false
+	bg_panel.add_child(idle_title_label)
 
 	for index in range(5):
 		var slot := VBoxContainer.new()
@@ -1079,6 +1108,7 @@ func _apply_snapshot(next_snapshot: Dictionary) -> void:
 	if store.apply_snapshot(next_snapshot):
 		if previous_state != store.game_state() or store.game_state() != "hold":
 			local_hold_indexes.clear()
+			auto_holds_cancelled = false
 		configured_machine_id = store.machine_id(configured_machine_id)
 		selected_bet = clampi(selected_bet, max(1, store.min_bet()), max(store.min_bet(), store.max_bet()))
 		if selected_bet == 0: selected_bet = max(1, store.stake())
@@ -1089,20 +1119,23 @@ func _refresh_ui() -> void:
 	_refresh_auth_panel()
 	title_label.text = "%s\n%s" % [store.machine_name(), str(store.snapshot.get("variant", {}).get("display_name", "Lucky5 Classic"))]
 	_refresh_credit_display()
+	var game_state := store.game_state()
 	message_label.text = store.message()
+	if game_state == "hold" and local_hold_indexes.is_empty() and not auto_holds_cancelled and not store.advised_hold_indexes().is_empty():
+		message_label.text = "AUTO-HOLD SUGGESTED - DRAW OR ADJUST"
 	if access_token.is_empty():
 		recovery_label.text = "LOGIN: %s" % auth_status
 	else:
 		recovery_label.text = "" if store.commands_allowed() else "RECOVERY: %s" % store.recovery_message()
 	bet_label.text = "BET %s" % _format_amount(selected_bet)
 
-	var game_state := store.game_state()
 	if last_game_state != game_state and game_state != "hold":
 		local_hold_indexes.clear()
 	last_game_state = game_state
 
 	var du_data: Dictionary = store.snapshot.get("double_up", {})
 	var du_active := bool(du_data.get("active", false))
+	_maybe_auto_start_double_up(game_state, du_active)
 
 	_refresh_cards(game_state, du_active)
 	_refresh_du_panel(du_data, du_active)
@@ -1120,10 +1153,10 @@ func _refresh_ui() -> void:
 		if id == "deal_draw":
 			button.text = "DEAL\nDRAW"
 
-	var held_indexes := store.held_indexes()
+	var held_indexes := _visual_hold_indexes()
 	for index in range(hold_buttons.size()):
 		var hold_button: Button = hold_buttons[index]
-		var held := local_hold_indexes.has(index) or held_indexes.has(index)
+		var held := held_indexes.has(index)
 		hold_button.disabled = not _is_action_enabled("hold_%d" % index)
 		hold_button.text = "HELD" if held else "HOLD"
 
@@ -1131,29 +1164,43 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 	var cards := store.cards()
 	if game_state == "drawn" or game_state == "win": cards = store.result_cards()
 	var previous_codes := _get_displayed_card_codes()
+	var held_indexes := _visual_hold_indexes()
 	deal_queue.clear()
 	deal_queue_index = 0
 	if deal_timer != null:
 		deal_timer.stop()
 
-	var show_idle_rank_card := game_state == "idle" and not du_active and cards.is_empty()
+	var is_blank_idle := game_state == "idle" and not du_active and cards.is_empty()
+	_sync_idle_fh_timer(is_blank_idle)
+	var show_idle_title := is_blank_idle and not idle_fh_rank_revealed
+	var show_idle_rank_card := is_blank_idle and idle_fh_rank_revealed
+	if idle_title_label != null:
+		idle_title_label.visible = show_idle_title
+	if card_container != null:
+		card_container.visible = not show_idle_title
+
 	for index in range(5):
 		var slot: Dictionary = cards_texture_rects[index]
+		if show_idle_title:
+			_stage_empty_card_slot(slot)
+			continue
 		if show_idle_rank_card and index == 2:
 			var rank_code := _full_house_rank_card_code()
 			if rank_code.length() >= 2:
 				var tex := _card_texture_from_code(rank_code)
 				slot["rect"].texture = tex if tex != null else null
 				slot["rect"].modulate = Color(1, 1, 1, 1)
-			var held := local_hold_indexes.has(index)
 			slot["hold_label"].text = "FH"
 			slot["displayed_code"] = rank_code
 			slot["pending_code"] = ""
 			continue
+		if show_idle_rank_card:
+			_stage_empty_card_slot(slot)
+			continue
 		if index < cards.size() and typeof(cards[index]) == TYPE_DICTIONARY:
 			var card: Dictionary = cards[index]
 			var code: String = card.get("code", "")
-			var held := local_hold_indexes.has(index) or bool(card.get("held", false))
+			var held := held_indexes.has(index) or bool(card.get("held", false))
 			slot["hold_label"].text = "HELD" if held else ""
 
 			if code.length() >= 2:
@@ -1174,6 +1221,91 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 
 	if not deal_queue.is_empty():
 		_process_deal_queue()
+
+func _visual_hold_indexes() -> Array:
+	var indexes := _normalized_hold_indexes(store.held_indexes())
+	for index in local_hold_indexes:
+		if not indexes.has(index):
+			indexes.append(index)
+	if indexes.is_empty() and not auto_holds_cancelled:
+		indexes = _normalized_hold_indexes(store.advised_hold_indexes())
+	indexes.sort()
+	return indexes
+
+func _draw_hold_indexes() -> Array:
+	var indexes := _normalized_hold_indexes(local_hold_indexes)
+	if indexes.is_empty():
+		indexes = _normalized_hold_indexes(store.held_indexes())
+	if indexes.is_empty() and not auto_holds_cancelled:
+		indexes = _normalized_hold_indexes(store.advised_hold_indexes())
+	return indexes
+
+func _editable_hold_baseline() -> Array:
+	if auto_holds_cancelled:
+		return []
+	var baseline := _normalized_hold_indexes(local_hold_indexes)
+	if baseline.is_empty():
+		baseline = _normalized_hold_indexes(store.held_indexes())
+	if baseline.is_empty():
+		baseline = _normalized_hold_indexes(store.advised_hold_indexes())
+	return baseline
+
+func _normalized_hold_indexes(values: Array) -> Array:
+	var indexes := []
+	for value in values:
+		var index := store._to_int(value)
+		if index >= 0 and index < 5 and not indexes.has(index):
+			indexes.append(index)
+	indexes.sort()
+	return indexes
+
+func _sync_idle_fh_timer(is_blank_idle: bool) -> void:
+	if not is_blank_idle:
+		idle_fh_rank_revealed = false
+		if idle_fh_timer != null:
+			idle_fh_timer.stop()
+		if idle_title_label != null:
+			idle_title_label.visible = false
+		if card_container != null:
+			card_container.visible = true
+		return
+	if idle_fh_rank_revealed:
+		return
+	if idle_fh_timer != null and idle_fh_timer.is_stopped():
+		idle_fh_timer.start()
+
+func _on_idle_fh_timer_timeout() -> void:
+	idle_fh_rank_revealed = true
+	_refresh_ui()
+
+func _maybe_auto_start_double_up(game_state: String, du_active: bool) -> void:
+	if du_active or _has_pending_command() or access_token.is_empty():
+		return
+	if not (game_state in ["win", "drawn", "result"]):
+		return
+	var evaluation: Dictionary = store.snapshot.get("evaluation", {})
+	if not bool(evaluation.get("double_up_available", false)):
+		return
+	var round_id := store.current_round_id()
+	if round_id.is_empty() or auto_double_up_round_ids.has(round_id):
+		return
+	auto_double_up_round_ids.append(round_id)
+	if auto_double_up_round_ids.size() > 32:
+		auto_double_up_round_ids.remove_at(0)
+	call_deferred("_auto_start_double_up", round_id)
+
+func _auto_start_double_up(round_id: String) -> void:
+	if round_id.is_empty() or _has_pending_command() or access_token.is_empty():
+		return
+	if store.current_round_id() != round_id:
+		return
+	var game_state := store.game_state()
+	if not (game_state in ["win", "drawn", "result"]):
+		return
+	var du_data: Dictionary = store.snapshot.get("double_up", {})
+	if bool(du_data.get("active", false)):
+		return
+	_send_command("double_up_start", {"round_id": round_id})
 
 func _queue_card_reveal(index: int, code: String, held: bool) -> void:
 	var tex := _card_texture_from_code(code)
@@ -1208,6 +1340,18 @@ func _stage_card_back(slot: Dictionary, code: String, held: bool) -> void:
 	if code.is_empty():
 		slot["displayed_code"] = ""
 
+func _stage_empty_card_slot(slot: Dictionary) -> void:
+	if slot["tween"] != null and slot["tween"].is_valid():
+		slot["tween"].kill()
+	slot["tween"] = null
+	var rect: TextureRect = slot["rect"]
+	rect.texture = null
+	rect.modulate = Color(1, 1, 1, 0)
+	rect.scale = Vector2(1.0, 1.0)
+	slot["hold_label"].text = ""
+	slot["displayed_code"] = ""
+	slot["pending_code"] = ""
+
 func _show_queued_card(reveal: Dictionary) -> void:
 	var index := int(reveal.get("index", -1))
 	if index < 0 or index >= cards_texture_rects.size():
@@ -1237,11 +1381,14 @@ func _animate_card_deal(index: int) -> void:
 
 	rect.modulate = Color(1, 1, 1, 0)
 	rect.pivot_offset = rect.custom_minimum_size * 0.5
+	var base_position := rect.position
+	rect.position = base_position + Vector2(0, -58)
 	rect.scale = Vector2(0.82, 0.82)
 
 	var tw := create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(rect, "modulate", Color(1, 1, 1, 1), DEAL_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(rect, "position", base_position, DEAL_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(rect, "scale", Vector2(1.04, 1.04), DEAL_DURATION * 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.chain().tween_property(rect, "scale", Vector2(1.0, 1.0), DEAL_DURATION * 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	slot["tween"] = tw
@@ -1251,7 +1398,10 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	if not du_active:
 		if du_shuffle_timer != null:
 			du_shuffle_timer.stop()
+		if du_promote_timer != null:
+			du_promote_timer.stop()
 		_clear_du_board()
+		du_pending_promote_dealer = ""
 		_prev_dealer_code = ""
 		_prev_challenger_code = ""
 		return
@@ -1278,11 +1428,16 @@ func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	var challenger_changed := not challenger_code.is_empty() and _prev_challenger_code != challenger_code
 
 	if challenger_code.is_empty():
+		if du_promote_timer != null:
+			du_promote_timer.stop()
+		du_pending_promote_dealer = ""
 		_set_du_card_texture(du_dealer_rect, dealer_code)
 		if du_shuffle_timer == null or du_shuffle_timer.is_stopped() or not du_shuffle_target_challenger.is_empty():
 			_start_du_card_shuffle(dealer_code, "")
 	elif dealer_changed or challenger_changed:
 		_start_du_card_shuffle(dealer_code, challenger_code)
+		if challenger_changed and _du_should_promote_after_reveal(status, challenger_code):
+			_queue_du_dealer_promotion(challenger_code)
 	else:
 		if du_shuffle_timer != null and not du_shuffle_timer.is_stopped():
 			du_shuffle_timer.stop()

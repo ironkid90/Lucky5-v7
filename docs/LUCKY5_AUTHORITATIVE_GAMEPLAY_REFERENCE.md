@@ -77,7 +77,7 @@ This file is the canonical reference for:
 | `K  35,000,000` jackpot tag              | `JackpotFullHouseRank` + `JackpotFullHouse`                | Rank glyph + value                                   |
 | `CREDIT`                                 | `MachineSessionState.MachineCredits`                         | Top-right green digits                               |
 | `STAKE`                                  | `GameRound.BetAmount`                                        | Top-right yellow digits                              |
-| 5 card slots (idle)                        | Slot 3 = rotating FH rank card; slots 1,2,4,5 = card backs     | See §4                                              |
+| 5 card slots (idle)                        | Black `LUCKY 5` title first; after the idle delay, slot 3 = rotating FH rank card and the other slots are empty | See §4                                              |
 | 5 card slots (dealt)                       | `GameRound.InitialCards` then `GameRound.FinalCards`       | See §3                                              |
 | `HOLD` badge under a card                | `bool[5] held` per card                                      | Cyan text under card image                           |
 | `PRESS HOLDS TO KEEP CARD`               | UI hint when phase =`Dealt`                                  | Cyan retro pixel font                                |
@@ -91,7 +91,7 @@ This file is the canonical reference for:
 
 ## 3. Base Game Flow (Five-Card Draw Poker)
 
-1. **Idle** — middle slot shows the **rotating Full House rank card** (the rank currently armed for the Full House jackpot, e.g., a King face). Other 4 slots show card backs.
+1. **Idle** — the cabinet first shows a black CRT field with the **`LUCKY 5`** title. After the idle delay, the middle slot shows the **rotating Full House rank card** (the rank currently armed for the Full House jackpot, e.g., a King face) and the other slots remain empty.
 2. **Bet adjust** — `BET` button cycles `STAKE` (e.g., 20,000 → 40,000 → ...). Paytable values scale instantly.
 3. **DEAL DRAW press** — deducts stake from `CREDIT`, animates a **classic arcade deal**:
    - Cards arrive **one at a time**, left-to-right, slot 1 → slot 5.
@@ -117,7 +117,7 @@ This file is the canonical reference for:
 
 **Why:** The classic cabinet teases the player — *"Full House of Kings is paying 35M right now"* — visible at all times so the player anchors their bet.
 
-**Other 4 slots while idle:** `bside.png` (card back) — same uniform back used during deal animation.
+**Other 4 slots while idle:** empty/blank after the delayed FH rank reveal. Do not render a full facedown five-card deck in idle title mode; card backs still appear during deal staging and double-up unused board slots.
 
 **Transition on DEAL:** the middle FH card is *replaced* by the dealt card; it does **not** persist or stack.
 
@@ -173,6 +173,8 @@ MachineLedgerState.KentStreak : int // current /3 progress, never decremented on
 The rule logic (sequential check, asc/desc detection) lives in `Lucky5.Domain.Game.CleanRoom` (e.g., `FiveCardDrawEngine.IsSequentialBoard`).
 
 The cabinet renders `KENT /3 _ N` where N = `KentStreak`. When `N == 3`, the next round starts at 0 after the jackpot pays.
+
+**Current implementation note:** the backend still has the `JackpotKent` pool and contribution/reset fields, but the live payout branch currently resolves that pool through `HandCategory.FiveOfAKind` in `GameService.DrawAsync`. Until `IsKent`/`KentStreak` are implemented as first-class round state, simulation financial telemetry mirrors the current backend pool behavior rather than inventing a separate sequential-straight payout path.
 
 ---
 
@@ -263,6 +265,7 @@ Meaning:
 
 - **HI LO GAMBLE** — section title.
 - **ACE COUNTS** — the Ace card (`Rank == 14`) triggers the Ace multiplier on the round payout. Rendered in `GameRound.AceMultiplier` and `AceMultiplierFired`.
+- **Ace settlement invariant** — the Ace multiplier is applied to the base-game payout before payout scaling and stored in `GameRound.WinAmount`. Double-up starts from that stored `WinAmount`; it must not apply the Ace multiplier a second time.
 - **HI OR LO** — guess direction labels.
 - **5 ♠ NEVER LOSE WHEN BUYING** — if the player has activated the Lucky 5 buy/no-lose state (`IsNoLoseActive == true`) and the next dealt double-up card is the **5 of Spades**, a wrong guess does **not** forfeit credits; the round resolves as `SafeFail` returning the accumulated amount.
 - **Availability invariant** — every positive base-game win remains eligible for double-up. RTP tuning must not hide or skip the double-up screen; balancing belongs in base-game scaling and bounded server-side double-up deck pressure.
@@ -514,7 +517,7 @@ Every label/sprite reads from `CabinetStateStore.current_snapshot` via signals. 
 
 | `CabinetSnapshot.game_state` | Playfield                                 | Hint label                 | Active buttons                                    |
 | ------------------------------ | ----------------------------------------- | -------------------------- | ------------------------------------------------- |
-| `idle`                       | Slot 2 = rotating FH card; others = backs | ""                         | `BET`, `DEAL DRAW`                            |
+| `idle`                       | `LUCKY 5` title, then delayed slot 2 FH card alone | ""                         | `BET`, `DEAL DRAW`                            |
 | `dealing`                    | Cards animating in                        | "" (or muted)              | none                                              |
 | `dealt`                      | 5 face-up cards                           | "PRESS HOLDS TO KEEP CARD" | `HOLD[0..4]`, `CANCEL HOLD`, `DEAL DRAW`    |
 | `drawn`                      | 5 final cards, paytable row lit           | win amount                 | `TAKE HALF`, `TAKE SCORE`, `BIG`, `SMALL` |
@@ -639,6 +642,16 @@ Three operational invariants the cabinet must enforce, captured here so they don
 - Already enforced in code: `PaytableProfile.Lebanese` excludes `OnePair` from its `Payouts` dict and sets `MinimumPairRankForPayout = int.MaxValue` (`server/src/Lucky5.Domain/Game/CleanRoom/CoreModels.cs`).
 - Web cabinet `PAYTABLE_ROWS` (`src/web/components/lucky5-cabinet.tsx:43-52`) correctly omits 1-Pair and JoB.
 - **Do not regress this.** Any future "make double-up easier" idea must not lower the base-game win floor.
+
+### 16.4 Simulation fidelity checkpoints
+
+The server-side Monte Carlo harness (`server/src/Lucky5.Simulation/Program.cs`) is expected to mirror the current backend economics before it is used for RTP claims:
+
+- Completed hands count both live stakes: one at deal and one at draw.
+- Base wins apply the Ace multiplier once, then scale the payout, then store the result as the double-up entry amount.
+- Jackpot telemetry separates ranked Full House, 4OAK-A, 4OAK-B, Straight Flush, and the current backend Kent pool.
+- Double-up telemetry records offers, accepts, win/loss/safe-fail outcomes, dealer switches, take-half events, settlement deltas, and machine-close source channels.
+- Counterplay runs must include intentionally bad holds and wrong-way double-up guesses, plus the current `CounterplayScore >= 3` cold-to-neutral policy override.
 
 ---
 

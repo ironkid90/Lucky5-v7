@@ -497,11 +497,8 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             throw new InvalidOperationException("Machine closed - take score and cash out to wallet");
         var machineCreditBaseline = (int)Math.Min(sessionBank.MachineCredits, int.MaxValue);
 
+        // WinAmount already includes the Ace multiplier from DrawAsync.
         var startingAmount = (int)round.WinAmount;
-        if (round.AceMultiplierFired && round.AceMultiplier > 1)
-        {
-            startingAmount *= round.AceMultiplier;
-        }
 
         var ledger = await RequireMachineLedgerAsync(round.MachineId);
         var playDeck = MachinePolicy.BuildDoubleUpPlayDeck(
@@ -532,6 +529,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             DealerCard: ToCleanRoomDto(session.DealerCard),
             SwitchesRemaining: session.Options.MaxSwitchesPerRound - session.SwitchCountInRound,
             IsNoLoseActive: session.IsNoLoseActive,
+            CurrentRoundIndex: session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(session),
             IsLucky5Active: session.IsNoLoseActive,
@@ -576,6 +574,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
                 SwitchesRemaining: 0,
                 IsNoLoseActive: session.IsNoLoseActive,
                 LuckyMultiplier: luckyMult,
+                CurrentRoundIndex: session.CurrentRoundIndex,
                 Noise: noise,
                 CardTrail: BuildCardTrail(session),
                 IsLucky5Active: session.IsNoLoseActive);
@@ -587,6 +586,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             SwitchesRemaining: session.Options.MaxSwitchesPerRound - session.SwitchCountInRound,
             IsNoLoseActive: session.IsNoLoseActive,
             LuckyMultiplier: luckyMult,
+            CurrentRoundIndex: session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(session),
             IsLucky5Active: session.IsNoLoseActive);
@@ -616,6 +616,7 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             ChallengerCard: ToCleanRoomDto(session.Deck[swapPosition]),
             SwitchesRemaining: session.Options.MaxSwitchesPerRound - session.SwitchCountInRound,
             IsNoLoseActive: session.IsNoLoseActive,
+            CurrentRoundIndex: session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(session),
             IsLucky5Active: session.IsNoLoseActive,
@@ -655,6 +656,7 @@ switch (resolution.Outcome)
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: resolution.Session.Options.MaxSwitchesPerRound - resolution.Session.SwitchCountInRound,
             IsNoLoseActive: resolution.Session.IsNoLoseActive,
+            CurrentRoundIndex: resolution.Session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(resolution.Session),
             IsLucky5Active: resolution.Session.IsNoLoseActive);
@@ -671,6 +673,7 @@ switch (resolution.Outcome)
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: 0,
             IsNoLoseActive: false,
+            CurrentRoundIndex: resolution.Session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(resolution.Session),
             IsLucky5Active: false);
@@ -686,6 +689,7 @@ switch (resolution.Outcome)
             DealerCard: ToCleanRoomDto(resolution.DealerCard),
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: 0,
+            CurrentRoundIndex: resolution.Session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(resolution.Session),
             IsLucky5Active: false);
@@ -703,6 +707,7 @@ switch (resolution.Outcome)
             DealerCard: ToCleanRoomDto(resolution.DealerCard),
             ChallengerCard: ToCleanRoomDto(resolution.ChallengerCard),
             SwitchesRemaining: 0,
+            CurrentRoundIndex: resolution.Session.CurrentRoundIndex,
             Noise: noise,
             CardTrail: BuildCardTrail(resolution.Session),
             IsLucky5Active: false);
@@ -830,6 +835,7 @@ return guessResult;
             DealerCard: round.DoubleUpSession != null ? ToCleanRoomDto(round.DoubleUpSession.DealerCard) : null,
             SwitchesRemaining: switchesRemaining,
             IsNoLoseActive: round.DoubleUpSession?.IsNoLoseActive ?? false,
+            CurrentRoundIndex: round.DoubleUpSession?.CurrentRoundIndex ?? 0,
             Noise: noise);
     }
 
@@ -842,6 +848,21 @@ return guessResult;
         await store.UpdateMachineLedgerAsync(ledger);
 
         return SnapshotJackpots(ledger);
+    }
+
+    private async Task<JackpotInfoDto> ChangeCabinetJackpotRankAsync(Guid userId, int machineId, int rank, CancellationToken cancellationToken)
+    {
+        var session = await RequireMachineSessionAsync(userId, machineId, createIfMissing: false);
+        if (session.IsMachineClosed || session.MachineCredits <= 0m)
+            throw new InvalidOperationException("Full House rank can only be changed from an active funded session");
+
+        var activeRound = await GetActiveRoundAsync(userId, machineId, cancellationToken);
+        if (activeRound is not null)
+            throw new InvalidOperationException("Full House rank can only be changed before a round is dealt");
+
+        var result = await ChangeJackpotRankAsync(machineId, rank, cancellationToken);
+        InvalidateCaches(userId, machineId);
+        return result;
     }
 
     public async Task<CabinetSnapshotDto> GetCabinetSnapshotAsync(Guid userId, int machineId, CancellationToken cancellationToken)
@@ -1206,9 +1227,7 @@ return guessResult;
                 return;
 
             case "swap_double_up_card":
-                await SwapDoubleUpCardAsync(userId, GetRequiredGuidPayload(command.Payload, "round_id"),
-                    command.Payload.TryGetValue("swap_position", out var posObj) && posObj is int pos ? pos : 0,
-                    cancellationToken);
+                await SwitchDealerAsync(userId, GetRequiredGuidPayload(command.Payload, "round_id"), cancellationToken);
                 return;
 
             case "take_half":
@@ -1220,7 +1239,7 @@ return guessResult;
                 return;
 
             case "jackpot_rank_change":
-                await ChangeJackpotRankAsync(command.MachineId, GetRequiredIntPayload(command.Payload, "rank"), cancellationToken);
+                await ChangeCabinetJackpotRankAsync(userId, command.MachineId, GetRequiredIntPayload(command.Payload, "rank"), cancellationToken);
                 return;
 
             case "reset_machine":
@@ -1569,6 +1588,7 @@ return guessResult;
             or "double_up_start"
             or "double_up_guess"
             or "double_up_switch"
+            or "swap_double_up_card"
             or "take_half"
             or "take_score"
             or "bet_change"
@@ -1634,6 +1654,7 @@ return guessResult;
                 SwitchesRemaining: switchesRemaining,
                 IsNoLoseActive: duSession.IsNoLoseActive,
                 LuckyMultiplier: multiplier,
+                CurrentRoundIndex: duSession.CurrentRoundIndex,
                 CardTrail: BuildCardTrail(duSession),
                 IsLucky5Active: duSession.IsNoLoseActive);
         }
@@ -1827,6 +1848,8 @@ return guessResult;
         var jackpot = SnapshotJackpots(ledger);
         var message = BuildCabinetMessage(gameState, pendingWin, session);
         var doubleUpSession = activeRound?.DoubleUpSession;
+        var advisedHolds = BuildCabinetAdvisedHolds(gameState, activeRound);
+        var bonusPresentation = BuildCabinetBonusPresentation(gameState, activeRound, doubleUpSession, pendingWin);
 
         return new CabinetSnapshotDto(
             SchemaVersion: CabinetSchemaVersion,
@@ -1889,6 +1912,7 @@ return guessResult;
                 SwitchesRemaining: doubleUpSession?.SwitchesRemaining ?? 0,
                 IsNoLoseActive: doubleUpSession?.IsNoLoseActive ?? false,
                 IsLucky5Active: doubleUpSession?.IsLucky5Active ?? false,
+                CurrentRoundIndex: doubleUpSession?.CurrentRoundIndex ?? 0,
                 Status: BuildCabinetDoubleUpStatus(activeRound),
                 RoundId: gameState == "double_up" ? activeRound?.RoundId : null,
                 DealerCard: doubleUpSession?.DealerCard is null ? null : ToCabinetCard(doubleUpSession.DealerCard, faceUp: true, held: false),
@@ -1909,7 +1933,8 @@ return guessResult;
                 Message: message,
                 MessageTone: BuildCabinetMessageTone(gameState, pendingWin, requiresFullSnapshot),
                 PacingProfile: "classic_arcade",
-                Effects: BuildCabinetEffects(gameState, pendingWin, requiresFullSnapshot)),
+                Effects: BuildCabinetEffects(gameState, pendingWin, requiresFullSnapshot),
+                Bonus: bonusPresentation),
             Recovery: new CabinetRecoveryStateDto(
                 Connected: true,
                 CommandsAllowed: !requiresFullSnapshot,
@@ -1925,6 +1950,73 @@ return guessResult;
         var suit = NormalizeCardSuit(card.Suit, card.Code);
         var code = $"{rank}{suit}";
         return new CabinetCardDto(code, rank, suit, faceUp, held, $"cards/{code}");
+    }
+
+    private static CabinetBonusPresentationDto BuildCabinetBonusPresentation(
+        string gameState,
+        ActiveRoundStateDto? activeRound,
+        DoubleUpStateDto? doubleUpSession,
+        decimal pendingWin)
+    {
+        if (gameState == "double_up" && doubleUpSession?.IsLucky5Active == true)
+        {
+            return new CabinetBonusPresentationDto(
+                Active: true,
+                Kind: "lucky5",
+                Card: TryBuildCabinetCardFromCode("5S"),
+                Amount: ToDecimalString(doubleUpSession.CurrentAmount),
+                FreeGameCount: 0,
+                Message: "5 NEVER LOSE");
+        }
+
+        var handRank = NormalizeCabinetHandRank(activeRound?.HandRank);
+        if (handRank == "FourOfAKind")
+        {
+            return new CabinetBonusPresentationDto(
+                Active: true,
+                Kind: "bonus_card",
+                Card: FindRepeatedRankCabinetCard(activeRound?.ResultCards, 4),
+                Amount: ToDecimalString(pendingWin),
+                FreeGameCount: 0,
+                Message: "4 OF A KIND BONUS");
+        }
+
+        return new CabinetBonusPresentationDto(
+            Active: false,
+            Kind: "free_games",
+            Card: null,
+            Amount: "0",
+            FreeGameCount: 0,
+            Message: "FREE GAMES BONUS");
+    }
+
+    private static CabinetCardDto? FindRepeatedRankCabinetCard(IReadOnlyList<PokerCardDto>? cards, int minimumCount)
+    {
+        if (cards is null || cards.Count == 0)
+        {
+            return null;
+        }
+
+        var repeated = cards
+            .Select(card => new { Card = card, Rank = NormalizeCardRank(card.Rank, card.Code) })
+            .GroupBy(item => item.Rank, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() >= minimumCount);
+
+        return repeated is null
+            ? null
+            : ToCabinetCard(repeated.First().Card, faceUp: true, held: false);
+    }
+
+    private static CabinetCardDto? TryBuildCabinetCardFromCode(string code)
+    {
+        try
+        {
+            return ToCabinetCard(ToCleanRoomDto(CleanRoomCard.FromCode(code)), faceUp: true, held: false);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string BuildCabinetGameState(ActiveRoundStateDto? activeRound, MachineSessionState session)
@@ -1995,7 +2087,7 @@ return guessResult;
         string[] buttonIds =
         [
             "menu", "bet", "deal_draw", "cancel_hold", "hold_0", "hold_1", "hold_2", "hold_3", "hold_4",
-            "big", "small", "swap_double_up_card", "take_half", "take_score", "cash_in", "cash_out", "reset_machine", "back_to_lobby", "logout"
+            "big", "small", "double_up_switch", "take_half", "take_score", "cash_in", "cash_out", "reset_machine", "back_to_lobby", "logout"
         ];
 
         return buttonIds
@@ -2028,7 +2120,11 @@ return guessResult;
             {
                 buttons.Add("big");
                 buttons.Add("small");
-                buttons.Add("swap_double_up_card");
+                if (CanSwitchDoubleUpDealer(gameState, activeRound))
+                {
+                    buttons.Add("double_up_switch");
+                    buttons.Add("bet");
+                }
             }
 
             buttons.Add("take_score");
@@ -2044,6 +2140,7 @@ return guessResult;
             if (!session.IsMachineClosed && session.MachineCredits > 0m)
             {
                 buttons.Add("deal_draw");
+                buttons.Add("hold_0");
             }
         }
         else if (gameState == "closed")
@@ -2059,6 +2156,9 @@ return guessResult;
 
         return buttons;
     }
+
+    private static bool CanSwitchDoubleUpDealer(string gameState, ActiveRoundStateDto? activeRound)
+        => gameState == "double_up" && (activeRound?.DoubleUpSession?.SwitchesRemaining ?? 0) > 0;
 
     private static string BuildButtonDisabledReason(string buttonId, string gameState, bool recoveryRequired)
     {
@@ -2174,7 +2274,32 @@ return guessResult;
     }
 
     private static IReadOnlyList<PokerCardDto> BuildCardTrail(Lucky5DoubleUpSession session)
-        => session.Deck.Take(session.DealerIndex + 1).Select(ToCleanRoomDto).ToArray();
+    {
+        if (session.PlayedDealerIndexes is null)
+        {
+            return session.Deck.Take(session.DealerIndex + 1).Select(ToCleanRoomDto).ToArray();
+        }
+
+        var trail = new List<PokerCardDto>();
+        foreach (var index in session.PlayedDealerIndexes)
+        {
+            if (index >= 0 && index < session.Deck.Length)
+            {
+                trail.Add(ToCleanRoomDto(session.Deck[index]));
+            }
+        }
+
+        if (session.DealerIndex >= 0 && session.DealerIndex < session.Deck.Length)
+        {
+            var dealer = ToCleanRoomDto(session.Deck[session.DealerIndex]);
+            if (trail.Count == 0 || trail[^1].Code != dealer.Code)
+            {
+                trail.Add(dealer);
+            }
+        }
+
+        return trail;
+    }
 
     private static PokerCardDto ToDto(PokerCard c)
     {
@@ -2251,6 +2376,7 @@ return guessResult;
         else if (!session.IsMachineClosed && session.MachineCredits > 0m)
         {
             buttons.Add("deal");
+            buttons.Add("hold_0");
         }
 
         if (CanCashOut(session))

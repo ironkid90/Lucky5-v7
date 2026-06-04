@@ -1,5 +1,7 @@
 namespace Lucky5.Tests;
 
+using Lucky5.Domain.Entities;
+using Lucky5.Domain.Game;
 using Lucky5.Domain.Game.CleanRoom;
 
 public static class CleanRoomEngineTests
@@ -21,6 +23,36 @@ public static class CleanRoomEngineTests
         var initial = FiveCardDrawEngine.DealFiveCardDraw(seed, "opening-hand");
         var heldState = FiveCardDrawEngine.Reduce(initial, new RoundAction(RoundActionKind.SetHoldMask, HoldMask: [true, false, true, false, false]));
         var drawnState = FiveCardDrawEngine.Reduce(heldState, new RoundAction(RoundActionKind.Draw));
+
+        var longRunningLedger = new MachineLedgerState
+        {
+            MachineId = 1,
+            RoundCount = 42,
+            CapitalIn = 420_000m,
+            CapitalOut = 41_969_664m,
+            BaseCapitalOut = 71_649m,
+            JackpotCapitalOut = 0m,
+            DoubleUpCapitalOut = 41_898_015m,
+            NetSinceLastClose = 0m
+        };
+        var entropyCreated = false;
+        try
+        {
+            entropyCreated = RoundNoiseRng.CreateEntropySeed(
+                Guid.Parse("10000000-0000-0000-0000-000000000001"),
+                1,
+                5_000m,
+                longRunningLedger) != 0UL;
+        }
+        catch (OverflowException)
+        {
+            entropyCreated = false;
+        }
+
+        Assert(
+            failures,
+            "Entropy seed should support long-running machine ledgers without Int32 overflow",
+            entropyCreated);
 
         Assert(failures, "Held card 0 should survive draw", drawnState.Hand[0].Equals(initial.Hand[0]));
         Assert(failures, "Held card 2 should survive draw", drawnState.Hand[2].Equals(initial.Hand[2]));
@@ -85,6 +117,8 @@ public static class CleanRoomEngineTests
         var safeFailResolution = Lucky5DoubleUpEngine.ResolveGuess(afterLuckySwitch, BigSmallGuess.Small);
         Assert(failures, "Wrong guess under no-lose mode should safe-fail", safeFailResolution.Outcome == Lucky5DoubleUpOutcome.SafeFail);
         Assert(failures, "Safe fail should bank the protected winnings", safeFailResolution.CashoutCredits == 40);
+        Assert(failures, "Double-up switch should not append to the played high/low trail", afterLuckySwitch.PlayedDealerIndexes is { Length: 0 });
+        Assert(failures, "Double-up resolution should append only the dealer card that was actually played", safeFailResolution.Session.PlayedDealerIndexes is { Length: 1 } safeTrail && safeTrail[0] == 1);
 
         // Chained no-lose: win after Lucky5 should keep protection, then lose → SafeFail
         // Deck: 9H(start) → 5S(switch,Lucky5) → KH(guess Big,win:K>5) → QD(guess Big,lose:Q<K)
@@ -99,9 +133,11 @@ public static class CleanRoomEngineTests
         Assert(failures, "Chained: winning guess after Lucky5 should still be a Win", chainedWin.Outcome == Lucky5DoubleUpOutcome.Win);
         Assert(failures, "Chained: no-lose should persist through wins", chainedWin.Session.IsNoLoseActive);
         Assert(failures, "Chained: amount should double on win", chainedWin.NextAmount == 80);
+        Assert(failures, "Chained: played high/low trail should preserve the switched dealer as the first played card", chainedWin.Session.PlayedDealerIndexes is { Length: 1 } chainedTrail && chainedTrail[0] == 1);
         var chainedLoss = Lucky5DoubleUpEngine.ResolveGuess(chainedWin.Session, BigSmallGuess.Big);
         Assert(failures, "Chained: losing after wins with no-lose active should SafeFail", chainedLoss.Outcome == Lucky5DoubleUpOutcome.SafeFail);
         Assert(failures, "Chained: SafeFail should bank the pre-loss amount", chainedLoss.CashoutCredits == 80);
+        Assert(failures, "Chained: every high/low hit should append one played dealer card left-to-right", chainedLoss.Session.PlayedDealerIndexes is { Length: 2 } lossTrail && lossTrail[0] == 1 && lossTrail[1] == 2);
 
         var repeatedLuckySession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
             seedRoot: seed,
@@ -139,7 +175,7 @@ public static class CleanRoomEngineTests
         Assert(failures, "Approved RTP target should default to the current tuned baseline", defaultConfig.TargetRtp == 0.80m);
         Assert(failures, "Machine policy state should inherit the approved RTP target by default", new MachinePolicyState().TargetRtp == defaultConfig.TargetRtp);
         Assert(failures, "Approved close threshold should default to 40,000,000", defaultConfig.CloseThreshold == 40_000_000m);
-        Assert(failures, "Approved payout-scale defaults should match the v8 tuned architecture", defaultConfig.DefaultPayoutScale == 1.60m && defaultConfig.MinPayoutScale == 1.09m && defaultConfig.MaxPayoutScale == 2.05m);
+        Assert(failures, "Approved payout-scale defaults should match the v8 tuned architecture", defaultConfig.DefaultPayoutScale == 1.15m && defaultConfig.MinPayoutScale == 0.72m && defaultConfig.MaxPayoutScale == 2.05m);
 
         var defaultCloseSession = Lucky5DoubleUpEngine.CreateSessionFromDeck(
             seedRoot: seed,

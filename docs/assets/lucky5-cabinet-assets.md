@@ -41,7 +41,7 @@ Visual requirements preserved:
 - Large arcade-pip center treatment for quick portrait readability.
 - `5S.svg` includes a small `NEVER LOSE` cabinet strip to support the Lucky 5 / 5 spade never-lose visual language.
 - `bside.svg` uses a dark blue B-side cabinet back with `LUCKY 5♠` mark.
-- Idle card row keeps card backs in slots 1, 2, 4, and 5, while slot 3 renders the rotating Full House rank card.
+- Idle title mode keeps the black cabinet field clear, then reveals only the armed Full House rank card in slot 3 after the idle delay. Card backs still define deal staging and unused double-up slots.
 
 ## Button normal/pressed states
 
@@ -79,6 +79,6 @@ Recommended Godot mapping:
 
 - `cardImgSrc` returns `/assets/lucky5/cards/<code>.svg`, not an empty placeholder.
 - Empty card slots render `bside.svg`.
-- Rotating Full House idle card stays in slot 3, matching the authoritative reference.
+- Rotating Full House idle card stays in slot 3 after the delayed idle reveal, matching the authoritative reference.
 - `KENT /3`, `S/N`, `4 OF A KIND WINS BONUS`, and the double-up `5 ♠ NEVER LOSE` text remain presentation elements only.
 - Responsive/retina rendering stays crisp because cards are SVG and `.card-img` avoids global pixelated raster degradation.

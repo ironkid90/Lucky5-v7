@@ -126,6 +126,8 @@ public sealed record CabinetDoubleUpDto(
     bool IsNoLoseActive,
     [property: JsonPropertyName("is_lucky5_active")]
     bool IsLucky5Active,
+    [property: JsonPropertyName("current_round_index")]
+    int CurrentRoundIndex,
     string Status,
     [property: JsonPropertyName("round_id"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     Guid? RoundId = null,
@@ -184,7 +186,19 @@ public sealed record CabinetPresentationStateDto(
     string MessageTone,
     [property: JsonPropertyName("pacing_profile")]
     string PacingProfile,
-    IReadOnlyList<string> Effects);
+    IReadOnlyList<string> Effects,
+    [property: JsonPropertyName("bonus"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    CabinetBonusPresentationDto? Bonus = null);
+
+public sealed record CabinetBonusPresentationDto(
+    bool Active,
+    string Kind,
+    [property: JsonPropertyName("card"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    CabinetCardDto? Card,
+    string Amount,
+    [property: JsonPropertyName("free_game_count")]
+    int FreeGameCount,
+    string Message);
 
 public sealed record CabinetRecoveryStateDto(
     bool Connected,

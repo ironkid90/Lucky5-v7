@@ -46,7 +46,8 @@ var paytable = PaytableProfile.Lebanese;
 
 Console.WriteLine("=== Lucky5 RTP Monte Carlo Simulation ===");
 Console.WriteLine($"Bet: {Bet:N0} | Paytable: {paytable.Name}");
-Console.WriteLine($"Target RTP: {cfg.TargetRtp:P2} = Base {cfg.TargetScaledBaseRtp:P2} + Jackpot {cfg.TargetJackpotRtp:P2} + Double-Up {cfg.TargetDoubleUpRtp:P2}");
+Console.WriteLine("Stake model: deal stake + draw stake per completed hand, matching GameService.DealAsync/DrawAsync");
+Console.WriteLine($"Controller nominal reserve: {cfg.TargetRtp:P2} = Base {cfg.TargetScaledBaseRtp:P2} + Jackpot {cfg.TargetJackpotRtp:P2} + Double-Up pressure target {cfg.TargetDoubleUpRtp:P2}");
 Console.WriteLine($"Machine close threshold: {cfg.CloseThreshold:N0} | Double-up always-on | DU pressure removals: {cfg.DoubleUpPressureMaxKeyRemovals} | Min DU deck: {cfg.DoubleUpMinDeckSize}");
 Console.WriteLine($"Run type: {(isCertificationRun ? "Certification" : "CI Gate")} | Rounds: {rounds:N0} | RTP range: [{minRtp:P2}, {maxRtp:P2}]");
 Console.WriteLine($"Behavior: {DescribeBehavior(behavior)}");
@@ -97,6 +98,32 @@ SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIn
         var policyState = BuildPolicyState(ledger);
         var policyResolution = MachinePolicy.ResolvePolicy(policyState, seed);
         var policyMode = policyResolution.DistributionMode;
+        if (session.CounterplayScore >= 3 && policyMode == PolicyDistributionMode.Cold)
+        {
+            policyMode = PolicyDistributionMode.Neutral;
+            result.CounterplayColdOverrides++;
+        }
+
+        result.RecordPolicyMode(policyMode);
+        if (behavior == PlayerBehavior.CounterplaySabotage && policyMode == PolicyDistributionMode.Hot)
+        {
+            result.CounterplayHotRounds++;
+            if (!result.CounterplayWasHotLastRound)
+            {
+                result.CounterplayHotTransitions++;
+            }
+
+            if (result.CounterplaySabotageRounds > 0)
+            {
+                result.CounterplayHotAfterSabotageRounds++;
+            }
+
+            result.CounterplayWasHotLastRound = true;
+        }
+        else
+        {
+            result.CounterplayWasHotLastRound = false;
+        }
         
         // Track enhanced telemetry
         if (enhancedTelemetry)
@@ -140,12 +167,21 @@ SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIn
         var shuffledDeck = FiveCardDrawEngine.ShuffleDeck(seed, "hand", alteredDeck);
         var hand = shuffledDeck.Take(5).ToArray();
         var drawState = FiveCardDrawState.Create(seed, shuffledDeck, hand);
-        var holdMask = ComputeOptimalHolds(hand);
+        var sabotagePhase = IsCounterplaySabotagePhase(behavior, ledger, session);
+        var holdMask = ComputeBehaviorHolds(hand, behavior, seed, roundIndex, sabotagePhase, result);
+        UpdateCounterplay(session, AssessCounterplay(hand, HoldIndexesFromMask(holdMask)), result);
         drawState = FiveCardDrawEngine.Reduce(drawState, new RoundAction(RoundActionKind.SetHoldMask, HoldMask: holdMask));
         drawState = FiveCardDrawEngine.Reduce(drawState, new RoundAction(RoundActionKind.Draw));
 
         var evaluation = FiveCardDrawEngine.EvaluateHand(drawState.Hand);
-        var basePayout = FiveCardDrawEngine.ResolvePayout(evaluation, Bet, paytable);
+        var rawBasePayout = FiveCardDrawEngine.ResolvePayout(evaluation, Bet, paytable);
+        var basePayout = rawBasePayout;
+        if (basePayout > 0 && drawState.Hand.Any(card => card.Rank == 14))
+        {
+            basePayout *= 2;
+            result.AceMultiplierHands++;
+            result.AceMultiplierUnscaledCredits += basePayout - rawBasePayout;
+        }
         var scaleState = BuildPolicyState(ledger);
         var scaleResolution = MachinePolicy.ResolvePolicy(scaleState, seed);
         var payoutScale = scaleResolution.ForTier(MachinePolicy.ClassifyHand(evaluation.Category));
@@ -173,15 +209,14 @@ SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIn
             ledger.CooldownRoundsRemaining = MachinePolicy.ComputeCooldownLength(evaluation.Category, seed);
 
             var jackpotWon = ResolveJackpot(ref ledger, evaluation, scaledBasePayout);
-            if (jackpotWon > 0)
+            if (jackpotWon.TotalPayout > 0)
             {
-                jackpotOverlay = jackpotWon - scaledBasePayout;
+                jackpotOverlay = jackpotWon.TotalPayout - scaledBasePayout;
                 ledger.CapitalOut += jackpotOverlay;
                 ledger.JackpotCapitalOut += jackpotOverlay;
                 ledger.LastWinChannel = WinChannel.Jackpot;
-                payout = (int)jackpotWon;
-                result.JackpotHits++;
-                result.LargestJackpot = Math.Max(result.LargestJackpot, jackpotWon);
+                payout = (int)jackpotWon.TotalPayout;
+                result.RecordJackpot(jackpotWon.Kind, jackpotWon.TotalPayout);
             }
         }
         else
@@ -220,12 +255,13 @@ SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIn
                 result.OfferedWinningRounds++;
             }
 
-            if (offered && ShouldEnterDoubleUp(behavior, seed, payout, session.MachineCredits))
+            if (offered && ShouldEnterDoubleUp(behavior, seed, payout, session.MachineCredits, sabotagePhase))
             {
                 result.EnteredDoubleUpChains++;
                 result.EnteredTriggerCredits += payout;
+                var doubleUpOpeningAmount = payout;
 
-                var chainResult = PlayDoubleUpChain(seed, policyMode, behavior, session, payout, offerState, result);
+                var chainResult = PlayDoubleUpChain(seed, policyMode, behavior, session, payout, doubleUpOpeningAmount, offerState, sabotagePhase, result);
                 result.DoubleUpOverlayOut += chainResult.Delta;
                 ledger.CapitalOut += chainResult.Delta;
                 ledger.DoubleUpCapitalOut += chainResult.Delta;
@@ -238,7 +274,7 @@ SimulationResult RunSimulation(int rounds, PlayerBehavior behavior, int sampleIn
             }
             else
             {
-                BankCredits(session, payout, result);
+                BankCredits(session, payout, result, jackpotOverlay > 0m ? BankEventChannel.Jackpot : BankEventChannel.BaseGame);
             }
         }
 
@@ -271,7 +307,7 @@ static MachinePolicyState BuildPolicyState(MachineLedgerState ledger) => new()
     RoundsSinceLucky5Hit = ledger.RoundsSinceLucky5Hit
 };
 
-decimal ResolveJackpot(ref MachineLedgerState ledger, HandEvaluation evaluation, int scaledBasePayout)
+JackpotResolution ResolveJackpot(ref MachineLedgerState ledger, HandEvaluation evaluation, int scaledBasePayout)
 {
     if (evaluation.Category == HandCategory.FullHouse
         && evaluation.Tiebreak[0] == ledger.JackpotFullHouseRank
@@ -279,31 +315,39 @@ decimal ResolveJackpot(ref MachineLedgerState ledger, HandEvaluation evaluation,
     {
         var jackpot = ledger.JackpotFullHouse;
         ledger.JackpotFullHouse = cfg.JackpotFullHouseStart;
-        return jackpot;
+        ledger.JackpotFullHouseRank = ledger.JackpotFullHouseRank >= 14 ? 2 : ledger.JackpotFullHouseRank + 1;
+        return new JackpotResolution(jackpot, JackpotHitKind.FullHouse);
     }
 
     if (evaluation.Category == HandCategory.FourOfAKind && ledger.ActiveFourOfAKindSlot == 0 && ledger.JackpotFourOfAKindA > scaledBasePayout)
     {
         var jackpot = ledger.JackpotFourOfAKindA;
         ledger.JackpotFourOfAKindA = cfg.JackpotFourOfAKindStart;
-        return jackpot;
+        return new JackpotResolution(jackpot, JackpotHitKind.FourOfAKindA);
     }
 
     if (evaluation.Category == HandCategory.FourOfAKind && ledger.ActiveFourOfAKindSlot == 1 && ledger.JackpotFourOfAKindB > scaledBasePayout)
     {
         var jackpot = ledger.JackpotFourOfAKindB;
         ledger.JackpotFourOfAKindB = cfg.JackpotFourOfAKindStart;
-        return jackpot;
+        return new JackpotResolution(jackpot, JackpotHitKind.FourOfAKindB);
     }
 
     if (evaluation.Category == HandCategory.StraightFlush && ledger.JackpotStraightFlush > scaledBasePayout)
     {
         var jackpot = ledger.JackpotStraightFlush;
         ledger.JackpotStraightFlush = cfg.JackpotStraightFlushStart;
-        return jackpot;
+        return new JackpotResolution(jackpot, JackpotHitKind.StraightFlush);
     }
 
-    return 0m;
+    if (evaluation.Category == HandCategory.FiveOfAKind && ledger.JackpotKent > scaledBasePayout)
+    {
+        var jackpot = ledger.JackpotKent;
+        ledger.JackpotKent = cfg.JackpotKentStart;
+        return new JackpotResolution(jackpot, JackpotHitKind.Kent);
+    }
+
+    return new JackpotResolution(0m, JackpotHitKind.None);
 }
 
 DoubleUpChainResult PlayDoubleUpChain(
@@ -311,8 +355,10 @@ DoubleUpChainResult PlayDoubleUpChain(
     PolicyDistributionMode policyMode,
     PlayerBehavior behavior,
     SessionState bank,
+    int originalWinAmount,
     int openingAmount,
     MachinePolicyState policyState,
+    bool sabotagePhase,
     SimulationResult result)
 {
     var machineCreditBaseline = Decimal.ToInt32(Math.Min(bank.MachineCredits, int.MaxValue));
@@ -379,7 +425,8 @@ DoubleUpChainResult PlayDoubleUpChain(
             var half = session.CurrentAmount / 2;
             var remaining = session.CurrentAmount - half;
             settledCredits += half;
-            BankCredits(bank, half, result);
+            result.TakeHalfEvents++;
+            BankCredits(bank, half, result, BankEventChannel.DoubleUpTakeHalf);
             session = session with { CurrentAmount = remaining };
             takeHalfUsed = true;
         }
@@ -387,14 +434,16 @@ DoubleUpChainResult PlayDoubleUpChain(
         if (ShouldCashoutDoubleUp(behavior, roundSeed, step, openingAmount, bank.PendingReset, takeHalfUsed, bank.MachineCredits, session.CurrentAmount))
         {
             settledCredits += session.CurrentAmount;
-            BankCredits(bank, session.CurrentAmount, result);
-            return new DoubleUpChainResult(settledCredits - openingAmount, takeHalfUsed && continuedAfterTakeHalf);
+            result.DoubleUpCashoutSettlements++;
+            BankCredits(bank, session.CurrentAmount, result, BankEventChannel.DoubleUp);
+            return new DoubleUpChainResult(settledCredits - originalWinAmount, takeHalfUsed && continuedAfterTakeHalf);
         }
 
         while (session.SwitchCountInRound < session.Options.MaxSwitchesPerRound
-            && ShouldSwitchDealer(behavior, roundSeed, step, session))
+            && ShouldSwitchDealer(behavior, roundSeed, step, session, sabotagePhase))
         {
             session = Lucky5DoubleUpEngine.SwitchDealer(session);
+            result.DoubleUpDealerSwitches++;
             if (session.DealerCard.Rank == 5 && session.DealerCard.Suit == 'S')
             {
                 result.LuckySwitchHits++;
@@ -405,13 +454,14 @@ DoubleUpChainResult PlayDoubleUpChain(
                 continuedAfterTakeHalf = true;
             }
 
-            if (!ShouldSwitchDealer(behavior, roundSeed, step + session.SwitchCountInRound, session))
+            if (!ShouldSwitchDealer(behavior, roundSeed, step + session.SwitchCountInRound, session, sabotagePhase))
             {
                 break;
             }
         }
 
-        var resolution = Lucky5DoubleUpEngine.ResolveGuess(session, ChooseGuess(session));
+        var guess = ChooseGuess(session, behavior, roundSeed, step, sabotagePhase, result);
+        var resolution = Lucky5DoubleUpEngine.ResolveGuess(session, guess);
         if (takeHalfUsed)
         {
             continuedAfterTakeHalf = true;
@@ -426,28 +476,31 @@ DoubleUpChainResult PlayDoubleUpChain(
 
             case Lucky5DoubleUpOutcome.MachineClosed:
                 result.DoubleUpResolutionWins++;
+                result.DoubleUpMachineClosedResolutions++;
                 settledCredits += resolution.CashoutCredits;
-                BankCredits(bank, resolution.CashoutCredits, result);
-                return new DoubleUpChainResult(settledCredits - openingAmount, takeHalfUsed && continuedAfterTakeHalf);
+                BankCredits(bank, resolution.CashoutCredits, result, BankEventChannel.DoubleUp);
+                return new DoubleUpChainResult(settledCredits - originalWinAmount, takeHalfUsed && continuedAfterTakeHalf);
 
             case Lucky5DoubleUpOutcome.SafeFail:
                 result.DoubleUpResolutionLosses++;
+                result.DoubleUpSafeFails++;
                 settledCredits += resolution.CashoutCredits;
-                BankCredits(bank, resolution.CashoutCredits, result);
-                return new DoubleUpChainResult(settledCredits - openingAmount, takeHalfUsed && continuedAfterTakeHalf);
+                BankCredits(bank, resolution.CashoutCredits, result, BankEventChannel.DoubleUp);
+                return new DoubleUpChainResult(settledCredits - originalWinAmount, takeHalfUsed && continuedAfterTakeHalf);
 
             default:
                 result.DoubleUpResolutionLosses++;
-                return new DoubleUpChainResult(settledCredits - openingAmount, takeHalfUsed && continuedAfterTakeHalf);
+                return new DoubleUpChainResult(settledCredits - originalWinAmount, takeHalfUsed && continuedAfterTakeHalf);
         }
     }
 
     settledCredits += session.CurrentAmount;
-    BankCredits(bank, session.CurrentAmount, result);
-    return new DoubleUpChainResult(settledCredits - openingAmount, takeHalfUsed && continuedAfterTakeHalf);
+    result.DoubleUpCashoutSettlements++;
+    BankCredits(bank, session.CurrentAmount, result, BankEventChannel.DoubleUp);
+    return new DoubleUpChainResult(settledCredits - originalWinAmount, takeHalfUsed && continuedAfterTakeHalf);
 }
 
-void BankCredits(SessionState bank, int amount, SimulationResult result)
+void BankCredits(SessionState bank, int amount, SimulationResult result, BankEventChannel channel)
 {
     if (amount <= 0)
     {
@@ -461,26 +514,30 @@ void BankCredits(SessionState bank, int amount, SimulationResult result)
     if (before < cfg.SoftCapWarning && bank.MachineCredits >= cfg.SoftCapWarning)
     {
         result.SoftCapWarningTouches++;
+        result.RecordSoftCapTouch(channel);
     }
 
     if (before < cfg.SoftCapHard && bank.MachineCredits >= cfg.SoftCapHard)
     {
         result.HardCapCloseCalls++;
+        result.RecordHardCapTouch(channel);
     }
 
     if (before < cfg.CloseThreshold * 0.95m && bank.MachineCredits >= cfg.CloseThreshold * 0.95m)
     {
         result.CriticalCloseCalls++;
+        result.RecordCriticalCloseCall(channel);
     }
 
     if (!bank.PendingReset && before < cfg.CloseThreshold && bank.MachineCredits >= cfg.CloseThreshold)
     {
         bank.PendingReset = true;
         result.MachineCloses40M++;
+        result.RecordMachineClose(channel);
     }
 }
 
-static bool ShouldEnterDoubleUp(PlayerBehavior behavior, ulong seed, int payout, decimal machineCredits)
+static bool ShouldEnterDoubleUp(PlayerBehavior behavior, ulong seed, int payout, decimal machineCredits, bool sabotagePhase)
 {
     return behavior switch
     {
@@ -488,6 +545,9 @@ static bool ShouldEnterDoubleUp(PlayerBehavior behavior, ulong seed, int payout,
         PlayerBehavior.Balanced => machineCredits + payout < EngineConfig.Default.CloseThreshold
             && Roll(seed, "accept-balanced", payout, 0.78m),
         PlayerBehavior.AggressiveCabinetClosing => machineCredits + payout < 50_000_000m || payout < 2_000_000,
+        PlayerBehavior.CounterplaySabotage => sabotagePhase
+            || machineCredits + payout < 50_000_000m
+            || payout < 2_000_000,
         _ => false
     };
 }
@@ -502,6 +562,9 @@ static bool ShouldTakeHalf(PlayerBehavior behavior, ulong seed, int step, int op
         PlayerBehavior.AggressiveCabinetClosing => currentAmount >= Math.Max(openingAmount * 8, 1_000_000)
             && machineCredits + currentAmount >= EngineConfig.Default.CloseThreshold * 0.65m
             && Roll(seed, "take-half-aggressive", step, 0.60m),
+        PlayerBehavior.CounterplaySabotage => currentAmount >= Math.Max(openingAmount * 10, 1_500_000)
+            && machineCredits + currentAmount >= EngineConfig.Default.CloseThreshold * 0.70m
+            && Roll(seed, "take-half-counterplay", step, 0.45m),
         _ => false
     };
 }
@@ -530,12 +593,20 @@ static bool ShouldCashoutDoubleUp(
         PlayerBehavior.AggressiveCabinetClosing => (machineCredits + currentAmount >= EngineConfig.Default.CloseThreshold && step > 0)
             || currentAmount >= Math.Max(openingAmount * 32, 8_000_000)
             || step >= 7,
+        PlayerBehavior.CounterplaySabotage => (machineCredits + currentAmount >= EngineConfig.Default.CloseThreshold && step > 0)
+            || currentAmount >= Math.Max(openingAmount * 40, 10_000_000)
+            || step >= 8,
         _ => true
     };
 }
 
-static bool ShouldSwitchDealer(PlayerBehavior behavior, ulong seed, int step, Lucky5DoubleUpSession session)
+static bool ShouldSwitchDealer(PlayerBehavior behavior, ulong seed, int step, Lucky5DoubleUpSession session, bool sabotagePhase)
 {
+    if (sabotagePhase)
+    {
+        return false;
+    }
+
     var dealerRank = session.DealerCard.Rank;
     return behavior switch
     {
@@ -544,6 +615,8 @@ static bool ShouldSwitchDealer(PlayerBehavior behavior, ulong seed, int step, Lu
             && Roll(seed, "switch-balanced", step, 0.25m),
         PlayerBehavior.AggressiveCabinetClosing => dealerRank is >= 6 and <= 9
             && Roll(seed, "switch-aggressive", step + session.SwitchCountInRound, session.SwitchCountInRound == 0 ? 0.60m : 0.35m),
+        PlayerBehavior.CounterplaySabotage => dealerRank is >= 6 and <= 9
+            && Roll(seed, "switch-counterplay", step + session.SwitchCountInRound, session.SwitchCountInRound == 0 ? 0.65m : 0.40m),
         _ => false
     };
 }
@@ -559,8 +632,43 @@ static bool ShouldCashOutSession(PlayerBehavior behavior, SessionState session)
     };
 }
 
-static BigSmallGuess ChooseGuess(Lucky5DoubleUpSession session)
-    => session.DealerCard.Rank <= 8 ? BigSmallGuess.Big : BigSmallGuess.Small;
+static BigSmallGuess ChooseGuess(
+    Lucky5DoubleUpSession session,
+    PlayerBehavior behavior,
+    ulong seed,
+    int step,
+    bool sabotagePhase,
+    SimulationResult result)
+{
+    var optimal = session.DealerCard.Rank <= 8 ? BigSmallGuess.Big : BigSmallGuess.Small;
+    if (behavior != PlayerBehavior.CounterplaySabotage || !sabotagePhase)
+    {
+        return optimal;
+    }
+
+    BigSmallGuess guess;
+    if (session.DealerCard.Rank is >= 7 and <= 9 && Roll(seed, "counterplay-random-middle", step, 0.35m))
+    {
+        guess = Roll(seed, "counterplay-random-side", step, 0.50m)
+            ? BigSmallGuess.Big
+            : BigSmallGuess.Small;
+    }
+    else
+    {
+        guess = optimal == BigSmallGuess.Big ? BigSmallGuess.Small : BigSmallGuess.Big;
+    }
+
+    if (guess != optimal)
+    {
+        result.CounterplayWrongWayDoubleUpGuesses++;
+        if (session.DealerCard.Rank <= 3 && guess == BigSmallGuess.Small)
+        {
+            result.CounterplaySmallOnLowDealerGuesses++;
+        }
+    }
+
+    return guess;
+}
 
 static bool Roll(ulong seed, string stream, int salt, decimal threshold)
 {
@@ -576,43 +684,131 @@ static bool RollUnsalted(ulong seed, string stream, decimal threshold)
 
 bool[] ComputeOptimalHolds(CleanRoomCard[] hand)
 {
-    var eval = FiveCardDrawEngine.EvaluateHand(hand);
-    var holds = new bool[5];
-
-    switch (eval.Category)
+    var advisedIndexes = FiveCardDrawEngine.ComputeAdvisedHolds(hand);
+    if (behavior != PlayerBehavior.CounterplaySabotage || !sabotagePhase)
     {
-        case HandCategory.RoyalFlush:
-        case HandCategory.StraightFlush:
-        case HandCategory.FourOfAKind:
-        case HandCategory.FullHouse:
-        case HandCategory.Flush:
-        case HandCategory.Straight:
-            return [true, true, true, true, true];
-
-        case HandCategory.ThreeOfAKind:
-        {
-            var tripRank = hand.GroupBy(c => c.Rank).First(g => g.Count() == 3).Key;
-            for (var index = 0; index < 5; index++) holds[index] = hand[index].Rank == tripRank;
-            return holds;
-        }
-
-        case HandCategory.TwoPair:
-        {
-            var pairRanks = hand.GroupBy(c => c.Rank).Where(g => g.Count() == 2).Select(g => g.Key).ToHashSet();
-            for (var index = 0; index < 5; index++) holds[index] = pairRanks.Contains(hand[index].Rank);
-            return holds;
-        }
-
-        case HandCategory.OnePair:
-        {
-            var pairRank = hand.GroupBy(c => c.Rank).First(g => g.Count() == 2).Key;
-            for (var index = 0; index < 5; index++) holds[index] = hand[index].Rank == pairRank;
-            return holds;
-        }
-
-        default:
-            return [false, false, false, false, false];
+        return MaskFromIndexes(advisedIndexes);
     }
+
+    result.CounterplaySabotageRounds++;
+    var initialEvaluation = FiveCardDrawEngine.EvaluateHand(hand);
+    if (FiveCardDrawEngine.ResolvePayout(initialEvaluation, Bet, paytable) > 0)
+    {
+        result.CounterplayBrokenPayingHands++;
+    }
+
+    if (advisedIndexes.Length == 0)
+    {
+        var trashMask = new bool[5];
+        if (Roll(seed, "counterplay-trash-hold", roundIndex, 0.65m))
+        {
+            var trashIndex = Enumerable.Range(0, hand.Length)
+                .OrderBy(index => hand[index].Rank == 14 ? 20 : hand[index].Rank)
+                .ThenBy(index => index)
+                .First();
+            trashMask[trashIndex] = true;
+            result.CounterplayTrashHolds++;
+        }
+
+        return trashMask;
+    }
+
+    result.CounterplayBrokenAdvisedHoldRounds++;
+    var advisedSet = advisedIndexes.ToHashSet();
+    var breakMask = new bool[5];
+    var offAdviceIndex = Enumerable.Range(0, hand.Length)
+        .Where(index => !advisedSet.Contains(index))
+        .OrderBy(index => hand[index].Rank == 14 ? 20 : hand[index].Rank)
+        .ThenBy(index => index)
+        .Cast<int?>()
+        .FirstOrDefault();
+
+    if (offAdviceIndex.HasValue && Roll(seed, "counterplay-off-advice-hold", roundIndex, 0.45m))
+    {
+        breakMask[offAdviceIndex.Value] = true;
+        result.CounterplayTrashHolds++;
+    }
+
+    return breakMask;
+}
+
+static int AssessCounterplay(CleanRoomCard[] hand, int[] holdIndexes)
+{
+    var advised = FiveCardDrawEngine.ComputeAdvisedHolds(hand);
+    var advisedSet = advised.ToHashSet();
+    var actualSet = holdIndexes.Where(index => index >= 0 && index < 5).ToHashSet();
+    var evaluation = FiveCardDrawEngine.EvaluateHand(hand);
+    var delta = advisedSet.Except(actualSet).Count() + actualSet.Except(advisedSet).Count();
+
+    if (evaluation.Category is HandCategory.FourOfAKind or HandCategory.FullHouse or HandCategory.Flush or HandCategory.Straight)
+    {
+        if (delta > 0) return 3;
+    }
+
+    if (evaluation.Category == HandCategory.ThreeOfAKind && actualSet.Count < 3)
+    {
+        return 2;
+    }
+
+    if (delta >= 4) return 2;
+    if (delta >= 2) return 1;
+    return -1;
+}
+
+static void UpdateCounterplay(SessionState session, int delta, SimulationResult result)
+{
+    var before = session.CounterplayScore;
+    session.CounterplayScore = Math.Clamp(session.CounterplayScore + delta, 0, 10);
+    result.MaxCounterplayScore = Math.Max(result.MaxCounterplayScore, session.CounterplayScore);
+    if (session.CounterplayScore > before)
+    {
+        result.CounterplayScoreIncreases++;
+    }
+}
+
+static int[] HoldIndexesFromMask(bool[] holdMask)
+    => holdMask.Select((held, index) => (held, index))
+        .Where(item => item.held)
+        .Select(item => item.index)
+        .ToArray();
+
+static bool[] MaskFromIndexes(int[] indexes)
+{
+    var mask = new bool[5];
+    foreach (var index in indexes)
+    {
+        if (index >= 0 && index < mask.Length)
+        {
+            mask[index] = true;
+        }
+    }
+
+    return mask;
+}
+
+static bool IsCounterplaySabotagePhase(PlayerBehavior behavior, MachineLedgerState ledger, SessionState session)
+{
+    if (behavior != PlayerBehavior.CounterplaySabotage)
+    {
+        return false;
+    }
+
+    if (session.MachineCredits >= EngineConfig.Default.CloseThreshold * 0.70m)
+    {
+        return false;
+    }
+
+    if (ledger.ConsecutiveLosses >= EngineConfig.Default.StreakHardThreshold + 5)
+    {
+        return false;
+    }
+
+    if (ledger.RoundsSinceMediumWin >= EngineConfig.Default.MediumWinDroughtThreshold)
+    {
+        return false;
+    }
+
+    return session.CounterplayScore < 7 || ledger.ConsecutiveLosses < EngineConfig.Default.StreakHardThreshold;
 }
 
 void ApplyJackpotContributions(MachineLedgerState ledger)
@@ -630,6 +826,7 @@ void ApplyJackpotContributions(MachineLedgerState ledger)
     }
     ledger.JackpotFullHouse = Math.Min(ledger.JackpotFullHouse + cfg.JackpotFullHouseContribution, cfg.JackpotFullHouseCap);
     ledger.JackpotStraightFlush = Math.Min(ledger.JackpotStraightFlush + cfg.JackpotStraightFlushContribution, cfg.JackpotStraightFlushCap);
+    ledger.JackpotKent = Math.Min(ledger.JackpotKent + cfg.JackpotKentContribution, cfg.JackpotKentCap);
 }
 
 static void PrintEnhancedSummary(string label, SimulationResult result)
@@ -638,6 +835,9 @@ static void PrintEnhancedSummary(string label, SimulationResult result)
     Console.WriteLine($"  Paying spins {result.DirectPayingSpinFrequency:P2} | Medium+ {result.MediumOrBetterFrequency:P2} | DU offer/win {result.OfferRateOnWinningRounds:P2} | Accept {result.AcceptRate:P2}");
     Console.WriteLine($"  Entered DU gain {result.RealizedIncrementalGainPerEnteredChain:P2} of trigger win | Avg scale {result.AveragePayoutScale:F3} | 40M closes {result.MachineCloses40M:N0} | 50M take-half+continue {result.Over50MViaTakeHalfContinuation:N0}");
     Console.WriteLine($"  Jackpots {result.JackpotHits:N0} | Largest jackpot {result.LargestJackpot:N0} | Largest bank event {result.LargestBankedCreditEvent:N0} | Max credits {result.MaxMachineCredits:N0}");
+    Console.WriteLine($"  Jackpot mix: FH {result.FullHouseJackpots:N0} | 4K-A {result.FourOfAKindAJackpots:N0} | 4K-B {result.FourOfAKindBJackpots:N0} | SF {result.StraightFlushJackpots:N0} | Kent {result.KentJackpots:N0}");
+    Console.WriteLine($"  DU outcomes: win {result.DoubleUpResolutionWins:N0} | lose {result.DoubleUpResolutionLosses:N0} | safe {result.DoubleUpSafeFails:N0} | close {result.DoubleUpMachineClosedResolutions:N0} | switches {result.DoubleUpDealerSwitches:N0} | take-half {result.TakeHalfEvents:N0}");
+    Console.WriteLine($"  Ace effects: base hands {result.AceMultiplierHands:N0} | unscaled lift {result.AceMultiplierUnscaledCredits:N0} | DU opening lift {result.AceDoubleUpOpeningBoostCredits:N0}");
     Console.WriteLine($"  Close suspense: >=28M {result.SoftCapWarningTouches:N0} | >=35M {result.HardCapCloseCalls:N0} | >=38M {result.CriticalCloseCalls:N0}");
     Console.WriteLine($"  DU pressure: seq {result.DoubleUpSequenceEligibleChains:N0}/{result.DoubleUpPressureSamples:N0} | high exposure {result.DoubleUpHighExposureChains:N0} | normal pressure {result.DoubleUpNormalPressureChains:N0} | avg {result.AverageDoubleUpPressure:F3} | max {result.MaxDoubleUpPressure:F3}");
     
@@ -669,11 +869,14 @@ void PrintVarianceReport()
     var max10k = samples10k.Last();
     Console.WriteLine($"Balanced 10k sample band       | min {min10k.TotalRtp:P2} | median {median10k.TotalRtp:P2} | max {max10k.TotalRtp:P2}");
 
-    var balanced100k = RunSimulation(100_000, PlayerBehavior.Balanced, 0);
+    var balanced100k = RunSimulation(100_000, PlayerBehavior.Balanced, 0, true);
     PrintEnhancedSummary("Balanced 100k", balanced100k);
 
-    var aggressive200k = RunSimulation(200_000, PlayerBehavior.AggressiveCabinetClosing, 0);
+    var aggressive200k = RunSimulation(200_000, PlayerBehavior.AggressiveCabinetClosing, 0, true);
     PrintEnhancedSummary("Aggressive close 200k", aggressive200k);
+
+    var counterplay200k = RunSimulation(200_000, PlayerBehavior.CounterplaySabotage, 0, true);
+    PrintEnhancedSummary("Counterplay sabotage 200k", counterplay200k);
 }
 
 static string DescribeBehavior(PlayerBehavior behavior) => behavior switch
@@ -681,6 +884,7 @@ static string DescribeBehavior(PlayerBehavior behavior) => behavior switch
     PlayerBehavior.ConservativeCollectFirst => "Conservative collect-first",
     PlayerBehavior.Balanced => "Balanced",
     PlayerBehavior.AggressiveCabinetClosing => "Aggressive cabinet-closing",
+    PlayerBehavior.CounterplaySabotage => "Counterplay sabotage / hot-state hunt",
     _ => behavior.ToString()
 };
 
@@ -691,23 +895,38 @@ static bool TryParseBehavior(string value, out PlayerBehavior behavior)
         "conservative" or "collect" or "collect-first" => PlayerBehavior.ConservativeCollectFirst,
         "balanced" => PlayerBehavior.Balanced,
         "aggressive" or "close" or "cabinet-closing" => PlayerBehavior.AggressiveCabinetClosing,
+        "counterplay" or "sabotage" or "intentional-lose" or "glitch-hunt" or "exploit" => PlayerBehavior.CounterplaySabotage,
         _ => PlayerBehavior.Balanced
     };
 
-    return value.Trim().Equals("conservative", StringComparison.OrdinalIgnoreCase)
-        || value.Trim().Equals("collect", StringComparison.OrdinalIgnoreCase)
-        || value.Trim().Equals("collect-first", StringComparison.OrdinalIgnoreCase)
-        || value.Trim().Equals("balanced", StringComparison.OrdinalIgnoreCase)
-        || value.Trim().Equals("aggressive", StringComparison.OrdinalIgnoreCase)
-        || value.Trim().Equals("close", StringComparison.OrdinalIgnoreCase)
-        || value.Trim().Equals("cabinet-closing", StringComparison.OrdinalIgnoreCase);
+    return behavior != PlayerBehavior.Balanced
+        || value.Trim().Equals("balanced", StringComparison.OrdinalIgnoreCase);
 }
 
 enum PlayerBehavior
 {
     ConservativeCollectFirst = 0,
     Balanced = 1,
-    AggressiveCabinetClosing = 2
+    AggressiveCabinetClosing = 2,
+    CounterplaySabotage = 3
+}
+
+enum BankEventChannel
+{
+    BaseGame = 0,
+    Jackpot = 1,
+    DoubleUp = 2,
+    DoubleUpTakeHalf = 3
+}
+
+enum JackpotHitKind
+{
+    None = 0,
+    FullHouse = 1,
+    FourOfAKindA = 2,
+    FourOfAKindB = 3,
+    StraightFlush = 4,
+    Kent = 5
 }
 
 sealed class SessionState
@@ -717,12 +936,14 @@ sealed class SessionState
     public decimal MachineCredits { get; set; }
     public decimal SessionCashIn { get; set; }
     public bool PendingReset { get; set; }
+    public int CounterplayScore { get; set; }
 
     public void StartNewSession()
     {
         MachineCredits = DefaultStartingSessionCredits;
         SessionCashIn = DefaultStartingSessionCredits;
         PendingReset = false;
+        CounterplayScore = 0;
     }
 
     public void BeginRound()
@@ -771,6 +992,51 @@ sealed class SimulationResult(PlayerBehavior behavior, int rounds)
     public decimal FinalBaseRtp { get; set; }
     public decimal FinalJackpotRtp { get; set; }
     public decimal FinalDoubleUpRtp { get; set; }
+    public int AceMultiplierHands { get; set; }
+    public decimal AceMultiplierUnscaledCredits { get; set; }
+    public decimal AceDoubleUpOpeningBoostCredits { get; set; }
+    public int FullHouseJackpots { get; set; }
+    public int FourOfAKindAJackpots { get; set; }
+    public int FourOfAKindBJackpots { get; set; }
+    public int StraightFlushJackpots { get; set; }
+    public int KentJackpots { get; set; }
+    public int DoubleUpSafeFails { get; set; }
+    public int DoubleUpMachineClosedResolutions { get; set; }
+    public int DoubleUpCashoutSettlements { get; set; }
+    public int DoubleUpDealerSwitches { get; set; }
+    public int TakeHalfEvents { get; set; }
+    public int PolicyColdRounds { get; set; }
+    public int PolicyNeutralRounds { get; set; }
+    public int PolicyHotRounds { get; set; }
+    public int MachineClosesFromBaseGame { get; set; }
+    public int MachineClosesFromJackpot { get; set; }
+    public int MachineClosesFromDoubleUp { get; set; }
+    public int MachineClosesFromTakeHalf { get; set; }
+    public int SoftCapTouchesFromBaseGame { get; set; }
+    public int SoftCapTouchesFromJackpot { get; set; }
+    public int SoftCapTouchesFromDoubleUp { get; set; }
+    public int SoftCapTouchesFromTakeHalf { get; set; }
+    public int HardCapTouchesFromBaseGame { get; set; }
+    public int HardCapTouchesFromJackpot { get; set; }
+    public int HardCapTouchesFromDoubleUp { get; set; }
+    public int HardCapTouchesFromTakeHalf { get; set; }
+    public int CriticalTouchesFromBaseGame { get; set; }
+    public int CriticalTouchesFromJackpot { get; set; }
+    public int CriticalTouchesFromDoubleUp { get; set; }
+    public int CriticalTouchesFromTakeHalf { get; set; }
+    public int CounterplaySabotageRounds { get; set; }
+    public int CounterplayBrokenAdvisedHoldRounds { get; set; }
+    public int CounterplayBrokenPayingHands { get; set; }
+    public int CounterplayTrashHolds { get; set; }
+    public int CounterplayWrongWayDoubleUpGuesses { get; set; }
+    public int CounterplaySmallOnLowDealerGuesses { get; set; }
+    public int CounterplayColdOverrides { get; set; }
+    public int CounterplayHotRounds { get; set; }
+    public int CounterplayHotTransitions { get; set; }
+    public int CounterplayHotAfterSabotageRounds { get; set; }
+    public int CounterplayScoreIncreases { get; set; }
+    public int MaxCounterplayScore { get; set; }
+    public bool CounterplayWasHotLastRound { get; set; }
     
     // Enhanced telemetry fields
     public int WarmupActivations { get; set; }
@@ -779,6 +1045,98 @@ sealed class SimulationResult(PlayerBehavior behavior, int rounds)
     public decimal JackpotLeakAdjustments { get; set; }
     public decimal DoubleUpLeakAdjustments { get; set; }
     public List<decimal> RtpWindows { get; set; } = new();
+
+    public void RecordPolicyMode(PolicyDistributionMode mode)
+    {
+        switch (mode)
+        {
+            case PolicyDistributionMode.Cold:
+                PolicyColdRounds++;
+                break;
+            case PolicyDistributionMode.Hot:
+                PolicyHotRounds++;
+                break;
+            default:
+                PolicyNeutralRounds++;
+                break;
+        }
+    }
+
+    public void RecordJackpot(JackpotHitKind kind, decimal amount)
+    {
+        JackpotHits++;
+        LargestJackpot = Math.Max(LargestJackpot, amount);
+        switch (kind)
+        {
+            case JackpotHitKind.FullHouse:
+                FullHouseJackpots++;
+                break;
+            case JackpotHitKind.FourOfAKindA:
+                FourOfAKindAJackpots++;
+                break;
+            case JackpotHitKind.FourOfAKindB:
+                FourOfAKindBJackpots++;
+                break;
+            case JackpotHitKind.StraightFlush:
+                StraightFlushJackpots++;
+                break;
+            case JackpotHitKind.Kent:
+                KentJackpots++;
+                break;
+        }
+    }
+
+    public void RecordSoftCapTouch(BankEventChannel channel) => IncrementByChannel(
+        channel,
+        () => SoftCapTouchesFromBaseGame++,
+        () => SoftCapTouchesFromJackpot++,
+        () => SoftCapTouchesFromDoubleUp++,
+        () => SoftCapTouchesFromTakeHalf++);
+
+    public void RecordHardCapTouch(BankEventChannel channel) => IncrementByChannel(
+        channel,
+        () => HardCapTouchesFromBaseGame++,
+        () => HardCapTouchesFromJackpot++,
+        () => HardCapTouchesFromDoubleUp++,
+        () => HardCapTouchesFromTakeHalf++);
+
+    public void RecordCriticalCloseCall(BankEventChannel channel) => IncrementByChannel(
+        channel,
+        () => CriticalTouchesFromBaseGame++,
+        () => CriticalTouchesFromJackpot++,
+        () => CriticalTouchesFromDoubleUp++,
+        () => CriticalTouchesFromTakeHalf++);
+
+    public void RecordMachineClose(BankEventChannel channel) => IncrementByChannel(
+        channel,
+        () => MachineClosesFromBaseGame++,
+        () => MachineClosesFromJackpot++,
+        () => MachineClosesFromDoubleUp++,
+        () => MachineClosesFromTakeHalf++);
+
+    private static void IncrementByChannel(
+        BankEventChannel channel,
+        Action baseGame,
+        Action jackpot,
+        Action doubleUp,
+        Action takeHalf)
+    {
+        switch (channel)
+        {
+            case BankEventChannel.Jackpot:
+                jackpot();
+                break;
+            case BankEventChannel.DoubleUp:
+                doubleUp();
+                break;
+            case BankEventChannel.DoubleUpTakeHalf:
+                takeHalf();
+                break;
+            default:
+                baseGame();
+                break;
+        }
+    }
 
     public decimal TotalRtp => TotalIn <= 0m ? 0m : decimal.Round((ScaledBaseOut + JackpotOverlayOut + DoubleUpOverlayOut) / TotalIn, 4);
     public decimal BaseRtp => TotalIn <= 0m ? 0m : decimal.Round(ScaledBaseOut / TotalIn, 4);
@@ -792,5 +1150,7 @@ sealed class SimulationResult(PlayerBehavior behavior, int rounds)
     public decimal AveragePayoutScale => PayoutScaleSamples <= 0 ? 0m : decimal.Round(PayoutScaleSum / PayoutScaleSamples, 4);
     public decimal AverageDoubleUpPressure => DoubleUpPressureSamples <= 0 ? 0m : decimal.Round(DoubleUpPressureSum / DoubleUpPressureSamples, 4);
 }
+
+readonly record struct JackpotResolution(decimal TotalPayout, JackpotHitKind Kind);
 
 readonly record struct DoubleUpChainResult(decimal Delta, bool ContinuedAfterTakeHalf);

@@ -8,7 +8,8 @@ var local_connected: bool = false
 
 const BUTTON_ID_ALIASES := {
 	"deal": "deal_draw",
-	"cancel": "cancel_hold"
+	"cancel": "cancel_hold",
+	"swap_double_up_card": "double_up_switch"
 }
 
 func apply_snapshot(next_snapshot: Dictionary, force: bool = false) -> bool:
@@ -73,9 +74,20 @@ func apply_event(event: Dictionary) -> bool:
 			applied = true
 
 	if not applied and not payload.is_empty():
-		for key in ["credits", "hand", "evaluation", "double_up", "jackpot", "buttons", "presentation", "recovery", "game_state"]:
-			if payload.has(key):
-				snapshot[key] = payload[key]
+		for key_pair in [
+			["credits"],
+			["hand"],
+			["evaluation"],
+			["double_up", "doubleUp", "doubleUpSession"],
+			["jackpot", "jackpots"],
+			["buttons"],
+			["presentation"],
+			["recovery"],
+			["game_state", "gameState"]
+		]:
+			var value: Variant = _first_value(payload, key_pair, null)
+			if value != null:
+				snapshot[str(key_pair[0])] = value
 				applied = true
 
 	if applied:
@@ -91,25 +103,52 @@ func apply_event(event: Dictionary) -> bool:
 func apply_round_update(payload: Dictionary) -> bool:
 	if payload.is_empty():
 		return false
-	if payload.has("game_state"):
-		snapshot["game_state"] = payload["game_state"]
-	if payload.has("hand"):
-		snapshot["hand"] = payload["hand"]
-	if payload.has("evaluation"):
-		snapshot["evaluation"] = payload["evaluation"]
+	var game_state_value: Variant = _first_value(payload, ["game_state", "gameState"], null)
+	if game_state_value != null:
+		snapshot["game_state"] = game_state_value
+	for key_pair in [
+		["buttons"],
+		["credits"],
+		["evaluation"],
+		["hand"],
+		["jackpot", "jackpots"],
+		["presentation"],
+		["recovery"]
+	]:
+		var value: Variant = _first_value(payload, key_pair, null)
+		if value != null:
+			snapshot[str(key_pair[0])] = value
+	var double_up_value: Variant = _first_value(payload, ["double_up", "doubleUp", "doubleUpSession"], null)
+	if double_up_value != null:
+		snapshot["double_up"] = double_up_value
 	if payload.has("buttons"):
-		snapshot["buttons"] = payload["buttons"]
-	if payload.has("presentation"):
-		snapshot["presentation"] = payload["presentation"]
+		_normalize_button_ids(snapshot)
 	return true
 
 func apply_double_up(payload: Dictionary) -> bool:
 	if payload.is_empty():
 		return false
-	if payload.has("double_up"):
-		snapshot["double_up"] = payload["double_up"]
+	var game_state_value: Variant = _first_value(payload, ["game_state", "gameState"], null)
+	if game_state_value != null:
+		snapshot["game_state"] = game_state_value
+	for key_pair in [
+		["buttons"],
+		["credits"],
+		["evaluation"],
+		["presentation"],
+		["recovery"],
+		["hand"]
+	]:
+		var value: Variant = _first_value(payload, key_pair, null)
+		if value != null:
+			snapshot[str(key_pair[0])] = value
+	var double_up_value: Variant = _first_value(payload, ["double_up", "doubleUp", "doubleUpSession"], null)
+	if double_up_value != null:
+		snapshot["double_up"] = double_up_value
 	else:
 		snapshot["double_up"] = payload
+	if payload.has("buttons"):
+		_normalize_button_ids(snapshot)
 	return true
 
 func apply_credits(payload: Dictionary) -> bool:
@@ -134,7 +173,8 @@ func _index_buttons() -> void:
 	button_state.clear()
 	for button in snapshot.get("buttons", []):
 		if typeof(button) == TYPE_DICTIONARY:
-			button_state[str(button.get("id", ""))] = button
+			var button_dict: Dictionary = button
+			button_state[_normalize_button_id(str(_first_value(button_dict, ["id", "Id"], "")))] = button_dict
 
 func _normalize_snapshot(raw: Dictionary) -> Dictionary:
 	var normalized := raw.duplicate(true)
@@ -263,7 +303,7 @@ func _buttons_from_legacy(ui_hints: Dictionary) -> Array:
 	var enabled_lookup := {}
 	for id in _as_array(ui_hints.get("enabled_buttons", [])):
 		enabled_lookup[_normalize_button_id(str(id))] = true
-	var ids := ["menu", "bet", "deal_draw", "cancel_hold", "hold_0", "hold_1", "hold_2", "hold_3", "hold_4", "big", "small", "swap_double_up_card", "take_half", "take_score", "cash_in", "cash_out", "back_to_lobby", "logout"]
+	var ids := ["menu", "bet", "deal_draw", "cancel_hold", "hold_0", "hold_1", "hold_2", "hold_3", "hold_4", "big", "small", "double_up_switch", "take_half", "take_score", "cash_in", "cash_out", "back_to_lobby", "logout"]
 	var buttons := []
 	for id in ids:
 		buttons.append({
@@ -282,7 +322,7 @@ func _normalize_button_ids(target: Dictionary) -> void:
 		if typeof(button) != TYPE_DICTIONARY:
 			continue
 		var normalized_button: Dictionary = button.duplicate(true)
-		normalized_button["id"] = _normalize_button_id(str(normalized_button.get("id", "")))
+		normalized_button["id"] = _normalize_button_id(str(_first_value(normalized_button, ["id", "Id"], "")))
 		var id := str(normalized_button["id"])
 		if id.is_empty() or seen.has(id):
 			continue
@@ -299,71 +339,108 @@ func _as_dictionary(value) -> Dictionary:
 func _as_array(value) -> Array:
 	return value if typeof(value) == TYPE_ARRAY else []
 
+func _first_value(source: Dictionary, keys: Array, fallback: Variant = null) -> Variant:
+	for key in keys:
+		var name := str(key)
+		if source.has(name):
+			return source[name]
+	return fallback
+
+func _to_bool(value) -> bool:
+	if typeof(value) == TYPE_BOOL:
+		return bool(value)
+	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
+		return _to_int(value) != 0
+	if typeof(value) == TYPE_STRING:
+		var normalized := str(value).strip_edges().to_lower()
+		return normalized == "true" or normalized == "1" or normalized == "yes" or normalized == "on"
+	return bool(value)
+
 func can_press(button_id: String) -> bool:
 	var button: Dictionary = button_state.get(button_id, {})
-	return bool(button.get("visible", true)) and bool(button.get("enabled", false)) and commands_allowed()
+	return _to_bool(_first_value(button, ["visible", "Visible"], true)) and _to_bool(_first_value(button, ["enabled", "Enabled"], false)) and commands_allowed()
 
 func button_reason(button_id: String) -> String:
 	var button: Dictionary = button_state.get(button_id, {})
-	return str(button.get("reason", ""))
+	return str(_first_value(button, ["reason", "Reason"], ""))
 
 func commands_allowed() -> bool:
-	var recovery: Dictionary = snapshot.get("recovery", {})
-	return bool(recovery.get("commands_allowed", true)) and not bool(recovery.get("requires_full_snapshot", false))
+	var recovery: Dictionary = _as_dictionary(snapshot.get("recovery", {}))
+	return _to_bool(_first_value(recovery, ["commands_allowed", "commandsAllowed"], true)) and not _to_bool(_first_value(recovery, ["requires_full_snapshot", "requiresFullSnapshot"], false))
 
 func state_version() -> int:
-	return int(snapshot.get("state_version", 0))
+	return _to_int(_first_value(snapshot, ["state_version", "stateVersion"], 0))
 
 func sequence_number() -> int:
-	return int(snapshot.get("sequence_number", 0))
+	return _to_int(_first_value(snapshot, ["sequence_number", "sequenceNumber"], 0))
 
 func machine_id(default_id: int) -> int:
-	return int(snapshot.get("machine", {}).get("machine_id", default_id))
+	var machine: Dictionary = _as_dictionary(snapshot.get("machine", {}))
+	return _to_int(_first_value(machine, ["machine_id", "machineId"], default_id))
 
 func session_id() -> String:
-	return str(snapshot.get("session", {}).get("session_id", ""))
+	var session: Dictionary = _as_dictionary(snapshot.get("session", {}))
+	return str(_first_value(session, ["session_id", "sessionId"], ""))
 
 func game_state() -> String:
-	return str(snapshot.get("game_state", "idle"))
+	return str(_first_value(snapshot, ["game_state", "gameState", "phase"], "idle"))
 
 func machine_name() -> String:
-	return str(snapshot.get("machine", {}).get("name", "Lucky5"))
+	var machine: Dictionary = _as_dictionary(snapshot.get("machine", {}))
+	return str(_first_value(machine, ["name", "displayName"], "Lucky5"))
 
 func min_bet() -> int:
-	return _to_int(snapshot.get("machine", {}).get("min_bet", 0))
+	var machine: Dictionary = _as_dictionary(snapshot.get("machine", {}))
+	return _to_int(_first_value(machine, ["min_bet", "minBet"], 0))
 
 func max_bet() -> int:
-	return _to_int(snapshot.get("machine", {}).get("max_bet", min_bet()))
+	var machine: Dictionary = _as_dictionary(snapshot.get("machine", {}))
+	return _to_int(_first_value(machine, ["max_bet", "maxBet"], min_bet()))
 
 func stake() -> int:
-	return _to_int(snapshot.get("credits", {}).get("stake", min_bet()))
+	var credits: Dictionary = _as_dictionary(snapshot.get("credits", {}))
+	return _to_int(_first_value(credits, ["stake", "betAmount", "bet_amount"], min_bet()))
 
 func machine_credits() -> int:
-	return _to_int(snapshot.get("credits", {}).get("machine_credits", 0))
+	var credits: Dictionary = _as_dictionary(snapshot.get("credits", {}))
+	return _to_int(_first_value(credits, ["machine_credits", "machineCredits", "balance"], 0))
 
 func wallet_balance() -> int:
-	return _to_int(snapshot.get("credits", {}).get("wallet_balance", 0))
+	var credits: Dictionary = _as_dictionary(snapshot.get("credits", {}))
+	return _to_int(_first_value(credits, ["wallet_balance", "walletBalance"], 0))
 
 func credit_balance() -> int:
-	return _to_int(snapshot.get("credits", {}).get("credit_balance", 0))
+	var credits: Dictionary = _as_dictionary(snapshot.get("credits", {}))
+	return _to_int(_first_value(credits, ["credit_balance", "creditBalance"], 0))
 
 func total_cash_in() -> int:
-	return _to_int(snapshot.get("credits", {}).get("total_cash_in", 0))
+	var credits: Dictionary = _as_dictionary(snapshot.get("credits", {}))
+	return _to_int(_first_value(credits, ["total_cash_in", "totalCashIn"], 0))
 
 func pending_win_amount() -> int:
-	return _to_int(snapshot.get("credits", {}).get("pending_win_amount", 0))
+	var credits: Dictionary = _as_dictionary(snapshot.get("credits", {}))
+	var evaluation: Dictionary = _as_dictionary(snapshot.get("evaluation", {}))
+	return _to_int(_first_value(credits, ["pending_win_amount", "pendingWinAmount"], _first_value(evaluation, ["win_amount", "winAmount"], 0)))
 
 func current_round_id() -> String:
-	var hand: Dictionary = snapshot.get("hand", {})
-	var round_id = hand.get("round_id", null)
+	var hand: Dictionary = _as_dictionary(snapshot.get("hand", {}))
+	var round_id = hand.get("round_id", hand.get("roundId", null))
 	if round_id == null:
-		round_id = snapshot.get("double_up", {}).get("round_id", null)
+		var du: Dictionary = _as_dictionary(snapshot.get("double_up", snapshot.get("doubleUp", snapshot.get("doubleUpSession", {}))))
+		round_id = du.get("round_id", du.get("roundId", null))
+	if round_id == null:
+		round_id = snapshot.get("round_id", snapshot.get("roundId", null))
+	if round_id == null:
+		var active_round: Variant = snapshot.get("activeRound", {})
+		if typeof(active_round) == TYPE_DICTIONARY:
+			round_id = active_round.get("round_id", active_round.get("roundId", null))
 	return "" if round_id == null else str(round_id)
 
 func held_indexes() -> Array:
 	var held := []
-	for value in snapshot.get("hand", {}).get("held_indexes", []):
-		held.append(int(value))
+	var hand: Dictionary = _as_dictionary(snapshot.get("hand", {}))
+	for value in _as_array(_first_value(hand, ["held_indexes", "heldIndexes", "held"], [])):
+		held.append(_to_int(value))
 	return held
 
 func advised_hold_indexes() -> Array:
@@ -377,35 +454,39 @@ func advised_hold_indexes() -> Array:
 	return advised
 
 func cards() -> Array:
-	return snapshot.get("hand", {}).get("cards", [])
+	var hand: Dictionary = _as_dictionary(snapshot.get("hand", {}))
+	return _as_array(_first_value(hand, ["cards", "Cards"], []))
 
 func result_cards() -> Array:
-	return snapshot.get("hand", {}).get("result_cards", cards())
+	var hand: Dictionary = _as_dictionary(snapshot.get("hand", {}))
+	return _as_array(_first_value(hand, ["result_cards", "resultCards", "ResultCards"], cards()))
 
 func hand_rank() -> String:
-	return str(snapshot.get("evaluation", {}).get("hand_rank", "None"))
+	var evaluation: Dictionary = _as_dictionary(snapshot.get("evaluation", {}))
+	return str(_first_value(evaluation, ["hand_rank", "handRank", "HandRank"], "None"))
 
 func message() -> String:
-	var presentation: Dictionary = snapshot.get("presentation", {})
+	var presentation: Dictionary = _as_dictionary(snapshot.get("presentation", {}))
 	if presentation.has("message"):
 		return str(presentation.get("message"))
-	return str(snapshot.get("evaluation", {}).get("message", ""))
+	var evaluation: Dictionary = _as_dictionary(snapshot.get("evaluation", {}))
+	return str(_first_value(evaluation, ["message", "Message"], ""))
 
 func recovery_message() -> String:
-	var recovery: Dictionary = snapshot.get("recovery", {})
+	var recovery: Dictionary = _as_dictionary(snapshot.get("recovery", {}))
 	if not last_transport_error.is_empty():
 		return last_transport_error
-	return str(recovery.get("reason", ""))
+	return str(_first_value(recovery, ["reason", "Reason"], ""))
 
 func jackpot_line() -> String:
-	var jp: Dictionary = snapshot.get("jackpot", {})
+	var jp: Dictionary = _as_dictionary(snapshot.get("jackpot", snapshot.get("jackpots", {})))
 	return "FULL HOUSE %s (%s)\n4 KIND A %s  4 KIND B %s  STAR %s\nSTRAIGHT FLUSH %s" % [
-		_format_amount(jp.get("full_house", 0)),
-		str(jp.get("full_house_rank", "")),
-		_format_amount(jp.get("four_of_a_kind_a", 0)),
-		_format_amount(jp.get("four_of_a_kind_b", 0)),
-		str(jp.get("active_four_of_a_kind_slot", "A")),
-		_format_amount(jp.get("straight_flush", 0))
+		_format_amount(_first_value(jp, ["full_house", "fullHouse"], 0)),
+		str(_first_value(jp, ["full_house_rank", "fullHouseRank"], "")),
+		_format_amount(_first_value(jp, ["four_of_a_kind_a", "fourOfAKindA"], 0)),
+		_format_amount(_first_value(jp, ["four_of_a_kind_b", "fourOfAKindB"], 0)),
+		str(_first_value(jp, ["active_four_of_a_kind_slot", "activeFourOfAKindSlot"], "A")),
+		_format_amount(_first_value(jp, ["straight_flush", "straightFlush"], 0))
 	]
 
 func credit_line() -> String:

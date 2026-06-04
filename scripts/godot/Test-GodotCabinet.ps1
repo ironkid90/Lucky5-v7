@@ -36,12 +36,31 @@ if ($LASTEXITCODE -ne 0) {
 $launchOutput = & $godotPath --headless --path $projectPath --quit-after $QuitAfterFrames 2>&1
 $exitCode = $LASTEXITCODE
 $launchText = $launchOutput -join [Environment]::NewLine
+$significantLaunchLines = @(
+    foreach ($line in $launchOutput) {
+        $text = [string]$line
+        if ($text -match '^(ERROR|WARNING): \d+ RID allocations of type .+ were leaked at exit\.$') {
+            continue
+        }
+        if ($text -match '^WARNING: \d+ RIDs of type ".+" were leaked\.$') {
+            continue
+        }
+        if ($text -match '^WARNING: ObjectDB instances leaked at exit') {
+            continue
+        }
+        if ($text -match '^\s*at: (_free_rids|cleanup) \(') {
+            continue
+        }
+        $text
+    }
+)
+$significantLaunchText = $significantLaunchLines -join [Environment]::NewLine
 
 if ($exitCode -ne 0) {
     throw "Godot headless launch failed with exit code $exitCode.$([Environment]::NewLine)$launchText"
 }
 
-if ($launchText -match '(?m)^(SCRIPT ERROR|ERROR):') {
+if ($significantLaunchText -match '(?m)^(SCRIPT ERROR|ERROR):') {
     throw "Godot headless launch emitted errors.$([Environment]::NewLine)$launchText"
 }
 
@@ -50,5 +69,6 @@ if ($launchText -match '(?m)^(SCRIPT ERROR|ERROR):') {
     godot_version = ($versionOutput -join [Environment]::NewLine).Trim()
     project_path = $GodotProjectPath.Replace('\', '/')
     quit_after_frames = $QuitAfterFrames
+    ignored_shutdown_diagnostics = ($launchOutput.Count - $significantLaunchLines.Count)
     status = 'passed'
 } | ConvertTo-Json -Depth 4

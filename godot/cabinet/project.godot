@@ -15,9 +15,9 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Lucky5 Cabinet"
-config/icon="res://icon-512.png"
 run/main_scene="res://scenes/CabinetRoot.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
+config/icon="res://icon-512.png"
 
 [display]
 
@@ -25,9 +25,8 @@ window/size/viewport_width=720
 window/size/viewport_height=1280
 window/size/window_width_override=540
 window/size/window_height_override=960
-window/handheld/orientation=1
 window/stretch/mode="viewport"
-window/stretch/aspect="keep"
+window/handheld/orientation=1
 
 [dotnet]
 
@@ -35,6 +34,6 @@ project/assembly_name="Lucky5 Cabinet"
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
 textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true

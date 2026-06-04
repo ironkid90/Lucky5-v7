@@ -47,7 +47,8 @@ public static class Lucky5DoubleUpEngine
             // Lucky 5 no-lose mode only arms when 5S is found via an explicit SWITCH.
             // The opening dealer card and a high/low challenger reveal must not activate it.
             IsNoLoseActive: false,
-            Options: resolvedOptions);
+            Options: resolvedOptions,
+            PlayedDealerIndexes: Array.Empty<int>());
 
         return session;
     }
@@ -140,7 +141,8 @@ public static class Lucky5DoubleUpEngine
                 SwitchCountInRound = 0,
                 LuckyHitCount = 0,
                 IsNoLoseActive = session.IsNoLoseActive,
-                SwapActivePosition = -1
+                SwapActivePosition = -1,
+                PlayedDealerIndexes = AppendPlayedDealerIndex(session)
             };
 
             var shouldCloseMachine = session.MachineCreditBaseline < session.Options.MaxCreditLimit
@@ -182,7 +184,8 @@ public static class Lucky5DoubleUpEngine
                 IsNoLoseActive = false,
                 IsTerminal = true,
                 TerminalOutcome = Lucky5DoubleUpOutcome.SafeFail,
-                CashoutCredits = previousAmount
+                CashoutCredits = previousAmount,
+                PlayedDealerIndexes = AppendPlayedDealerIndex(session)
             };
 
             return new Lucky5DoubleUpResolution(
@@ -207,7 +210,8 @@ public static class Lucky5DoubleUpEngine
             IsNoLoseActive = false,
             IsTerminal = true,
             TerminalOutcome = Lucky5DoubleUpOutcome.Lose,
-            CashoutCredits = 0
+            CashoutCredits = 0,
+            PlayedDealerIndexes = AppendPlayedDealerIndex(session)
         };
 
         return new Lucky5DoubleUpResolution(
@@ -243,6 +247,15 @@ public static class Lucky5DoubleUpEngine
             BigSmallGuess.Small => challengerCard.Rank < dealerCard.Rank,
             _ => throw new ArgumentOutOfRangeException(nameof(guess), guess, "Unsupported double-up guess.")
         };
+    }
+
+    private static int[] AppendPlayedDealerIndex(Lucky5DoubleUpSession session)
+    {
+        var source = session.PlayedDealerIndexes ?? Array.Empty<int>();
+        var result = new int[source.Length + 1];
+        Array.Copy(source, result, source.Length);
+        result[^1] = session.DealerIndex;
+        return result;
     }
 
     private static void EnsurePlayable(Lucky5DoubleUpSession session)

@@ -87,6 +87,14 @@ app.Use(async (context, next) =>
             _ => (HttpStatusCode.InternalServerError, "Unexpected server error")
         };
 
+        app.Logger.LogError(
+            ex,
+            "Unhandled API request failure {Method} {Path} -> {StatusCode} ({TraceId})",
+            context.Request.Method,
+            context.Request.Path,
+            (int)status,
+            context.TraceIdentifier);
+
         context.Response.StatusCode = (int)status;
         context.Response.ContentType = "application/json";
 

@@ -21,7 +21,7 @@
 - Largest empirical leak under optimal play is the double-up layer (Ace-auto-win + optimal BIG/SMALL strategy + Lucky 5 no-lose safety).
 
 ### Root-cause analysis
-The v7 config declared `TargetDoubleUpRtp = 0.0950` but optimal players extract closer to 0.12 – 0.13 from the DU layer once Ace-auto-win and Lucky 5 safety are exploited. Because the controller's base target was computed from fixed jackpot/double-up reservations, under-estimated overlay layers made the controller aim for a base RTP that, when summed with reality, overshot 80%. The correction loop would eventually pull down but only after material over-payment. Fresh machines also trusted very small round samples too quickly when the first buy-in had many credits.
+The first calibration pass under-modeled the live game. The simulator did not fully mirror the service's two-stake hand accounting (`DealAsync` plus `DrawAsync`), Ace-multiplied base wins, Kent jackpot pool, double-up settlement deltas, and counterplay policy override. Once those variables were modeled, the controller still converged to roughly 80% composite RTP, but the realized channel split was materially different from the nominal reserve line: jackpots and double-up can contribute far more than their configured pressure targets while base-game scale absorbs the difference.
 
 ### v8 calibration knob changes (rules unchanged)
 
@@ -31,11 +31,11 @@ All changes applied in `server/src/Lucky5.Domain/Game/CleanRoom/CoreModels.cs` `
 |------|----|----|-----------|
 | `TargetDoubleUpRtp` | 0.0950 | **0.1200** | Acknowledges optimal-player DU extraction. Pulls base target down ~3.5 pp, letting the controller converge without overshoot. |
 | `DoubleUpRtpHardCap` | 0.110 | **0.130** | Keeps the DU leak clamp from firing every round while still acting on sustained overshoot. |
-| `WarmupOpeningSmallScale` | 1.65 | **1.55** | Trims fresh-session over-pay; churn-heavy sessions no longer compound warmup bias. |
-| `WarmupOpeningMediumScale` | 1.70 | **1.58** | Same. |
-| `WarmupOpeningBigScale` | 1.75 | **1.60** | Same. |
-| `DefaultPayoutScale` | 1.75 | **1.60** | Moves the neutral-state scale closer to the new target-base equilibrium. |
-| `MinPayoutScale` | 1.18 | **1.09** | Extends downward headroom when live RTP trends hot while keeping short-run dry spells from sagging below target. |
+| `WarmupOpeningSmallScale` | 1.65 | **1.15** | Trims fresh-session over-pay after the simulator started applying the live Ace, jackpot, and double-up overlays. |
+| `WarmupOpeningMediumScale` | 1.70 | **1.18** | Same. |
+| `WarmupOpeningBigScale` | 1.75 | **1.20** | Same. |
+| `DefaultPayoutScale` | 1.75 | **1.15** | Moves neutral-state scale closer to the verified composite target under faithful overlay accounting. |
+| `MinPayoutScale` | 1.18 | **0.72** | Adds enough downward headroom for hot states where double-up and jackpots dominate realized RTP. |
 | `CrisisScaleBoost` | 0.07 | **0.05** | Prevents pity-boost from pushing the scale into overshoot during long loss streaks. |
 | `MaxPayoutScale` | 2.05 | 2.05 *(unchanged)* | Generosity cap preserved for cold streaks. |
 | `DoubleUpPressureMaxKeyRemovals` | 17 | **29** | Gives hot/near-close double-up states enough deck-composition headroom without hiding the feature. |
@@ -48,12 +48,16 @@ All changes applied in `server/src/Lucky5.Domain/Game/CleanRoom/CoreModels.cs` `
 
 - Fresh-machine RTP smoothing is round-sample based: the controller ignores RTP drift until `RtpMinSamplesForControl` rounds, so a first 200k-credit buy-in cannot make one early round look statistically mature.
 - Base target now reserves the larger of configured vs observed jackpot RTP and the larger of configured vs observed double-up RTP. This lets base payout scale respond to real overlay pressure instead of relying only on total-RTP drift.
+- The Monte Carlo harness now mirrors the live stake model: a completed hand contributes one stake at deal and one stake at draw, matching `GameService.DealAsync` and `GameService.DrawAsync`.
+- Ace multiplier handling is single-source: `DrawAsync` stores the Ace-multiplied `WinAmount`, `StartDoubleUpAsync` starts from that stored amount, and the simulator applies the same one-time base-game Ace lift.
+- Jackpot telemetry now splits Full House, 4OAK-A, 4OAK-B, Straight Flush, and Kent pools, including pool contribution and reset behavior.
 - Double-up remains available on every positive win. `MachinePolicy.ShouldOfferDoubleUp` is deliberately always-on; RTP control comes from base-game reserve/scaling plus bounded double-up deck pressure that can remove key auto-win/no-lose cards during hot or close-call states.
 - Double-up deck pressure is reversible and suspense-aware: hot/near-close states can remove bounded high-leverage cards and sequence trap-heavy adjacent pairs, while long Lucky 5 or medium-win drought states preserve key cards and trim only middle ranks. Low-exposure hot chains get a small deterministic release chance so the cabinet can still produce close calls instead of feeling flat.
 - Closed sessions with positive machine credits are preserved across reset/reopen attempts. The backend blocks cash-in/play until the player explicitly cashes out; reset no longer silently auto-cashes-out a closed machine.
 
 ### Test updates required
 - `CleanRoomEngineTests.cs` assertion `"Approved payout-scale defaults should match the v8 tuned architecture"` updated to the new default/min values.
+- `GameServiceRegressionTests.cs` covers the Ace double-up entry fix: `StartDoubleUpAsync` must use the already Ace-multiplied `GameRound.WinAmount` and must not apply the multiplier a second time.
 - All DU rule tests (Ace auto-win, unlimited chain, Lucky 5 switch, machine close) remain **unchanged** and must still pass.
 
 ### Verification workflow
@@ -81,9 +85,9 @@ Verified on 2026-06-04 with Release builds:
 
 The hard RTP gate passes when 500k-round composite RTP lands in [78%, 82%] with the Balanced player strategy. Short 10k/200k samples are variance telemetry, not hard gates; the aggressive profile is expected to run hotter while still correcting below runaway levels and producing close-band suspense. If a future pass lands outside the target band, the following single-knob tweaks are the safest next levers (still no rule changes):
 
-1. **Persistent overshoot:** lower `DefaultPayoutScale` in 0.05 steps toward 1.50.
-2. **Undershoot:** raise `WarmupOpeningBigScale` back toward 1.70, or trim `TargetDoubleUpRtp` back toward 0.11.
-3. **Wide variance at 200 k rounds:** run the 500 k certification run. 200 k is inside the noise band of the controller by design.
+1. **Persistent overshoot:** lower `DefaultPayoutScale` or `WarmupOpeningBigScale` in 0.03-0.05 steps; re-run 200k plus certification because double-up dominates observed drift.
+2. **Undershoot:** raise `WarmupOpeningBigScale` or `DefaultPayoutScale` in 0.03-0.05 steps; do not lower the win floor or hide double-up offers.
+3. **Counterplay drift:** run `--behavior counterplay` and inspect `Counterplay cold overrides`, `hot-after-sabotage`, `Double-up leak adjustments`, and jackpot mix before changing rules.
 
 ---
 

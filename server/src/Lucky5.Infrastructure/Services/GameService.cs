@@ -497,11 +497,8 @@ public sealed class GameService(IDataStore store, IEntropyGenerator entropyGener
             throw new InvalidOperationException("Machine closed - take score and cash out to wallet");
         var machineCreditBaseline = (int)Math.Min(sessionBank.MachineCredits, int.MaxValue);
 
+        // WinAmount already includes the Ace multiplier from DrawAsync.
         var startingAmount = (int)round.WinAmount;
-        if (round.AceMultiplierFired && round.AceMultiplier > 1)
-        {
-            startingAmount *= round.AceMultiplier;
-        }
 
         var ledger = await RequireMachineLedgerAsync(round.MachineId);
         var playDeck = MachinePolicy.BuildDoubleUpPlayDeck(
@@ -1826,6 +1823,8 @@ return guessResult;
         var jackpot = SnapshotJackpots(ledger);
         var message = BuildCabinetMessage(gameState, pendingWin, session);
         var doubleUpSession = activeRound?.DoubleUpSession;
+        var advisedHolds = BuildCabinetAdvisedHolds(gameState, activeRound);
+        var bonusPresentation = BuildCabinetBonusPresentation(gameState, activeRound, doubleUpSession, pendingWin);
 
         return new CabinetSnapshotDto(
             SchemaVersion: CabinetSchemaVersion,
@@ -1875,7 +1874,7 @@ return guessResult;
                 ResultCards: resultCards,
                 HeldIndexes: heldIndexes,
                 RoundId: activeRound?.RoundId,
-                AdvisedHolds: gameState == "hold" ? heldIndexes : null),
+                AdvisedHolds: advisedHolds),
             Evaluation: new CabinetEvaluationDto(
                 HandRank: NormalizeCabinetHandRank(activeRound?.HandRank),
                 WinAmount: ToDecimalString(pendingWin),
@@ -1908,7 +1907,8 @@ return guessResult;
                 Message: message,
                 MessageTone: BuildCabinetMessageTone(gameState, pendingWin, requiresFullSnapshot),
                 PacingProfile: "classic_arcade",
-                Effects: BuildCabinetEffects(gameState, pendingWin, requiresFullSnapshot)),
+                Effects: BuildCabinetEffects(gameState, pendingWin, requiresFullSnapshot),
+                Bonus: bonusPresentation),
             Recovery: new CabinetRecoveryStateDto(
                 Connected: true,
                 CommandsAllowed: !requiresFullSnapshot,
@@ -1926,6 +1926,73 @@ return guessResult;
         return new CabinetCardDto(code, rank, suit, faceUp, held, $"cards/{code}");
     }
 
+    private static CabinetBonusPresentationDto BuildCabinetBonusPresentation(
+        string gameState,
+        ActiveRoundStateDto? activeRound,
+        DoubleUpStateDto? doubleUpSession,
+        decimal pendingWin)
+    {
+        if (gameState == "double_up" && doubleUpSession?.IsLucky5Active == true)
+        {
+            return new CabinetBonusPresentationDto(
+                Active: true,
+                Kind: "lucky5",
+                Card: TryBuildCabinetCardFromCode("5S"),
+                Amount: ToDecimalString(doubleUpSession.CurrentAmount),
+                FreeGameCount: 0,
+                Message: "5 NEVER LOSE");
+        }
+
+        var handRank = NormalizeCabinetHandRank(activeRound?.HandRank);
+        if (handRank == "FourOfAKind")
+        {
+            return new CabinetBonusPresentationDto(
+                Active: true,
+                Kind: "bonus_card",
+                Card: FindRepeatedRankCabinetCard(activeRound?.ResultCards, 4),
+                Amount: ToDecimalString(pendingWin),
+                FreeGameCount: 0,
+                Message: "4 OF A KIND BONUS");
+        }
+
+        return new CabinetBonusPresentationDto(
+            Active: false,
+            Kind: "free_games",
+            Card: null,
+            Amount: "0",
+            FreeGameCount: 0,
+            Message: "FREE GAMES BONUS");
+    }
+
+    private static CabinetCardDto? FindRepeatedRankCabinetCard(IReadOnlyList<PokerCardDto>? cards, int minimumCount)
+    {
+        if (cards is null || cards.Count == 0)
+        {
+            return null;
+        }
+
+        var repeated = cards
+            .Select(card => new { Card = card, Rank = NormalizeCardRank(card.Rank, card.Code) })
+            .GroupBy(item => item.Rank, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() >= minimumCount);
+
+        return repeated is null
+            ? null
+            : ToCabinetCard(repeated.First().Card, faceUp: true, held: false);
+    }
+
+    private static CabinetCardDto? TryBuildCabinetCardFromCode(string code)
+    {
+        try
+        {
+            return ToCabinetCard(ToCleanRoomDto(CleanRoomCard.FromCode(code)), faceUp: true, held: false);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static string BuildCabinetGameState(ActiveRoundStateDto? activeRound, MachineSessionState session)
         => activeRound?.Phase switch
         {
@@ -1936,6 +2003,32 @@ return guessResult;
             _ when session.IsMachineClosed => "closed",
             _ => "idle"
         };
+
+    private static IReadOnlyList<int>? BuildCabinetAdvisedHolds(string gameState, ActiveRoundStateDto? activeRound)
+    {
+        if (gameState != "hold" || activeRound is null || activeRound.Cards.Count != 5)
+        {
+            return null;
+        }
+
+        try
+        {
+            var cards = activeRound.Cards.Select(ToCleanRoomCard).ToArray();
+            return FiveCardDrawEngine.ComputeAdvisedHolds(cards);
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static CleanRoomCard ToCleanRoomCard(PokerCardDto card)
+    {
+        var code = !string.IsNullOrWhiteSpace(card.Code)
+            ? card.Code!
+            : $"{NormalizeCardRank(card.Rank, card.Code)}{NormalizeCardSuit(card.Suit, card.Code)}";
+        return CleanRoomCard.FromCode(code);
+    }
 
     private static string BuildCabinetDoubleUpStatus(ActiveRoundStateDto? activeRound)
         => activeRound?.Phase == "DoubleUp" ? "started" : "none";

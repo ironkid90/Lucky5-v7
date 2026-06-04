@@ -184,7 +184,19 @@ public sealed record CabinetPresentationStateDto(
     string MessageTone,
     [property: JsonPropertyName("pacing_profile")]
     string PacingProfile,
-    IReadOnlyList<string> Effects);
+    IReadOnlyList<string> Effects,
+    [property: JsonPropertyName("bonus"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    CabinetBonusPresentationDto? Bonus = null);
+
+public sealed record CabinetBonusPresentationDto(
+    bool Active,
+    string Kind,
+    [property: JsonPropertyName("card"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    CabinetCardDto? Card,
+    string Amount,
+    [property: JsonPropertyName("free_game_count")]
+    int FreeGameCount,
+    string Message);
 
 public sealed record CabinetRecoveryStateDto(
     bool Connected,

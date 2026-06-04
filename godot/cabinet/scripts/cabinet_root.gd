@@ -19,18 +19,30 @@ const COLOR_WHITE := Color(0.95, 0.95, 0.95, 1.0)
 const COLOR_GREY := Color(0.4, 0.4, 0.4, 1.0)
 const COLOR_PANEL_BG := Color(0.196, 0.125, 0.051, 0.97)    # #32200d
 const COLOR_PANEL_BORDER := Color(0.651, 0.486, 0.078, 1.0)
-const COLOR_CONTROL_DECK := Color(0.165, 0.075, 0.024, 0.98)
+const COLOR_CONTROL_DECK := Color(0.290, 0.125, 0.034, 0.98)
+const COLOR_CONTROL_DECK_TOP := Color(0.455, 0.224, 0.063, 0.98)
+const COLOR_CONTROL_DECK_MID := Color(0.333, 0.137, 0.035, 0.98)
+const COLOR_CONTROL_DECK_BOTTOM := Color(0.204, 0.071, 0.020, 0.98)
+const COLOR_WOOD_GRAIN_LIGHT := Color(0.780, 0.420, 0.120, 0.34)
+const COLOR_WOOD_GRAIN_DARK := Color(0.080, 0.024, 0.008, 0.46)
 const COLOR_BUTTON_YELLOW := Color(1.0, 0.710, 0.070, 1.0)
 const COLOR_BUTTON_ORANGE := Color(0.890, 0.345, 0.078, 1.0)
 const COLOR_BUTTON_RED := Color(0.820, 0.055, 0.055, 1.0)
 const COLOR_BUTTON_GREEN := Color(0.047, 0.645, 0.137, 1.0)
 const COLOR_BUTTON_BLACK := Color(0.035, 0.035, 0.035, 1.0)
+const BUTTON_BEVEL_SHADOW_SIZE := 5
+const BUTTON_PRESSED_SHADOW_SIZE := 1
+const BUTTON_ASSET_BASE_PATH := "res://skins/lucky5/buttons/"
+const BUTTON_ASSET_FONT_SIZE := 13
 
 const CARD_SIZE := Vector2(110, 154)
 const CARD_SMALL_SIZE := Vector2(80, 112)
 const CARD_GAP := 6
 const DEAL_DURATION := 0.22
 const DEAL_STAGGER := 0.10
+const DRAW_OUT_DURATION := 0.055
+const DRAW_IN_DURATION := 0.075
+const DRAW_STAGGER := 0.045
 const DU_SWITCH_DURATION := 0.22
 const DU_MAIN_CARD_SIZE := Vector2(150, 210)
 const DU_BOARD_CARD_SIZE := Vector2(54, 76)
@@ -82,6 +94,7 @@ var admin_selected_agent_id := 0
 var pending_command_id := ""
 var pending_idempotency_key := ""
 var pending_command_type := ""
+var button_asset_textures: Dictionary = {}
 
 # ─── node refs ───
 var title_label: Label
@@ -138,6 +151,10 @@ var machine_serie_label: Label
 var machine_kent_label: Label
 var machine_serial_label: Label
 var bonus_message_label: Label
+var bonus_stage_panel: PanelContainer
+var bonus_stage_card: TextureRect
+var bonus_stage_label: Label
+var bonus_stage_amount_label: Label
 var lucky5_banner: Label
 var crt_overlay: ColorRect
 var heartbeat_timer: Timer
@@ -163,7 +180,9 @@ var win_target_amount := 0
 var win_counter_tween: Tween
 var win_pulse_tween: Tween
 var credit_pulse_tween: Tween
+var bonus_stage_tween: Tween
 var last_machine_credit_amount := -1
+var bonus_stage_key := ""
 var displayed_jackpots: Dictionary = {}
 var jackpot_counter_targets: Dictionary = {}
 var jackpot_counter_tweens: Dictionary = {}
@@ -237,7 +256,7 @@ func _make_label(text_str: String, size: int, color_val: Color, align := HORIZON
 	l.horizontal_alignment = align
 	return l
 
-func _make_button(text_str: String, min_h: int, bg: Color, fg: Color, border: Color) -> Button:
+func _make_button(text_str: String, min_h: int, bg: Color, fg: Color, border: Color, asset_key: String = "") -> Button:
 	var b := Button.new()
 	b.text = text_str
 	b.custom_minimum_size = Vector2(0, min_h)
@@ -247,26 +266,106 @@ func _make_button(text_str: String, min_h: int, bg: Color, fg: Color, border: Co
 	style.bg_color = bg
 	style.border_color = border
 	style.border_width_left = 2; style.border_width_right = 2
-	style.border_width_top = 2; style.border_width_bottom = 2
+	style.border_width_top = 2; style.border_width_bottom = 4
 	style.corner_radius_top_left = 6; style.corner_radius_top_right = 6
 	style.corner_radius_bottom_left = 6; style.corner_radius_bottom_right = 6
 	style.content_margin_left = 8; style.content_margin_right = 8
+	style.content_margin_top = 6; style.content_margin_bottom = 9
+	style.shadow_color = border.darkened(0.55)
+	style.shadow_size = BUTTON_BEVEL_SHADOW_SIZE
+	style.shadow_offset = Vector2(0, 3)
 	b.add_theme_stylebox_override("normal", style)
 	var hover := style.duplicate()
-	hover.bg_color = bg.lightened(0.1)
+	hover.bg_color = bg.lightened(0.12)
+	hover.border_color = border.lightened(0.18)
 	b.add_theme_stylebox_override("hover", hover)
 	var pressed := style.duplicate()
 	pressed.bg_color = bg.darkened(0.18)
 	pressed.content_margin_top = 10
 	pressed.content_margin_bottom = 6
+	pressed.shadow_size = BUTTON_PRESSED_SHADOW_SIZE
+	pressed.shadow_offset = Vector2(0, 1)
 	b.add_theme_stylebox_override("pressed", pressed)
 	var disabled := style.duplicate()
 	disabled.bg_color = Color(bg.r * 0.25, bg.g * 0.25, bg.b * 0.25, 0.5)
+	disabled.shadow_size = 0
 	b.add_theme_stylebox_override("disabled", disabled)
 	b.add_theme_color_override("font_color", fg)
 	b.add_theme_font_size_override("font_size", 14)
 	b.add_theme_color_override("font_disabled_color", Color(0.3, 0.3, 0.3, 0.6))
+	if _apply_button_asset_styles(b, asset_key):
+		b.text = ""
+		b.tooltip_text = text_str.replace("\n", " ")
 	return b
+
+func _apply_button_asset_styles(button: Button, asset_key: String) -> bool:
+	if asset_key.is_empty():
+		return false
+	var normal_asset := _button_asset_normal_name(asset_key)
+	var normal := _make_button_asset_style(normal_asset)
+	if normal == null:
+		return false
+	var active := _make_button_asset_style(_button_asset_active_name(asset_key))
+	if active == null:
+		active = normal.duplicate()
+	var disabled := _make_button_asset_style(_button_asset_disabled_name(asset_key), Color(0.35, 0.35, 0.35, 0.72))
+	if disabled == null:
+		disabled = normal.duplicate()
+		disabled.modulate_color = Color(0.35, 0.35, 0.35, 0.72)
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", active)
+	button.add_theme_stylebox_override("pressed", active)
+	button.add_theme_stylebox_override("disabled", disabled)
+	button.add_theme_color_override("font_color", COLOR_BG)
+	button.add_theme_color_override("font_disabled_color", Color(0, 0, 0, 0.25))
+	button.add_theme_font_size_override("font_size", BUTTON_ASSET_FONT_SIZE)
+	button.set_meta("uses_ai9_button_asset", true)
+	return true
+
+func _make_button_asset_style(asset_name: String, tint := Color(1, 1, 1, 1)) -> StyleBoxTexture:
+	var texture := _load_button_asset_texture(asset_name)
+	if texture == null:
+		return null
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	style.modulate_color = tint
+	style.content_margin_left = 6; style.content_margin_right = 6
+	style.content_margin_top = 8; style.content_margin_bottom = 8
+	return style
+
+func _load_button_asset_texture(asset_name: String) -> Texture2D:
+	if button_asset_textures.has(asset_name):
+		return button_asset_textures[asset_name] as Texture2D
+	var path := BUTTON_ASSET_BASE_PATH + asset_name + ".png"
+	if not FileAccess.file_exists(path):
+		return null
+	var image := Image.new()
+	var result := image.load(path)
+	if result != OK:
+		return null
+	var texture := ImageTexture.create_from_image(image)
+	button_asset_textures[asset_name] = texture
+	return texture
+
+func _button_asset_normal_name(asset_key: String) -> String:
+	if asset_key == "hold":
+		return "hold_on"
+	return asset_key
+
+func _button_asset_active_name(asset_key: String) -> String:
+	if asset_key == "hold":
+		return "hold_on"
+	var active_name := "%s_on" % asset_key
+	var active_path := BUTTON_ASSET_BASE_PATH + active_name + ".png"
+	return active_name if FileAccess.file_exists(active_path) else _button_asset_normal_name(asset_key)
+
+func _button_asset_disabled_name(asset_key: String) -> String:
+	if asset_key == "hold":
+		return "hold_off"
+	return _button_asset_normal_name(asset_key)
+
+func _button_uses_asset(button: Button) -> bool:
+	return button != null and button.has_meta("uses_ai9_button_asset") and bool(button.get_meta("uses_ai9_button_asset"))
 
 func _make_admin_edit(placeholder: String, min_width: int = 0) -> LineEdit:
 	var e := LineEdit.new()
@@ -360,8 +459,9 @@ func _build_control_deck(parent: Node) -> void:
 	ps.corner_radius_top_left = 8; ps.corner_radius_top_right = 8
 	ps.corner_radius_bottom_left = 8; ps.corner_radius_bottom_right = 8
 	deck.add_theme_stylebox_override("panel", ps)
-	deck.custom_minimum_size = Vector2(0, 202)
+	deck.custom_minimum_size = Vector2(0, 248)
 	parent.add_child(deck)
+	_decorate_control_deck(deck)
 
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -382,7 +482,7 @@ func _build_control_deck(parent: Node) -> void:
 	rows.add_child(hold_row)
 	hold_buttons.clear()
 	for index in range(5):
-		var hold_button := _make_button("HOLD", 44, COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK)
+		var hold_button := _make_button("HOLD", 58, COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK, "hold")
 		hold_button.name = "HoldButton%d" % (index + 1)
 		hold_button.pressed.connect(_on_hold_button_pressed.bind(index))
 		hold_buttons.append(hold_button)
@@ -400,7 +500,7 @@ func _build_control_deck(parent: Node) -> void:
 		["bet", "BET", COLOR_BUTTON_GREEN, COLOR_WHITE, Color(0.180, 0.900, 0.260)],
 	]
 	for def in action_defs:
-		_add_deck_action_button(action_row, def, 54)
+		_add_deck_action_button(action_row, def, 72)
 
 	var bottom_row := HBoxContainer.new()
 	bottom_row.name = "ArcadeBottomRow"
@@ -412,14 +512,54 @@ func _build_control_deck(parent: Node) -> void:
 		["take_score", "TAKE\nSCORE", COLOR_BUTTON_ORANGE, COLOR_BG, COLOR_GOLD_DARK],
 	]
 	for def in bottom_defs:
-		_add_deck_action_button(bottom_row, def, 48)
+		_add_deck_action_button(bottom_row, def, 64)
 
 	bet_label = _make_label("BET %s" % selected_bet, 13, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	bet_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rows.add_child(bet_label)
 
+func _decorate_control_deck(deck: Control) -> void:
+	_add_control_deck_band(deck, "ControlDeckBandTop", 0.0, 0.36, COLOR_CONTROL_DECK_TOP)
+	_add_control_deck_band(deck, "ControlDeckBandMid", 0.32, 0.74, COLOR_CONTROL_DECK_MID)
+	_add_control_deck_band(deck, "ControlDeckBandBottom", 0.70, 1.0, COLOR_CONTROL_DECK_BOTTOM)
+	var grain_offsets := [12, 26, 39, 57, 73, 91, 108, 126, 145, 164, 184]
+	for i in range(grain_offsets.size()):
+		var color := COLOR_WOOD_GRAIN_LIGHT if i % 2 == 0 else COLOR_WOOD_GRAIN_DARK
+		_add_control_deck_grain(deck, int(grain_offsets[i]), color, 1 + (i % 3))
+
+func _add_control_deck_band(deck: Control, node_name: String, from_anchor: float, to_anchor: float, color: Color) -> void:
+	var band := ColorRect.new()
+	band.name = node_name
+	band.color = color
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.anchor_left = 0.0
+	band.anchor_right = 1.0
+	band.anchor_top = from_anchor
+	band.anchor_bottom = to_anchor
+	band.offset_left = 0
+	band.offset_right = 0
+	band.offset_top = 0
+	band.offset_bottom = 0
+	deck.add_child(band)
+
+func _add_control_deck_grain(deck: Control, y_offset: int, color: Color, height: int) -> void:
+	var grain := ColorRect.new()
+	grain.name = "ControlDeckGrain"
+	grain.color = color
+	grain.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grain.anchor_left = 0.0
+	grain.anchor_right = 1.0
+	grain.anchor_top = 0.0
+	grain.anchor_bottom = 0.0
+	grain.offset_left = 8
+	grain.offset_right = -8
+	grain.offset_top = y_offset
+	grain.offset_bottom = y_offset + height
+	deck.add_child(grain)
+
 func _add_deck_action_button(row: HBoxContainer, def: Array, min_h: int) -> void:
-	var button := _make_button(def[1], min_h, def[2], def[3], def[4])
+	var asset_key := str(def[0])
+	var button := _make_button(def[1], min_h, def[2], def[3], def[4], asset_key)
 	button.name = "DeckButton_%s" % str(def[0])
 	button.pressed.connect(_on_action_pressed.bind(str(def[0])))
 	action_buttons[str(def[0])] = button
@@ -747,11 +887,57 @@ func _build_machine_info(parent: Node) -> void:
 		jackpot_counter_panels[str(slot[1])] = counter_panel
 		jp_row.add_child(counter_panel)
 
-	bonus_message_label = _make_label("4 OF A KIND   WINS BONUS", 16, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	var bonus_row := HBoxContainer.new()
+	bonus_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	bonus_row.add_theme_constant_override("separation", 6)
+	bonus_row.custom_minimum_size = Vector2(0, 24)
+	rows.add_child(bonus_row)
+
+	bonus_message_label = _make_label("4 OF A KIND   WINS BONUS", 15, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	bonus_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bonus_message_label.custom_minimum_size = Vector2(0, 24)
 	bonus_message_label.visible = true
-	rows.add_child(bonus_message_label)
+	bonus_row.add_child(bonus_message_label)
+
+	bonus_stage_panel = PanelContainer.new()
+	bonus_stage_panel.custom_minimum_size = Vector2(152, 26)
+	bonus_row.add_child(bonus_stage_panel)
+
+	var bonus_style := StyleBoxFlat.new()
+	bonus_style.bg_color = Color(0.02, 0.01, 0.0, 0.72)
+	bonus_style.border_color = COLOR_GOLD_DARK
+	bonus_style.border_width_left = 1; bonus_style.border_width_right = 1
+	bonus_style.border_width_top = 1; bonus_style.border_width_bottom = 1
+	bonus_style.corner_radius_top_left = 4; bonus_style.corner_radius_top_right = 4
+	bonus_style.corner_radius_bottom_left = 4; bonus_style.corner_radius_bottom_right = 4
+	bonus_stage_panel.add_theme_stylebox_override("panel", bonus_style)
+
+	var bonus_margin := MarginContainer.new()
+	bonus_margin.add_theme_constant_override("margin_left", 4)
+	bonus_margin.add_theme_constant_override("margin_right", 4)
+	bonus_margin.add_theme_constant_override("margin_top", 1)
+	bonus_margin.add_theme_constant_override("margin_bottom", 1)
+	bonus_stage_panel.add_child(bonus_margin)
+
+	var bonus_box := HBoxContainer.new()
+	bonus_box.add_theme_constant_override("separation", 4)
+	bonus_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	bonus_margin.add_child(bonus_box)
+
+	bonus_stage_card = TextureRect.new()
+	bonus_stage_card.custom_minimum_size = Vector2(18, 24)
+	bonus_stage_card.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bonus_stage_card.stretch_mode = TextureRect.STRETCH_SCALE
+	bonus_box.add_child(bonus_stage_card)
+
+	var bonus_texts := VBoxContainer.new()
+	bonus_texts.add_theme_constant_override("separation", 0)
+	bonus_texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bonus_box.add_child(bonus_texts)
+	bonus_stage_label = _make_label("FREE GAMES", 8, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	bonus_texts.add_child(bonus_stage_label)
+	bonus_stage_amount_label = _make_label("BONUS 0", 8, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	bonus_texts.add_child(bonus_stage_amount_label)
 
 func _build_du_info(parent: Node) -> void:
 	du_info_panel = VBoxContainer.new()
@@ -1150,7 +1336,7 @@ func _refresh_ui() -> void:
 	for id in action_buttons.keys():
 		var button: Button = action_buttons[id]
 		button.disabled = not _is_action_enabled(id)
-		if id == "deal_draw":
+		if id == "deal_draw" and not _button_uses_asset(button):
 			button.text = "DEAL\nDRAW"
 
 	var held_indexes := _visual_hold_indexes()
@@ -1158,7 +1344,7 @@ func _refresh_ui() -> void:
 		var hold_button: Button = hold_buttons[index]
 		var held := held_indexes.has(index)
 		hold_button.disabled = not _is_action_enabled("hold_%d" % index)
-		hold_button.text = "HELD" if held else "HOLD"
+		hold_button.text = "HELD" if held else ("" if _button_uses_asset(hold_button) else "HOLD")
 
 func _refresh_cards(game_state: String, du_active: bool) -> void:
 	var cards := store.cards()
@@ -1207,9 +1393,13 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 				var previous_code: String = previous_codes[index] if index < previous_codes.size() else ""
 				var pending_code := str(slot.get("pending_code", ""))
 				if previous_code != code:
-					if pending_code != code:
-						_stage_card_back(slot, code, held)
-					_queue_card_reveal(index, code, held)
+					if _should_draw_replace_card(game_state, previous_code, code, held):
+						slot["pending_code"] = code
+						_queue_card_draw_replacement(index, code, held)
+					else:
+						if pending_code != code:
+							_stage_card_back(slot, code, held)
+						_queue_card_reveal(index, code, held)
 				else:
 					slot["pending_code"] = ""
 					slot["rect"].modulate = Color(1, 1, 1, 1)
@@ -1312,11 +1502,29 @@ func _queue_card_reveal(index: int, code: String, held: bool) -> void:
 	if tex == null:
 		return
 	deal_queue.append({
+		"mode": "deal",
 		"index": index,
 		"code": code,
 		"texture": tex,
 		"held": held
 	})
+
+func _queue_card_draw_replacement(index: int, code: String, held: bool) -> void:
+	var tex := _card_texture_from_code(code)
+	if tex == null:
+		return
+	deal_queue.append({
+		"mode": "draw",
+		"index": index,
+		"code": code,
+		"texture": tex,
+		"held": held
+	})
+
+func _should_draw_replace_card(game_state: String, previous_code: String, next_code: String, held: bool) -> bool:
+	if held or previous_code.is_empty() or next_code.is_empty() or previous_code == next_code:
+		return false
+	return game_state in ["drawn", "win", "result"]
 
 func _card_texture_from_code(code: String) -> Texture2D:
 	if code.length() < 2:
@@ -1356,6 +1564,9 @@ func _show_queued_card(reveal: Dictionary) -> void:
 	var index := int(reveal.get("index", -1))
 	if index < 0 or index >= cards_texture_rects.size():
 		return
+	if str(reveal.get("mode", "deal")) == "draw":
+		_show_draw_replacement(index, reveal)
+		return
 	var slot: Dictionary = cards_texture_rects[index]
 	var rect: TextureRect = slot["rect"]
 	var code: String = str(reveal.get("code", ""))
@@ -1364,6 +1575,59 @@ func _show_queued_card(reveal: Dictionary) -> void:
 	slot["pending_code"] = ""
 	slot["hold_label"].text = "HELD" if bool(reveal.get("held", false)) else ""
 	_animate_card_deal(index)
+
+func _show_draw_replacement(index: int, reveal: Dictionary) -> void:
+	var slot: Dictionary = cards_texture_rects[index]
+	var rect: TextureRect = slot["rect"]
+	var code: String = str(reveal.get("code", ""))
+	var texture: Texture2D = reveal.get("texture", null)
+	if texture == null or code.length() < 2:
+		return
+
+	if slot["tween"] != null and slot["tween"].is_valid():
+		slot["tween"].kill()
+	slot["tween"] = null
+
+	rect.pivot_offset = rect.custom_minimum_size * 0.5
+	var base_position := rect.position
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(rect, "modulate", Color(1, 1, 1, 0), DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(rect, "position", base_position + Vector2(0, 48), DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(rect, "scale", Vector2(0.92, 0.92), DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(Callable(self, "_finish_card_draw_replacement").bind(index, code, texture, bool(reveal.get("held", false)), base_position))
+	slot["tween"] = tw
+
+func _finish_card_draw_replacement(index: int, code: String, texture: Texture2D, held: bool, base_position: Vector2) -> void:
+	if index < 0 or index >= cards_texture_rects.size():
+		return
+	var slot: Dictionary = cards_texture_rects[index]
+	var rect: TextureRect = slot["rect"]
+	slot["tween"] = null
+	rect.texture = texture
+	rect.position = base_position + Vector2(0, -38)
+	rect.scale = Vector2(0.88, 0.88)
+	rect.modulate = Color(1, 1, 1, 0)
+	slot["displayed_code"] = code
+	slot["pending_code"] = ""
+	slot["hold_label"].text = "HELD" if held else ""
+	_animate_card_draw_in(index, base_position)
+
+func _animate_card_draw_in(index: int, base_position: Vector2) -> void:
+	var slot: Dictionary = cards_texture_rects[index]
+	var rect: TextureRect = slot["rect"]
+
+	if slot["tween"] != null and slot["tween"].is_valid():
+		slot["tween"].kill()
+	slot["tween"] = null
+
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(rect, "modulate", Color(1, 1, 1, 1), DRAW_IN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(rect, "position", base_position, DRAW_IN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(rect, "scale", Vector2(1.03, 1.03), DRAW_IN_DURATION * 0.62).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.chain().tween_property(rect, "scale", Vector2(1.0, 1.0), DRAW_IN_DURATION * 0.38).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	slot["tween"] = tw
 
 func _get_displayed_card_codes() -> Array:
 	var result: Array = []
@@ -1544,6 +1808,34 @@ func _du_result_label(status: String) -> String:
 		return "WIN"
 	return "BIG / SMALL ?"
 
+func _du_should_promote_after_reveal(status: String, challenger_code: String) -> bool:
+	if challenger_code.length() < 2:
+		return false
+	var normalized := status.to_upper()
+	return normalized.find("LOSE") < 0 and normalized.find("LOST") < 0
+
+func _queue_du_dealer_promotion(next_dealer_code: String) -> void:
+	if next_dealer_code.length() < 2:
+		return
+	du_pending_promote_dealer = next_dealer_code
+	if du_promote_timer != null:
+		du_promote_timer.stop()
+		du_promote_timer.wait_time = DU_REVEAL_SETTLE_SECONDS
+		du_promote_timer.start()
+
+func _on_du_promote_timeout() -> void:
+	if du_pending_promote_dealer.length() < 2:
+		return
+	var du_data: Dictionary = store.snapshot.get("double_up", {})
+	if not bool(du_data.get("active", false)):
+		du_pending_promote_dealer = ""
+		return
+	if not _du_should_promote_after_reveal(str(du_data.get("status", "")), du_pending_promote_dealer):
+		du_pending_promote_dealer = ""
+		return
+	_start_du_card_shuffle(du_pending_promote_dealer, "")
+	du_pending_promote_dealer = ""
+
 func _is_lucky_du_card(du_data: Dictionary, code: String) -> bool:
 	return code == "5S" and (bool(du_data.get("is_lucky5_active", false)) or bool(du_data.get("is_no_lose_active", false)))
 
@@ -1639,16 +1931,46 @@ func _finish_du_card_shuffle() -> void:
 func _refresh_jackpots() -> void:
 	var jp: Dictionary = store.snapshot.get("jackpot", {})
 	var active_4k: String = str(jp.get("active_four_of_a_kind_slot", "A"))
-	if jackpot_counters.has("4k-a"):
-		jackpot_counters["4k-a"].text = _format_amount(jp.get("four_of_a_kind_a", 0))
-	if jackpot_counters.has("sf"):
-		jackpot_counters["sf"].text = _format_amount(jp.get("straight_flush", 0))
-	if jackpot_counters.has("4k-b"):
-		jackpot_counters["4k-b"].text = _format_amount(jp.get("four_of_a_kind_b", 0))
+	_refresh_jackpot_counter("4k-a", store._to_int(jp.get("four_of_a_kind_a", 0)))
+	_refresh_jackpot_counter("sf", store._to_int(jp.get("straight_flush", 0)))
+	_refresh_jackpot_counter("4k-b", store._to_int(jp.get("four_of_a_kind_b", 0)))
 	_set_jackpot_counter_active("4k-a", active_4k == "A")
 	_set_jackpot_counter_active("4k-b", active_4k == "B")
 	_refresh_paytable_values()
 	_refresh_paytable_highlights()
+	_refresh_bonus_stage()
+
+func _refresh_jackpot_counter(slot_key: String, target_value: int) -> void:
+	if not jackpot_counters.has(slot_key):
+		return
+	var target: int = max(0, target_value)
+	if not displayed_jackpots.has(slot_key):
+		displayed_jackpots[slot_key] = target
+		jackpot_counter_targets[slot_key] = target
+		_set_jackpot_counter_display(float(target), slot_key)
+		return
+	var current_target := int(jackpot_counter_targets.get(slot_key, displayed_jackpots.get(slot_key, 0)))
+	if current_target == target:
+		return
+	_animate_jackpot_counter(slot_key, int(displayed_jackpots.get(slot_key, current_target)), target)
+
+func _animate_jackpot_counter(slot_key: String, from_value: int, to_value: int) -> void:
+	if jackpot_counter_tweens.has(slot_key):
+		var existing: Tween = jackpot_counter_tweens[slot_key]
+		if existing != null and existing.is_valid():
+			existing.kill()
+	jackpot_counter_targets[slot_key] = to_value
+	var duration := JACKPOT_DRAIN_DURATION if to_value < from_value else JACKPOT_TRICKLE_DURATION
+	var tween := create_tween()
+	jackpot_counter_tweens[slot_key] = tween
+	tween.tween_method(Callable(self, "_set_jackpot_counter_display").bind(slot_key), float(from_value), float(to_value), duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+func _set_jackpot_counter_display(value: float, slot_key: String) -> void:
+	var amount: int = max(0, int(round(value)))
+	displayed_jackpots[slot_key] = amount
+	var label: Label = jackpot_counters.get(slot_key, null)
+	if label != null:
+		label.text = _format_amount(amount)
 
 func _set_jackpot_counter_active(slot_key: String, active: bool) -> void:
 	var counter_panel: Panel = jackpot_counter_panels.get(slot_key, null)
@@ -1665,6 +1987,147 @@ func _set_jackpot_counter_active(slot_key: String, active: bool) -> void:
 		sty.border_color = Color(0, 0, 0, 0)
 		sty.border_width_left = 0; sty.border_width_right = 0
 		sty.border_width_top = 0; sty.border_width_bottom = 0
+
+func _refresh_bonus_stage() -> void:
+	if bonus_stage_panel == null or bonus_stage_card == null:
+		return
+	var bonus: Dictionary = _bonus_presentation()
+	var active := bool(bonus.get("active", false))
+	if not active:
+		var fallback := _fallback_bonus_presentation()
+		if bool(fallback.get("active", false)):
+			bonus = fallback
+			active = true
+
+	var kind := str(bonus.get("kind", "free_games"))
+	var amount := store._to_int(bonus.get("amount", 0))
+	var free_count := store._to_int(bonus.get("free_game_count", 0))
+	var message := str(bonus.get("message", "FREE GAMES BONUS"))
+	var card_code := _bonus_presentation_card_code(bonus)
+	if card_code.is_empty() and kind == "lucky5":
+		card_code = "5S"
+
+	if bonus_message_label != null:
+		bonus_message_label.text = message if active else "4 OF A KIND   WINS BONUS"
+		bonus_message_label.add_theme_color_override("font_color", COLOR_GOLD if active else COLOR_WHITE)
+
+	match kind:
+		"lucky5":
+			bonus_stage_label.text = "LUCKY 5"
+		"bonus_card":
+			bonus_stage_label.text = "BONUS CARD"
+		_:
+			bonus_stage_label.text = "FREE GAMES"
+
+	if active and amount > 0:
+		bonus_stage_amount_label.text = "+%s" % _format_amount(amount)
+	elif free_count > 0:
+		bonus_stage_amount_label.text = "FREE %d" % free_count
+	else:
+		bonus_stage_amount_label.text = "BONUS 0"
+
+	_set_bonus_stage_texture(card_code, active)
+	_style_bonus_stage(active)
+	var next_key := "%s:%s:%s:%s" % [kind, card_code, str(active), str(amount)]
+	if next_key != bonus_stage_key:
+		bonus_stage_key = next_key
+		_animate_bonus_stage(active)
+
+func _bonus_presentation() -> Dictionary:
+	var presentation: Dictionary = store.snapshot.get("presentation", {})
+	var bonus: Variant = presentation.get("bonus", {})
+	if typeof(bonus) == TYPE_DICTIONARY:
+		return bonus
+	return {}
+
+func _bonus_presentation_card_code(bonus: Dictionary) -> String:
+	var card: Variant = bonus.get("card", {})
+	if typeof(card) == TYPE_DICTIONARY:
+		return str(card.get("code", ""))
+	return str(bonus.get("card_code", ""))
+
+func _fallback_bonus_presentation() -> Dictionary:
+	var du: Dictionary = store.snapshot.get("double_up", {})
+	if store.game_state() == "double_up" and bool(du.get("is_lucky5_active", false)):
+		return {
+			"active": true,
+			"kind": "lucky5",
+			"card_code": "5S",
+			"amount": du.get("current_amount", 0),
+			"free_game_count": 0,
+			"message": "5 NEVER LOSE"
+		}
+	if store.hand_rank() == "FourOfAKind":
+		return {
+			"active": true,
+			"kind": "bonus_card",
+			"card_code": _four_kind_rank_card_code(),
+			"amount": store.pending_win_amount(),
+			"free_game_count": 0,
+			"message": "4 OF A KIND BONUS"
+		}
+	return {
+		"active": false,
+		"kind": "free_games",
+		"card_code": "",
+		"amount": 0,
+		"free_game_count": 0,
+		"message": "FREE GAMES BONUS"
+	}
+
+func _four_kind_rank_card_code() -> String:
+	var counts := {}
+	var first_code_by_rank := {}
+	for card_value in store.result_cards():
+		if typeof(card_value) != TYPE_DICTIONARY:
+			continue
+		var card: Dictionary = card_value
+		var code := str(card.get("code", ""))
+		if code.length() < 2:
+			continue
+		var rank := code.substr(0, code.length() - 1)
+		counts[rank] = int(counts.get(rank, 0)) + 1
+		if not first_code_by_rank.has(rank):
+			first_code_by_rank[rank] = code
+	for rank in counts.keys():
+		if int(counts[rank]) >= 4:
+			return str(first_code_by_rank.get(rank, ""))
+	return ""
+
+func _set_bonus_stage_texture(card_code: String, active: bool) -> void:
+	var texture: Texture2D = null
+	if card_code.length() >= 2:
+		texture = _card_texture_from_code(card_code)
+	bonus_stage_card.texture = texture if texture != null else _card_back_texture(false)
+	bonus_stage_card.modulate = Color(1, 1, 1, 1) if active and texture != null else Color(1, 1, 1, 0.42)
+
+func _style_bonus_stage(active: bool) -> void:
+	var sty := bonus_stage_panel.get_theme_stylebox("panel", "") as StyleBoxFlat
+	if sty == null:
+		return
+	if active:
+		sty.bg_color = Color(0.235, 0.158, 0.018, 0.95)
+		sty.border_color = COLOR_GOLD
+		sty.border_width_left = 2; sty.border_width_right = 2
+		sty.border_width_top = 2; sty.border_width_bottom = 2
+	else:
+		sty.bg_color = Color(0.02, 0.01, 0.0, 0.72)
+		sty.border_color = COLOR_GOLD_DARK
+		sty.border_width_left = 1; sty.border_width_right = 1
+		sty.border_width_top = 1; sty.border_width_bottom = 1
+
+func _animate_bonus_stage(active: bool) -> void:
+	if bonus_stage_tween != null and bonus_stage_tween.is_valid():
+		bonus_stage_tween.kill()
+	bonus_stage_panel.pivot_offset = bonus_stage_panel.size * 0.5
+	bonus_stage_card.pivot_offset = bonus_stage_card.custom_minimum_size * 0.5
+	bonus_stage_panel.scale = Vector2(1.04, 1.04) if active else Vector2(1.0, 1.0)
+	bonus_stage_tween = create_tween()
+	bonus_stage_tween.set_parallel(true)
+	bonus_stage_tween.tween_property(bonus_stage_panel, "scale", Vector2(1.0, 1.0), 0.20).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	if active:
+		bonus_stage_card.scale = Vector2(1.16, 1.16)
+		bonus_stage_tween.tween_property(bonus_stage_card, "scale", Vector2(1.0, 1.0), 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _full_house_rank_text() -> String:
 	var jp: Dictionary = store.snapshot.get("jackpot", {})
@@ -1882,8 +2345,11 @@ func _on_hold_button_pressed(index: int) -> void:
 func _toggle_hold(index: int) -> void:
 	if _has_pending_command(): return
 	if not store.can_press("hold_%d" % index): return
+	if local_hold_indexes.is_empty():
+		local_hold_indexes = _editable_hold_baseline()
 	if local_hold_indexes.has(index): local_hold_indexes.erase(index)
 	else: local_hold_indexes.append(index); local_hold_indexes.sort()
+	auto_holds_cancelled = local_hold_indexes.is_empty()
 	_refresh_ui()
 
 func _on_menu_close_pressed() -> void:
@@ -1902,14 +2368,14 @@ func _on_action_pressed(id: String) -> void:
 		"deal_draw":
 			if store.game_state() == "hold":
 				var round_id := store.current_round_id()
-				if not round_id.is_empty(): _send_command("draw", {"round_id": round_id, "hold_indexes": local_hold_indexes.duplicate()})
+				if not round_id.is_empty(): _send_command("draw", {"round_id": round_id, "hold_indexes": _draw_hold_indexes()})
 			else: _send_command("deal", {"bet_amount": str(selected_bet)})
 		"bet":
 			if store.game_state() == "double_up" and store.can_press("swap_double_up_card"):
 				var swap_round_id := store.current_round_id()
 				if not swap_round_id.is_empty(): _send_command("swap_double_up_card", {"round_id": swap_round_id, "swap_position": 0})
 			else: _cycle_bet()
-		"cancel_hold": local_hold_indexes.clear(); _send_command("clear_holds", {}); _refresh_ui()
+		"cancel_hold": local_hold_indexes.clear(); auto_holds_cancelled = true; _send_command("clear_holds", {}); _refresh_ui()
 		"big": _send_double_up_guess("big")
 		"small": _send_double_up_guess("small")
 		"swap_double_up_card":
@@ -2125,7 +2591,9 @@ func _process_deal_queue() -> void:
 	_show_queued_card(reveal)
 
 	if deal_queue_index < deal_queue.size():
+		deal_timer.wait_time = DRAW_STAGGER if str(reveal.get("mode", "deal")) == "draw" else DEAL_STAGGER
 		deal_timer.start()
 	else:
 		deal_queue.clear()
 		deal_queue_index = 0
+		deal_timer.wait_time = DEAL_STAGGER

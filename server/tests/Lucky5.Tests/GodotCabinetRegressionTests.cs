@@ -10,6 +10,8 @@ public static class GodotCabinetRegressionTests
         string rootScript;
         string storeScript;
         string apiScript;
+        string cabinetContracts;
+        string gameService;
         string cardSkinScript;
         string devScript;
         string webExportScript;
@@ -27,6 +29,8 @@ public static class GodotCabinetRegressionTests
             rootScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_root.gd"));
             storeScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_store.gd"));
             apiScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_api.gd"));
+            cabinetContracts = await File.ReadAllTextAsync(ResolveRepoFilePath("server", "src", "Lucky5.Application", "Dtos", "CabinetContractsDto.cs"));
+            gameService = await File.ReadAllTextAsync(ResolveRepoFilePath("server", "src", "Lucky5.Infrastructure", "Services", "GameService.cs"));
             cardSkinScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "skins", "lucky5", "CardSkin_Lucky5.gd"));
             devScript = await File.ReadAllTextAsync(ResolveRepoFilePath("dev.ps1"));
             webExportScript = await File.ReadAllTextAsync(ResolveRepoFilePath("scripts", "godot", "Export-GodotWebCabinet.ps1"));
@@ -225,19 +229,49 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
-            "Godot cabinet must reveal dealt and drawn cards through a sequential arcade deal queue instead of replacing the full hand at once",
+            "Godot cabinet must reveal dealt cards and drawn replacements through sequential AI9Poker-style arcade card movement",
             rootScript.Contains("func _queue_card_reveal", StringComparison.Ordinal)
                 && rootScript.Contains("const DEAL_DURATION := 0.22", StringComparison.Ordinal)
                 && rootScript.Contains("const DEAL_STAGGER := 0.10", StringComparison.Ordinal)
+                && rootScript.Contains("const DRAW_OUT_DURATION := 0.055", StringComparison.Ordinal)
+                && rootScript.Contains("const DRAW_IN_DURATION := 0.075", StringComparison.Ordinal)
+                && rootScript.Contains("const DRAW_STAGGER := 0.045", StringComparison.Ordinal)
                 && rootScript.Contains("func _show_queued_card", StringComparison.Ordinal)
+                && rootScript.Contains("func _queue_card_draw_replacement", StringComparison.Ordinal)
+                && rootScript.Contains("func _should_draw_replace_card", StringComparison.Ordinal)
+                && rootScript.Contains("func _show_draw_replacement", StringComparison.Ordinal)
+                && rootScript.Contains("func _finish_card_draw_replacement", StringComparison.Ordinal)
+                && rootScript.Contains("func _animate_card_draw_in", StringComparison.Ordinal)
                 && rootScript.Contains("deal_queue.append", StringComparison.Ordinal)
+                && rootScript.Contains("\"mode\": \"draw\"", StringComparison.Ordinal)
                 && rootScript.Contains("deal_timer.start", StringComparison.Ordinal)
                 && rootScript.Contains("_process_deal_queue", StringComparison.Ordinal)
                 && rootScript.Contains("var previous_code: String = previous_codes[index] if index < previous_codes.size() else \"\"", StringComparison.Ordinal)
+                && rootScript.Contains("_should_draw_replace_card(game_state, previous_code, code, held)", StringComparison.Ordinal)
                 && rootScript.Contains("rect.scale = Vector2(0.82, 0.82)", StringComparison.Ordinal)
+                && rootScript.Contains("rect.position = base_position + Vector2(0, -58)", StringComparison.Ordinal)
+                && rootScript.Contains("tween_property(rect, \"position\", base_position", StringComparison.Ordinal)
                 && rootScript.Contains("tween_property(rect, \"scale\", Vector2(1.04, 1.04)", StringComparison.Ordinal)
                 && rootScript.Contains("tween_property(rect, \"scale\", Vector2(1.0, 1.0)", StringComparison.Ordinal)
+                && rootScript.Contains("tween_property(rect, \"position\", base_position + Vector2(0, 48), DRAW_OUT_DURATION)", StringComparison.Ordinal)
+                && rootScript.Contains("tween_callback(Callable(self, \"_finish_card_draw_replacement\").bind", StringComparison.Ordinal)
+                && rootScript.Contains("rect.position = base_position + Vector2(0, -38)", StringComparison.Ordinal)
+                && rootScript.Contains("tween_property(rect, \"position\", base_position, DRAW_IN_DURATION)", StringComparison.Ordinal)
+                && rootScript.Contains("deal_timer.wait_time = DRAW_STAGGER if str(reveal.get(\"mode\", \"deal\")) == \"draw\" else DEAL_STAGGER", StringComparison.Ordinal)
                 && !rootScript.Contains("func _process_deal_queue() -> void: pass", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet must apply AI9Poker-style auto-hold suggestions visually while still allowing manual adjustment and cancel",
+            rootScript.Contains("var auto_holds_cancelled := false", StringComparison.Ordinal)
+                && storeScript.Contains("func advised_hold_indexes() -> Array:", StringComparison.Ordinal)
+                && rootScript.Contains("AUTO-HOLD SUGGESTED - DRAW OR ADJUST", StringComparison.Ordinal)
+                && rootScript.Contains("func _visual_hold_indexes() -> Array:", StringComparison.Ordinal)
+                && rootScript.Contains("func _draw_hold_indexes() -> Array:", StringComparison.Ordinal)
+                && rootScript.Contains("func _editable_hold_baseline() -> Array:", StringComparison.Ordinal)
+                && rootScript.Contains("store.advised_hold_indexes()", StringComparison.Ordinal)
+                && rootScript.Contains("\"hold_indexes\": _draw_hold_indexes()", StringComparison.Ordinal)
+                && rootScript.Contains("auto_holds_cancelled = true; _send_command(\"clear_holds\"", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -258,8 +292,12 @@ public static class GodotCabinetRegressionTests
             rootScript.Contains("const DU_MAIN_CARD_SIZE := Vector2(150, 210)", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_BOARD_CARD_SIZE := Vector2(54, 76)", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_SHUFFLE_INTERVAL := 0.08", StringComparison.Ordinal)
+                && rootScript.Contains("const DU_REVEAL_SETTLE_SECONDS := 0.50", StringComparison.Ordinal)
                 && rootScript.Contains("var du_shuffle_timer: Timer", StringComparison.Ordinal)
+                && rootScript.Contains("var du_promote_timer: Timer", StringComparison.Ordinal)
+                && rootScript.Contains("var auto_double_up_round_ids: Array = []", StringComparison.Ordinal)
                 && rootScript.Contains("du_shuffle_timer.timeout.connect(_process_du_shuffle)", StringComparison.Ordinal)
+                && rootScript.Contains("du_promote_timer.timeout.connect(_on_du_promote_timeout)", StringComparison.Ordinal)
                 && rootScript.Contains("du_focus_stage.name = \"DoubleUpSingleCardStage\"", StringComparison.Ordinal)
                 && rootScript.Contains("challenger_slot.name = \"DoubleUpChallengerStage\"", StringComparison.Ordinal)
                 && rootScript.Contains("dealer_slot.name = \"DoubleUpDealerReference\"", StringComparison.Ordinal)
@@ -271,6 +309,11 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("func _process_du_shuffle", StringComparison.Ordinal)
                 && rootScript.Contains("func _finish_du_card_shuffle", StringComparison.Ordinal)
                 && rootScript.Contains("du_shuffle_timer.start", StringComparison.Ordinal)
+                && rootScript.Contains("func _maybe_auto_start_double_up(game_state: String, du_active: bool) -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("_send_command(\"double_up_start\", {\"round_id\": round_id})", StringComparison.Ordinal)
+                && rootScript.Contains("func _queue_du_dealer_promotion(next_dealer_code: String) -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("func _on_du_promote_timeout() -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("_start_du_card_shuffle(du_pending_promote_dealer, \"\")", StringComparison.Ordinal)
                 && rootScript.Contains("func _refresh_du_trail", StringComparison.Ordinal)
                 && rootScript.Contains("_refresh_du_trail(du_data)", StringComparison.Ordinal)
                 && rootScript.Contains("du_data.get(\"card_trail\", [])", StringComparison.Ordinal));
@@ -307,6 +350,53 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
+            "Godot cabinet control deck must render as a warm wood-grain arcade surface with beveled physical button depth",
+            rootScript.Contains("const COLOR_CONTROL_DECK_TOP", StringComparison.Ordinal)
+                && rootScript.Contains("const COLOR_CONTROL_DECK_MID", StringComparison.Ordinal)
+                && rootScript.Contains("const COLOR_CONTROL_DECK_BOTTOM", StringComparison.Ordinal)
+                && rootScript.Contains("const COLOR_WOOD_GRAIN_LIGHT", StringComparison.Ordinal)
+                && rootScript.Contains("const COLOR_WOOD_GRAIN_DARK", StringComparison.Ordinal)
+                && rootScript.Contains("const BUTTON_BEVEL_SHADOW_SIZE := 5", StringComparison.Ordinal)
+                && rootScript.Contains("const BUTTON_PRESSED_SHADOW_SIZE := 1", StringComparison.Ordinal)
+                && rootScript.Contains("func _decorate_control_deck(deck: Control) -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("_add_control_deck_band(deck, \"ControlDeckBandTop\"", StringComparison.Ordinal)
+                && rootScript.Contains("_add_control_deck_band(deck, \"ControlDeckBandMid\"", StringComparison.Ordinal)
+                && rootScript.Contains("_add_control_deck_band(deck, \"ControlDeckBandBottom\"", StringComparison.Ordinal)
+                && rootScript.Contains("grain.name = \"ControlDeckGrain\"", StringComparison.Ordinal)
+                && rootScript.Contains("style.shadow_size = BUTTON_BEVEL_SHADOW_SIZE", StringComparison.Ordinal)
+                && rootScript.Contains("style.shadow_offset = Vector2(0, 3)", StringComparison.Ordinal)
+                && rootScript.Contains("pressed.shadow_size = BUTTON_PRESSED_SHADOW_SIZE", StringComparison.Ordinal)
+                && rootScript.Contains("disabled.shadow_size = 0", StringComparison.Ordinal));
+
+        var ai9ButtonAssetNames = new[]
+        {
+            "bet.png", "bet_on.png",
+            "big.png", "big_on.png",
+            "cancel_hold.png", "cancel_hold_on.png",
+            "deal_draw.png", "deal_draw_on.png",
+            "hold_off.png", "hold_on.png",
+            "small.png", "small_on.png",
+            "take_half.png", "take_half_on.png",
+            "take_score.png", "take_score_on.png",
+        };
+
+        Assert(
+            failures,
+            "Godot cabinet physical controls must use the same AI9Poker-style photographed button assets as the web/API client",
+            rootScript.Contains("const BUTTON_ASSET_BASE_PATH := \"res://skins/lucky5/buttons/\"", StringComparison.Ordinal)
+                && rootScript.Contains("func _apply_button_asset_styles(button: Button, asset_key: String) -> bool:", StringComparison.Ordinal)
+                && rootScript.Contains("var style := StyleBoxTexture.new()", StringComparison.Ordinal)
+                && rootScript.Contains("ImageTexture.create_from_image(image)", StringComparison.Ordinal)
+                && rootScript.Contains("var button_asset_textures: Dictionary = {}", StringComparison.Ordinal)
+                && rootScript.Contains("button_asset_textures[asset_name] = texture", StringComparison.Ordinal)
+                && rootScript.Contains("button.set_meta(\"uses_ai9_button_asset\", true)", StringComparison.Ordinal)
+                && rootScript.Contains("_make_button(\"HOLD\", 58, COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK, \"hold\")", StringComparison.Ordinal)
+                && rootScript.Contains("var asset_key := str(def[0])", StringComparison.Ordinal)
+                && rootScript.Contains("hold_button.text = \"HELD\" if held else (\"\" if _button_uses_asset(hold_button) else \"HOLD\")", StringComparison.Ordinal)
+                && ai9ButtonAssetNames.All(name => RepoFileExists("godot", "cabinet", "skins", "lucky5", "buttons", name)));
+
+        Assert(
+            failures,
             "Godot cabinet physical controls must preserve the reference button colors: amber BIG/SMALL, red TAKE HALF, and orange TAKE SCORE",
             rootScript.Contains("[\"big\", \"BIG\", COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK]", StringComparison.Ordinal)
                 && rootScript.Contains("[\"small\", \"SMALL\", COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK]", StringComparison.Ordinal)
@@ -322,6 +412,29 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("bonus_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL", StringComparison.Ordinal)
                 && rootScript.Contains("machine_kent_label.text = \"KENT /3 : %s\"", StringComparison.Ordinal)
                 && rootScript.Contains("bonus_message_label.visible = true", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet must mirror AI9Poker bonus/free-game card presentation from the backend snapshot",
+            cabinetContracts.Contains("public sealed record CabinetBonusPresentationDto", StringComparison.Ordinal)
+                && cabinetContracts.Contains("CabinetBonusPresentationDto? Bonus = null", StringComparison.Ordinal)
+                && cabinetContracts.Contains("[property: JsonPropertyName(\"free_game_count\")]", StringComparison.Ordinal)
+                && gameService.Contains("BuildCabinetBonusPresentation(gameState, activeRound, doubleUpSession, pendingWin)", StringComparison.Ordinal)
+                && gameService.Contains("Kind: \"bonus_card\"", StringComparison.Ordinal)
+                && gameService.Contains("Kind: \"lucky5\"", StringComparison.Ordinal)
+                && gameService.Contains("FindRepeatedRankCabinetCard(activeRound?.ResultCards, 4)", StringComparison.Ordinal)
+                && gameService.Contains("TryBuildCabinetCardFromCode(\"5S\")", StringComparison.Ordinal)
+                && rootScript.Contains("var bonus_stage_panel: PanelContainer", StringComparison.Ordinal)
+                && rootScript.Contains("bonus_stage_panel = PanelContainer.new()", StringComparison.Ordinal)
+                && rootScript.Contains("bonus_stage_card = TextureRect.new()", StringComparison.Ordinal)
+                && rootScript.Contains("func _refresh_bonus_stage() -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("var bonus: Dictionary = _bonus_presentation()", StringComparison.Ordinal)
+                && rootScript.Contains("func _fallback_bonus_presentation() -> Dictionary:", StringComparison.Ordinal)
+                && rootScript.Contains("store.hand_rank() == \"FourOfAKind\"", StringComparison.Ordinal)
+                && rootScript.Contains("func _four_kind_rank_card_code() -> String:", StringComparison.Ordinal)
+                && rootScript.Contains("_set_bonus_stage_texture(card_code, active)", StringComparison.Ordinal)
+                && rootScript.Contains("_style_bonus_stage(active)", StringComparison.Ordinal)
+                && rootScript.Contains("_animate_bonus_stage(active)", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -369,9 +482,32 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
-"Godot cabinet idle screen must show the armed Full House rank as the middle card like the reference cabinet",
-            rootScript.Contains("var show_idle_rank_card := game_state == \"idle\" and not du_active and cards.is_empty()", StringComparison.Ordinal)
+            "Godot cabinet jackpot counters must animate live trickles and visible jackpot drains instead of snapping meter values",
+            rootScript.Contains("const JACKPOT_TRICKLE_DURATION := 0.30", StringComparison.Ordinal)
+                && rootScript.Contains("const JACKPOT_DRAIN_DURATION := 2.80", StringComparison.Ordinal)
+                && rootScript.Contains("var displayed_jackpots: Dictionary = {}", StringComparison.Ordinal)
+                && rootScript.Contains("var jackpot_counter_tweens: Dictionary = {}", StringComparison.Ordinal)
+                && rootScript.Contains("func _animate_jackpot_counter(slot_key: String, from_value: int, to_value: int) -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("to_value < from_value", StringComparison.Ordinal)
+                && rootScript.Contains("tween_method(Callable(self, \"_set_jackpot_counter_display\").bind(slot_key)", StringComparison.Ordinal)
+                && rootScript.Contains("func _set_jackpot_counter_display(value: float, slot_key: String) -> void:", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+"Godot cabinet idle screen must delay the armed Full House rank and then show it alone after the Lucky 5 title",
+            rootScript.Contains("const IDLE_FH_CARD_DELAY_SECONDS := 60.0", StringComparison.Ordinal)
+                && rootScript.Contains("const IDLE_TITLE_TEXT := \"LUCKY 5\"", StringComparison.Ordinal)
+                && rootScript.Contains("var idle_fh_rank_revealed := false", StringComparison.Ordinal)
+                && rootScript.Contains("var idle_title_label: Label", StringComparison.Ordinal)
+                && rootScript.Contains("idle_fh_timer.timeout.connect(_on_idle_fh_timer_timeout)", StringComparison.Ordinal)
+                && rootScript.Contains("idle_title_label = _make_label(IDLE_TITLE_TEXT", StringComparison.Ordinal)
+                && rootScript.Contains("func _sync_idle_fh_timer(is_blank_idle: bool) -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("func _on_idle_fh_timer_timeout() -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("var show_idle_rank_card := is_blank_idle and idle_fh_rank_revealed", StringComparison.Ordinal)
+                && rootScript.Contains("card_container.visible = not show_idle_title", StringComparison.Ordinal)
                 && rootScript.Contains("if show_idle_rank_card and index == 2:", StringComparison.Ordinal)
+                && rootScript.Contains("if show_idle_rank_card:", StringComparison.Ordinal)
+                && rootScript.Contains("_stage_empty_card_slot(slot)", StringComparison.Ordinal)
                 && rootScript.Contains("var rank_code := _full_house_rank_card_code()", StringComparison.Ordinal)
                 && rootScript.Contains("slot[\"hold_label\"].text = \"FH\"", StringComparison.Ordinal)
                 && rootScript.Contains("func _full_house_rank_card_code() -> String:", StringComparison.Ordinal)
@@ -393,6 +529,19 @@ public static class GodotCabinetRegressionTests
         }
 
         throw new FileNotFoundException($"Could not locate repo file '{Path.Combine(segments)}' from base directory '{AppContext.BaseDirectory}'");
+    }
+
+    private static bool RepoFileExists(params string[] segments)
+    {
+        try
+        {
+            _ = ResolveRepoFilePath(segments);
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
     }
 
     private static void Assert(List<string> failures, string message, bool condition)

@@ -1,6 +1,6 @@
 # Lucky 5 v8 — "Cabinet Real" Plan
 
-**Status:** Tracks A+B+C code-complete. Track A RTP verification passed on 2026-06-04 after fresh-machine smoothing, dynamic jackpot/double-up reserve, and always-on double-up deck-pressure fixes.
+**Status:** Tracks A+B+C code-complete. Track A RTP verification passed on 2026-06-04 after the simulator was aligned with live deal/draw staking, Ace payout handling, jackpot pools, double-up flow, and counterplay behavior telemetry.
 **Last updated:** 2026-06-04
 **Scope:** Major version bump focused on (a) realistic arcade-cabinet visual & tactile feel, (b) engine RTP **calibration** to 80% composite **without changing any game rules**, and (c) targeted 2026-04-20 surgery (hold-badge fix, FH-target button, FH jackpot reposition, single-star 4OAK accrual, paytable drain for wins).
 **Non-goals:** Mobile-first redesign, new game modes, database migration (Data Connect schema remains aspirational).
@@ -21,7 +21,7 @@
 - Largest empirical leak under optimal play is the double-up layer (Ace-auto-win + optimal BIG/SMALL strategy + Lucky 5 no-lose safety).
 
 ### Root-cause analysis
-The v7 config declared `TargetDoubleUpRtp = 0.0950` but optimal players extract closer to 0.12 – 0.13 from the DU layer once Ace-auto-win and Lucky 5 safety are exploited. Because the controller's base target was computed from fixed jackpot/double-up reservations, under-estimated overlay layers made the controller aim for a base RTP that, when summed with reality, overshot 80%. The correction loop would eventually pull down but only after material over-payment. Fresh machines also trusted very small round samples too quickly when the first buy-in had many credits.
+The first calibration pass under-modeled the live game. The simulator did not fully mirror the service's two-stake hand accounting (`DealAsync` plus `DrawAsync`), Ace-multiplied base wins, Kent jackpot pool, double-up settlement deltas, and counterplay policy override. Once those variables were modeled, the controller still converged to roughly 80% composite RTP, but the realized channel split was materially different from the nominal reserve line: jackpots and double-up can contribute far more than their configured pressure targets while base-game scale absorbs the difference.
 
 ### v8 calibration knob changes (rules unchanged)
 
@@ -31,11 +31,11 @@ All changes applied in `server/src/Lucky5.Domain/Game/CleanRoom/CoreModels.cs` `
 |------|----|----|-----------|
 | `TargetDoubleUpRtp` | 0.0950 | **0.1200** | Acknowledges optimal-player DU extraction. Pulls base target down ~3.5 pp, letting the controller converge without overshoot. |
 | `DoubleUpRtpHardCap` | 0.110 | **0.130** | Keeps the DU leak clamp from firing every round while still acting on sustained overshoot. |
-| `WarmupOpeningSmallScale` | 1.65 | **1.55** | Trims fresh-session over-pay; churn-heavy sessions no longer compound warmup bias. |
-| `WarmupOpeningMediumScale` | 1.70 | **1.58** | Same. |
-| `WarmupOpeningBigScale` | 1.75 | **1.60** | Same. |
-| `DefaultPayoutScale` | 1.75 | **1.60** | Moves the neutral-state scale closer to the new target-base equilibrium. |
-| `MinPayoutScale` | 1.18 | **1.09** | Extends downward headroom when live RTP trends hot while keeping short-run dry spells from sagging below target. |
+| `WarmupOpeningSmallScale` | 1.65 | **1.15** | Trims fresh-session over-pay after the simulator started applying the live Ace, jackpot, and double-up overlays. |
+| `WarmupOpeningMediumScale` | 1.70 | **1.18** | Same. |
+| `WarmupOpeningBigScale` | 1.75 | **1.20** | Same. |
+| `DefaultPayoutScale` | 1.75 | **1.15** | Moves neutral-state scale closer to the verified composite target under faithful overlay accounting. |
+| `MinPayoutScale` | 1.18 | **0.72** | Adds enough downward headroom for hot states where double-up and jackpots dominate realized RTP. |
 | `CrisisScaleBoost` | 0.07 | **0.05** | Prevents pity-boost from pushing the scale into overshoot during long loss streaks. |
 | `MaxPayoutScale` | 2.05 | 2.05 *(unchanged)* | Generosity cap preserved for cold streaks. |
 
@@ -43,12 +43,17 @@ All changes applied in `server/src/Lucky5.Domain/Game/CleanRoom/CoreModels.cs` `
 
 - Fresh-machine RTP smoothing is round-sample based: the controller ignores RTP drift until `RtpMinSamplesForControl` rounds, so a first 200k-credit buy-in cannot make one early round look statistically mature.
 - Base target now reserves the larger of configured vs observed jackpot RTP and the larger of configured vs observed double-up RTP. This lets base payout scale respond to real overlay pressure instead of relying only on total-RTP drift.
+- The Monte Carlo harness now mirrors the live stake model: a completed hand contributes one stake at deal and one stake at draw, matching `GameService.DealAsync` and `GameService.DrawAsync`.
+- Ace multiplier handling is single-source: `DrawAsync` stores the Ace-multiplied `WinAmount`, `StartDoubleUpAsync` starts from that stored amount, and the simulator applies the same one-time base-game Ace lift.
+- Jackpot telemetry now splits Full House, 4OAK-A, 4OAK-B, Straight Flush, and Kent pools, including pool contribution and reset behavior.
 - Double-up remains available on every positive win. `MachinePolicy.ShouldOfferDoubleUp` is deliberately always-on; RTP control comes from base-game reserve/scaling plus bounded double-up deck pressure that can remove key auto-win/no-lose cards during hot or close-call states.
 - Double-up deck pressure is reversible: hot/near-close states can remove bounded high-leverage cards, while long Lucky 5 or medium-win drought states preserve key cards and trim only middle ranks so play keeps close calls and avoids stale dry spells.
+- The simulator has a `--behavior counterplay` profile for intentionally bad holds, trash holds, wrong-way double-up guesses, and small-on-low guesses. It records sabotage rounds, broken holds, cold overrides, policy hot-state transitions, jackpot mix, double-up outcomes, and machine-close source channels.
 - Closed sessions with positive machine credits are preserved across reset/reopen attempts. The backend blocks cash-in/play until the player explicitly cashes out; reset no longer silently auto-cashes-out a closed machine.
 
 ### Test updates required
 - `CleanRoomEngineTests.cs` assertion `"Approved payout-scale defaults should match the v8 tuned architecture"` updated to the new default/min values.
+- `GameServiceRegressionTests.cs` covers the Ace double-up entry fix: `StartDoubleUpAsync` must use the already Ace-multiplied `GameRound.WinAmount` and must not apply the multiplier a second time.
 - All DU rule tests (Ace auto-win, unlimited chain, Lucky 5 switch, machine close) remain **unchanged** and must still pass.
 
 ### Verification workflow
@@ -61,21 +66,26 @@ dotnet run --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -c Re
 
 # 3. RTP sim — 500 k rounds certification gate
 dotnet run --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -c Release -- --certification
+
+# 4. Optional counterplay / exploit-hunt profile
+dotnet run --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -c Release -- --rounds 200000 --behavior counterplay --min-rtp 0.78 --max-rtp 0.82
 ```
 Verified on 2026-06-04 with Release builds:
 
 | Command | Result |
 |---------|--------|
 | `dotnet run -c Release --project server/tests/Lucky5.Tests/Lucky5.Tests.csproj` | PASS |
-| `dotnet run -c Release --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -- --rounds 10000 --min-rtp 0.78 --max-rtp 0.82` | PASS, 78.32% RTP, double-up offer/win 100.00% |
-| `dotnet run -c Release --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -- --rounds 200000 --min-rtp 0.78 --max-rtp 0.82` | PASS, 81.20% RTP, double-up offer/win 100.00% |
-| `dotnet run -c Release --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -- --certification` | PASS, 80.37% RTP, double-up offer/win 100.00% |
+| `dotnet build -c Release server/Lucky5.sln` | PASS, 1 existing Microsoft.NET.Test.Sdk CS7022 warning |
+| `dotnet run -c Release --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -- --rounds 200000 --variance-report --min-rtp 0.78 --max-rtp 0.82` | PASS, 80.90% RTP; Balanced 100k 80.01%; aggressive-close 200k 85.18%; counterplay 200k 80.44% |
+| `dotnet run -c Release --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -- --certification --min-rtp 0.78 --max-rtp 0.82` | PASS, 80.65% RTP over 500k; Base 46.27%, Jackpot 7.49%, Double-Up 26.89% |
+| `dotnet run -c Release --project server/src/Lucky5.Simulation/Lucky5.Simulation.csproj -- --rounds 200000 --behavior counterplay --min-rtp 0.78 --max-rtp 0.82` | PASS, 80.44% RTP; 71,427 sabotage rounds; 45,064 broken holds; 5,063 wrong-way double-up guesses; 922 cold overrides |
+| `git diff --check` | PASS, line-ending warnings only |
 
 The sim gate passes when composite RTP lands in [78%, 82%] with the Balanced player strategy. If a future pass lands outside the target band, the following single-knob tweaks are the safest next levers (still no rule changes):
 
-1. **Persistent overshoot:** lower `DefaultPayoutScale` in 0.05 steps toward 1.50.
-2. **Undershoot:** raise `WarmupOpeningBigScale` back toward 1.70, or trim `TargetDoubleUpRtp` back toward 0.11.
-3. **Wide variance at 200 k rounds:** run the 500 k certification run. 200 k is inside the noise band of the controller by design.
+1. **Persistent overshoot:** lower `DefaultPayoutScale` or `WarmupOpeningBigScale` in 0.03-0.05 steps; re-run 200k plus certification because double-up dominates observed drift.
+2. **Undershoot:** raise `WarmupOpeningBigScale` or `DefaultPayoutScale` in 0.03-0.05 steps; do not lower the win floor or hide double-up offers.
+3. **Counterplay drift:** run `--behavior counterplay` and inspect `Counterplay cold overrides`, `hot-after-sabotage`, `Double-up leak adjustments`, and jackpot mix before changing rules.
 
 ---
 

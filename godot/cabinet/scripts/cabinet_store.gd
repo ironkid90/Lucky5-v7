@@ -366,6 +366,16 @@ func held_indexes() -> Array:
 		held.append(int(value))
 	return held
 
+func advised_hold_indexes() -> Array:
+	var advised := []
+	var hand: Dictionary = snapshot.get("hand", {})
+	for value in _as_array(hand.get("advised_holds", [])):
+		var index := _to_int(value)
+		if index >= 0 and index < 5 and not advised.has(index):
+			advised.append(index)
+	advised.sort()
+	return advised
+
 func cards() -> Array:
 	return snapshot.get("hand", {}).get("cards", [])
 

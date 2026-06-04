@@ -174,6 +174,8 @@ The rule logic (sequential check, asc/desc detection) lives in `Lucky5.Domain.Ga
 
 The cabinet renders `KENT /3 _ N` where N = `KentStreak`. When `N == 3`, the next round starts at 0 after the jackpot pays.
 
+**Current implementation note:** the backend still has the `JackpotKent` pool and contribution/reset fields, but the live payout branch currently resolves that pool through `HandCategory.FiveOfAKind` in `GameService.DrawAsync`. Until `IsKent`/`KentStreak` are implemented as first-class round state, simulation financial telemetry mirrors the current backend pool behavior rather than inventing a separate sequential-straight payout path.
+
 ---
 
 ## 6. Double-Up Bonus Round (CRITICAL — This Is Not Just Hi-Lo)
@@ -263,6 +265,7 @@ Meaning:
 
 - **HI LO GAMBLE** — section title.
 - **ACE COUNTS** — the Ace card (`Rank == 14`) triggers the Ace multiplier on the round payout. Rendered in `GameRound.AceMultiplier` and `AceMultiplierFired`.
+- **Ace settlement invariant** — the Ace multiplier is applied to the base-game payout before payout scaling and stored in `GameRound.WinAmount`. Double-up starts from that stored `WinAmount`; it must not apply the Ace multiplier a second time.
 - **HI OR LO** — guess direction labels.
 - **5 ♠ NEVER LOSE WHEN BUYING** — if the player has activated the Lucky 5 buy/no-lose state (`IsNoLoseActive == true`) and the next dealt double-up card is the **5 of Spades**, a wrong guess does **not** forfeit credits; the round resolves as `SafeFail` returning the accumulated amount.
 - **Availability invariant** — every positive base-game win remains eligible for double-up. RTP tuning must not hide or skip the double-up screen; balancing belongs in base-game scaling and bounded server-side double-up deck pressure.
@@ -639,12 +642,23 @@ Three operational invariants the cabinet must enforce, captured here so they don
 - Web cabinet `PAYTABLE_ROWS` (`src/web/components/lucky5-cabinet.tsx:43-52`) correctly omits 1-Pair and JoB.
 - **Do not regress this.** Any future "make double-up easier" idea must not lower the base-game win floor.
 
+### 16.4 Simulation fidelity checkpoints
+
+The server-side Monte Carlo harness (`server/src/Lucky5.Simulation/Program.cs`) is expected to mirror the current backend economics before it is used for RTP claims:
+
+- Completed hands count both live stakes: one at deal and one at draw.
+- Base wins apply the Ace multiplier once, then scale the payout, then store the result as the double-up entry amount.
+- Jackpot telemetry separates ranked Full House, 4OAK-A, 4OAK-B, Straight Flush, and the current backend Kent pool.
+- Double-up telemetry records offers, accepts, win/loss/safe-fail outcomes, dealer switches, take-half events, settlement deltas, and machine-close source channels.
+- Counterplay runs must include intentionally bad holds and wrong-way double-up guesses, plus the current `CounterplayScore >= 3` cold-to-neutral policy override.
+
 ---
 
 ## 17. Revision Log
 
 | Date       | Change                                                                                                                                                                                                                                  |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-04 | Added simulation fidelity checkpoints and Ace settlement invariant: `WinAmount` is already Ace-multiplied before double-up, and the simulator must mirror deal/draw staking, jackpot pools, double-up telemetry, and counterplay behavior. |
 | 2026-06-04 | Clarified double-up availability and RTP tuning: every positive base-game win remains eligible for double-up; balancing uses base-game scaling and bounded server-side double-up deck pressure. |
 | 2026-06-04 | Clarified 40M close persistence: reset/reopen does not auto-cash-out positive machine credits; closed sessions remain blocked until explicit player cash-out. |
 | 2026-05-05 | Initial authoritative capture from `ai9poker.com/install`.                                                                                                                                                                            |

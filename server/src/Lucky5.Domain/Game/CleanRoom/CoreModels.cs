@@ -276,8 +276,8 @@ public sealed record PresentationNoisePlan(
 ///   - DoubleUpRtpHardCap raised 0.110 -> 0.130 in sync so the leak clamp engages on sustained overshoot
 ///     rather than every round.
 ///   - Warmup opening scales lowered (1.65/1.70/1.75 -> 1.55/1.58/1.60) to trim fresh-session over-pay.
-///   - DefaultPayoutScale lowered 1.75 -> 1.60, MinPayoutScale lowered 1.18 -> 1.09 so the correction
-///     loop has additional downward headroom when live RTP trends hot without starving short runs.
+///   - DefaultPayoutScale lowered 1.75 -> 1.15, MinPayoutScale lowered 1.18 -> 0.72 so the correction
+///     loop has enough downward headroom after Ace, jackpot, and always-on double-up overlays are modeled faithfully.
 ///   - CrisisScaleBoost trimmed 0.07 -> 0.05 to avoid pity-driven overshoot during long loss streaks.
 /// </summary>
 public sealed record EngineConfig(
@@ -285,8 +285,8 @@ public sealed record EngineConfig(
     decimal TargetRtp = 0.80m,
     decimal TargetDoubleUpRtp = 0.1200m,
     decimal MinimumObservedBaseRtp = 0.3800m,
-    decimal DefaultPayoutScale = 1.60m,
-    decimal MinPayoutScale = 1.09m,
+    decimal DefaultPayoutScale = 1.15m,
+    decimal MinPayoutScale = 0.72m,
     decimal MaxPayoutScale = 2.05m,
     int WarmupRounds = 60,
     int ConvergenceHorizon = 320,
@@ -300,9 +300,9 @@ public sealed record EngineConfig(
     decimal SmallTierFactor = 1.00m,
     decimal MediumTierFactor = 1.04m,
     decimal BigTierFactor = 1.08m,
-    decimal WarmupOpeningSmallScale = 1.55m,
-    decimal WarmupOpeningMediumScale = 1.58m,
-    decimal WarmupOpeningBigScale = 1.60m,
+    decimal WarmupOpeningSmallScale = 1.15m,
+    decimal WarmupOpeningMediumScale = 1.18m,
+    decimal WarmupOpeningBigScale = 1.20m,
 
     // === Envelope & Orbit Clamp ===
     decimal EnvelopeScaleClamp = 0.18m,

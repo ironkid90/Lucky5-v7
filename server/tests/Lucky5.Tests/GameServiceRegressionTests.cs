@@ -25,12 +25,14 @@ public static class GameServiceRegressionTests
         await GetActiveRoundRestoresDealtPhaseAsync(failures);
         await GetActiveRoundKeepsDrawnStateUntilPayoutSettledAsync(failures);
         await GetActiveRoundRestoresActiveDoubleUpPhaseAsync(failures);
+        await StartDoubleUpUsesAlreadyAceMultipliedWinAmountAsync(failures);
         await ClosedMachineCashOutIsIdempotentAsync(failures);
         await PlayerResetAfterClosePreservesClosedSessionUntilExplicitCashOutAsync(failures);
         await PlayerResetAfterCloseKeepsCachedClosedSessionAsync(failures);
         await PlayerResetBlocksRecoverableRoundAsync(failures);
         await AdminResetBlocksRecoverableRoundsAsync(failures);
         await AdminResetAllowsClosedSessionsWithoutActiveRoundsAsync(failures);
+        await CabinetSnapshotExposesComputedAutoHoldAdviceAsync(failures);
     }
 
     private static async Task JackpotSnapshotsExposeAuthoritativeMachineIdentityAsync(List<string> failures)
@@ -488,6 +490,56 @@ public static class GameServiceRegressionTests
             active.DoubleUpSession is not null && active.DoubleUpSession.CurrentAmount == duSession.CurrentAmount);
     }
 
+    private static async Task StartDoubleUpUsesAlreadyAceMultipliedWinAmountAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = CreateService(store);
+        var userId = Guid.Parse("20000000-0000-0000-0000-000000000021");
+
+        SeedPlayer(store, userId, "ace-du-start", 2_000_000m);
+
+        var machineId = store.Machines.Values.First(machine => machine.IsOpen).Id;
+        await service.CashInAsync(userId, machineId, 200_000m, CancellationToken.None);
+
+        var drawn = CreateState(
+            RoundPhase.Drawn,
+            RoundState.Evaluate,
+            ["AS", "AD", "8C", "8H", "2S"]);
+        const int aceMultipliedWin = 20_000;
+        var round = new GameRound
+        {
+            RoundId = Guid.Parse("30000000-0000-0000-0000-000000000021"),
+            UserId = userId,
+            MachineId = machineId,
+            BetAmount = 5_000m,
+            InitialCards = drawn.Hand.Select(card => card.ToLegacyPokerCard()).ToList(),
+            FinalCards = drawn.Hand.Select(card => card.ToLegacyPokerCard()).ToList(),
+            HandRank = "TwoPair",
+            WinAmount = aceMultipliedWin,
+            OriginalWinAmount = aceMultipliedWin,
+            IsCompleted = true,
+            IsPayoutSettled = false,
+            DoubleUpOffered = true,
+            CleanRoomState = drawn,
+            RoundEntropySeed = 0xA5EUL,
+            AceCard = CleanRoomCard.FromCode("AS").ToLegacyPokerCard(),
+            AceMultiplier = 2,
+            AceMultiplierFired = true
+        };
+
+        store.ActiveRounds[round.RoundId] = round;
+
+        var started = await service.StartDoubleUpAsync(userId, round.RoundId, CancellationToken.None);
+        var saved = store.ActiveRounds[round.RoundId];
+
+        Assert(
+            failures,
+            "Starting double-up after an Ace-multiplied win should use the stored WinAmount once, not apply the Ace multiplier a second time.",
+            started.CurrentAmount == aceMultipliedWin
+            && saved.DoubleUpSession is not null
+            && saved.DoubleUpSession.CurrentAmount == aceMultipliedWin);
+    }
+
     private static async Task ClosedMachineCashOutIsIdempotentAsync(List<string> failures)
     {
         var store = new InMemoryDataStore();
@@ -767,6 +819,34 @@ public static class GameServiceRegressionTests
             failures,
             "Admin reset should still zero the machine ledger state.",
             store.MachineLedgers[machineId].CapitalIn == 0m && store.MachineLedgers[machineId].CapitalOut == 0m);
+    }
+
+    private static async Task CabinetSnapshotExposesComputedAutoHoldAdviceAsync(List<string> failures)
+    {
+        var store = new InMemoryDataStore();
+        var service = CreateService(store);
+        var userId = Guid.Parse("21000000-0000-0000-0000-000000000020");
+
+        SeedPlayer(store, userId, "cabinet-advice", 1_000_000m);
+
+        var machine = store.Machines.Values.First(candidate => candidate.IsOpen);
+        await service.CashInAsync(userId, machine.Id, 200_000m, CancellationToken.None);
+
+        var deal = await service.DealAsync(userId, new DealRequest(machine.Id, machine.MinBet), CancellationToken.None);
+        var snapshot = await service.GetCabinetSnapshotAsync(userId, machine.Id, CancellationToken.None);
+        var expected = FiveCardDrawEngine.ComputeAdvisedHolds(deal.Cards.Select(card =>
+        {
+            Assert(failures, "Dealt cards should expose canonical card codes.", !string.IsNullOrWhiteSpace(card.Code));
+            return CleanRoomCard.FromCode(card.Code!);
+        }).ToArray());
+
+        Assert(
+            failures,
+            "Cabinet snapshots in hold state should expose computed auto-hold advice, not the current held-index list.",
+            snapshot.GameState == "hold"
+            && snapshot.Hand.AdvisedHolds is not null
+            && snapshot.Hand.HeldIndexes.Count == 0
+            && snapshot.Hand.AdvisedHolds.SequenceEqual(expected));
     }
 
     private static MachineSessionState GetSession(InMemoryDataStore store, Guid userId, int machineId)

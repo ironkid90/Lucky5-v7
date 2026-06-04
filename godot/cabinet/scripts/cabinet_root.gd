@@ -67,6 +67,9 @@ const IDLE_FH_CARD_DELAY_SECONDS := 60.0
 const IDLE_TITLE_TEXT := "LUCKY 5"
 const WIN_COUNTER_MIN_DURATION := 0.18
 const WIN_COUNTER_MAX_DURATION := 0.75
+const CREDIT_DRAIN_MIN_DURATION := 1.20
+const CREDIT_DRAIN_MAX_DURATION := 2.00
+const CREDIT_DRAIN_JACKPOT_DURATION := 5.00
 const JACKPOT_TRICKLE_DURATION := 0.30
 const JACKPOT_DRAIN_DURATION := 2.80
 const COMMAND_TIMEOUT_SECONDS := 15.0
@@ -118,6 +121,7 @@ var title_label: Label
 var paytable_rows: Dictionary = {}
 var paytable_amount_labels: Dictionary = {}
 var paytable_multipliers: Dictionary = {}
+var paytable_amount_colors: Dictionary = {}
 var full_house_rank_label: Label
 var full_house_jackpot_label: Label
 var credit_label: Label
@@ -217,6 +221,9 @@ var credit_pulse_tween: Tween
 var credit_counter_tween: Tween
 var bonus_stage_tween: Tween
 var last_machine_credit_amount := -1
+var displayed_machine_credit_amount := -1
+var credit_target_amount := -1
+var credit_transfer_active := false
 var displayed_jackpots: Dictionary = {}
 var jackpot_counter_targets: Dictionary = {}
 var jackpot_counter_tweens: Dictionary = {}
@@ -580,8 +587,6 @@ func _build_ui() -> void:
 	title_label.visible = false
 	content.add_child(title_label)
 
-	_build_auth_panel(content)
-
 	_build_paytable(content)
 
 	lucky5_banner = _make_label("", 12, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
@@ -785,6 +790,8 @@ func _build_menu_panel(parent: Node) -> void:
 	menu_balance_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	menu_panel.add_child(menu_balance_label)
 
+	_build_auth_panel(menu_panel)
+
 	var cash_row := HBoxContainer.new()
 	cash_row.add_theme_constant_override("separation", 8)
 	menu_panel.add_child(cash_row)
@@ -861,6 +868,7 @@ func _build_paytable(parent: Node) -> void:
 	paytable_rows.clear()
 	paytable_amount_labels.clear()
 	paytable_multipliers.clear()
+	paytable_amount_colors.clear()
 
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(0, 156)
@@ -915,6 +923,7 @@ func _build_paytable(parent: Node) -> void:
 		paytable_rows[str(hand[0])] = row_panel
 		paytable_amount_labels[str(hand[0])] = amount_l
 		paytable_multipliers[str(hand[0])] = int(hand[2])
+		paytable_amount_colors[str(hand[0])] = hand[3]
 		pbox.add_child(row_panel)
 
 	var fh_rank_row := HBoxContainer.new()
@@ -939,17 +948,10 @@ func _build_credit_bar(parent: Node) -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(spacer)
 
-	var stake_label := Label.new()
-	stake_label.text = "STAKE"
-	stake_label.add_theme_font_size_override("font_size", 10)
-	stake_label.add_theme_color_override("font_color", COLOR_GOLD)
-	stake_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	bar.add_child(stake_label)
-
 func _build_card_area(parent: Node) -> void:
 	card_area_panel = Panel.new()
 	var cps := StyleBoxFlat.new()
-	cps.bg_color = Color(0.02, 0.01, 0.005, 0.6)
+	cps.bg_color = Color(0.0, 0.0, 0.0, 0.92)
 	cps.border_color = COLOR_GOLD_DARK
 	cps.border_width_left = 1; cps.border_width_right = 1
 	cps.border_width_top = 1; cps.border_width_bottom = 1
@@ -1476,10 +1478,7 @@ func _refresh_ui() -> void:
 	message_label.text = store.message()
 	if game_state == "hold" and local_hold_indexes.is_empty() and not auto_holds_cancelled and not store.advised_hold_indexes().is_empty():
 		message_label.text = "AUTO-HOLD SUGGESTED - DRAW OR ADJUST"
-	if access_token.is_empty():
-		recovery_label.text = "LOGIN: %s" % auth_status
-	else:
-		recovery_label.text = "" if store.commands_allowed() else "RECOVERY: %s" % store.recovery_message()
+	recovery_label.text = "" if access_token.is_empty() or store.commands_allowed() else "RECOVERY: %s" % store.recovery_message()
 	bet_label.text = "BET %s" % _format_amount(selected_bet)
 
 	if last_game_state != game_state and game_state != "hold":
@@ -1499,6 +1498,7 @@ func _refresh_ui() -> void:
 	_refresh_machine_info()
 	_refresh_win_display()
 	_refresh_lucky5_banner()
+	_refresh_menu_balance()
 	admin_screen.visible = active_screen == "admin"
 	if menu_overlay != null:
 		menu_overlay.visible = menu_open and active_screen == "game"
@@ -2013,9 +2013,9 @@ func _du_timeline_entries(du_data: Dictionary) -> Array:
 
 func _du_page_start_for_dealer_index(dealer_position: int, slot_count: int) -> int:
 	var stride: int = max(1, slot_count - 1)
-	if dealer_position < slot_count:
+	if dealer_position < stride:
 		return 0
-	return int(floor(float(dealer_position - 1) / float(stride))) * stride
+	return int(floor(float(dealer_position) / float(stride))) * stride
 
 func _du_page_entry_index(entries: Array, code: String) -> int:
 	if code.length() < 2:
@@ -2260,7 +2260,7 @@ func _start_du_dealer_replace_shuffle(new_dealer_code: String) -> void:
 func _process_du_shuffle() -> void:
 	var code: String = DU_SHUFFLE_CODES[du_shuffle_index % DU_SHUFFLE_CODES.size()]
 	du_shuffle_index += 1
-	var target_rect: TextureRect = du_challenger_rect
+	var target_rect: TextureRect = du_dealer_rect if du_shuffle_replace_dealer_only else du_challenger_rect
 	if target_rect == null:
 		target_rect = du_dealer_rect
 	_set_du_card_texture(target_rect, code)
@@ -2625,15 +2625,17 @@ func _refresh_paytable_values() -> void:
 		if amount_l == null: continue
 		if win_displayed_amount > 0 and str(key) == score_key:
 			amount_l.text = "+%s" % _format_amount(win_displayed_amount)
+			amount_l.add_theme_color_override("font_color", COLOR_GOLD)
 			continue
 		var multiplier: int = int(paytable_multipliers.get(key, 0))
 		amount_l.text = _format_amount(stake * multiplier)
+		amount_l.add_theme_color_override("font_color", paytable_amount_colors.get(str(key), COLOR_WHITE))
 	var jp: Dictionary = _jackpot_data()
 	_refresh_jackpot_counter("fh", store._to_int(_du_first_value(jp, ["full_house", "fullHouse", "FullHouse"], 0)))
 	full_house_rank_label.text = _full_house_rank_text()
 
 func _refresh_paytable_highlights() -> void:
-	var hand_rank: String = store.hand_rank()
+	var hand_rank: String = _paytable_rank_key(store.hand_rank())
 	var score_key := win_paytable_rank_key
 	if score_key.is_empty() and win_displayed_amount > 0:
 		score_key = _paytable_rank_key(hand_rank)
@@ -2654,6 +2656,19 @@ func _refresh_paytable_highlights() -> void:
 			sty.border_width_left = 0; sty.border_width_right = 0
 			sty.border_width_top = 0; sty.border_width_bottom = 0
 		row_panel.queue_redraw()
+
+func _paytable_rank_key(raw_rank: String) -> String:
+	var normalized := raw_rank.strip_edges().replace(" ", "").replace("_", "").to_lower()
+	match normalized:
+		"royalflush": return "RoyalFlush"
+		"straightflush": return "StraightFlush"
+		"fourofakind", "fourkind": return "FourOfAKind"
+		"fullhouse": return "FullHouse"
+		"flush": return "Flush"
+		"straight": return "Straight"
+		"threeofakind", "threekind": return "ThreeOfAKind"
+		"twopair": return "TwoPair"
+		_: return raw_rank
 
 func _refresh_machine_info() -> void:
 	var machine: Dictionary = store.snapshot.get("machine", {})
@@ -2895,6 +2910,10 @@ func _refresh_auth_panel() -> void:
 	if otp_edit != null: otp_edit.visible = needs_auth and not pending_signup_username.is_empty()
 
 func _is_action_enabled(id: String) -> bool:
+	if id == "menu":
+		return true
+	if id in ["reconnect_sync", "logout"] and access_token.is_empty():
+		return true
 	if access_token.is_empty(): return false
 	if _has_pending_command() and id not in ["menu", "reconnect_sync", "logout", "admin_toggle"]: return false
 	if id in ["reconnect_sync", "back_to_lobby", "logout", "admin_toggle"]: return true

@@ -427,7 +427,7 @@ func current_round_id() -> String:
 	var round_id = hand.get("round_id", hand.get("roundId", null))
 	if round_id == null:
 		var du: Dictionary = _as_dictionary(snapshot.get("double_up", snapshot.get("doubleUp", snapshot.get("doubleUpSession", {}))))
-		round_id = du.get("round_id", du.get("roundId", null))
+		round_id = du.get("round_id", du.get("roundId", du.get("double_up_round_id", du.get("doubleUpRoundId", null))))
 	if round_id == null:
 		round_id = snapshot.get("round_id", snapshot.get("roundId", null))
 	if round_id == null:
@@ -490,8 +490,10 @@ func jackpot_line() -> String:
 	]
 
 func credit_line() -> String:
-	return "CREDIT %s\nWALLET %s\nBONUS %s\nSTAKE %s\nIN %s" % [
-		_format_amount(machine_credits()),
+	return "CREDIT %s" % _format_amount(machine_credits())
+
+func menu_balance_line() -> String:
+	return "WALLET %s\nBONUS %s\nSTAKE %s\nIN %s" % [
 		_format_amount(wallet_balance()),
 		_format_amount(credit_balance()),
 		_format_amount(stake()),

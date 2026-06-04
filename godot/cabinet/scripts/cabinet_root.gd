@@ -41,6 +41,8 @@ const DU_SHUFFLE_TICKS := 8
 const DU_SHUFFLE_CODES := ["AS", "KH", "QD", "JC", "10S", "9H", "8D", "7C"]
 const WIN_COUNTER_MIN_DURATION := 0.18
 const WIN_COUNTER_MAX_DURATION := 0.75
+const JACKPOT_TRICKLE_DURATION := 0.30
+const JACKPOT_DRAIN_DURATION := 2.80
 const COMMAND_TIMEOUT_SECONDS := 15.0
 
 # ─── state vars ───
@@ -59,6 +61,7 @@ var selected_bet := 200000
 var cash_in_amount := 200000
 var client_sequence := 0
 var local_hold_indexes: Array = []
+var auto_holds_cancelled := false
 var last_game_state := ""
 var authenticating := false
 var pending_signup_username := ""
@@ -152,6 +155,9 @@ var win_counter_tween: Tween
 var win_pulse_tween: Tween
 var credit_pulse_tween: Tween
 var last_machine_credit_amount := -1
+var displayed_jackpots: Dictionary = {}
+var jackpot_counter_targets: Dictionary = {}
+var jackpot_counter_tweens: Dictionary = {}
 
 # ─── lifecycle ───
 func _ready() -> void:
@@ -1079,6 +1085,7 @@ func _apply_snapshot(next_snapshot: Dictionary) -> void:
 	if store.apply_snapshot(next_snapshot):
 		if previous_state != store.game_state() or store.game_state() != "hold":
 			local_hold_indexes.clear()
+			auto_holds_cancelled = false
 		configured_machine_id = store.machine_id(configured_machine_id)
 		selected_bet = clampi(selected_bet, max(1, store.min_bet()), max(store.min_bet(), store.max_bet()))
 		if selected_bet == 0: selected_bet = max(1, store.stake())
@@ -1089,14 +1096,16 @@ func _refresh_ui() -> void:
 	_refresh_auth_panel()
 	title_label.text = "%s\n%s" % [store.machine_name(), str(store.snapshot.get("variant", {}).get("display_name", "Lucky5 Classic"))]
 	_refresh_credit_display()
+	var game_state := store.game_state()
 	message_label.text = store.message()
+	if game_state == "hold" and local_hold_indexes.is_empty() and not auto_holds_cancelled and not store.advised_hold_indexes().is_empty():
+		message_label.text = "AUTO-HOLD SUGGESTED - DRAW OR ADJUST"
 	if access_token.is_empty():
 		recovery_label.text = "LOGIN: %s" % auth_status
 	else:
 		recovery_label.text = "" if store.commands_allowed() else "RECOVERY: %s" % store.recovery_message()
 	bet_label.text = "BET %s" % _format_amount(selected_bet)
 
-	var game_state := store.game_state()
 	if last_game_state != game_state and game_state != "hold":
 		local_hold_indexes.clear()
 	last_game_state = game_state
@@ -1120,10 +1129,10 @@ func _refresh_ui() -> void:
 		if id == "deal_draw":
 			button.text = "DEAL\nDRAW"
 
-	var held_indexes := store.held_indexes()
+	var held_indexes := _visual_hold_indexes()
 	for index in range(hold_buttons.size()):
 		var hold_button: Button = hold_buttons[index]
-		var held := local_hold_indexes.has(index) or held_indexes.has(index)
+		var held := held_indexes.has(index)
 		hold_button.disabled = not _is_action_enabled("hold_%d" % index)
 		hold_button.text = "HELD" if held else "HOLD"
 
@@ -1131,6 +1140,7 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 	var cards := store.cards()
 	if game_state == "drawn" or game_state == "win": cards = store.result_cards()
 	var previous_codes := _get_displayed_card_codes()
+	var held_indexes := _visual_hold_indexes()
 	deal_queue.clear()
 	deal_queue_index = 0
 	if deal_timer != null:
@@ -1153,7 +1163,7 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 		if index < cards.size() and typeof(cards[index]) == TYPE_DICTIONARY:
 			var card: Dictionary = cards[index]
 			var code: String = card.get("code", "")
-			var held := local_hold_indexes.has(index) or bool(card.get("held", false))
+			var held := held_indexes.has(index) or bool(card.get("held", false))
 			slot["hold_label"].text = "HELD" if held else ""
 
 			if code.length() >= 2:
@@ -1174,6 +1184,43 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 
 	if not deal_queue.is_empty():
 		_process_deal_queue()
+
+func _visual_hold_indexes() -> Array:
+	var indexes := _normalized_hold_indexes(store.held_indexes())
+	for index in local_hold_indexes:
+		if not indexes.has(index):
+			indexes.append(index)
+	if indexes.is_empty() and not auto_holds_cancelled:
+		indexes = _normalized_hold_indexes(store.advised_hold_indexes())
+	indexes.sort()
+	return indexes
+
+func _draw_hold_indexes() -> Array:
+	var indexes := _normalized_hold_indexes(local_hold_indexes)
+	if indexes.is_empty():
+		indexes = _normalized_hold_indexes(store.held_indexes())
+	if indexes.is_empty() and not auto_holds_cancelled:
+		indexes = _normalized_hold_indexes(store.advised_hold_indexes())
+	return indexes
+
+func _editable_hold_baseline() -> Array:
+	if auto_holds_cancelled:
+		return []
+	var baseline := _normalized_hold_indexes(local_hold_indexes)
+	if baseline.is_empty():
+		baseline = _normalized_hold_indexes(store.held_indexes())
+	if baseline.is_empty():
+		baseline = _normalized_hold_indexes(store.advised_hold_indexes())
+	return baseline
+
+func _normalized_hold_indexes(values: Array) -> Array:
+	var indexes := []
+	for value in values:
+		var index := store._to_int(value)
+		if index >= 0 and index < 5 and not indexes.has(index):
+			indexes.append(index)
+	indexes.sort()
+	return indexes
 
 func _queue_card_reveal(index: int, code: String, held: bool) -> void:
 	var tex := _card_texture_from_code(code)
@@ -1484,16 +1531,58 @@ func _finish_du_card_shuffle() -> void:
 func _refresh_jackpots() -> void:
 	var jp: Dictionary = store.snapshot.get("jackpot", {})
 	var active_4k: String = str(jp.get("active_four_of_a_kind_slot", "A"))
-	if jackpot_counters.has("4k-a"):
-		jackpot_counters["4k-a"].text = _format_amount(jp.get("four_of_a_kind_a", 0))
-	if jackpot_counters.has("sf"):
-		jackpot_counters["sf"].text = _format_amount(jp.get("straight_flush", 0))
-	if jackpot_counters.has("4k-b"):
-		jackpot_counters["4k-b"].text = _format_amount(jp.get("four_of_a_kind_b", 0))
+	_refresh_jackpot_counter("4k-a", jp.get("four_of_a_kind_a", 0))
+	_refresh_jackpot_counter("sf", jp.get("straight_flush", 0))
+	_refresh_jackpot_counter("4k-b", jp.get("four_of_a_kind_b", 0))
 	_set_jackpot_counter_active("4k-a", active_4k == "A")
 	_set_jackpot_counter_active("4k-b", active_4k == "B")
 	_refresh_paytable_values()
 	_refresh_paytable_highlights()
+
+func _refresh_jackpot_counter(slot_key: String, target_value) -> void:
+	if not jackpot_counters.has(slot_key):
+		return
+	var target := store._to_int(target_value)
+	var running: Tween = jackpot_counter_tweens.get(slot_key, null)
+	if running != null and running.is_valid() and jackpot_counter_targets.get(slot_key, target) == target:
+		return
+	if not displayed_jackpots.has(slot_key):
+		jackpot_counter_targets[slot_key] = target
+		_set_jackpot_counter_display(float(target), slot_key)
+		return
+	var current := int(displayed_jackpots.get(slot_key, target))
+	if current == target:
+		jackpot_counter_targets[slot_key] = target
+		_set_jackpot_counter_display(float(target), slot_key)
+		return
+	_animate_jackpot_counter(slot_key, current, target)
+
+func _animate_jackpot_counter(slot_key: String, from_value: int, to_value: int) -> void:
+	var existing: Tween = jackpot_counter_tweens.get(slot_key, null)
+	if existing != null and existing.is_valid():
+		existing.kill()
+	jackpot_counter_targets[slot_key] = to_value
+	var draining := to_value < from_value
+	var duration := JACKPOT_DRAIN_DURATION if draining else JACKPOT_TRICKLE_DURATION
+	var tw := create_tween()
+	tw.tween_method(Callable(self, "_set_jackpot_counter_display").bind(slot_key), float(from_value), float(to_value), duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	var panel: Panel = jackpot_counter_panels.get(slot_key, null)
+	if panel != null:
+		panel.modulate = Color(1.0, 0.42, 0.24, 1.0) if draining else Color(1.0, 1.0, 0.55, 1.0)
+		tw.parallel().tween_property(panel, "modulate", Color.WHITE, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.finished.connect(func ():
+		displayed_jackpots[slot_key] = to_value
+		jackpot_counter_targets[slot_key] = to_value
+		jackpot_counter_tweens.erase(slot_key)
+	)
+	jackpot_counter_tweens[slot_key] = tw
+
+func _set_jackpot_counter_display(value: float, slot_key: String) -> void:
+	var amount := int(round(value))
+	displayed_jackpots[slot_key] = amount
+	var label: Label = jackpot_counters.get(slot_key, null)
+	if label != null:
+		label.text = _format_amount(amount)
 
 func _set_jackpot_counter_active(slot_key: String, active: bool) -> void:
 	var counter_panel: Panel = jackpot_counter_panels.get(slot_key, null)
@@ -1727,8 +1816,11 @@ func _on_hold_button_pressed(index: int) -> void:
 func _toggle_hold(index: int) -> void:
 	if _has_pending_command(): return
 	if not store.can_press("hold_%d" % index): return
+	if local_hold_indexes.is_empty():
+		local_hold_indexes = _editable_hold_baseline()
 	if local_hold_indexes.has(index): local_hold_indexes.erase(index)
 	else: local_hold_indexes.append(index); local_hold_indexes.sort()
+	auto_holds_cancelled = local_hold_indexes.is_empty()
 	_refresh_ui()
 
 func _on_menu_close_pressed() -> void:
@@ -1747,14 +1839,14 @@ func _on_action_pressed(id: String) -> void:
 		"deal_draw":
 			if store.game_state() == "hold":
 				var round_id := store.current_round_id()
-				if not round_id.is_empty(): _send_command("draw", {"round_id": round_id, "hold_indexes": local_hold_indexes.duplicate()})
+				if not round_id.is_empty(): _send_command("draw", {"round_id": round_id, "hold_indexes": _draw_hold_indexes()})
 			else: _send_command("deal", {"bet_amount": str(selected_bet)})
 		"bet":
 			if store.game_state() == "double_up" and store.can_press("swap_double_up_card"):
 				var swap_round_id := store.current_round_id()
 				if not swap_round_id.is_empty(): _send_command("swap_double_up_card", {"round_id": swap_round_id, "swap_position": 0})
 			else: _cycle_bet()
-		"cancel_hold": local_hold_indexes.clear(); _send_command("clear_holds", {}); _refresh_ui()
+		"cancel_hold": local_hold_indexes.clear(); auto_holds_cancelled = true; _send_command("clear_holds", {}); _refresh_ui()
 		"big": _send_double_up_guess("big")
 		"small": _send_double_up_guess("small")
 		"swap_double_up_card":

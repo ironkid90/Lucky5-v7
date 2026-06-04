@@ -279,6 +279,8 @@ public sealed record PresentationNoisePlan(
 ///   - DefaultPayoutScale lowered 1.75 -> 1.60, MinPayoutScale lowered 1.18 -> 1.09 so the correction
 ///     loop has additional downward headroom when live RTP trends hot without starving short runs.
 ///   - CrisisScaleBoost trimmed 0.07 -> 0.05 to avoid pity-driven overshoot during long loss streaks.
+///   - Double-up pressure can remove bounded key cards and sequence high-pressure/high-exposure chains,
+///     with a small deterministic release rate for suspense and close calls.
 /// </summary>
 public sealed record EngineConfig(
     // === Payout Scale ===
@@ -321,6 +323,9 @@ public sealed record EngineConfig(
     int DoubleUpMinDeckSize = 23,
     decimal DoubleUpCloseCallPressureStart = 0.70m,
     decimal DoubleUpSequencePressureStart = 0.72m,
+    decimal DoubleUpSequenceCreditStart = 0.60m,
+    decimal DoubleUpHighExposureSequencePressureStart = 0.22m,
+    decimal DoubleUpSuspenseReleaseChance = 0.12m,
 
     // === Deck Alteration Bounds ===
     int MaxColdRemovals = 1,

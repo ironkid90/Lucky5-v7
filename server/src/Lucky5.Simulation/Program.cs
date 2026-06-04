@@ -315,6 +315,42 @@ DoubleUpChainResult PlayDoubleUpChain(
     MachinePolicyState policyState,
     SimulationResult result)
 {
+    var machineCreditBaseline = Decimal.ToInt32(Math.Min(bank.MachineCredits, int.MaxValue));
+    var pressure = MachinePolicy.ComputeDoubleUpDeckPressure(
+        policyState,
+        policyState.RoundsSinceLucky5Hit,
+        policyState.NetSinceLastClose,
+        policyMode,
+        openingAmount,
+        machineCreditBaseline);
+    var projectedWin = bank.MachineCredits + (openingAmount * 2m);
+    var projectedChainExposure = bank.MachineCredits + Math.Max(openingAmount * 16m, openingAmount * 2m);
+    var isProjectedCloseCall = projectedWin >= cfg.CloseThreshold * cfg.DoubleUpSequenceCreditStart
+        || projectedChainExposure >= cfg.SoftCapWarning;
+    var sequencePressureStart = projectedChainExposure >= cfg.SoftCapWarning
+        ? Math.Min(cfg.DoubleUpSequencePressureStart, cfg.DoubleUpHighExposureSequencePressureStart)
+        : cfg.DoubleUpSequencePressureStart;
+    var shouldReleaseLowExposure = pressure >= cfg.DoubleUpSequencePressureStart
+        && !isProjectedCloseCall
+        && RollUnsalted(roundSeed, "double-up-suspense-release", cfg.DoubleUpSuspenseReleaseChance);
+    result.DoubleUpPressureSamples++;
+    result.DoubleUpPressureSum += pressure;
+    result.MaxDoubleUpPressure = Math.Max(result.MaxDoubleUpPressure, pressure);
+    if (projectedChainExposure >= cfg.SoftCapWarning)
+    {
+        result.DoubleUpHighExposureChains++;
+    }
+
+    if (pressure >= cfg.DoubleUpSequencePressureStart)
+    {
+        result.DoubleUpNormalPressureChains++;
+    }
+
+    if (pressure >= sequencePressureStart && (isProjectedCloseCall || !shouldReleaseLowExposure))
+    {
+        result.DoubleUpSequenceEligibleChains++;
+    }
+
     var duDeck = MachinePolicy.BuildDoubleUpPlayDeck(
         FiveCardDrawEngine.BuildStandardDeck(),
         roundSeed,
@@ -323,13 +359,13 @@ DoubleUpChainResult PlayDoubleUpChain(
         policyMode,
         policyState,
         openingAmount,
-        Decimal.ToInt32(Math.Min(bank.MachineCredits, int.MaxValue)));
+        machineCreditBaseline);
 
     var session = Lucky5DoubleUpEngine.CreateSessionFromDeck(
         roundSeed,
         duDeck,
         openingAmount,
-        machineCreditBaseline: Decimal.ToInt32(Math.Min(bank.MachineCredits, int.MaxValue)),
+        machineCreditBaseline: machineCreditBaseline,
         options: new Lucky5DoubleUpOptions(MaxCreditLimit: Decimal.ToInt32(cfg.CloseThreshold)));
 
     var settledCredits = 0;
@@ -532,6 +568,12 @@ static bool Roll(ulong seed, string stream, int salt, decimal threshold)
     return (decimal)rng.NextUnit() < threshold;
 }
 
+static bool RollUnsalted(ulong seed, string stream, decimal threshold)
+{
+    var rng = new SplitMix64Rng(DeterministicSeed.Derive(seed, stream));
+    return (decimal)rng.NextUnit() < threshold;
+}
+
 bool[] ComputeOptimalHolds(CleanRoomCard[] hand)
 {
     var eval = FiveCardDrawEngine.EvaluateHand(hand);
@@ -597,6 +639,7 @@ static void PrintEnhancedSummary(string label, SimulationResult result)
     Console.WriteLine($"  Entered DU gain {result.RealizedIncrementalGainPerEnteredChain:P2} of trigger win | Avg scale {result.AveragePayoutScale:F3} | 40M closes {result.MachineCloses40M:N0} | 50M take-half+continue {result.Over50MViaTakeHalfContinuation:N0}");
     Console.WriteLine($"  Jackpots {result.JackpotHits:N0} | Largest jackpot {result.LargestJackpot:N0} | Largest bank event {result.LargestBankedCreditEvent:N0} | Max credits {result.MaxMachineCredits:N0}");
     Console.WriteLine($"  Close suspense: >=28M {result.SoftCapWarningTouches:N0} | >=35M {result.HardCapCloseCalls:N0} | >=38M {result.CriticalCloseCalls:N0}");
+    Console.WriteLine($"  DU pressure: seq {result.DoubleUpSequenceEligibleChains:N0}/{result.DoubleUpPressureSamples:N0} | high exposure {result.DoubleUpHighExposureChains:N0} | normal pressure {result.DoubleUpNormalPressureChains:N0} | avg {result.AverageDoubleUpPressure:F3} | max {result.MaxDoubleUpPressure:F3}");
     
     // Enhanced telemetry
     Console.WriteLine($"  Warmup activations: {result.WarmupActivations:N0} | Pity activations: {result.PityActivations:N0} | Crisis activations: {result.CrisisActivations:N0}");
@@ -715,9 +758,15 @@ sealed class SimulationResult(PlayerBehavior behavior, int rounds)
     public int SoftCapWarningTouches { get; set; }
     public int HardCapCloseCalls { get; set; }
     public int CriticalCloseCalls { get; set; }
+    public int DoubleUpPressureSamples { get; set; }
+    public int DoubleUpSequenceEligibleChains { get; set; }
+    public int DoubleUpHighExposureChains { get; set; }
+    public int DoubleUpNormalPressureChains { get; set; }
     public decimal MaxMachineCredits { get; set; }
     public decimal LargestJackpot { get; set; }
     public decimal LargestBankedCreditEvent { get; set; }
+    public decimal DoubleUpPressureSum { get; set; }
+    public decimal MaxDoubleUpPressure { get; set; }
     public decimal FinalObservedRtp { get; set; }
     public decimal FinalBaseRtp { get; set; }
     public decimal FinalJackpotRtp { get; set; }
@@ -741,6 +790,7 @@ sealed class SimulationResult(PlayerBehavior behavior, int rounds)
     public decimal AcceptRate => OfferedWinningRounds <= 0 ? 0m : decimal.Round((decimal)EnteredDoubleUpChains / OfferedWinningRounds, 4);
     public decimal RealizedIncrementalGainPerEnteredChain => EnteredTriggerCredits <= 0m ? 0m : decimal.Round(DoubleUpOverlayOut / EnteredTriggerCredits, 4);
     public decimal AveragePayoutScale => PayoutScaleSamples <= 0 ? 0m : decimal.Round(PayoutScaleSum / PayoutScaleSamples, 4);
+    public decimal AverageDoubleUpPressure => DoubleUpPressureSamples <= 0 ? 0m : decimal.Round(DoubleUpPressureSum / DoubleUpPressureSamples, 4);
 }
 
 readonly record struct DoubleUpChainResult(decimal Delta, bool ContinuedAfterTakeHalf);

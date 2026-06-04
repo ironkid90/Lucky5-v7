@@ -216,6 +216,13 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
+            "Godot cabinet store must expose backend-advised holds so the cabinet command path matches the web auto-hold flow",
+            storeScript.Contains("func advised_hold_indexes() -> Array:", StringComparison.Ordinal)
+                && storeScript.Contains("hand.get(\"advised_holds\", [])", StringComparison.Ordinal)
+                && storeScript.Contains("index >= 0 and index < 5", StringComparison.Ordinal));
+
+        Assert(
+            failures,
             "Godot cabinet must suppress duplicate gameplay commands with a pending command lock and timeout recovery",
             rootScript.Contains("pending_command_id", StringComparison.Ordinal)
                 && rootScript.Contains("func _start_action_lock", StringComparison.Ordinal)
@@ -238,6 +245,18 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("tween_property(rect, \"scale\", Vector2(1.04, 1.04)", StringComparison.Ordinal)
                 && rootScript.Contains("tween_property(rect, \"scale\", Vector2(1.0, 1.0)", StringComparison.Ordinal)
                 && !rootScript.Contains("func _process_deal_queue() -> void: pass", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet must apply AI9Poker-style auto-hold suggestions visually while still allowing manual adjustment and cancel",
+            rootScript.Contains("var auto_holds_cancelled := false", StringComparison.Ordinal)
+                && rootScript.Contains("AUTO-HOLD SUGGESTED - DRAW OR ADJUST", StringComparison.Ordinal)
+                && rootScript.Contains("func _visual_hold_indexes() -> Array:", StringComparison.Ordinal)
+                && rootScript.Contains("func _draw_hold_indexes() -> Array:", StringComparison.Ordinal)
+                && rootScript.Contains("func _editable_hold_baseline() -> Array:", StringComparison.Ordinal)
+                && rootScript.Contains("store.advised_hold_indexes()", StringComparison.Ordinal)
+                && rootScript.Contains("\"hold_indexes\": _draw_hold_indexes()", StringComparison.Ordinal)
+                && rootScript.Contains("auto_holds_cancelled = true; _send_command(\"clear_holds\"", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -366,6 +385,18 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("jackpot_counter_panels[str(slot[1])] = counter_panel", StringComparison.Ordinal)
                 && rootScript.Contains("_set_jackpot_counter_active(\"4k-a\", active_4k == \"A\")", StringComparison.Ordinal)
                 && rootScript.Contains("_set_jackpot_counter_active(\"4k-b\", active_4k == \"B\")", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet jackpot counters must animate live trickles and visible jackpot drains instead of snapping meter values",
+            rootScript.Contains("const JACKPOT_TRICKLE_DURATION := 0.30", StringComparison.Ordinal)
+                && rootScript.Contains("const JACKPOT_DRAIN_DURATION := 2.80", StringComparison.Ordinal)
+                && rootScript.Contains("var displayed_jackpots: Dictionary = {}", StringComparison.Ordinal)
+                && rootScript.Contains("var jackpot_counter_tweens: Dictionary = {}", StringComparison.Ordinal)
+                && rootScript.Contains("func _animate_jackpot_counter(slot_key: String, from_value: int, to_value: int) -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("to_value < from_value", StringComparison.Ordinal)
+                && rootScript.Contains("tween_method(Callable(self, \"_set_jackpot_counter_display\").bind(slot_key)", StringComparison.Ordinal)
+                && rootScript.Contains("func _set_jackpot_counter_display(value: float, slot_key: String) -> void:", StringComparison.Ordinal));
 
         Assert(
             failures,

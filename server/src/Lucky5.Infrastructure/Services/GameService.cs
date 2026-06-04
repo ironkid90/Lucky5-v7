@@ -1814,6 +1814,7 @@ return guessResult;
     {
         var gameState = BuildCabinetGameState(activeRound, session);
         var heldIndexes = activeRound?.HeldIndexes ?? [];
+        var advisedHolds = BuildCabinetAdvisedHolds(gameState, activeRound);
         var heldSet = heldIndexes.ToHashSet();
         var handCards = (activeRound?.Cards ?? [])
             .Select((card, index) => ToCabinetCard(card, faceUp: true, held: heldSet.Contains(index)))
@@ -1875,7 +1876,7 @@ return guessResult;
                 ResultCards: resultCards,
                 HeldIndexes: heldIndexes,
                 RoundId: activeRound?.RoundId,
-                AdvisedHolds: gameState == "hold" ? heldIndexes : null),
+                AdvisedHolds: advisedHolds),
             Evaluation: new CabinetEvaluationDto(
                 HandRank: NormalizeCabinetHandRank(activeRound?.HandRank),
                 WinAmount: ToDecimalString(pendingWin),
@@ -1936,6 +1937,32 @@ return guessResult;
             _ when session.IsMachineClosed => "closed",
             _ => "idle"
         };
+
+    private static IReadOnlyList<int>? BuildCabinetAdvisedHolds(string gameState, ActiveRoundStateDto? activeRound)
+    {
+        if (gameState != "hold" || activeRound is null || activeRound.Cards.Count != 5)
+        {
+            return null;
+        }
+
+        try
+        {
+            var cards = activeRound.Cards.Select(ToCleanRoomCard).ToArray();
+            return FiveCardDrawEngine.ComputeAdvisedHolds(cards);
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static CleanRoomCard ToCleanRoomCard(PokerCardDto card)
+    {
+        var code = !string.IsNullOrWhiteSpace(card.Code)
+            ? card.Code!
+            : $"{NormalizeCardRank(card.Rank, card.Code)}{NormalizeCardSuit(card.Suit, card.Code)}";
+        return CleanRoomCard.FromCode(code);
+    }
 
     private static string BuildCabinetDoubleUpStatus(ActiveRoundStateDto? activeRound)
         => activeRound?.Phase == "DoubleUp" ? "started" : "none";

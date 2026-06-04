@@ -31,6 +31,7 @@ public static class GameServiceRegressionTests
         await PlayerResetBlocksRecoverableRoundAsync(failures);
         await AdminResetBlocksRecoverableRoundsAsync(failures);
         await AdminResetAllowsClosedSessionsWithoutActiveRoundsAsync(failures);
+        await CabinetSnapshotExposesAutoHoldAdviceAsync(failures);
     }
 
     private static async Task JackpotSnapshotsExposeAuthoritativeMachineIdentityAsync(List<string> failures)
@@ -208,6 +209,38 @@ public static class GameServiceRegressionTests
         {
             failures.Add($"Four-of-a-Kind slot should stay at the deal-time value {expectedSlot}, but was captured as {round.ActiveFourOfAKindSlotAtDeal} after a concurrent ledger mutation.");
         }
+    }
+
+    private static async Task CabinetSnapshotExposesAutoHoldAdviceAsync(List<string> failures)
+    {
+        for (ulong seed = 0; seed < 256; seed++)
+        {
+            var store = new InMemoryDataStore();
+            var service = CreateService(store, entropy: new FixedEntropyGenerator(seed));
+            var userId = Guid.Parse("23000000-0000-0000-0000-000000000001");
+            SeedPlayer(store, userId, $"cabinet-auto-hold-{seed}", 2_000_000m);
+
+            var machine = store.Machines.Values.First(candidate => candidate.IsOpen);
+            await service.CashInAsync(userId, machine.Id, 200_000m, CancellationToken.None);
+            var deal = await service.DealAsync(userId, new DealRequest(machine.Id, machine.MinBet), CancellationToken.None);
+            if (deal.AdvisedHolds is null || deal.AdvisedHolds.Length == 0)
+            {
+                continue;
+            }
+
+            var snapshot = await service.GetCabinetSnapshotAsync(userId, machine.Id, CancellationToken.None);
+            var snapshotAdvice = snapshot.Hand.AdvisedHolds?.ToArray() ?? [];
+
+            Assert(
+                failures,
+                "Cabinet snapshots in hold state should expose clean-room auto-hold advice instead of an empty/manual-only hold list.",
+                snapshot.GameState == "hold"
+                && snapshot.Hand.HeldIndexes.Count == 0
+                && snapshotAdvice.SequenceEqual(deal.AdvisedHolds));
+            return;
+        }
+
+        failures.Add("Cabinet auto-hold regression setup could not find a deterministic advised-hold seed.");
     }
 
     private static async Task MachineSessionCashOutEligibilityFollowsRulesAsync(List<string> failures)
@@ -801,6 +834,12 @@ public static class GameServiceRegressionTests
             seedRequested.Set();
             return fixedSeed;
         }
+    }
+
+    private sealed class FixedEntropyGenerator(ulong fixedSeed) : IEntropyGenerator
+    {
+        public ulong CreateSeed(Guid userId, int machineId, decimal betAmount, MachineLedgerState ledger)
+            => fixedSeed;
     }
 
     private sealed class NullMachineStateCache : IMachineStateCache

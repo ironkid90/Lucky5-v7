@@ -39,8 +39,10 @@ const CABINET_PRESS_SOUND := "audio/press.mp3"
 const BUTTON_ASSET_FONT_SIZE := 13
 
 const CARD_AREA_MIN_HEIGHT := 248
-const CARD_SIZE := Vector2(132, 185)
-const CARD_SMALL_SIZE := Vector2(80, 112)
+# AI9 fronts are 313x528; keep slot boxes on that portrait ratio so cards stay crisp.
+const AI9_CARD_ASPECT := 313.0 / 528.0
+const CARD_SIZE := Vector2(122, 206)
+const CARD_SMALL_SIZE := Vector2(66, 111)
 const CARD_GAP := 6
 const CONTROL_DECK_MIN_HEIGHT := 324
 const CONTROL_HOLD_BUTTON_HEIGHT := 70
@@ -52,8 +54,8 @@ const DRAW_OUT_DURATION := 0.10
 const DRAW_IN_DURATION := 0.15
 const DRAW_STAGGER := 0.15
 const DU_SWITCH_DURATION := 0.20
-const DU_BOARD_CARD_SIZE := Vector2(104, 146)
-const DU_TRAIL_CARD_SIZE := Vector2(132, 185)
+const DU_BOARD_CARD_SIZE := Vector2(92, 155)
+const DU_TRAIL_CARD_SIZE := Vector2(122, 206)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
 const DU_SHUFFLE_INTERVAL := 0.075
 const DU_SHUFFLE_TICKS := 8
@@ -70,6 +72,7 @@ const CREDIT_DRAIN_JACKPOT_DURATION := 5.00
 const JACKPOT_TRICKLE_DURATION := 0.30
 const JACKPOT_DRAIN_MIN_DURATION := 2.80
 const JACKPOT_DRAIN_MAX_DURATION := 5.50
+const BONUS_COIN_SIZE := Vector2(28, 28)
 const COMMAND_TIMEOUT_SECONDS := 15.0
 
 # ─── state vars ───
@@ -177,6 +180,7 @@ var machine_serial_label: Label
 var bonus_message_label: Label
 var bonus_stage_panel: PanelContainer
 var bonus_stage_card: TextureRect
+var bonus_coin_rect: TextureRect
 var bonus_stage_label: Label
 var bonus_stage_amount_label: Label
 var lucky5_banner: Label
@@ -984,7 +988,7 @@ func _build_card_area(parent: Node) -> void:
 		var tr := TextureRect.new()
 		tr.custom_minimum_size = CARD_SIZE
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tr.mouse_filter = Control.MOUSE_FILTER_STOP
 		tr.gui_input.connect(_on_card_gui_input.bind(index))
 		slot.add_child(tr)
@@ -1083,17 +1087,17 @@ func _build_machine_info(parent: Node) -> void:
 	var bonus_row := HBoxContainer.new()
 	bonus_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	bonus_row.add_theme_constant_override("separation", 6)
-	bonus_row.custom_minimum_size = Vector2(0, 24)
+	bonus_row.custom_minimum_size = Vector2(0, 40)
 	rows.add_child(bonus_row)
 
 	bonus_message_label = _make_label("4 OF A KIND   WINS BONUS", 15, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	bonus_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bonus_message_label.custom_minimum_size = Vector2(0, 24)
+	bonus_message_label.custom_minimum_size = Vector2(0, 34)
 	bonus_message_label.visible = true
 	bonus_row.add_child(bonus_message_label)
 
 	bonus_stage_panel = PanelContainer.new()
-	bonus_stage_panel.custom_minimum_size = Vector2(152, 26)
+	bonus_stage_panel.custom_minimum_size = Vector2(184, 40)
 	bonus_row.add_child(bonus_stage_panel)
 
 	var bonus_style := StyleBoxFlat.new()
@@ -1108,19 +1112,19 @@ func _build_machine_info(parent: Node) -> void:
 	var bonus_margin := MarginContainer.new()
 	bonus_margin.add_theme_constant_override("margin_left", 4)
 	bonus_margin.add_theme_constant_override("margin_right", 4)
-	bonus_margin.add_theme_constant_override("margin_top", 1)
-	bonus_margin.add_theme_constant_override("margin_bottom", 1)
+	bonus_margin.add_theme_constant_override("margin_top", 2)
+	bonus_margin.add_theme_constant_override("margin_bottom", 2)
 	bonus_stage_panel.add_child(bonus_margin)
 
 	var bonus_box := HBoxContainer.new()
-	bonus_box.add_theme_constant_override("separation", 4)
+	bonus_box.add_theme_constant_override("separation", 5)
 	bonus_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	bonus_margin.add_child(bonus_box)
 
 	bonus_stage_card = TextureRect.new()
-	bonus_stage_card.custom_minimum_size = Vector2(18, 24)
+	bonus_stage_card.custom_minimum_size = Vector2(22, 36)
 	bonus_stage_card.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	bonus_stage_card.stretch_mode = TextureRect.STRETCH_SCALE
+	bonus_stage_card.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	bonus_box.add_child(bonus_stage_card)
 
 	var bonus_texts := VBoxContainer.new()
@@ -1131,6 +1135,14 @@ func _build_machine_info(parent: Node) -> void:
 	bonus_texts.add_child(bonus_stage_label)
 	bonus_stage_amount_label = _make_label("BONUS 0", 8, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	bonus_texts.add_child(bonus_stage_amount_label)
+
+	bonus_coin_rect = TextureRect.new()
+	bonus_coin_rect.custom_minimum_size = BONUS_COIN_SIZE
+	bonus_coin_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bonus_coin_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	bonus_coin_rect.texture = _load_cabinet_texture("images/coin.png")
+	bonus_coin_rect.visible = false
+	bonus_box.add_child(bonus_coin_rect)
 
 func _build_du_info(parent: Node) -> void:
 	du_info_panel = VBoxContainer.new()
@@ -1176,7 +1188,7 @@ func _build_du_deck_row(parent: Node) -> void:
 		var slot_rect := TextureRect.new()
 		slot_rect.custom_minimum_size = DU_TRAIL_CARD_SIZE
 		slot_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		slot_rect.stretch_mode = TextureRect.STRETCH_SCALE
+		slot_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		slot.add_child(slot_rect)
 		du_trail_container.add_child(slot)
 		du_cards.append({ "label": slot_label, "rect": slot_rect })
@@ -2038,9 +2050,9 @@ func _du_timeline_entries(du_data: Dictionary) -> Array:
 
 func _du_page_start_for_dealer_index(dealer_position: int, slot_count: int) -> int:
 	var stride: int = max(1, slot_count - 1)
-	if dealer_position <= 0:
+	if dealer_position < slot_count:
 		return 0
-	return int(floor(float(dealer_position) / float(stride))) * stride
+	return int(floor(float(dealer_position - 1) / float(stride))) * stride
 
 func _du_page_entry_index(entries: Array, code: String) -> int:
 	if code.length() < 2:
@@ -2091,8 +2103,6 @@ func _append_du_local_trail_entry(code: String, label_text: String = "PLAYED") -
 	if label.is_empty() or label == "DEALER":
 		label = "PLAYED"
 	du_local_trail_entries.append({"code": code, "label": label})
-	while du_local_trail_entries.size() > DOUBLE_UP_BOARD_SLOT_COUNT * 2:
-		du_local_trail_entries.remove_at(0)
 
 func _du_entry_code(entry: Variant) -> String:
 	if typeof(entry) == TYPE_DICTIONARY:
@@ -2432,6 +2442,7 @@ func _refresh_bonus_stage() -> void:
 		bonus_stage_amount_label.text = "BONUS 0"
 
 	_set_bonus_stage_texture(card_code, active, kind)
+	_refresh_bonus_coin(active, kind, amount, free_count)
 	_style_bonus_stage(active)
 	var next_key := "%s:%s:%s:%s" % [kind, card_code, str(active), str(amount)]
 	if next_key != bonus_stage_key:
@@ -2517,6 +2528,18 @@ func _set_bonus_stage_texture(card_code: String, active: bool, kind: String) -> 
 	bonus_stage_card.texture = texture
 	bonus_stage_card.modulate = Color(1, 1, 1, 1) if active and texture != null else Color(1, 1, 1, 0.42)
 
+func _refresh_bonus_coin(active: bool, kind: String, amount: int, free_count: int) -> void:
+	if bonus_coin_rect == null:
+		return
+	if bonus_coin_rect.texture == null:
+		bonus_coin_rect.texture = _load_cabinet_texture("images/coin.png")
+	var show_coin := active and (amount > 0 or free_count > 0 or kind == "lucky5" or kind == "bonus_card")
+	bonus_coin_rect.visible = show_coin
+	bonus_coin_rect.modulate = Color(1, 1, 1, 1) if show_coin else Color(1, 1, 1, 0)
+	if not show_coin:
+		bonus_coin_rect.scale = Vector2(1.0, 1.0)
+		bonus_coin_rect.rotation = 0.0
+
 func _style_bonus_stage(active: bool) -> void:
 	var sty := bonus_stage_panel.get_theme_stylebox("panel", "") as StyleBoxFlat
 	if sty == null:
@@ -2545,6 +2568,12 @@ func _animate_bonus_stage(active: bool) -> void:
 		bonus_stage_card.scale = Vector2(1.16, 1.16)
 		bonus_stage_tween.tween_property(bonus_stage_card, "scale", Vector2(1.0, 1.0), 0.33).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		bonus_stage_tween.tween_property(bonus_stage_card, "modulate", Color(1.0, 0.96, 0.62, 1.0), 0.16).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		if bonus_coin_rect != null and bonus_coin_rect.visible:
+			bonus_coin_rect.pivot_offset = BONUS_COIN_SIZE * 0.5
+			bonus_coin_rect.scale = Vector2(1.35, 1.35)
+			bonus_coin_rect.rotation = -0.10
+			bonus_stage_tween.tween_property(bonus_coin_rect, "scale", Vector2(1.0, 1.0), 0.42).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			bonus_stage_tween.tween_property(bonus_coin_rect, "rotation", 0.0, 0.42).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 		bonus_stage_tween.chain().tween_property(bonus_stage_card, "modulate", Color(1, 1, 1, 1), 0.17).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 
 func _full_house_rank_text() -> String:

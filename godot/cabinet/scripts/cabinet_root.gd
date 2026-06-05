@@ -221,9 +221,6 @@ var machine_serie_label: Label
 var machine_kent_label: Label
 var machine_serial_label: Label
 var bonus_message_label: Label
-var bonus_stage_panel: PanelContainer
-var bonus_stage_card: TextureRect
-var bonus_coin_rect: TextureRect
 var bonus_stage_label: Label
 var bonus_stage_amount_label: Label
 var lucky5_banner: Label
@@ -268,8 +265,6 @@ var win_counter_tween: Tween
 var win_pulse_tween: Tween
 var credit_pulse_tween: Tween
 var credit_counter_tween: Tween
-var bonus_stage_tween: Tween
-var bonus_stage_key := ""
 var last_machine_credit_amount := -1
 var displayed_machine_credit_amount := -1
 var credit_target_amount := -1
@@ -458,10 +453,10 @@ func _load_shaders() -> void:
 			crt_shader_material = ShaderMaterial.new()
 			crt_shader_material.shader = crt_shader
 			crt_shader_material.set_shader_parameter("time", 0.0)
-			crt_shader_material.set_shader_parameter("curvature", 0.06)
-			crt_shader_material.set_shader_parameter("scanline_opacity", 0.12)
-			crt_shader_material.set_shader_parameter("vignette_strength", 0.55)
-			crt_shader_material.set_shader_parameter("phosphor_bloom", 0.035)
+			crt_shader_material.set_shader_parameter("curvature", 0.04)
+			crt_shader_material.set_shader_parameter("scanline_opacity", 0.10)
+			crt_shader_material.set_shader_parameter("vignette_strength", 0.45)
+			crt_shader_material.set_shader_parameter("phosphor_bloom", 0.03)
 			crt_shader_material.set_shader_parameter("viewport_size", Vector2(720, 1280))
 
 func _process(delta: float) -> void:
@@ -1049,13 +1044,13 @@ func _build_paytable(parent: Node) -> void:
 
 	var hands := [
 		["RoyalFlush", "ROYAL FLUSH", 1000, Color(1.0, 0.847, 0.302)],
-		["StraightFlush", "STRAIGHT FLUSH", 75, COLOR_RED],
+		["StraightFlush", "STRAIGHT FLUSH", 75, Color(1.0, 0.4, 0.1)],
 		["FourOfAKind", "FOUR OF A KIND", 15, COLOR_GREEN_DIM],
 		["FullHouse", "FULL HOUSE", 12, Color(0.498, 0.843, 1.0)],
-		["Flush", "FLUSH", 10, COLOR_RED],
-		["Straight", "STRAIGHT", 8, COLOR_WHITE],
-		["ThreeOfAKind", "THREE OF A KIND", 3, COLOR_BLUE],
-		["TwoPair", "TWO PAIR", 2, COLOR_WHITE],
+		["Flush", "FLUSH", 10, Color(1.0, 0.4, 0.55)],
+		["Straight", "STRAIGHT", 8, Color(0.2, 1.0, 0.6)],
+		["ThreeOfAKind", "THREE OF A KIND", 3, COLOR_GOLD],
+		["TwoPair", "TWO PAIR", 2, Color(0.267, 0.867, 1.0)],
 	]
 	for hand in hands:
 		var row_panel := PanelContainer.new()
@@ -1257,53 +1252,15 @@ func _build_machine_info(parent: Node) -> void:
 	bonus_message_label.visible = true
 	bonus_row.add_child(bonus_message_label)
 
-	bonus_stage_panel = PanelContainer.new()
-	bonus_stage_panel.custom_minimum_size = Vector2(184, 40)
-	bonus_row.add_child(bonus_stage_panel)
+	bonus_stage_label = _make_label("FREE GAMES", 13, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	bonus_stage_label.custom_minimum_size = Vector2(220, 18)
+	bonus_stage_label.visible = false
+	bonus_row.add_child(bonus_stage_label)
 
-	var bonus_style := StyleBoxFlat.new()
-	bonus_style.bg_color = Color(0.02, 0.01, 0.0, 0.72)
-	bonus_style.border_color = COLOR_GOLD_DARK
-	bonus_style.border_width_left = 1; bonus_style.border_width_right = 1
-	bonus_style.border_width_top = 1; bonus_style.border_width_bottom = 1
-	bonus_style.corner_radius_top_left = 4; bonus_style.corner_radius_top_right = 4
-	bonus_style.corner_radius_bottom_left = 4; bonus_style.corner_radius_bottom_right = 4
-	bonus_stage_panel.add_theme_stylebox_override("panel", bonus_style)
-
-	var bonus_margin := MarginContainer.new()
-	bonus_margin.add_theme_constant_override("margin_left", 4)
-	bonus_margin.add_theme_constant_override("margin_right", 4)
-	bonus_margin.add_theme_constant_override("margin_top", 2)
-	bonus_margin.add_theme_constant_override("margin_bottom", 2)
-	bonus_stage_panel.add_child(bonus_margin)
-
-	var bonus_box := HBoxContainer.new()
-	bonus_box.add_theme_constant_override("separation", 5)
-	bonus_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	bonus_margin.add_child(bonus_box)
-
-	bonus_stage_card = TextureRect.new()
-	bonus_stage_card.custom_minimum_size = Vector2(22, 36)
-	bonus_stage_card.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	bonus_stage_card.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	bonus_box.add_child(bonus_stage_card)
-
-	var bonus_texts := VBoxContainer.new()
-	bonus_texts.add_theme_constant_override("separation", 0)
-	bonus_texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bonus_box.add_child(bonus_texts)
-	bonus_stage_label = _make_label("FREE GAMES", 8, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
-	bonus_texts.add_child(bonus_stage_label)
-	bonus_stage_amount_label = _make_label("BONUS 0", 8, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	bonus_texts.add_child(bonus_stage_amount_label)
-
-	bonus_coin_rect = TextureRect.new()
-	bonus_coin_rect.custom_minimum_size = BONUS_COIN_SIZE
-	bonus_coin_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	bonus_coin_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	bonus_coin_rect.texture = _load_cabinet_texture("images/coin.png")
-	bonus_coin_rect.visible = false
-	bonus_box.add_child(bonus_coin_rect)
+	bonus_stage_amount_label = _make_label("BONUS 0", 13, COLOR_RED, HORIZONTAL_ALIGNMENT_RIGHT)
+	bonus_stage_amount_label.custom_minimum_size = Vector2(180, 18)
+	bonus_stage_amount_label.visible = false
+	bonus_row.add_child(bonus_stage_amount_label)
 
 func _build_du_info(parent: Node) -> void:
 	du_info_panel = VBoxContainer.new()
@@ -2720,7 +2677,10 @@ func _set_jackpot_counter_display(value: float, slot_key: String) -> void:
 	displayed_jackpots[slot_key] = amount
 	var label: Label = jackpot_counters.get(slot_key, null)
 	if label != null:
-		label.text = _format_amount(amount)
+		if slot_key == "sf":
+			label.text = "\u00A2 %s" % _format_amount(amount)
+		else:
+			label.text = _format_amount(amount)
 
 func _set_jackpot_counter_active(slot_key: String, active: bool) -> void:
 	var counter_panel: Panel = jackpot_counter_panels.get(slot_key, null)
@@ -2739,7 +2699,7 @@ func _set_jackpot_counter_active(slot_key: String, active: bool) -> void:
 		sty.border_width_top = 0; sty.border_width_bottom = 0
 
 func _refresh_bonus_stage() -> void:
-	if bonus_stage_panel == null or bonus_stage_card == null:
+	if bonus_stage_label == null or bonus_stage_amount_label == null:
 		return
 	var bonus: Dictionary = _bonus_presentation()
 	var active := _du_bool(bonus, ["active", "isActive", "Active"])
@@ -2749,42 +2709,40 @@ func _refresh_bonus_stage() -> void:
 			bonus = fallback
 			active = true
 
-	bonus_stage_panel.visible = active
-
 	var kind := str(_du_first_value(bonus, ["kind", "Kind"], "free_games"))
 	var amount := store._to_int(_du_first_value(bonus, ["amount", "Amount", "current_amount", "currentAmount", "CurrentAmount"], 0))
 	var free_count := store._to_int(_du_first_value(bonus, ["free_game_count", "freeGameCount", "FreeGameCount"], 0))
 	var message := str(_du_first_value(bonus, ["message", "Message"], "FREE GAMES BONUS"))
-	var card_code := _bonus_presentation_card_code(bonus)
-	if card_code.is_empty() and kind == "lucky5":
-		card_code = "5S"
 
 	if bonus_message_label != null:
 		bonus_message_label.text = message if active else "4 OF A KIND   WINS BONUS"
 		bonus_message_label.add_theme_color_override("font_color", COLOR_GOLD if active else COLOR_WHITE)
 
+	bonus_stage_label.visible = active
+	bonus_stage_amount_label.visible = active
+
 	match kind:
 		"lucky5":
-			bonus_stage_label.text = "LUCKY 5"
+			bonus_stage_label.text = "FREE GAMES 000"
+			bonus_stage_label.add_theme_color_override("font_color", COLOR_GOLD)
 		"bonus_card":
 			bonus_stage_label.text = "BONUS CARD"
+			bonus_stage_label.add_theme_color_override("font_color", COLOR_GOLD)
 		_:
-			bonus_stage_label.text = "FREE GAMES"
+			if free_count > 0:
+				bonus_stage_label.text = "FREE GAMES %03d" % free_count
+			else:
+				bonus_stage_label.text = "FREE GAMES 000"
+			bonus_stage_label.add_theme_color_override("font_color", COLOR_RED if active else COLOR_GOLD)
 
 	if active and amount > 0:
-		bonus_stage_amount_label.text = "+%s" % _format_amount(amount)
-	elif free_count > 0:
-		bonus_stage_amount_label.text = "FREE %d" % free_count
+		bonus_stage_amount_label.text = "%s" % _format_amount(amount)
+		bonus_stage_amount_label.add_theme_color_override("font_color", COLOR_RED)
+	elif free_count > 0 and kind != "lucky5":
+		bonus_stage_amount_label.text = ""
 	else:
 		bonus_stage_amount_label.text = "BONUS 0"
-
-	_set_bonus_stage_texture(card_code, active, kind)
-	_refresh_bonus_coin(active, kind, amount, free_count)
-	_style_bonus_stage(active)
-	var next_key := "%s:%s:%s:%s" % [kind, card_code, str(active), str(amount)]
-	if next_key != bonus_stage_key:
-		bonus_stage_key = next_key
-		_animate_bonus_stage(active)
+		bonus_stage_amount_label.add_theme_color_override("font_color", COLOR_WHITE)
 
 func _bonus_presentation() -> Dictionary:
 	var presentation: Dictionary = store.snapshot.get("presentation", {})
@@ -2792,12 +2750,6 @@ func _bonus_presentation() -> Dictionary:
 	if typeof(bonus) == TYPE_DICTIONARY:
 		return bonus
 	return {}
-
-func _bonus_presentation_card_code(bonus: Dictionary) -> String:
-	var card: Variant = _du_first_value(bonus, ["card", "Card"], {})
-	if typeof(card) == TYPE_DICTIONARY:
-		return str(_du_first_value(card, ["code", "Code"], ""))
-	return str(_du_first_value(bonus, ["card_code", "cardCode", "CardCode"], ""))
 
 func _fallback_bonus_presentation() -> Dictionary:
 	var du: Dictionary = _double_up_data()
@@ -2827,91 +2779,6 @@ func _fallback_bonus_presentation() -> Dictionary:
 		"free_game_count": 0,
 		"message": "FREE GAMES BONUS"
 	}
-
-func _four_kind_rank_card_code() -> String:
-	var counts := {}
-	var first_code_by_rank := {}
-	for card_value in store.result_cards():
-		if typeof(card_value) != TYPE_DICTIONARY:
-			continue
-		var card: Dictionary = card_value
-		var code := str(card.get("code", ""))
-		if code.length() < 2:
-			continue
-		var rank := code.substr(0, code.length() - 1)
-		counts[rank] = int(counts.get(rank, 0)) + 1
-		if not first_code_by_rank.has(rank):
-			first_code_by_rank[rank] = code
-	for rank in counts.keys():
-		if int(counts[rank]) >= 4:
-			return str(first_code_by_rank.get(rank, ""))
-	return ""
-
-func _set_bonus_stage_texture(card_code: String, active: bool, kind: String) -> void:
-	var texture: Texture2D = null
-	match kind:
-		"lucky5":
-			texture = _load_cabinet_texture("images/lucky5.png")
-		"bonus_card":
-			texture = _load_cabinet_texture("images/bonus.png")
-		_:
-			texture = _load_cabinet_texture("images/free.png")
-	if card_code.length() >= 2:
-		var card_texture := _card_texture_from_code(card_code)
-		if card_texture != null and texture == null:
-			texture = card_texture
-	if texture == null:
-		texture = _load_cabinet_texture("images/bonus.png")
-	bonus_stage_card.texture = texture
-	bonus_stage_card.modulate = Color(1, 1, 1, 1) if active and texture != null else Color(1, 1, 1, 0.42)
-
-func _refresh_bonus_coin(active: bool, kind: String, amount: int, free_count: int) -> void:
-	if bonus_coin_rect == null:
-		return
-	if bonus_coin_rect.texture == null:
-		bonus_coin_rect.texture = _load_cabinet_texture("images/coin.png")
-	var show_coin := active and (amount > 0 or free_count > 0 or kind == "lucky5" or kind == "bonus_card")
-	bonus_coin_rect.visible = show_coin
-	bonus_coin_rect.modulate = Color(1, 1, 1, 1) if show_coin else Color(1, 1, 1, 0)
-	if not show_coin:
-		bonus_coin_rect.scale = Vector2(1.0, 1.0)
-		bonus_coin_rect.rotation = 0.0
-
-func _style_bonus_stage(active: bool) -> void:
-	var sty := bonus_stage_panel.get_theme_stylebox("panel", "") as StyleBoxFlat
-	if sty == null:
-		return
-	if active:
-		sty.bg_color = Color(0.235, 0.158, 0.018, 0.95)
-		sty.border_color = COLOR_GOLD
-		sty.border_width_left = 2; sty.border_width_right = 2
-		sty.border_width_top = 2; sty.border_width_bottom = 2
-	else:
-		sty.bg_color = Color(0.02, 0.01, 0.0, 0.72)
-		sty.border_color = COLOR_GOLD_DARK
-		sty.border_width_left = 1; sty.border_width_right = 1
-		sty.border_width_top = 1; sty.border_width_bottom = 1
-
-func _animate_bonus_stage(active: bool) -> void:
-	if bonus_stage_tween != null and bonus_stage_tween.is_valid():
-		bonus_stage_tween.kill()
-	bonus_stage_panel.pivot_offset = bonus_stage_panel.size * 0.5
-	bonus_stage_card.pivot_offset = bonus_stage_card.custom_minimum_size * 0.5
-	bonus_stage_panel.scale = Vector2(1.04, 1.04) if active else Vector2(1.0, 1.0)
-	bonus_stage_tween = create_tween()
-	bonus_stage_tween.set_parallel(true)
-	bonus_stage_tween.tween_property(bonus_stage_panel, "scale", Vector2(1.0, 1.0), 0.33).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	if active:
-		bonus_stage_card.scale = Vector2(1.16, 1.16)
-		bonus_stage_tween.tween_property(bonus_stage_card, "scale", Vector2(1.0, 1.0), 0.33).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		bonus_stage_tween.tween_property(bonus_stage_card, "modulate", Color(1.0, 0.96, 0.62, 1.0), 0.16).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-		if bonus_coin_rect != null and bonus_coin_rect.visible:
-			bonus_coin_rect.pivot_offset = BONUS_COIN_SIZE * 0.5
-			bonus_coin_rect.scale = Vector2(1.35, 1.35)
-			bonus_coin_rect.rotation = -0.10
-			bonus_stage_tween.tween_property(bonus_coin_rect, "scale", Vector2(1.0, 1.0), 0.42).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-			bonus_stage_tween.tween_property(bonus_coin_rect, "rotation", 0.0, 0.42).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-		bonus_stage_tween.chain().tween_property(bonus_stage_card, "modulate", Color(1, 1, 1, 1), 0.17).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 
 func _full_house_rank_text() -> String:
 	var jp: Dictionary = _jackpot_data()

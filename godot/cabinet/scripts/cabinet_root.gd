@@ -38,10 +38,10 @@ const CABINET_BOARD_TEXTURE := "images/board.png"
 const CABINET_PRESS_SOUND := "audio/press.mp3"
 const BUTTON_ASSET_FONT_SIZE := 13
 
-const CARD_AREA_MIN_HEIGHT := 248
+const CARD_AREA_MIN_HEIGHT := 280
 # AI9 fronts are 313x528; keep slot boxes on that portrait ratio so cards stay crisp.
 const AI9_CARD_ASPECT := 313.0 / 528.0
-const CARD_SIZE := Vector2(122, 206)
+const CARD_SIZE := Vector2(136, 230)
 const CARD_SMALL_SIZE := Vector2(66, 111)
 const CARD_GAP := 6
 const CONTROL_DECK_MIN_HEIGHT := 324
@@ -54,8 +54,8 @@ const DRAW_OUT_DURATION := 0.10
 const DRAW_IN_DURATION := 0.15
 const DRAW_STAGGER := 0.15
 const DU_SWITCH_DURATION := 0.60
-const DU_BOARD_CARD_SIZE := Vector2(92, 155)
-const DU_TRAIL_CARD_SIZE := Vector2(122, 206)
+const DU_BOARD_CARD_SIZE := Vector2(104, 176)
+const DU_TRAIL_CARD_SIZE := Vector2(136, 230)
 const BONUS_COIN_SIZE := Vector2(28, 28)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
 const DU_SHUFFLE_INTERVAL := 0.075

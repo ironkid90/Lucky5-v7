@@ -114,6 +114,12 @@ should host the shared Godot cabinet at `/godot`. The script writes the export t
 the ignored `src/web/public/godot-cabinet/` folder and records
 `lucky5.godot_web_export.v1` metadata beside the generated bundle.
 
+Use `.\scripts\godot\Export-GodotAndroidCabinet.ps1 -Clean` for the unsigned
+Android compatibility APK. The script passes an absolute APK output path to
+Godot, writes the export under the ignored `artifacts/godot-android/dev/`
+folder, and records `lucky5.godot_android_export.v1` metadata including the APK
+SHA-256 hash.
+
 The Godot project keeps GL Compatibility for desktop kiosk and browser exports,
 while Android uses Godot's mobile renderer path to avoid OpenGL ES shader limit
 failures on emulator/device smoke tests. Keep the Web preset single-threaded

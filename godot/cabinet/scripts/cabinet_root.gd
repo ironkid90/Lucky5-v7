@@ -3,6 +3,17 @@ class_name CabinetRoot
 
 const CabinetApiScript = preload("res://scripts/cabinet_api.gd")
 const CabinetStoreScript = preload("res://scripts/cabinet_store.gd")
+const CARD_FLIP_SHADER_PATH := "res://shaders/card_flip.gdshader"
+const CRT_SHADER_PATH := "res://shaders/crt_effect.gdshader"
+
+enum ConnectionState {
+	OFFLINE,
+	CONNECTING,
+	SYNCING_SNAPSHOT,
+	LIVE,
+	RECONNECTING,
+	RECOVERY_REQUIRED
+}
 
 # ─── theme constants (web arcade cabinet palette) ───
 const COLOR_BG := Color(0.020, 0.012, 0.008, 1.0)           # #050302
@@ -36,6 +47,9 @@ const BUTTON_ASSET_BASE_PATH := "res://skins/cabinet_ai9/buttons/"
 const CABINET_AI9_SKIN_ROOT := "res://skins/cabinet_ai9/"
 const CABINET_BOARD_TEXTURE := "images/board.png"
 const CABINET_PRESS_SOUND := "audio/press.mp3"
+const CABINET_DEAL_WHOOSH := "audio/deal_whoosh.mp3"
+const CABINET_SHUFFLE_TICK := "audio/shuffle_tick.mp3"
+const CABINET_CREDIT_TRICKLE := "audio/credit_trickle.mp3"
 const BUTTON_ASSET_FONT_SIZE := 13
 
 const CARD_AREA_MIN_HEIGHT := 280
@@ -65,7 +79,7 @@ const DU_REVEAL_SETTLE_SECONDS := 0.90
 const DU_END_HOLD_SECONDS := 0.90
 const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 0.90
 const IDLE_FH_CARD_DELAY_SECONDS := 60.0
-const IDLE_TITLE_TEXT := "LUCKY 5"
+const IDLE_TITLE_TEXT := "LUCKY 5\nPOKER"
 const WIN_COUNTER_MIN_DURATION := 0.18
 const WIN_COUNTER_MAX_DURATION := 0.75
 const CREDIT_DRAIN_MIN_DURATION := 1.20
@@ -100,6 +114,26 @@ var auth_status := "LOGIN REQUIRED - SIGN IN TO PLAY"
 var cards_texture_rects: Array = []
 var du_cards: Array = []
 var active_screen := "game"
+var connection_state := ConnectionState.OFFLINE
+var last_heartbeat_response_time := 0.0
+var connection_state_label: Label
+var recovery_overlay: PanelContainer
+var recovery_overlay_label: Label
+var diagnostics_panel: VBoxContainer
+var diag_fps_label: Label
+var diag_memory_label: Label
+var diag_ping_label: Label
+var diag_heartbeat_label: Label
+var diag_machine_id_label: Label
+var diag_session_id_label: Label
+var diag_state_version_label: Label
+var diag_sequence_label: Label
+var diag_hand_rank_label: Label
+var diag_payout_label: Label
+var diag_du_trail_label: Label
+var diag_visible := false
+var diag_fps_accum := 0.0
+var diag_fps_counter := 0
 var admin_search_results: Array = []
 var admin_machine_list: Array = []
 var admin_agent_list: Array = []
@@ -116,6 +150,17 @@ var impact_font: Font
 var ui_font: Font
 var press_sound: AudioStream
 var press_audio_player: AudioStreamPlayer
+var deal_whoosh_sound: AudioStream
+var deal_whoosh_player: AudioStreamPlayer
+var shuffle_tick_sound: AudioStream
+var shuffle_tick_player: AudioStreamPlayer
+var credit_trickle_sound: AudioStream
+var credit_trickle_player: AudioStreamPlayer
+var card_flip_shader: Shader
+var card_flip_material: ShaderMaterial
+var crt_shader: Shader
+var crt_shader_material: ShaderMaterial
+var crt_time := 0.0
 
 # ─── node refs ───
 var title_label: Label
@@ -237,6 +282,7 @@ var jackpot_counter_tweens: Dictionary = {}
 func _ready() -> void:
 	_load_environment()
 	_load_cabinet_skin_resources()
+	_load_shaders()
 	_build_ui()
 	_create_press_audio_player()
 	_load_fixture_snapshot()
@@ -246,8 +292,9 @@ func _ready() -> void:
 	api.configure(api_base_url, access_token)
 	api.request_completed.connect(_on_api_response)
 
-	heartbeat_timer = Timer.new(); heartbeat_timer.wait_time = 20.0; heartbeat_timer.autostart = true
+	heartbeat_timer = Timer.new(); heartbeat_timer.wait_time = 15.0; heartbeat_timer.autostart = true
 	heartbeat_timer.timeout.connect(_send_heartbeat); add_child(heartbeat_timer)
+	_enter_connection_state(ConnectionState.OFFLINE)
 
 	replay_timer = Timer.new(); replay_timer.wait_time = 3.0; replay_timer.one_shot = true
 	replay_timer.timeout.connect(_request_replay); add_child(replay_timer)
@@ -355,6 +402,9 @@ func _load_cabinet_skin_resources() -> void:
 		impact_font = _load_cabinet_font("fonts/Impact.ttf")
 		ui_font = _load_cabinet_font("fonts/InterSemiBold.ttf")
 	press_sound = _load_cabinet_audio(CABINET_PRESS_SOUND)
+	deal_whoosh_sound = _load_cabinet_audio(CABINET_DEAL_WHOOSH)
+	shuffle_tick_sound = _load_cabinet_audio(CABINET_SHUFFLE_TICK)
+	credit_trickle_sound = _load_cabinet_audio(CABINET_CREDIT_TRICKLE)
 
 func _cabinet_resource_path(relative_path: String) -> String:
 	var path := CABINET_AI9_SKIN_ROOT + relative_path
@@ -393,20 +443,90 @@ func _load_cabinet_font(relative_path: String) -> Font:
 		return null
 	return ResourceLoader.load(path) as Font
 
+func _load_shaders() -> void:
+	if ResourceLoader.exists(CARD_FLIP_SHADER_PATH):
+		card_flip_shader = ResourceLoader.load(CARD_FLIP_SHADER_PATH) as Shader
+		if card_flip_shader != null:
+			card_flip_material = ShaderMaterial.new()
+			card_flip_material.shader = card_flip_shader
+			card_flip_material.set_shader_parameter("flip_progress", 0.0)
+			card_flip_material.set_shader_parameter("edge_color", Color(0.0, 0.0, 0.0, 0.0))
+			card_flip_material.set_shader_parameter("shadow_intensity", 0.42)
+	if ResourceLoader.exists(CRT_SHADER_PATH):
+		crt_shader = ResourceLoader.load(CRT_SHADER_PATH) as Shader
+		if crt_shader != null:
+			crt_shader_material = ShaderMaterial.new()
+			crt_shader_material.shader = crt_shader
+			crt_shader_material.set_shader_parameter("time", 0.0)
+			crt_shader_material.set_shader_parameter("curvature", 0.06)
+			crt_shader_material.set_shader_parameter("scanline_opacity", 0.12)
+			crt_shader_material.set_shader_parameter("vignette_strength", 0.55)
+			crt_shader_material.set_shader_parameter("phosphor_bloom", 0.035)
+			crt_shader_material.set_shader_parameter("viewport_size", Vector2(720, 1280))
+
+func _process(delta: float) -> void:
+	if crt_shader_material != null:
+		crt_time += delta
+		crt_shader_material.set_shader_parameter("time", crt_time)
+	if diag_visible:
+		diag_fps_accum += delta
+		diag_fps_counter += 1
+		if diag_fps_accum >= 1.0:
+			_refresh_diagnostics()
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_F2:
+			diag_visible = not diag_visible
+			if diagnostics_panel != null:
+				diagnostics_panel.visible = diag_visible
+			if diag_visible:
+				diag_fps_accum = 0.0
+				diag_fps_counter = 0
+				_refresh_diagnostics()
+			get_viewport().set_input_as_handled()
+
 func _create_press_audio_player() -> void:
-	if press_sound == null:
-		return
-	press_audio_player = AudioStreamPlayer.new()
-	press_audio_player.name = "CabinetPressAudio"
-	press_audio_player.stream = press_sound
-	press_audio_player.volume_db = -4.0
-	add_child(press_audio_player)
+	if press_sound != null:
+		press_audio_player = _create_audio_player("CabinetPressAudio", press_sound, -4.0)
+	if deal_whoosh_sound != null:
+		deal_whoosh_player = _create_audio_player("CabinetDealWhoosh", deal_whoosh_sound, -6.0)
+	if shuffle_tick_sound != null:
+		shuffle_tick_player = _create_audio_player("CabinetShuffleTick", shuffle_tick_sound, -8.0)
+	if credit_trickle_sound != null:
+		credit_trickle_player = _create_audio_player("CabinetCreditTrickle", credit_trickle_sound, -10.0)
+
+func _create_audio_player(p_name: String, stream: AudioStream, volume_db: float) -> AudioStreamPlayer:
+	var player := AudioStreamPlayer.new()
+	player.name = p_name
+	player.stream = stream
+	player.volume_db = volume_db
+	add_child(player)
+	return player
 
 func _play_press_sound() -> void:
 	if press_audio_player == null:
 		return
 	press_audio_player.stop()
 	press_audio_player.play()
+
+func _play_deal_whoosh() -> void:
+	if deal_whoosh_player == null:
+		return
+	deal_whoosh_player.stop()
+	deal_whoosh_player.play()
+
+func _play_shuffle_tick() -> void:
+	if shuffle_tick_player == null:
+		return
+	shuffle_tick_player.stop()
+	shuffle_tick_player.play()
+
+func _play_credit_trickle() -> void:
+	if credit_trickle_player == null:
+		return
+	credit_trickle_player.stop()
+	credit_trickle_player.play()
 
 func _font_for_key(font_key: String) -> Font:
 	match font_key:
@@ -556,11 +676,15 @@ func _build_ui() -> void:
 	_add_cabinet_board_background(self, 0.56)
 
 	crt_overlay = ColorRect.new()
-	crt_overlay.color = Color(0, 0, 0, 0.08)
+	crt_overlay.color = Color(0, 0, 0, 0.06)
 	crt_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	crt_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if crt_shader_material != null:
+		crt_overlay.material = crt_shader_material
+		crt_overlay.color = Color.WHITE
 	add_child(crt_overlay)
 	_create_scanlines()
+	_build_recovery_overlay(self)
 
 	var root := ScrollContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -826,11 +950,40 @@ func _build_menu_panel(parent: Node) -> void:
 	menu_panel.add_child(close_button)
 
 func _create_scanlines() -> void:
+	if crt_shader_material != null:
+		return
 	var sl := ColorRect.new()
 	sl.color = Color(0, 0, 0, 0.06)
 	sl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	sl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(sl)
+
+func _build_recovery_overlay(parent: Node) -> void:
+	recovery_overlay = PanelContainer.new()
+	recovery_overlay.name = "RecoveryOverlay"
+	recovery_overlay.visible = false
+	recovery_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var overlay_style := StyleBoxFlat.new()
+	overlay_style.bg_color = Color(0, 0, 0, 0.82)
+	recovery_overlay.add_theme_stylebox_override("panel", overlay_style)
+	parent.add_child(recovery_overlay)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	recovery_overlay.add_child(center)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	center.add_child(vbox)
+
+	recovery_overlay_label = _make_label("RECOVERING CONNECTION...", 28, COLOR_RED, HORIZONTAL_ALIGNMENT_CENTER)
+	vbox.add_child(recovery_overlay_label)
+
+	var subtitle := _make_label("Please wait while the cabinet reconnects.", 14, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	vbox.add_child(subtitle)
+
+	connection_state_label = _make_label("", 11, COLOR_CREAM, HORIZONTAL_ALIGNMENT_CENTER)
+	vbox.add_child(connection_state_label)
 
 func _build_auth_panel(parent: Node) -> void:
 	auth_panel = VBoxContainer.new()
@@ -977,7 +1130,7 @@ func _build_card_area(parent: Node) -> void:
 	card_container.add_theme_constant_override("separation", CARD_GAP)
 	card_center.add_child(card_container)
 
-	idle_title_label = _make_label(IDLE_TITLE_TEXT, 42, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	idle_title_label = _make_label(IDLE_TITLE_TEXT, 42, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
 	idle_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	idle_title_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	idle_title_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
@@ -995,6 +1148,10 @@ func _build_card_area(parent: Node) -> void:
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tr.mouse_filter = Control.MOUSE_FILTER_STOP
 		tr.gui_input.connect(_on_card_gui_input.bind(index))
+		if card_flip_material != null:
+			var mat := card_flip_material.duplicate() as ShaderMaterial
+			mat.set_shader_parameter("flip_progress", 0.0)
+			tr.material = mat
 		slot.add_child(tr)
 
 		var hold_label := _make_label("", 10, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
@@ -1053,11 +1210,11 @@ func _build_machine_info(parent: Node) -> void:
 	hbox.add_theme_constant_override("separation", 14)
 	rows.add_child(hbox)
 
-	machine_serie_label = _make_label("SERIE 0", 11, COLOR_GREEN)
+	machine_serie_label = _make_label("SERIE 0", 11, COLOR_RED)
 	hbox.add_child(machine_serie_label)
 	machine_kent_label = _make_label("KENT /3 : 0", 11, COLOR_GREEN)
 	hbox.add_child(machine_kent_label)
-	machine_serial_label = _make_label("S/N: 0", 12, COLOR_GREEN)
+	machine_serial_label = _make_label("S/N: 0", 12, COLOR_BLUE)
 	machine_serial_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	machine_serial_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hbox.add_child(machine_serial_label)
@@ -1082,7 +1239,7 @@ func _build_machine_info(parent: Node) -> void:
 		counter_panel.add_child(counter_box)
 		var tag := _make_label(slot[0], 10, slot[2], HORIZONTAL_ALIGNMENT_CENTER)
 		counter_box.add_child(tag)
-		var val := _make_label("0", 14, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+		var val := _make_label("0", 14, COLOR_RED, HORIZONTAL_ALIGNMENT_CENTER)
 		counter_box.add_child(val)
 		jackpot_counters[str(slot[1])] = val
 		jackpot_counter_panels[str(slot[1])] = counter_panel
@@ -1288,6 +1445,90 @@ func _build_admin_screen(parent: Node) -> void:
 	admin_machines_list.visible = false
 	admin_screen.add_child(admin_machines_list)
 
+	_build_diagnostics_panel(admin_screen)
+
+func _build_diagnostics_panel(parent: Node) -> void:
+	diagnostics_panel = VBoxContainer.new()
+	diagnostics_panel.name = "DiagnosticsPanel"
+	diagnostics_panel.visible = false
+	diagnostics_panel.add_theme_constant_override("separation", 2)
+
+	var header := _make_label("DIAGNOSTICS (F2 to toggle)", 14, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	diagnostics_panel.add_child(header)
+
+	var sep := HSeparator.new()
+	diagnostics_panel.add_child(sep)
+
+	diag_fps_label = _make_label("FPS: --", 11, COLOR_GREEN)
+	diagnostics_panel.add_child(diag_fps_label)
+	diag_memory_label = _make_label("MEM: --", 11, COLOR_GREEN)
+	diagnostics_panel.add_child(diag_memory_label)
+	diag_ping_label = _make_label("PING: -- ms", 11, COLOR_BLUE)
+	diagnostics_panel.add_child(diag_ping_label)
+	diag_heartbeat_label = _make_label("HB: --", 11, COLOR_CREAM)
+	diagnostics_panel.add_child(diag_heartbeat_label)
+
+	var sep2 := HSeparator.new()
+	diagnostics_panel.add_child(sep2)
+
+	diag_machine_id_label = _make_label("MACHINE: --", 11, COLOR_WHITE)
+	diagnostics_panel.add_child(diag_machine_id_label)
+	diag_session_id_label = _make_label("SESSION: --", 11, COLOR_WHITE)
+	diagnostics_panel.add_child(diag_session_id_label)
+	diag_state_version_label = _make_label("STATE VER: --", 11, COLOR_WHITE)
+	diagnostics_panel.add_child(diag_state_version_label)
+	diag_sequence_label = _make_label("SEQ: --", 11, COLOR_WHITE)
+	diagnostics_panel.add_child(diag_sequence_label)
+
+	var sep3 := HSeparator.new()
+	diagnostics_panel.add_child(sep3)
+
+	diag_hand_rank_label = _make_label("HAND: --", 11, COLOR_RED)
+	diagnostics_panel.add_child(diag_hand_rank_label)
+	diag_payout_label = _make_label("PAYOUT: --", 11, COLOR_RED)
+	diagnostics_panel.add_child(diag_payout_label)
+	diag_du_trail_label = _make_label("DU TRAIL: []", 10, COLOR_BLUE)
+	diag_du_trail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	diagnostics_panel.add_child(diag_du_trail_label)
+
+	parent.add_child(diagnostics_panel)
+
+func _refresh_diagnostics() -> void:
+	if not diag_visible:
+		return
+	var fps := Engine.get_frames_per_second()
+	diag_fps_label.text = "FPS: %d  (draw: %d)" % [fps, Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)]
+	diag_memory_label.text = "MEM: %.1f MB static / %.1f MB video" % [
+		float(Performance.get_monitor(Performance.MEMORY_STATIC)) / 1048576.0,
+		float(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)) / 1048576.0
+	]
+
+	var ping := 0
+	if last_heartbeat_response_time > 0.0:
+		ping = int((Time.get_unix_time_from_system() - last_heartbeat_response_time) * 1000.0)
+	diag_ping_label.text = "PING: %d ms  (LAT: %d ms)" % [ping, max(0, ping)]
+	diag_heartbeat_label.text = "HB LAST: %s  LIVE: %s" % [
+		Time.get_datetime_string_from_unix_time(last_heartbeat_response_time) if last_heartbeat_response_time > 0.0 else "--",
+		_connection_state_name(connection_state)
+	]
+
+	diag_machine_id_label.text = "MACHINE: %d" % configured_machine_id
+	diag_session_id_label.text = "SESSION: %s" % store.session_id()
+	diag_state_version_label.text = "STATE VER: %d" % store.state_version()
+	diag_sequence_label.text = "SEQ: %d" % store.sequence_number()
+
+	diag_hand_rank_label.text = "HAND: %s  (%s)" % [store.hand_rank(), store.game_state()]
+	var win_amount = store.pending_win_amount()
+	var multiplier: int = int(paytable_multipliers.get(_paytable_rank_key(store.hand_rank()), 0))
+	diag_payout_label.text = "PAYOUT: %s (%dx stk)" % [_format_amount(win_amount), multiplier]
+
+	var du_data := _double_up_data()
+	var trail_json: String = JSON.stringify(_du_array(du_data, ["card_trail", "cardTrail", "CardTrail"]))
+	diag_du_trail_label.text = "DU TRAIL: %s" % trail_json.left(200)
+
+	diag_fps_accum = 0.0
+	diag_fps_counter = 0
+
 # ─── snapshot / auth ───
 func _load_fixture_snapshot() -> void:
 	var file := FileAccess.open("res://data/fixture_snapshot.json", FileAccess.READ)
@@ -1309,6 +1550,7 @@ func _authenticate_and_sync(reason: String) -> void:
 		store.apply_transport_error("Missing kiosk credentials.")
 		_refresh_ui(); return
 	authenticating = true
+	_enter_connection_state(ConnectionState.CONNECTING)
 	store.apply_transport_error(reason)
 	_refresh_ui()
 	api.post_login(auth_username, auth_password)
@@ -1316,8 +1558,64 @@ func _authenticate_and_sync(reason: String) -> void:
 func _request_replay() -> void: api.post_replay(configured_machine_id, store.state_version(), store.sequence_number())
 
 func _send_heartbeat() -> void:
-	if access_token.is_empty() or store.snapshot.is_empty(): return
+	if access_token.is_empty() or store.snapshot.is_empty():
+		return
+	if connection_state != ConnectionState.LIVE and connection_state != ConnectionState.RECONNECTING:
+		_check_heartbeat_timeout()
+		return
+	_check_heartbeat_timeout()
 	_send_command("heartbeat", {}, false, false)
+
+func _check_heartbeat_timeout() -> void:
+	if last_heartbeat_response_time <= 0.0:
+		return
+	var now := Time.get_unix_time_from_system()
+	var elapsed := now - last_heartbeat_response_time
+	if elapsed > 30.0 and connection_state == ConnectionState.LIVE:
+		_enter_connection_state(ConnectionState.RECONNECTING)
+		_send_heartbeat()
+
+func _enter_connection_state(state: int) -> void:
+	var previous := connection_state
+	connection_state = state
+	match state:
+		ConnectionState.OFFLINE:
+			last_heartbeat_response_time = 0.0
+		ConnectionState.CONNECTING:
+			last_heartbeat_response_time = Time.get_unix_time_from_system()
+		ConnectionState.SYNCING_SNAPSHOT:
+			pass
+		ConnectionState.LIVE:
+			last_heartbeat_response_time = Time.get_unix_time_from_system()
+		ConnectionState.RECONNECTING:
+			pass
+		ConnectionState.RECOVERY_REQUIRED:
+			pass
+	_refresh_connection_ui()
+	if previous != state:
+		_refresh_ui()
+
+func _connection_state_name(state: int) -> String:
+	match state:
+		ConnectionState.OFFLINE: return "OFFLINE"
+		ConnectionState.CONNECTING: return "CONNECTING"
+		ConnectionState.SYNCING_SNAPSHOT: return "SYNCING"
+		ConnectionState.LIVE: return "LIVE"
+		ConnectionState.RECONNECTING: return "RECONNECTING"
+		ConnectionState.RECOVERY_REQUIRED: return "RECOVERY REQUIRED"
+	return "UNKNOWN"
+
+func _is_connection_live() -> bool:
+	return connection_state == ConnectionState.LIVE
+
+func _refresh_connection_ui() -> void:
+	var is_live := _is_connection_live()
+	if recovery_overlay != null:
+		recovery_overlay.visible = not is_live and not access_token.is_empty()
+		if recovery_overlay_label != null:
+			recovery_overlay_label.text = _connection_state_name(connection_state) if not is_live else ""
+	if connection_state_label != null:
+		connection_state_label.text = _connection_state_name(connection_state)
 
 # ─── API response handler ───
 func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_message: String) -> void:
@@ -1326,9 +1624,11 @@ func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_mes
 		return
 
 	if not ok:
+		last_heartbeat_response_time = 0.0
 		if _status_code == 401 and _has_auth_credentials():
 			_reject_action_lock("", "Session lost")
 			authenticating = false
+			_enter_connection_state(ConnectionState.CONNECTING)
 			_authenticate_and_sync("Session lost. Re-authenticating cabinet...")
 			return
 		if kind in ["login", "signup", "verify_otp"]:
@@ -1337,9 +1637,13 @@ func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_mes
 		if kind == "command":
 			_reject_action_lock("", error_message)
 		store.apply_transport_error(error_message)
+		if connection_state == ConnectionState.LIVE:
+			_enter_connection_state(ConnectionState.RECONNECTING)
 		_refresh_ui()
 		if kind != "replay": replay_timer.start()
 		return
+
+	last_heartbeat_response_time = Time.get_unix_time_from_system()
 
 	var data = _unwrap_response_data(body)
 	if kind == "login" or kind == "refresh_token":
@@ -1350,11 +1654,13 @@ func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_mes
 		auth_status = "OTP VERIFIED - LOGGING IN"; _refresh_ui()
 		api.login(pending_signup_username, pending_signup_password)
 	elif kind == "snapshot" and typeof(data) == TYPE_DICTIONARY:
+		_enter_connection_state(ConnectionState.SYNCING_SNAPSHOT)
 		_apply_snapshot(data)
 	elif kind == "command" and typeof(data) == TYPE_DICTIONARY:
 		_handle_command_response(data)
 	elif kind == "replay" and typeof(data) == TYPE_DICTIONARY:
 		if data.get("requires_full_snapshot", false) and data.has("snapshot"):
+			_enter_connection_state(ConnectionState.SYNCING_SNAPSHOT)
 			_apply_snapshot(data["snapshot"])
 		elif data.has("events"): _apply_replay_events(data["events"])
 		else: _request_snapshot()
@@ -1472,6 +1778,7 @@ func _apply_snapshot(next_snapshot: Dictionary) -> void:
 		configured_machine_id = store.machine_id(configured_machine_id)
 		selected_bet = clampi(selected_bet, max(1, store.min_bet()), max(store.min_bet(), store.max_bet()))
 		if selected_bet == 0: selected_bet = max(1, store.stake())
+		_enter_connection_state(ConnectionState.LIVE)
 		_refresh_ui()
 
 # ─── UI refresh ───
@@ -1521,6 +1828,9 @@ func _refresh_ui() -> void:
 		var held := held_indexes.has(index)
 		hold_button.disabled = not _is_action_enabled("hold_%d" % index)
 		hold_button.text = "HELD" if held else ("" if _button_uses_asset(hold_button) else ("FH" if fh_switch else "HOLD"))
+
+	if diag_visible:
+		_refresh_diagnostics()
 
 func _double_up_render_data(du_data: Dictionary, raw_du_active: bool) -> Dictionary:
 	if raw_du_active:
@@ -1740,6 +2050,9 @@ func _stage_card_back(slot: Dictionary, code: String, held: bool) -> void:
 	var rect: TextureRect = slot["rect"]
 	rect.modulate = Color(1, 1, 1, 1)
 	rect.scale = Vector2(1.0, 1.0)
+	var mat := rect.material as ShaderMaterial
+	if mat != null:
+		mat.set_shader_parameter("flip_progress", 0.0)
 	slot["pending_code"] = code
 	if code.is_empty():
 		slot["displayed_code"] = ""
@@ -1752,6 +2065,9 @@ func _stage_empty_card_slot(slot: Dictionary) -> void:
 	rect.texture = null
 	rect.modulate = Color(1, 1, 1, 0)
 	rect.scale = Vector2(1.0, 1.0)
+	var mat := rect.material as ShaderMaterial
+	if mat != null:
+		mat.set_shader_parameter("flip_progress", 0.0)
 	slot["hold_label"].text = ""
 	slot["displayed_code"] = ""
 	slot["pending_code"] = ""
@@ -1770,6 +2086,10 @@ func _show_queued_card(reveal: Dictionary) -> void:
 	slot["displayed_code"] = code
 	slot["pending_code"] = ""
 	slot["hold_label"].text = "HELD" if bool(reveal.get("held", false)) else ""
+	var mat := rect.material as ShaderMaterial
+	if mat != null:
+		mat.set_shader_parameter("flip_progress", 0.0)
+	_play_deal_whoosh()
 	_animate_card_deal(index)
 
 func _show_draw_replacement(index: int, reveal: Dictionary) -> void:
@@ -1786,11 +2106,19 @@ func _show_draw_replacement(index: int, reveal: Dictionary) -> void:
 
 	rect.pivot_offset = rect.custom_minimum_size * 0.5
 	var base_position := rect.position
+
+	var mat: ShaderMaterial = rect.material as ShaderMaterial
+	if mat != null:
+		mat.set_shader_parameter("flip_progress", 0.0)
+
 	var tw := create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(rect, "modulate", Color(1, 1, 1, 0.72), DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(rect, "position", base_position, DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(rect, "scale", Vector2(0.08, 1.02), DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	if mat != null:
+		var flip_tw := create_tween()
+		flip_tw.tween_method(Callable(self, "_set_card_flip_progress").bind(rect), 0.0, 1.0, DRAW_OUT_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.chain().tween_callback(Callable(self, "_finish_card_draw_replacement").bind(index, code, texture, bool(reveal.get("held", false)), base_position))
 	slot["tween"] = tw
 
@@ -1817,12 +2145,19 @@ func _animate_card_draw_in(index: int, base_position: Vector2) -> void:
 		slot["tween"].kill()
 	slot["tween"] = null
 
+	var mat: ShaderMaterial = rect.material as ShaderMaterial
+	if mat != null:
+		mat.set_shader_parameter("flip_progress", 1.0)
+
 	var tw := create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(rect, "modulate", Color(1, 1, 1, 1), DRAW_IN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(rect, "position", base_position, DRAW_IN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(rect, "scale", Vector2(1.03, 1.0), DRAW_IN_DURATION * 0.62).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.chain().tween_property(rect, "scale", Vector2(1.0, 1.0), DRAW_IN_DURATION * 0.38).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	if mat != null:
+		var flip_tw := create_tween()
+		flip_tw.tween_method(Callable(self, "_set_card_flip_progress").bind(rect), 1.0, 0.0, DRAW_IN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	slot["tween"] = tw
 
 func _get_displayed_card_codes() -> Array:
@@ -1845,13 +2180,26 @@ func _animate_card_deal(index: int) -> void:
 	rect.position = base_position
 	rect.scale = Vector2(0.08, 1.02)
 
+	var mat: ShaderMaterial = rect.material as ShaderMaterial
+	if mat != null:
+		mat.set_shader_parameter("flip_progress", 0.0)
+
 	var tw := create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(rect, "modulate", Color(1, 1, 1, 1), DEAL_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(rect, "position", base_position, DEAL_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(rect, "scale", Vector2(1.04, 1.0), DEAL_DURATION * 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.chain().tween_property(rect, "scale", Vector2(1.0, 1.0), DEAL_DURATION * 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	if mat != null:
+		var flip_tw := create_tween()
+		flip_tw.tween_method(Callable(self, "_set_card_flip_progress").bind(rect), 0.0, 1.0, DEAL_DURATION * 0.55).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		flip_tw.tween_method(Callable(self, "_set_card_flip_progress").bind(rect), 1.0, 0.0, DEAL_DURATION * 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	slot["tween"] = tw
+
+func _set_card_flip_progress(value: float, rect: TextureRect) -> void:
+	var mat := rect.material as ShaderMaterial
+	if mat != null:
+		mat.set_shader_parameter("flip_progress", value)
 
 func _refresh_du_panel(du_data: Dictionary, du_active: bool) -> void:
 	du_info_panel.visible = du_active
@@ -2290,6 +2638,7 @@ func _process_du_shuffle() -> void:
 	if target_rect == null:
 		target_rect = du_dealer_rect
 	_set_du_card_texture(target_rect, code)
+	_play_shuffle_tick()
 	if du_shuffle_ticks_remaining > 0:
 		du_shuffle_ticks_remaining -= 1
 		if du_shuffle_ticks_remaining <= 0:
@@ -2399,6 +2748,8 @@ func _refresh_bonus_stage() -> void:
 		if _du_bool(fallback, ["active", "isActive", "Active"]):
 			bonus = fallback
 			active = true
+
+	bonus_stage_panel.visible = active
 
 	var kind := str(_du_first_value(bonus, ["kind", "Kind"], "free_games"))
 	var amount := store._to_int(_du_first_value(bonus, ["amount", "Amount", "current_amount", "currentAmount", "CurrentAmount"], 0))
@@ -2623,16 +2974,32 @@ func _refresh_paytable_highlights() -> void:
 		var sty := row_panel.get_theme_stylebox("panel", "") as StyleBoxFlat
 		if sty == null: continue
 		var highlighted: bool = str(key) == hand_rank or (win_displayed_amount > 0 and str(key) == score_key)
+		
+		var row_box := row_panel.get_child(0) as HBoxContainer
+		var name_label := row_box.get_child(0) as Label
+		
 		if highlighted:
 			sty.bg_color = Color(1.0, 0.86, 0.16, 0.36)
 			sty.border_color = COLOR_GOLD
 			sty.border_width_left = 1; sty.border_width_right = 1
 			sty.border_width_top = 1; sty.border_width_bottom = 1
+			
+			var label_style := StyleBoxFlat.new()
+			label_style.bg_color = Color.WHITE
+			label_style.content_margin_left = 6
+			label_style.content_margin_right = 6
+			label_style.content_margin_top = 1
+			label_style.content_margin_bottom = 1
+			name_label.add_theme_stylebox_override("normal", label_style)
+			name_label.add_theme_color_override("font_color", Color.BLACK)
 		else:
 			sty.bg_color = Color(0, 0, 0, 0)
 			sty.border_color = Color(0, 0, 0, 0)
 			sty.border_width_left = 0; sty.border_width_right = 0
 			sty.border_width_top = 0; sty.border_width_bottom = 0
+			
+			name_label.remove_theme_stylebox_override("normal")
+			name_label.add_theme_color_override("font_color", paytable_amount_colors.get(str(key), COLOR_WHITE))
 		row_panel.queue_redraw()
 
 func _refresh_machine_info() -> void:
@@ -2728,6 +3095,7 @@ func _animate_credit_transfer(from_amount: int, to_amount: int, drain_amount: in
 	credit_counter_tween.finished.connect(_on_credit_transfer_finished)
 	_pulse_credit_display()
 	_pulse_win_display()
+	_start_credit_trickle_audio(duration)
 
 func _settlement_drain_duration(amount: int) -> float:
 	var eval: Dictionary = _evaluation_data()
@@ -2737,8 +3105,37 @@ func _settlement_drain_duration(amount: int) -> float:
 		return CREDIT_DRAIN_JACKPOT_DURATION
 	return clampf(float(abs(amount)) / 12000000.0, CREDIT_DRAIN_MIN_DURATION, CREDIT_DRAIN_MAX_DURATION)
 
+func _start_credit_trickle_audio(duration: float) -> void:
+	if credit_trickle_player == null:
+		return
+	_play_credit_trickle()
+	var trickle_timer := Timer.new()
+	trickle_timer.name = "CreditTrickleTimer"
+	trickle_timer.wait_time = max(0.08, duration / 30.0)
+	trickle_timer.one_shot = false
+	trickle_timer.timeout.connect(_on_credit_trickle_tick.bind(trickle_timer, 0, int(duration / max(0.08, duration / 30.0))))
+	add_child(trickle_timer)
+	trickle_timer.start()
+
+func _on_credit_trickle_tick(timer: Timer, _bound_tick: int, max_ticks: int) -> void:
+	if not credit_transfer_active or credit_trickle_player == null:
+		timer.queue_free()
+		return
+	_play_credit_trickle()
+	var tick := timer.get_meta("trickle_tick", 0) as int
+	var progress := float(tick) / float(max(1, max_ticks))
+	timer.wait_time = max(0.04, 0.08 * (1.0 - progress * 0.6))
+	timer.set_meta("trickle_tick", tick + 1)
+	if tick >= max_ticks - 1:
+		timer.queue_free()
+
+func _stop_credit_trickle_audio() -> void:
+	if credit_trickle_player != null:
+		credit_trickle_player.stop()
+
 func _on_credit_transfer_finished() -> void:
 	credit_transfer_active = false
+	_stop_credit_trickle_audio()
 	_set_credit_display_amount(credit_target_amount)
 	last_machine_credit_amount = credit_target_amount
 	_set_win_display_amount(0)
@@ -2880,8 +3277,12 @@ func _is_action_enabled(id: String) -> bool:
 	if id in ["reconnect_sync", "logout"] and access_token.is_empty():
 		return true
 	if access_token.is_empty(): return false
+	if id in ["reconnect_sync", "logout", "admin_toggle"]:
+		return true
+	if not _is_connection_live():
+		return false
 	if _has_pending_command() and id not in ["menu", "reconnect_sync", "logout", "admin_toggle"]: return false
-	if id in ["reconnect_sync", "back_to_lobby", "logout", "admin_toggle"]: return true
+	if id in ["back_to_lobby"]: return true
 	if id == "bet" and (_can_switch_double_up_dealer() or _can_start_double_up_from_win()): return true
 	if id == "take_score" and store.can_press("cash_out"): return true
 	return store.can_press(id)
@@ -3359,6 +3760,7 @@ func _on_command_timeout() -> void:
 		return
 	var timed_out_type: String = pending_command_type
 	_clear_action_lock()
+	_enter_connection_state(ConnectionState.RECOVERY_REQUIRED)
 	store.enter_recovery("Timed out waiting for %s response. Applying fresh snapshot." % timed_out_type)
 	_refresh_ui()
 	_request_snapshot()

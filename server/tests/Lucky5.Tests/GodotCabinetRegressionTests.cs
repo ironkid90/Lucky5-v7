@@ -304,8 +304,8 @@ public static class GodotCabinetRegressionTests
             failures,
             "Godot cabinet double-up must use one visible five-slot deck row with page carry and live shuffle/result after the dealer",
             rootScript.Contains("const AI9_CARD_ASPECT := 313.0 / 528.0", StringComparison.Ordinal)
-                && rootScript.Contains("const DU_BOARD_CARD_SIZE := Vector2(92, 155)", StringComparison.Ordinal)
-                && rootScript.Contains("const DU_TRAIL_CARD_SIZE := Vector2(122, 206)", StringComparison.Ordinal)
+                && rootScript.Contains("const DU_BOARD_CARD_SIZE := Vector2(104, 176)", StringComparison.Ordinal)
+                && rootScript.Contains("const DU_TRAIL_CARD_SIZE := Vector2(136, 230)", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_SWITCH_DURATION := 0.60", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_SHUFFLE_INTERVAL := 0.075", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_SHUFFLE_TICKS := 8", StringComparison.Ordinal)
@@ -314,8 +314,8 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 0.90", StringComparison.Ordinal)
                 && rootScript.Contains("var card_area_panel: Panel", StringComparison.Ordinal)
                 && rootScript.Contains("var card_center: CenterContainer", StringComparison.Ordinal)
-                && rootScript.Contains("const CARD_AREA_MIN_HEIGHT := 248", StringComparison.Ordinal)
-                && rootScript.Contains("const CARD_SIZE := Vector2(122, 206)", StringComparison.Ordinal)
+                && rootScript.Contains("const CARD_AREA_MIN_HEIGHT := 280", StringComparison.Ordinal)
+                && rootScript.Contains("const CARD_SIZE := Vector2(136, 230)", StringComparison.Ordinal)
                 && rootScript.Contains("tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED", StringComparison.Ordinal)
                 && rootScript.Contains("card_area_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL", StringComparison.Ordinal)
                 && rootScript.Contains("card_center.name = \"CardAreaCenter\"", StringComparison.Ordinal)

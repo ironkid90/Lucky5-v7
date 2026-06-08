@@ -799,7 +799,6 @@ server.registerResourceList(async () => {
   const documents = await getAvailableDocuments();
   return {
     resources: documents.map(doc => ({
-      uri: `file://documents/${doc.name}`,
       uri: `file:///documents/${doc.name}`,
       name: doc.name,
       mimeType: "text/plain",

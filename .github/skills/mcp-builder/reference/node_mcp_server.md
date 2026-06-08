@@ -769,7 +769,7 @@ import { ResourceTemplate } from "@modelcontextprotocol/sdk/types.js";
 // Register a resource with URI template
 server.registerResource(
   {
-    uri: "file://documents/{name}",
+    uri: "file:///documents/{name}",
     name: "Document Resource",
     description: "Access documents by name",
     mimeType: "text/plain"
@@ -800,6 +800,7 @@ server.registerResourceList(async () => {
   return {
     resources: documents.map(doc => ({
       uri: `file://documents/${doc.name}`,
+      uri: `file:///documents/${doc.name}`,
       name: doc.name,
       mimeType: "text/plain",
       description: doc.description

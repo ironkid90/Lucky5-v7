@@ -72,8 +72,8 @@ const DU_BOARD_CARD_SIZE := Vector2(104, 176)
 const DU_TRAIL_CARD_SIZE := Vector2(136, 230)
 const BONUS_COIN_SIZE := Vector2(28, 28)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
-const DU_SHUFFLE_INTERVAL := 0.075
-const DU_SHUFFLE_TICKS := 8
+const DU_SHUFFLE_INTERVAL := 0.05
+const DU_SHUFFLE_TICKS := 4
 const DU_SHUFFLE_CODES := ["AS", "KH", "QD", "JC", "10S", "9H", "8D", "7C"]
 const DU_REVEAL_SETTLE_SECONDS := 0.90
 const DU_END_HOLD_SECONDS := 0.90
@@ -709,10 +709,6 @@ func _build_ui() -> void:
 	content.add_theme_constant_override("separation", 4)
 	margin.add_child(content)
 
-	title_label = _make_label("", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
-	title_label.visible = false
-	content.add_child(title_label)
-
 	_build_paytable(content)
 
 	lucky5_banner = _make_label("", 12, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
@@ -1026,7 +1022,7 @@ func _build_paytable(parent: Node) -> void:
 	paytable_amount_colors.clear()
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(0, 156)
+	panel.custom_minimum_size = Vector2(0, 138)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var ps := StyleBoxFlat.new()
 	ps.bg_color = Color(0.078, 0.039, 0.016, 0.8)
@@ -1066,7 +1062,7 @@ func _build_paytable(parent: Node) -> void:
 	]
 	for hand in hands:
 		var row_panel := PanelContainer.new()
-		row_panel.custom_minimum_size = Vector2(0, 15)
+		row_panel.custom_minimum_size = Vector2(0, 13)
 		var rps := StyleBoxFlat.new()
 		rps.bg_color = Color(0, 0, 0, 0)
 		rps.border_color = Color(0, 0, 0, 0)
@@ -1078,12 +1074,12 @@ func _build_paytable(parent: Node) -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		row_panel.add_child(row)
-		var name_l := _make_label(hand[1], 12, hand[3])
+		var name_l := _make_label(hand[1], 11, hand[3])
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_l.clip_text = true
 		row.add_child(name_l)
-		var amount_l := _make_label("0", 12, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
-		amount_l.custom_minimum_size = Vector2(98, 0)
+		var amount_l := _make_label("0", 11, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
+		amount_l.custom_minimum_size = Vector2(90, 0)
 		row.add_child(amount_l)
 		paytable_rows[str(hand[0])] = row_panel
 		paytable_amount_labels[str(hand[0])] = amount_l
@@ -1094,9 +1090,9 @@ func _build_paytable(parent: Node) -> void:
 	var fh_rank_row := HBoxContainer.new()
 	fh_rank_row.add_theme_constant_override("separation", 4)
 	pbox.add_child(fh_rank_row)
-	full_house_rank_label = _make_label(_full_house_rank_text(), 12, Color(0.498, 0.843, 1.0))
+	full_house_rank_label = _make_label(_full_house_rank_text(), 11, Color(0.498, 0.843, 1.0))
 	fh_rank_row.add_child(full_house_rank_label)
-	full_house_jackpot_label = _make_label("0", 12, Color(0.498, 0.843, 1.0), HORIZONTAL_ALIGNMENT_RIGHT)
+	full_house_jackpot_label = _make_label("0", 11, Color(0.498, 0.843, 1.0), HORIZONTAL_ALIGNMENT_RIGHT)
 	full_house_jackpot_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	fh_rank_row.add_child(full_house_jackpot_label)
 	jackpot_counters["fh"] = full_house_jackpot_label
@@ -1109,23 +1105,23 @@ func _build_credit_stake_column(parent: Node) -> void:
 	column.alignment = BoxContainer.ALIGNMENT_BEGIN
 	parent.add_child(column)
 
-	credit_label = _make_label("CREDIT", 12, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
+	credit_label = _make_label("CREDIT", 11, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
 	credit_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_label)
 
-	credit_value_label = _make_label("0", 18, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
+	credit_value_label = _make_label("0", 16, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
 	credit_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_value_label)
 
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 8)
+	spacer.custom_minimum_size = Vector2(0, 4)
 	column.add_child(spacer)
 
-	var stake_caption := _make_label("STAKE", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	var stake_caption := _make_label("STAKE", 11, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 	stake_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(stake_caption)
 
-	stake_value_label = _make_label("0", 18, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	stake_value_label = _make_label("0", 16, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 	stake_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(stake_value_label)
 
@@ -1777,7 +1773,8 @@ func _apply_snapshot(next_snapshot: Dictionary) -> void:
 # ─── UI refresh ───
 func _refresh_ui() -> void:
 	_refresh_auth_panel()
-	title_label.text = ""
+	if title_label != null:
+		title_label.text = ""
 	_refresh_credit_display()
 	var game_state := store.game_state()
 	message_label.text = store.message()
@@ -2607,24 +2604,22 @@ func _start_du_card_shuffle(new_dealer_code: String, new_player_code: String) ->
 func _start_du_dealer_replace_shuffle(new_dealer_code: String) -> void:
 	if du_dealer_rect == null or du_challenger_rect == null:
 		return
-	du_shuffle_target_dealer = new_dealer_code
-	du_shuffle_target_challenger = ""
-	du_shuffle_replace_dealer_only = true
-	du_shuffle_ticks_remaining = DU_SHUFFLE_TICKS
-	du_shuffle_index = 0
+	if du_shuffle_timer != null:
+		du_shuffle_timer.stop()
+	du_shuffle_replace_dealer_only = false
 	if du_dealer_label != null:
 		du_dealer_label.text = "DEALER"
 		du_dealer_label.add_theme_color_override("font_color", COLOR_BLUE)
 	if du_challenger_label != null:
 		du_challenger_label.text = "BIG / SMALL ?"
 		du_challenger_label.add_theme_color_override("font_color", COLOR_GOLD)
+	_set_du_card_texture(du_dealer_rect, new_dealer_code)
+	du_dealer_rect.scale = Vector2(0.90, 0.90)
+	var tw := create_tween()
+	tw.tween_property(du_dealer_rect, "scale", Vector2(1.0, 1.0), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	du_challenger_rect.texture = _card_back_texture(false)
 	du_challenger_rect.modulate = Color(1, 1, 1, 1.0)
-	du_challenger_rect.scale = Vector2(0.92, 0.92)
-	du_dealer_rect.modulate = Color(1, 1, 1, 1)
-	_process_du_shuffle()
-	if du_shuffle_timer != null and du_shuffle_timer.is_stopped():
-		du_shuffle_timer.start()
+	du_challenger_rect.scale = Vector2(1.0, 1.0)
 
 func _process_du_shuffle() -> void:
 	var code: String = DU_SHUFFLE_CODES[du_shuffle_index % DU_SHUFFLE_CODES.size()]

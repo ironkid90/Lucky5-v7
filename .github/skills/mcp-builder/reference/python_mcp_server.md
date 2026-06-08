@@ -529,7 +529,7 @@ async def interactive_tool(resource_id: str, ctx: Context) -> str:
 Expose data as resources for efficient, template-based access:
 
 ```python
-@mcp.resource("file:///documents/{name}")
+@mcp.resource("file://documents/{name}")
 async def get_document(name: str) -> str:
     '''Expose documents as MCP resources.
 

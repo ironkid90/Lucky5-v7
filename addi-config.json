@@ -36,10 +36,10 @@
 				},
 				{
 					"id": "6f9d2f1b-02c9-4ee2-9e3d-11bf1c7809a5",
-					"rid": "claude-opus-4.8",
-					"name": "claude-opus-4.8",
+					"rid": "claude-opus-4",
+					"name": "claude-opus-4",
 					"family": "claude-opus",
-					"version": "4.8",
+					"version": "4",
 					"maxInputTokens": 131072,
 					"maxOutputTokens": 32768,
 					"capabilities": {

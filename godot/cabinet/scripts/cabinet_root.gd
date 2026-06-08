@@ -171,6 +171,8 @@ var paytable_amount_colors: Dictionary = {}
 var full_house_rank_label: Label
 var full_house_jackpot_label: Label
 var credit_label: Label
+var credit_value_label: Label
+var stake_value_label: Label
 var jackpot_counters: Dictionary = {}
 var jackpot_counter_panels: Dictionary = {}
 var message_label: Label
@@ -1038,9 +1040,19 @@ func _build_paytable(parent: Node) -> void:
 	panel.add_theme_stylebox_override("panel", ps)
 	parent.add_child(panel)
 
+	# ── ai9 layout: paytable column on the left, CREDIT / STAKE column on the right ──
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 10)
+	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.add_child(columns)
+
 	var pbox := VBoxContainer.new()
 	pbox.add_theme_constant_override("separation", 1)
-	panel.add_child(pbox)
+	pbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pbox.size_flags_stretch_ratio = 1.7
+	columns.add_child(pbox)
+
+	_build_credit_stake_column(columns)
 
 	var hands := [
 		["RoyalFlush", "ROYAL FLUSH", 1000, Color(1.0, 0.847, 0.302)],
@@ -1089,17 +1101,37 @@ func _build_paytable(parent: Node) -> void:
 	fh_rank_row.add_child(full_house_jackpot_label)
 	jackpot_counters["fh"] = full_house_jackpot_label
 
-func _build_credit_bar(parent: Node) -> void:
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 8)
-	parent.add_child(bar)
+func _build_credit_stake_column(parent: Node) -> void:
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 0)
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.size_flags_stretch_ratio = 1.0
+	column.alignment = BoxContainer.ALIGNMENT_BEGIN
+	parent.add_child(column)
 
-	credit_label = _make_label("", 12, COLOR_GREEN)
-	bar.add_child(credit_label)
+	credit_label = _make_label("CREDIT", 12, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
+	credit_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(credit_label)
+
+	credit_value_label = _make_label("0", 18, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
+	credit_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(credit_value_label)
 
 	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.add_child(spacer)
+	spacer.custom_minimum_size = Vector2(0, 8)
+	column.add_child(spacer)
+
+	var stake_caption := _make_label("STAKE", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	stake_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(stake_caption)
+
+	stake_value_label = _make_label("0", 18, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	stake_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(stake_value_label)
+
+func _build_credit_bar(_parent: Node) -> void:
+	# Credit / stake are rendered inside the paytable header column (ai9 layout).
+	pass
 
 func _build_card_area(parent: Node) -> void:
 	card_area_panel = Panel.new()
@@ -1125,11 +1157,15 @@ func _build_card_area(parent: Node) -> void:
 	card_container.add_theme_constant_override("separation", CARD_GAP)
 	card_center.add_child(card_container)
 
-	idle_title_label = _make_label(IDLE_TITLE_TEXT, 42, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
+	idle_title_label = _make_label(IDLE_TITLE_TEXT, 56, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
 	idle_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	idle_title_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	idle_title_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
-	idle_title_label.add_theme_constant_override("shadow_outline_size", 4)
+	idle_title_label.add_theme_color_override("font_color", Color(0.298, 0.792, 1.0))
+	idle_title_label.add_theme_color_override("font_shadow_color", Color(0.02, 0.20, 0.36, 0.95))
+	idle_title_label.add_theme_constant_override("shadow_offset_x", 0)
+	idle_title_label.add_theme_constant_override("shadow_offset_y", 4)
+	idle_title_label.add_theme_constant_override("shadow_outline_size", 6)
+	idle_title_label.add_theme_constant_override("line_spacing", 8)
 	idle_title_label.visible = false
 	card_area_panel.add_child(idle_title_label)
 
@@ -1867,8 +1903,10 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 
 	var is_blank_idle := game_state == "idle" and not du_active and cards.is_empty()
 	_sync_idle_fh_timer(is_blank_idle)
-	var show_idle_title := false
-	var show_idle_rank_card := game_state == "idle" and not du_active and cards.is_empty()
+	# ai9 attract: show the big LUCKY5 POKER logo over the empty board while idle,
+	# until the 60s timer reveals the full-house rank card easter egg.
+	var show_idle_title := is_blank_idle and not idle_fh_rank_revealed
+	var show_idle_rank_card := game_state == "idle" and not du_active and cards.is_empty() and not show_idle_title
 	if idle_title_label != null:
 		idle_title_label.visible = show_idle_title and not du_active
 	if card_container != null:
@@ -2810,6 +2848,27 @@ func _full_house_rank_card_code() -> String:
 		10: return "10S"
 		_: return str(max(2, rank_value)) + "S" if rank_value > 0 else "AS"
 
+func _four_kind_rank_card_code() -> String:
+	var cards := store.result_cards()
+	if cards.is_empty():
+		cards = store.cards()
+	var rank_counts: Dictionary = {}
+	var rank_sample: Dictionary = {}
+	for entry in cards:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var code := str((entry as Dictionary).get("code", ""))
+		if code.length() < 2:
+			continue
+		var rank := code.substr(0, code.length() - 1)
+		rank_counts[rank] = int(rank_counts.get(rank, 0)) + 1
+		if not rank_sample.has(rank):
+			rank_sample[rank] = code
+	for rank in rank_counts.keys():
+		if int(rank_counts[rank]) >= 4:
+			return str(rank_sample[rank])
+	return "AS"
+
 func _refresh_paytable_values() -> void:
 	if full_house_jackpot_label == null or full_house_rank_label == null: return
 	var stake: int = max(0, store.stake())
@@ -2878,7 +2937,9 @@ func _refresh_machine_info() -> void:
 		bonus_message_label.visible = true
 
 func _refresh_credit_display() -> void:
-	if credit_label == null:
+	if stake_value_label != null:
+		stake_value_label.text = _format_amount(max(0, store.stake()))
+	if credit_value_label == null:
 		return
 	var machine_credits := store.machine_credits()
 	if displayed_machine_credit_amount < 0:
@@ -2911,7 +2972,7 @@ func _refresh_credit_display() -> void:
 	last_machine_credit_amount = machine_credits
 
 func _credit_line_for_amount(machine_credit_amount: int) -> String:
-	return "CREDIT %s" % _format_amount(machine_credit_amount)
+	return _format_amount(machine_credit_amount)
 
 func _menu_balance_line() -> String:
 	return "CREDIT %s\nWALLET %s\nBONUS %s\nSTAKE %s\nIN %s" % [
@@ -2929,9 +2990,9 @@ func _refresh_menu_balance() -> void:
 
 func _set_credit_display_amount(value: Variant) -> void:
 	displayed_machine_credit_amount = max(0, int(round(float(value))))
-	if credit_label == null:
+	if credit_value_label == null:
 		return
-	credit_label.text = _credit_line_for_amount(displayed_machine_credit_amount)
+	credit_value_label.text = _credit_line_for_amount(displayed_machine_credit_amount)
 
 func _current_jackpot_win_amount() -> int:
 	var eval: Dictionary = _evaluation_data()
@@ -3010,14 +3071,15 @@ func _on_credit_transfer_finished() -> void:
 	_pulse_credit_display()
 
 func _pulse_credit_display() -> void:
-	if credit_label == null:
+	var pulse_target: Label = credit_value_label if credit_value_label != null else credit_label
+	if pulse_target == null:
 		return
 	if credit_pulse_tween != null and credit_pulse_tween.is_valid():
 		credit_pulse_tween.kill()
-	credit_label.pivot_offset = credit_label.size * 0.5
-	credit_label.scale = Vector2(1.05, 1.05)
+	pulse_target.pivot_offset = pulse_target.size * 0.5
+	pulse_target.scale = Vector2(1.05, 1.05)
 	credit_pulse_tween = create_tween()
-	credit_pulse_tween.tween_property(credit_label, "scale", Vector2(1.0, 1.0), 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	credit_pulse_tween.tween_property(pulse_target, "scale", Vector2(1.0, 1.0), 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 func _refresh_win_display() -> void:
 	if credit_transfer_active:

@@ -535,6 +535,13 @@ public static class GodotCabinetRegressionTests
                 && !rootScript.Contains("_build_menu_panel(content)", StringComparison.Ordinal)
                 && !rootScript.Contains("[\"swap_double_up_card\", \"SWAP\\nCARD\"", StringComparison.Ordinal));
 
+        AssertDetail(failures, "control deck", "hold_buttons", rootScript.Contains("var hold_buttons: Array = []", StringComparison.Ordinal));
+        AssertDetail(failures, "control deck", "menu_balance_label", rootScript.Contains("menu_balance_label = _make_label(\"\", 11, COLOR_GREEN, HORIZONTAL_ALIGNMENT_CENTER)", StringComparison.Ordinal));
+        AssertDetail(failures, "control deck", "du_shuffle_replace_dealer_only=false", rootScript.Contains("du_shuffle_replace_dealer_only = false", StringComparison.Ordinal));
+        AssertDetail(failures, "control deck", "set_du_card_texture_dealer_new", rootScript.Contains("_set_du_card_texture(du_dealer_rect, new_dealer_code)", StringComparison.Ordinal));
+        AssertDetail(failures, "control deck", "store_swap_mapping", storeScript.Contains("\"swap_double_up_card\": \"double_up_switch\"", StringComparison.Ordinal));
+        AssertDetail(failures, "control deck", "game_service_du_switch", gameService.Contains("\"big\", \"small\", \"double_up_switch\", \"take_half\"", StringComparison.Ordinal));
+
         Assert(
             failures,
             "Godot cabinet control deck must render as a warm wood-grain arcade surface with beveled physical button depth",
@@ -779,6 +786,15 @@ public static class GodotCabinetRegressionTests
         if (!condition)
         {
             failures.Add(message);
+            Console.WriteLine($"FAIL: {message}");
+        }
+    }
+
+    private static void AssertDetail(List<string> failures, string message, string detail, bool condition)
+    {
+        if (!condition)
+        {
+            Console.WriteLine($"  SUB-FAIL: {detail}");
         }
     }
 

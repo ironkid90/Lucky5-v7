@@ -53,6 +53,25 @@ dotnet publish server/src/Lucky5.Api/Lucky5.Api.csproj -c Release -o publish
 cd publish && dotnet Lucky5.Api.dll
 ```
 
+## Web / Netlify
+
+- `src/web/app/page.tsx` now treats the exported Godot cabinet as the primary web
+  surface. When `src/web/public/godot-cabinet/index.html` exists, `/` loads the
+  Godot cabinet; otherwise the React cabinet remains as the fallback shell.
+- Regenerate the shared web export locally with:
+
+```powershell
+cd src/web
+npm run godot:export
+```
+
+- Netlify auto-deploy is wired through the root `netlify.toml` with `src/web`
+  as the base directory.
+- Copy `src/web/.env.example` to a local `.env` for local hosted-shell testing,
+  and set the same values in Netlify site settings for CI builds:
+  - `LUCKY5_API_ORIGIN` = the deployed Lucky5 API origin
+  - `NEXT_PUBLIC_API_BASE` = leave blank to use the same-origin Next rewrites
+
 ## Repository Structure
 
 ```

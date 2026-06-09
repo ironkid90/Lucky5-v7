@@ -106,6 +106,32 @@ export interface DoubleUpResult {
   noise?: PresentationNoise | null;
 }
 
+export interface ActiveRoundDoubleUpState {
+  dealerCard: PokerCard;
+  currentAmount: number;
+  switchesRemaining: number;
+  isNoLoseActive: boolean;
+  luckyMultiplier: number;
+  currentRoundIndex: number;
+  cardTrail?: PokerCard[] | null;
+  isLucky5Active: boolean;
+}
+
+export interface ActiveRoundState {
+  roundId: string;
+  machineId: number;
+  betAmount: number;
+  phase: string;
+  handRank: string;
+  cards: PokerCard[];
+  resultCards: PokerCard[];
+  heldIndexes: number[];
+  pendingWinAmount: number;
+  doubleUpAvailable: boolean;
+  takeHalfUsed: boolean;
+  doubleUpSession?: ActiveRoundDoubleUpState | null;
+}
+
 export interface MachineListing {
   id: number;
   name: string;
@@ -281,6 +307,27 @@ export interface CabinetDevice {
   revokedByAdminId?: string | null;
   revocationReason: string;
   activeSessionCount: number;
+}
+
+export interface CabinetDeviceProvisioning {
+  device: CabinetDevice;
+  deviceSecret: string;
+}
+
+export interface AdminAuditEntry {
+  id: string;
+  sequenceNumber: number;
+  createdUtc: string;
+  actorUserId: string;
+  actorRole: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  machineId?: number | null;
+  cabinetDeviceId?: string | null;
+  outcome: string;
+  reason: string;
+  metadata: Record<string, string>;
 }
 
 export interface AdminMachineDetail {

@@ -1,10 +1,14 @@
 import type {
+  ActiveRoundState,
+  AdminAuditEntry,
   AdminDashboard,
   AdminMachine,
   AdminMachineDetail,
   AdminUser,
   AdminUserDetail,
   AgentInfo,
+  CabinetDevice,
+  CabinetDeviceProvisioning,
   DealResult,
   DefaultRules,
   DoubleUpResult,
@@ -121,6 +125,29 @@ export async function setAdminMachineDoorState(machineId: number, doorState: 0 |
   return apiFetch<number>("POST", `/api/Admin/machines/${machineId}/door-state`, token, { doorState });
 }
 
+export async function listAdminAudit(token: string, take = 25): Promise<AdminAuditEntry[]> {
+  return apiFetch<AdminAuditEntry[]>("GET", `/api/Admin/audit?take=${take}`, token);
+}
+
+export async function listCabinetDevices(token: string): Promise<CabinetDevice[]> {
+  return apiFetch<CabinetDevice[]>("GET", "/api/Admin/cabinet-devices", token);
+}
+
+export async function provisionCabinetDevice(
+  request: { machineId: number; displayName: string; serialNumber: string },
+  token: string,
+): Promise<CabinetDeviceProvisioning> {
+  return apiFetch<CabinetDeviceProvisioning>("POST", "/api/Admin/cabinet-devices", token, request);
+}
+
+export async function revokeCabinetDevice(
+  deviceId: string,
+  reason: string,
+  token: string,
+): Promise<CabinetDevice> {
+  return apiFetch<CabinetDevice>("POST", `/api/Admin/cabinet-devices/${deviceId}/revoke`, token, { reason });
+}
+
 export async function listAgents(token: string): Promise<AgentInfo[]> {
   return apiFetch<AgentInfo[]>("GET", "/api/Agent", token);
 }
@@ -156,6 +183,10 @@ export async function getMachineState(machineId: number, token: string): Promise
 
 export async function getMachineSession(machineId: number, token: string): Promise<MachineSession> {
   return apiFetch<MachineSession>("GET", `/api/Game/machine/${machineId}/session`, token);
+}
+
+export async function getActiveRound(machineId: number, token: string): Promise<ActiveRoundState | null> {
+  return apiFetch<ActiveRoundState | null>("GET", `/api/Game/machine/${machineId}/active-round`, token);
 }
 
 export async function cashInMachine(machineId: number, amount: number, token: string): Promise<MachineSession> {

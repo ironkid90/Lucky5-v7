@@ -837,6 +837,23 @@ select {
   grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
+.admin-audit-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.admin-audit-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.admin-audit-meta span {
+  color: #d7f4ff;
+  font-size: 0.42rem;
+}
+
 .diagnostic-card {
   padding: 10px;
   border-radius: 12px;
@@ -1192,7 +1209,7 @@ select {
 
 .playing-card-apk.revealing {
   transform-origin: center top;
-  animation: apk-card-reveal 260ms cubic-bezier(0.19, 1, 0.22, 1);
+  animation: apk-card-reveal 180ms cubic-bezier(0.19, 1, 0.22, 1);
 }
 
 .playing-card-apk.shuffling {
@@ -1203,7 +1220,7 @@ select {
 }
 
 .playing-card-apk.shuffling .card-img {
-  animation: apk-du-card-shuffle 320ms steps(2, end) infinite;
+  animation: apk-du-card-shuffle 180ms steps(2, end) infinite;
 }
 
 .playing-card-apk.shuffling::after {
@@ -1221,7 +1238,7 @@ select {
   mix-blend-mode: screen;
   pointer-events: none;
   transform: translateX(-45%) rotate(16deg);
-  animation: apk-du-shuffle-scan 520ms linear infinite;
+  animation: apk-du-shuffle-scan 360ms linear infinite;
 }
 
 @keyframes apk-card-reveal {
@@ -1743,6 +1760,10 @@ select {
 
 .admin-tool-grid-compact {
   grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.admin-tool-grid-secret {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .admin-tool-grid input {

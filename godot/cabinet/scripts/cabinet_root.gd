@@ -52,25 +52,25 @@ const CABINET_SHUFFLE_TICK := "audio/shuffle_tick.mp3"
 const CABINET_CREDIT_TRICKLE := "audio/credit_trickle.mp3"
 const BUTTON_ASSET_FONT_SIZE := 13
 
-const CARD_AREA_MIN_HEIGHT := 280
+const CARD_AREA_MIN_HEIGHT := 300
 # AI9 fronts are 313x528; keep slot boxes on that portrait ratio so cards stay crisp.
 const AI9_CARD_ASPECT := 313.0 / 528.0
-const CARD_SIZE := Vector2(136, 230)
-const CARD_SMALL_SIZE := Vector2(66, 111)
-const CARD_GAP := 6
-const CONTROL_DECK_MIN_HEIGHT := 324
-const CONTROL_HOLD_BUTTON_HEIGHT := 70
-const CONTROL_ACTION_BUTTON_HEIGHT := 80
-const CONTROL_BOTTOM_BUTTON_HEIGHT := 72
+const CARD_SIZE := Vector2(150, 254)
+const CARD_SMALL_SIZE := Vector2(70, 118)
+const CARD_GAP := 8
+const CONTROL_DECK_MIN_HEIGHT := 340
+const CONTROL_HOLD_BUTTON_HEIGHT := 76
+const CONTROL_ACTION_BUTTON_HEIGHT := 86
+const CONTROL_BOTTOM_BUTTON_HEIGHT := 78
 const DEAL_DURATION := 0.12
 const DEAL_STAGGER := 0.10
 const DRAW_OUT_DURATION := 0.08
 const DRAW_IN_DURATION := 0.12
 const DRAW_STAGGER := 0.10
 const DU_SWITCH_DURATION := 0.40
-const DU_BOARD_CARD_SIZE := Vector2(104, 176)
-const DU_TRAIL_CARD_SIZE := Vector2(136, 230)
-const BONUS_COIN_SIZE := Vector2(28, 28)
+const DU_BOARD_CARD_SIZE := Vector2(116, 196)
+const DU_TRAIL_CARD_SIZE := Vector2(150, 254)
+const BONUS_COIN_SIZE := Vector2(32, 32)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
 const DU_SHUFFLE_INTERVAL := 0.08
 const DU_SHUFFLE_TICKS := 4
@@ -1022,7 +1022,7 @@ func _build_paytable(parent: Node) -> void:
 	paytable_amount_colors.clear()
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(0, 138)
+	panel.custom_minimum_size = Vector2(0, 162)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var ps := StyleBoxFlat.new()
 	ps.bg_color = Color(0.078, 0.039, 0.016, 0.8)
@@ -1031,8 +1031,8 @@ func _build_paytable(parent: Node) -> void:
 	ps.border_width_top = 1; ps.border_width_bottom = 1
 	ps.corner_radius_top_left = 6; ps.corner_radius_top_right = 6
 	ps.corner_radius_bottom_left = 6; ps.corner_radius_bottom_right = 6
-	ps.content_margin_left = 4; ps.content_margin_right = 4
-	ps.content_margin_top = 3; ps.content_margin_bottom = 3
+	ps.content_margin_left = 6; ps.content_margin_right = 6
+	ps.content_margin_top = 4; ps.content_margin_bottom = 4
 	panel.add_theme_stylebox_override("panel", ps)
 	parent.add_child(panel)
 
@@ -1043,7 +1043,7 @@ func _build_paytable(parent: Node) -> void:
 	panel.add_child(columns)
 
 	var pbox := VBoxContainer.new()
-	pbox.add_theme_constant_override("separation", 1)
+	pbox.add_theme_constant_override("separation", 2)
 	pbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pbox.size_flags_stretch_ratio = 1.7
 	columns.add_child(pbox)
@@ -1062,24 +1062,24 @@ func _build_paytable(parent: Node) -> void:
 	]
 	for hand in hands:
 		var row_panel := PanelContainer.new()
-		row_panel.custom_minimum_size = Vector2(0, 13)
+		row_panel.custom_minimum_size = Vector2(0, 16)
 		var rps := StyleBoxFlat.new()
 		rps.bg_color = Color(0, 0, 0, 0)
 		rps.border_color = Color(0, 0, 0, 0)
 		rps.border_width_left = 0; rps.border_width_right = 0
 		rps.border_width_top = 0; rps.border_width_bottom = 0
-		rps.content_margin_left = 2; rps.content_margin_right = 2
-		rps.content_margin_top = 0; rps.content_margin_bottom = 0
+		rps.content_margin_left = 3; rps.content_margin_right = 3
+		rps.content_margin_top = 1; rps.content_margin_bottom = 1
 		row_panel.add_theme_stylebox_override("panel", rps)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		row_panel.add_child(row)
-		var name_l := _make_label(hand[1], 11, hand[3])
+		var name_l := _make_label(hand[1], 13, hand[3])
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_l.clip_text = true
 		row.add_child(name_l)
-		var amount_l := _make_label("0", 11, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
-		amount_l.custom_minimum_size = Vector2(90, 0)
+		var amount_l := _make_label("0", 13, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
+		amount_l.custom_minimum_size = Vector2(110, 0)
 		row.add_child(amount_l)
 		paytable_rows[str(hand[0])] = row_panel
 		paytable_amount_labels[str(hand[0])] = amount_l
@@ -1090,9 +1090,9 @@ func _build_paytable(parent: Node) -> void:
 	var fh_rank_row := HBoxContainer.new()
 	fh_rank_row.add_theme_constant_override("separation", 4)
 	pbox.add_child(fh_rank_row)
-	full_house_rank_label = _make_label(_full_house_rank_text(), 11, COLOR_GOLD)
+	full_house_rank_label = _make_label(_full_house_rank_text(), 13, COLOR_GOLD)
 	fh_rank_row.add_child(full_house_rank_label)
-	full_house_jackpot_label = _make_label("0", 11, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	full_house_jackpot_label = _make_label("0", 13, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 	full_house_jackpot_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	fh_rank_row.add_child(full_house_jackpot_label)
 	jackpot_counters["fh"] = full_house_jackpot_label
@@ -1105,23 +1105,23 @@ func _build_credit_stake_column(parent: Node) -> void:
 	column.alignment = BoxContainer.ALIGNMENT_BEGIN
 	parent.add_child(column)
 
-	credit_label = _make_label("CREDIT", 11, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
+	credit_label = _make_label("CREDIT", 13, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
 	credit_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_label)
 
-	credit_value_label = _make_label("0", 16, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	credit_value_label = _make_label("0", 20, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	credit_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_value_label)
 
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 4)
+	spacer.custom_minimum_size = Vector2(0, 6)
 	column.add_child(spacer)
 
-	var stake_caption := _make_label("STAKE", 11, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	var stake_caption := _make_label("STAKE", 13, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 	stake_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(stake_caption)
 
-	stake_value_label = _make_label("0", 16, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	stake_value_label = _make_label("0", 20, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	stake_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(stake_value_label)
 
@@ -1153,7 +1153,7 @@ func _build_card_area(parent: Node) -> void:
 	card_container.add_theme_constant_override("separation", CARD_GAP)
 	card_center.add_child(card_container)
 
-	idle_title_label = _make_label(IDLE_TITLE_TEXT, 56, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
+	idle_title_label = _make_label(IDLE_TITLE_TEXT, 64, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
 	idle_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	idle_title_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	idle_title_label.add_theme_color_override("font_color", Color(0.298, 0.792, 1.0))
@@ -1181,7 +1181,7 @@ func _build_card_area(parent: Node) -> void:
 			tr.material = mat
 		slot.add_child(tr)
 
-		var hold_label := _make_label("", 10, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
+		var hold_label := _make_label("", 12, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
 		slot.add_child(hold_label)
 
 		var slot_state := {
@@ -1198,9 +1198,9 @@ func _build_card_area(parent: Node) -> void:
 	_build_du_deck_row(card_center)
 
 func _build_win_display(_parent: Node) -> void:
-	win_slot_label = _make_label("", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	win_slot_label = _make_label("", 14, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	win_slot_label.visible = false
-	win_amount_label = _make_label("", 22, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	win_amount_label = _make_label("", 26, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	win_amount_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
 	win_amount_label.add_theme_constant_override("shadow_offset_x", 2)
 	win_amount_label.add_theme_constant_override("shadow_offset_y", 2)
@@ -1209,7 +1209,7 @@ func _build_win_display(_parent: Node) -> void:
 
 func _build_machine_info(parent: Node) -> void:
 	var panel := Panel.new()
-	panel.custom_minimum_size = Vector2(0, 96)
+	panel.custom_minimum_size = Vector2(0, 110)
 	var ps := StyleBoxFlat.new()
 	ps.bg_color = Color(0.078, 0.039, 0.016, 0.5)
 	ps.border_color = COLOR_GOLD_DARK
@@ -1237,11 +1237,11 @@ func _build_machine_info(parent: Node) -> void:
 	hbox.add_theme_constant_override("separation", 14)
 	rows.add_child(hbox)
 
-	machine_serie_label = _make_label("SERIE 0", 11, COLOR_GREEN)
+	machine_serie_label = _make_label("SERIE 0", 13, COLOR_GREEN)
 	hbox.add_child(machine_serie_label)
-	machine_kent_label = _make_label("KENT /3 : 0", 11, COLOR_GREEN)
+	machine_kent_label = _make_label("KENT /3 : 0", 13, COLOR_GREEN)
 	hbox.add_child(machine_kent_label)
-	machine_serial_label = _make_label("S/N: 0", 11, COLOR_GREEN)
+	machine_serial_label = _make_label("S/N: 0", 13, COLOR_GREEN)
 	machine_serial_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	machine_serial_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hbox.add_child(machine_serial_label)

@@ -498,6 +498,7 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("_add_machine_info_segment(hbox, \"KENT /3\", \" . \", machine_kent_label, true)", StringComparison.Ordinal)
                 && rootScript.Contains("bonus_message_label = _make_label(\"4 OF A KIND   WINS BONUS\"", StringComparison.Ordinal)
                 && rootScript.Contains("bonus_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL", StringComparison.Ordinal)
+                && rootScript.Contains("machine_serie_label.text = str(_du_first_value(jackpots, [\"machine_serie\", \"machineSerie\", \"MachineSerie\"], machine.get(\"machine_serie\", \"0\")))", StringComparison.Ordinal)
                 && rootScript.Contains("machine_kent_label.text = str(_du_first_value(jackpots, [\"kent_streak\", \"kentStreak\", \"KentStreak\"], machine.get(\"machine_kent\", \"0\")))", StringComparison.Ordinal)
                 && rootScript.Contains("bonus_message_label.visible = true", StringComparison.Ordinal));
 
@@ -587,6 +588,7 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("if win_displayed_amount > 0 and str(key) == score_key:", StringComparison.Ordinal)
                 && rootScript.Contains("amount_l.text = \"+%s\" % _format_amount(win_displayed_amount)", StringComparison.Ordinal)
                 && rootScript.Contains("amount_l.text = _format_amount(stake * multiplier)", StringComparison.Ordinal)
+                && rootScript.Contains("if rank_value <= 0: return \"A\"", StringComparison.Ordinal)
                 && rootScript.Contains("full_house_rank_label.text = _full_house_rank_text()", StringComparison.Ordinal)
                 && rootScript.Contains("_refresh_jackpot_counter(\"fh\", store._to_int(_du_first_value(jp, [\"full_house\", \"fullHouse\", \"FullHouse\"], 0)))", StringComparison.Ordinal)
                 && rootScript.Contains("_refresh_paytable_values()", StringComparison.Ordinal)

@@ -2832,7 +2832,7 @@ func _full_house_rank_text() -> String:
 	var jp: Dictionary = _jackpot_data()
 	var rank: Variant = _du_first_value(jp, ["full_house_rank", "fullHouseRank", "FullHouseRank"], 0)
 	var rank_value: int = store._to_int(rank)
-	if rank_value <= 0: return "2"
+	if rank_value <= 0: return "A"
 	match rank_value:
 		14: return "A"
 		13: return "K"
@@ -2941,7 +2941,7 @@ func _refresh_paytable_highlights() -> void:
 func _refresh_machine_info() -> void:
 	var machine: Dictionary = store.snapshot.get("machine", {})
 	var jackpots := _jackpot_data()
-	machine_serie_label.text = str(machine.get("machine_serie", machine.get("name", "0")))
+	machine_serie_label.text = str(_du_first_value(jackpots, ["machine_serie", "machineSerie", "MachineSerie"], machine.get("machine_serie", "0")))
 	machine_serial_label.text = str(_du_first_value(jackpots, ["machine_serial", "machineSerial", "MachineSerial"], machine.get("machine_serial", "0")))
 	machine_kent_label.text = str(_du_first_value(jackpots, ["kent_streak", "kentStreak", "KentStreak"], machine.get("machine_kent", "0")))
 	if bonus_message_label != null:

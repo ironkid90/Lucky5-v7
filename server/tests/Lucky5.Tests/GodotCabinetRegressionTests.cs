@@ -246,11 +246,11 @@ public static class GodotCabinetRegressionTests
             failures,
             "Godot cabinet must reveal dealt cards and drawn replacements through sequential AI9Poker-style arcade card movement",
             rootScript.Contains("func _queue_card_reveal", StringComparison.Ordinal)
-                && rootScript.Contains("const DEAL_DURATION := 0.19", StringComparison.Ordinal)
-                && rootScript.Contains("const DEAL_STAGGER := 0.19", StringComparison.Ordinal)
-                && rootScript.Contains("const DRAW_OUT_DURATION := 0.10", StringComparison.Ordinal)
-                && rootScript.Contains("const DRAW_IN_DURATION := 0.15", StringComparison.Ordinal)
-                && rootScript.Contains("const DRAW_STAGGER := 0.15", StringComparison.Ordinal)
+                && rootScript.Contains("const DEAL_DURATION := 0.12", StringComparison.Ordinal)
+                && rootScript.Contains("const DEAL_STAGGER := 0.10", StringComparison.Ordinal)
+                && rootScript.Contains("const DRAW_OUT_DURATION := 0.08", StringComparison.Ordinal)
+                && rootScript.Contains("const DRAW_IN_DURATION := 0.12", StringComparison.Ordinal)
+                && rootScript.Contains("const DRAW_STAGGER := 0.10", StringComparison.Ordinal)
                 && rootScript.Contains("func _show_queued_card", StringComparison.Ordinal)
                 && rootScript.Contains("func _queue_card_draw_replacement", StringComparison.Ordinal)
                 && rootScript.Contains("func _should_draw_replace_card", StringComparison.Ordinal)
@@ -306,12 +306,12 @@ public static class GodotCabinetRegressionTests
             rootScript.Contains("const AI9_CARD_ASPECT := 313.0 / 528.0", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_BOARD_CARD_SIZE := Vector2(104, 176)", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_TRAIL_CARD_SIZE := Vector2(136, 230)", StringComparison.Ordinal)
-                && rootScript.Contains("const DU_SWITCH_DURATION := 0.60", StringComparison.Ordinal)
-                && rootScript.Contains("const DU_SHUFFLE_INTERVAL := 0.05", StringComparison.Ordinal)
+                && rootScript.Contains("const DU_SWITCH_DURATION := 0.40", StringComparison.Ordinal)
+                && rootScript.Contains("const DU_SHUFFLE_INTERVAL := 0.08", StringComparison.Ordinal)
                 && rootScript.Contains("const DU_SHUFFLE_TICKS := 4", StringComparison.Ordinal)
-                && rootScript.Contains("const DU_REVEAL_SETTLE_SECONDS := 0.90", StringComparison.Ordinal)
-                && rootScript.Contains("const DU_END_HOLD_SECONDS := 0.90", StringComparison.Ordinal)
-                && rootScript.Contains("const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 0.90", StringComparison.Ordinal)
+                && rootScript.Contains("const DU_REVEAL_SETTLE_SECONDS := 0.50", StringComparison.Ordinal)
+                && rootScript.Contains("const DU_END_HOLD_SECONDS := 0.50", StringComparison.Ordinal)
+                && rootScript.Contains("const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 1.00", StringComparison.Ordinal)
                 && rootScript.Contains("var card_area_panel: Panel", StringComparison.Ordinal)
                 && rootScript.Contains("var card_center: CenterContainer", StringComparison.Ordinal)
                 && rootScript.Contains("const CARD_AREA_MIN_HEIGHT := 280", StringComparison.Ordinal)
@@ -535,13 +535,6 @@ public static class GodotCabinetRegressionTests
                 && !rootScript.Contains("_build_menu_panel(content)", StringComparison.Ordinal)
                 && !rootScript.Contains("[\"swap_double_up_card\", \"SWAP\\nCARD\"", StringComparison.Ordinal));
 
-        AssertDetail(failures, "control deck", "hold_buttons", rootScript.Contains("var hold_buttons: Array = []", StringComparison.Ordinal));
-        AssertDetail(failures, "control deck", "menu_balance_label", rootScript.Contains("menu_balance_label = _make_label(\"\", 11, COLOR_GREEN, HORIZONTAL_ALIGNMENT_CENTER)", StringComparison.Ordinal));
-        AssertDetail(failures, "control deck", "du_shuffle_replace_dealer_only=false", rootScript.Contains("du_shuffle_replace_dealer_only = false", StringComparison.Ordinal));
-        AssertDetail(failures, "control deck", "set_du_card_texture_dealer_new", rootScript.Contains("_set_du_card_texture(du_dealer_rect, new_dealer_code)", StringComparison.Ordinal));
-        AssertDetail(failures, "control deck", "store_swap_mapping", storeScript.Contains("\"swap_double_up_card\": \"double_up_switch\"", StringComparison.Ordinal));
-        AssertDetail(failures, "control deck", "game_service_du_switch", gameService.Contains("\"big\", \"small\", \"double_up_switch\", \"take_half\"", StringComparison.Ordinal));
-
         Assert(
             failures,
             "Godot cabinet control deck must render as a warm wood-grain arcade surface with beveled physical button depth",
@@ -719,7 +712,7 @@ public static class GodotCabinetRegressionTests
             "Godot cabinet jackpot strip must expose exactly the three AI9Poker machine counters and frame the active 4K slot",
             rootScript.Contains("var jackpot_counter_panels: Dictionary = {}", StringComparison.Ordinal)
                 && rootScript.Contains("[\"*\", \"4k-a\", COLOR_GREEN_DIM]", StringComparison.Ordinal)
-                && rootScript.Contains("[\"SF\", \"sf\", COLOR_RED]", StringComparison.Ordinal)
+                && rootScript.Contains("[\"SF\", \"sf\", COLOR_GOLD]", StringComparison.Ordinal)
                 && rootScript.Contains("[\"*\", \"4k-b\", COLOR_GREEN_DIM]", StringComparison.Ordinal)
                 && !rootScript.Contains("[\"FH\", \"fh\"", StringComparison.Ordinal)
                 && rootScript.Contains("jackpot_counter_panels[str(slot[1])] = counter_panel", StringComparison.Ordinal)
@@ -786,15 +779,6 @@ public static class GodotCabinetRegressionTests
         if (!condition)
         {
             failures.Add(message);
-            Console.WriteLine($"FAIL: {message}");
-        }
-    }
-
-    private static void AssertDetail(List<string> failures, string message, string detail, bool condition)
-    {
-        if (!condition)
-        {
-            Console.WriteLine($"  SUB-FAIL: {detail}");
         }
     }
 

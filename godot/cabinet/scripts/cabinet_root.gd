@@ -62,22 +62,22 @@ const CONTROL_DECK_MIN_HEIGHT := 324
 const CONTROL_HOLD_BUTTON_HEIGHT := 70
 const CONTROL_ACTION_BUTTON_HEIGHT := 80
 const CONTROL_BOTTOM_BUTTON_HEIGHT := 72
-const DEAL_DURATION := 0.19
-const DEAL_STAGGER := 0.19
-const DRAW_OUT_DURATION := 0.10
-const DRAW_IN_DURATION := 0.15
-const DRAW_STAGGER := 0.15
-const DU_SWITCH_DURATION := 0.60
+const DEAL_DURATION := 0.12
+const DEAL_STAGGER := 0.10
+const DRAW_OUT_DURATION := 0.08
+const DRAW_IN_DURATION := 0.12
+const DRAW_STAGGER := 0.10
+const DU_SWITCH_DURATION := 0.40
 const DU_BOARD_CARD_SIZE := Vector2(104, 176)
 const DU_TRAIL_CARD_SIZE := Vector2(136, 230)
 const BONUS_COIN_SIZE := Vector2(28, 28)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
-const DU_SHUFFLE_INTERVAL := 0.05
+const DU_SHUFFLE_INTERVAL := 0.08
 const DU_SHUFFLE_TICKS := 4
 const DU_SHUFFLE_CODES := ["AS", "KH", "QD", "JC", "10S", "9H", "8D", "7C"]
-const DU_REVEAL_SETTLE_SECONDS := 0.90
-const DU_END_HOLD_SECONDS := 0.90
-const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 0.90
+const DU_REVEAL_SETTLE_SECONDS := 0.50
+const DU_END_HOLD_SECONDS := 0.50
+const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 1.00
 const IDLE_FH_CARD_DELAY_SECONDS := 60.0
 const IDLE_TITLE_TEXT := "LUCKY 5\nPOKER"
 const WIN_COUNTER_MIN_DURATION := 0.18
@@ -1051,14 +1051,14 @@ func _build_paytable(parent: Node) -> void:
 	_build_credit_stake_column(columns)
 
 	var hands := [
-		["RoyalFlush", "ROYAL FLUSH", 1000, Color(1.0, 0.847, 0.302)],
-		["StraightFlush", "STRAIGHT FLUSH", 75, Color(1.0, 0.4, 0.1)],
-		["FourOfAKind", "FOUR OF A KIND", 15, COLOR_GREEN_DIM],
-		["FullHouse", "FULL HOUSE", 12, Color(0.498, 0.843, 1.0)],
-		["Flush", "FLUSH", 10, Color(1.0, 0.4, 0.55)],
-		["Straight", "STRAIGHT", 8, Color(0.2, 1.0, 0.6)],
-		["ThreeOfAKind", "THREE OF A KIND", 3, COLOR_GOLD],
-		["TwoPair", "TWO PAIR", 2, Color(0.267, 0.867, 1.0)],
+		["RoyalFlush", "ROYAL FLUSH", 1000, Color(1.0, 0.90, 0.90)],
+		["StraightFlush", "STRAIGHT FLUSH", 75, COLOR_RED],
+		["FourOfAKind", "FOUR OF A KIND", 15, COLOR_BLUE],
+		["FullHouse", "FULL HOUSE", 12, COLOR_GOLD],
+		["Flush", "FLUSH", 10, COLOR_RED],
+		["Straight", "STRAIGHT", 8, COLOR_GREEN],
+		["ThreeOfAKind", "THREE OF A KIND", 3, COLOR_BLUE],
+		["TwoPair", "TWO PAIR", 2, COLOR_GOLD],
 	]
 	for hand in hands:
 		var row_panel := PanelContainer.new()
@@ -1090,9 +1090,9 @@ func _build_paytable(parent: Node) -> void:
 	var fh_rank_row := HBoxContainer.new()
 	fh_rank_row.add_theme_constant_override("separation", 4)
 	pbox.add_child(fh_rank_row)
-	full_house_rank_label = _make_label(_full_house_rank_text(), 11, Color(0.498, 0.843, 1.0))
+	full_house_rank_label = _make_label(_full_house_rank_text(), 11, COLOR_GOLD)
 	fh_rank_row.add_child(full_house_rank_label)
-	full_house_jackpot_label = _make_label("0", 11, Color(0.498, 0.843, 1.0), HORIZONTAL_ALIGNMENT_RIGHT)
+	full_house_jackpot_label = _make_label("0", 11, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 	full_house_jackpot_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	fh_rank_row.add_child(full_house_jackpot_label)
 	jackpot_counters["fh"] = full_house_jackpot_label
@@ -1109,7 +1109,7 @@ func _build_credit_stake_column(parent: Node) -> void:
 	credit_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_label)
 
-	credit_value_label = _make_label("0", 16, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
+	credit_value_label = _make_label("0", 16, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	credit_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_value_label)
 
@@ -1121,7 +1121,7 @@ func _build_credit_stake_column(parent: Node) -> void:
 	stake_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(stake_caption)
 
-	stake_value_label = _make_label("0", 16, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	stake_value_label = _make_label("0", 16, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	stake_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(stake_value_label)
 
@@ -1181,7 +1181,7 @@ func _build_card_area(parent: Node) -> void:
 			tr.material = mat
 		slot.add_child(tr)
 
-		var hold_label := _make_label("", 10, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+		var hold_label := _make_label("", 10, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
 		slot.add_child(hold_label)
 
 		var slot_state := {
@@ -1237,11 +1237,11 @@ func _build_machine_info(parent: Node) -> void:
 	hbox.add_theme_constant_override("separation", 14)
 	rows.add_child(hbox)
 
-	machine_serie_label = _make_label("SERIE 0", 11, COLOR_RED)
+	machine_serie_label = _make_label("SERIE 0", 11, COLOR_GREEN)
 	hbox.add_child(machine_serie_label)
 	machine_kent_label = _make_label("KENT /3 : 0", 11, COLOR_GREEN)
 	hbox.add_child(machine_kent_label)
-	machine_serial_label = _make_label("S/N: 0", 12, COLOR_BLUE)
+	machine_serial_label = _make_label("S/N: 0", 11, COLOR_GREEN)
 	machine_serial_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	machine_serial_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hbox.add_child(machine_serial_label)
@@ -1253,7 +1253,7 @@ func _build_machine_info(parent: Node) -> void:
 	rows.add_child(jp_row)
 
 	jackpot_counter_panels.clear()
-	for slot in [["*", "4k-a", COLOR_GREEN_DIM], ["SF", "sf", COLOR_RED], ["*", "4k-b", COLOR_GREEN_DIM]]:
+	for slot in [["*", "4k-a", COLOR_GREEN_DIM], ["SF", "sf", COLOR_GOLD], ["*", "4k-b", COLOR_GREEN_DIM]]:
 		var counter_panel := Panel.new()
 		counter_panel.custom_minimum_size = Vector2(150, 34)
 		var cps := StyleBoxFlat.new()
@@ -1266,7 +1266,7 @@ func _build_machine_info(parent: Node) -> void:
 		counter_panel.add_child(counter_box)
 		var tag := _make_label(slot[0], 10, slot[2], HORIZONTAL_ALIGNMENT_CENTER)
 		counter_box.add_child(tag)
-		var val := _make_label("0", 14, COLOR_RED, HORIZONTAL_ALIGNMENT_CENTER)
+		var val := _make_label("0", 14, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 		counter_box.add_child(val)
 		jackpot_counters[str(slot[1])] = val
 		jackpot_counter_panels[str(slot[1])] = counter_panel
@@ -2967,7 +2967,7 @@ func _refresh_credit_display() -> void:
 	last_machine_credit_amount = machine_credits
 
 func _credit_line_for_amount(machine_credit_amount: int) -> String:
-	return _format_amount(machine_credit_amount)
+	return "CREDIT %s" % _format_amount(machine_credit_amount)
 
 func _menu_balance_line() -> String:
 	return "CREDIT %s\nWALLET %s\nBONUS %s\nSTAKE %s\nIN %s" % [

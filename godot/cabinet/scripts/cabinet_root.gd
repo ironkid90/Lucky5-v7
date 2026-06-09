@@ -28,6 +28,14 @@ const COLOR_RED := Color(1.0, 0.2, 0.2, 1.0)
 const COLOR_BLUE := Color(0.267, 0.867, 1.0, 1.0)            # #44ddff
 const COLOR_WHITE := Color(0.95, 0.95, 0.95, 1.0)
 const COLOR_GREY := Color(0.4, 0.4, 0.4, 1.0)
+const COLOR_PAYTABLE_ROYAL := Color(1.0, 0.266, 0.266, 1.0)
+const COLOR_PAYTABLE_STRAIGHT_FLUSH := Color(1.0, 0.467, 0.0, 1.0)
+const COLOR_PAYTABLE_FOUR_KIND := Color(0.267, 1.0, 0.8, 1.0)
+const COLOR_PAYTABLE_FULL_HOUSE := Color(1.0, 1.0, 0.0, 1.0)
+const COLOR_PAYTABLE_FLUSH := Color(1.0, 0.4, 0.4, 1.0)
+const COLOR_PAYTABLE_STRAIGHT := Color(0.267, 1.0, 0.533, 1.0)
+const COLOR_PAYTABLE_THREE_KIND := Color(0.267, 0.867, 1.0, 1.0)
+const COLOR_PAYTABLE_TWO_PAIR := Color(0.867, 0.867, 0.667, 1.0)
 const COLOR_PANEL_BG := Color(0.196, 0.125, 0.051, 0.97)    # #32200d
 const COLOR_PANEL_BORDER := Color(0.651, 0.486, 0.078, 1.0)
 const COLOR_CONTROL_DECK := Color(0.290, 0.125, 0.034, 0.98)
@@ -58,10 +66,10 @@ const AI9_CARD_ASPECT := 313.0 / 528.0
 const CARD_SIZE := Vector2(150, 254)
 const CARD_SMALL_SIZE := Vector2(70, 118)
 const CARD_GAP := 8
-const CONTROL_DECK_MIN_HEIGHT := 340
-const CONTROL_HOLD_BUTTON_HEIGHT := 76
-const CONTROL_ACTION_BUTTON_HEIGHT := 86
-const CONTROL_BOTTOM_BUTTON_HEIGHT := 78
+const CONTROL_DECK_MIN_HEIGHT := 324
+const CONTROL_HOLD_BUTTON_HEIGHT := 70
+const CONTROL_ACTION_BUTTON_HEIGHT := 80
+const CONTROL_BOTTOM_BUTTON_HEIGHT := 72
 const DEAL_DURATION := 0.12
 const DEAL_STAGGER := 0.10
 const DRAW_OUT_DURATION := 0.08
@@ -70,7 +78,7 @@ const DRAW_STAGGER := 0.10
 const DU_SWITCH_DURATION := 0.40
 const DU_BOARD_CARD_SIZE := Vector2(116, 196)
 const DU_TRAIL_CARD_SIZE := Vector2(150, 254)
-const BONUS_COIN_SIZE := Vector2(32, 32)
+const BONUS_COIN_SIZE := Vector2(28, 28)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
 const DU_SHUFFLE_INTERVAL := 0.08
 const DU_SHUFFLE_TICKS := 4
@@ -1025,12 +1033,12 @@ func _build_paytable(parent: Node) -> void:
 	panel.custom_minimum_size = Vector2(0, 162)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var ps := StyleBoxFlat.new()
-	ps.bg_color = Color(0.078, 0.039, 0.016, 0.8)
-	ps.border_color = COLOR_GOLD_DARK
+	ps.bg_color = Color(0, 0, 0, 0.94)
+	ps.border_color = Color(1, 1, 1, 0.06)
 	ps.border_width_left = 1; ps.border_width_right = 1
 	ps.border_width_top = 1; ps.border_width_bottom = 1
-	ps.corner_radius_top_left = 6; ps.corner_radius_top_right = 6
-	ps.corner_radius_bottom_left = 6; ps.corner_radius_bottom_right = 6
+	ps.corner_radius_top_left = 2; ps.corner_radius_top_right = 2
+	ps.corner_radius_bottom_left = 2; ps.corner_radius_bottom_right = 2
 	ps.content_margin_left = 6; ps.content_margin_right = 6
 	ps.content_margin_top = 4; ps.content_margin_bottom = 4
 	panel.add_theme_stylebox_override("panel", ps)
@@ -1051,14 +1059,14 @@ func _build_paytable(parent: Node) -> void:
 	_build_credit_stake_column(columns)
 
 	var hands := [
-		["RoyalFlush", "ROYAL FLUSH", 1000, Color(1.0, 0.90, 0.90)],
-		["StraightFlush", "STRAIGHT FLUSH", 75, COLOR_RED],
-		["FourOfAKind", "FOUR OF A KIND", 15, COLOR_BLUE],
-		["FullHouse", "FULL HOUSE", 12, COLOR_GOLD],
-		["Flush", "FLUSH", 10, COLOR_RED],
-		["Straight", "STRAIGHT", 8, COLOR_GREEN],
-		["ThreeOfAKind", "THREE OF A KIND", 3, COLOR_BLUE],
-		["TwoPair", "TWO PAIR", 2, COLOR_GOLD],
+		["RoyalFlush", "ROYAL FLUSH", 1000, COLOR_PAYTABLE_ROYAL],
+		["StraightFlush", "STRAIGHT FLUSH", 75, COLOR_PAYTABLE_STRAIGHT_FLUSH],
+		["FourOfAKind", "4 OF A KIND", 15, COLOR_PAYTABLE_FOUR_KIND],
+		["FullHouse", "FULL HOUSE", 12, COLOR_PAYTABLE_FULL_HOUSE],
+		["Flush", "FLUSH", 10, COLOR_PAYTABLE_FLUSH],
+		["Straight", "STRAIGHT", 8, COLOR_PAYTABLE_STRAIGHT],
+		["ThreeOfAKind", "3 OF A KIND", 3, COLOR_PAYTABLE_THREE_KIND],
+		["TwoPair", "2 PAIR", 2, COLOR_PAYTABLE_TWO_PAIR],
 	]
 	for hand in hands:
 		var row_panel := PanelContainer.new()
@@ -1124,6 +1132,14 @@ func _build_credit_stake_column(parent: Node) -> void:
 	stake_value_label = _make_label("0", 20, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	stake_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(stake_value_label)
+
+func _add_machine_info_segment(row: HBoxContainer, title_text: String, separator_text: String, value_label: Label, expand := false) -> void:
+	row.add_child(_make_label(title_text, 13, COLOR_RED))
+	row.add_child(_make_label(separator_text, 13, COLOR_RED))
+	value_label.add_theme_color_override("font_color", COLOR_WHITE)
+	if expand:
+		value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(value_label)
 
 func _build_credit_bar(_parent: Node) -> void:
 	# Credit / stake are rendered inside the paytable header column (ai9 layout).
@@ -1211,12 +1227,12 @@ func _build_machine_info(parent: Node) -> void:
 	var panel := Panel.new()
 	panel.custom_minimum_size = Vector2(0, 110)
 	var ps := StyleBoxFlat.new()
-	ps.bg_color = Color(0.078, 0.039, 0.016, 0.5)
-	ps.border_color = COLOR_GOLD_DARK
+	ps.bg_color = Color(0, 0, 0, 0.94)
+	ps.border_color = Color(1, 1, 1, 0.06)
 	ps.border_width_left = 1; ps.border_width_right = 1
 	ps.border_width_top = 1; ps.border_width_bottom = 1
-	ps.corner_radius_top_left = 6; ps.corner_radius_top_right = 6
-	ps.corner_radius_bottom_left = 6; ps.corner_radius_bottom_right = 6
+	ps.corner_radius_top_left = 2; ps.corner_radius_top_right = 2
+	ps.corner_radius_bottom_left = 2; ps.corner_radius_bottom_right = 2
 	panel.add_theme_stylebox_override("panel", ps)
 	parent.add_child(panel)
 	machine_info_bg = panel
@@ -1234,17 +1250,16 @@ func _build_machine_info(parent: Node) -> void:
 	margin.add_child(rows)
 
 	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 14)
+	hbox.add_theme_constant_override("separation", 8)
 	rows.add_child(hbox)
 
-	machine_serie_label = _make_label("SERIE 0", 13, COLOR_GREEN)
-	hbox.add_child(machine_serie_label)
-	machine_kent_label = _make_label("KENT /3 : 0", 13, COLOR_GREEN)
-	hbox.add_child(machine_kent_label)
-	machine_serial_label = _make_label("S/N: 0", 13, COLOR_GREEN)
-	machine_serial_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	machine_serial_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	hbox.add_child(machine_serial_label)
+	machine_serie_label = _make_label("0", 13, COLOR_WHITE)
+	_add_machine_info_segment(hbox, "SERIE", " - ", machine_serie_label)
+	machine_serial_label = _make_label("0", 13, COLOR_WHITE)
+	_add_machine_info_segment(hbox, "S/N", " - ", machine_serial_label)
+	machine_kent_label = _make_label("0", 13, COLOR_WHITE)
+	_add_machine_info_segment(hbox, "KENT /3", " . ", machine_kent_label, true)
+	machine_kent_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	var jp_row := HBoxContainer.new()
 	jp_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1817,7 +1832,7 @@ func _refresh_ui() -> void:
 		var hold_button: Button = hold_buttons[index]
 		var held := held_indexes.has(index)
 		hold_button.disabled = not _is_action_enabled("hold_%d" % index)
-		hold_button.text = "HELD" if held else ("" if _button_uses_asset(hold_button) else ("FH" if fh_switch else "HOLD"))
+		hold_button.text = "HOLD" if held else ("" if _button_uses_asset(hold_button) else ("FH" if fh_switch else "HOLD"))
 
 	if diag_visible:
 		_refresh_diagnostics()
@@ -1933,7 +1948,7 @@ func _refresh_cards(game_state: String, du_active: bool) -> void:
 			var card: Dictionary = cards[index]
 			var code: String = card.get("code", "")
 			var held := held_indexes.has(index) or bool(card.get("held", false))
-			slot["hold_label"].text = "HELD" if held else ""
+			slot["hold_label"].text = "HOLD" if held else ""
 
 			if code.length() >= 2:
 				var previous_code: String = previous_codes[index] if index < previous_codes.size() else ""
@@ -2077,7 +2092,7 @@ func _show_queued_card(reveal: Dictionary) -> void:
 	rect.texture = reveal.get("texture", null)
 	slot["displayed_code"] = code
 	slot["pending_code"] = ""
-	slot["hold_label"].text = "HELD" if bool(reveal.get("held", false)) else ""
+	slot["hold_label"].text = "HOLD" if bool(reveal.get("held", false)) else ""
 	var mat := rect.material as ShaderMaterial
 	if mat != null:
 		mat.set_shader_parameter("flip_progress", 0.0)
@@ -2126,7 +2141,7 @@ func _finish_card_draw_replacement(index: int, code: String, texture: Texture2D,
 	rect.modulate = Color(1, 1, 1, 0.72)
 	slot["displayed_code"] = code
 	slot["pending_code"] = ""
-	slot["hold_label"].text = "HELD" if held else ""
+	slot["hold_label"].text = "HOLD" if held else ""
 	_animate_card_draw_in(index, base_position)
 
 func _animate_card_draw_in(index: int, base_position: Vector2) -> void:
@@ -2817,19 +2832,19 @@ func _full_house_rank_text() -> String:
 	var jp: Dictionary = _jackpot_data()
 	var rank: Variant = _du_first_value(jp, ["full_house_rank", "fullHouseRank", "FullHouseRank"], 0)
 	var rank_value: int = store._to_int(rank)
-	if rank_value <= 0: return "FH RANK"
+	if rank_value <= 0: return "2"
 	match rank_value:
-		14: return "FH RANK: A"
-		13: return "FH RANK: K"
-		12: return "FH RANK: Q"
-		11: return "FH RANK: J"
-		10: return "FH RANK: 10"
-		9: return "FH RANK: 9"
-		8: return "FH RANK: 8"
-		7: return "FH RANK: 7"
-		6: return "FH RANK: 6"
-		5: return "FH RANK: 5"
-		_: return "FH RANK: %d" % rank_value
+		14: return "A"
+		13: return "K"
+		12: return "Q"
+		11: return "J"
+		10: return "10"
+		9: return "9"
+		8: return "8"
+		7: return "7"
+		6: return "6"
+		5: return "5"
+		_: return "%d" % rank_value
 
 func _full_house_rank_card_code() -> String:
 	var jp: Dictionary = _jackpot_data()
@@ -2925,9 +2940,10 @@ func _refresh_paytable_highlights() -> void:
 
 func _refresh_machine_info() -> void:
 	var machine: Dictionary = store.snapshot.get("machine", {})
-	machine_serie_label.text = "SERIE %s" % str(machine.get("machine_serie", "0"))
-	machine_kent_label.text = "KENT /3 : %s" % str(machine.get("machine_kent", "0"))
-	machine_serial_label.text = "S/N: %s" % str(machine.get("machine_serial", "0"))
+	var jackpots := _jackpot_data()
+	machine_serie_label.text = str(machine.get("machine_serie", machine.get("name", "0")))
+	machine_serial_label.text = str(_du_first_value(jackpots, ["machine_serial", "machineSerial", "MachineSerial"], machine.get("machine_serial", "0")))
+	machine_kent_label.text = str(_du_first_value(jackpots, ["kent_streak", "kentStreak", "KentStreak"], machine.get("machine_kent", "0")))
 	if bonus_message_label != null:
 		bonus_message_label.visible = true
 
@@ -2967,7 +2983,7 @@ func _refresh_credit_display() -> void:
 	last_machine_credit_amount = machine_credits
 
 func _credit_line_for_amount(machine_credit_amount: int) -> String:
-	return "CREDIT %s" % _format_amount(machine_credit_amount)
+	return _format_amount(machine_credit_amount)
 
 func _menu_balance_line() -> String:
 	return "CREDIT %s\nWALLET %s\nBONUS %s\nSTAKE %s\nIN %s" % [

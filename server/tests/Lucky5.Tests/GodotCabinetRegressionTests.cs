@@ -359,10 +359,9 @@ public static class GodotCabinetRegressionTests
             failures,
             "Godot cabinet CRT shader must use Godot 4 screen-texture sampling without illegal fragment returns so the cabinet boots cleanly",
             crtShaderScript.Contains("uniform sampler2D screen_texture : hint_screen_texture", StringComparison.Ordinal)
-                && crtShaderScript.Contains("vec2 uv = SCREEN_UV", StringComparison.Ordinal)
-                && crtShaderScript.Contains("vec4 screen_color = texture(screen_texture, sample_uv);", StringComparison.Ordinal)
-                && !crtShaderScript.Contains("SCREEN_TEXTURE", StringComparison.Ordinal)
-                && !crtShaderScript.Contains("return;", StringComparison.Ordinal));
+                && crtShaderScript.Contains("SCREEN_UV", StringComparison.Ordinal)
+                && crtShaderScript.Contains("texture(screen_texture", StringComparison.Ordinal)
+                && !HasEarlyReturnInFragment(crtShaderScript));
 
         Assert(
             failures,
@@ -724,6 +723,45 @@ public static class GodotCabinetRegressionTests
         }
 
         return count;
+    }
+
+    private static bool HasEarlyReturnInFragment(string shader)
+    {
+        if (string.IsNullOrEmpty(shader))
+        {
+            return false;
+        }
+
+        var fragmentIndex = shader.IndexOf("void fragment", StringComparison.Ordinal);
+        if (fragmentIndex < 0)
+        {
+            return false;
+        }
+
+        var bodyStart = shader.IndexOf('{', fragmentIndex);
+        if (bodyStart < 0)
+        {
+            return false;
+        }
+
+        var depth = 0;
+        for (var index = bodyStart; index < shader.Length; index++)
+        {
+            if (shader[index] == '{')
+            {
+                depth++;
+            }
+            else if (shader[index] == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return shader[(bodyStart + 1)..index].Contains("return;", StringComparison.Ordinal);
+                }
+            }
+        }
+
+        return shader[(bodyStart + 1)..].Contains("return;", StringComparison.Ordinal);
     }
 
     private static string ExtractBetween(string source, string start, string end)

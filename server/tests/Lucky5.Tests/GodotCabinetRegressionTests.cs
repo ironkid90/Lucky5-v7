@@ -174,6 +174,37 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
+            "Godot cabinet admin panel must carry the remaining dashboard, device, audit, and detail-management surfaces so the default cabinet no longer depends on the web fallback for operator workflows",
+            apiScript.Contains("func get_admin_dashboard", StringComparison.Ordinal)
+                && apiScript.Contains("func get_admin_user_detail", StringComparison.Ordinal)
+                && apiScript.Contains("func admin_credit_user", StringComparison.Ordinal)
+                && apiScript.Contains("func admin_recharge_bonus", StringComparison.Ordinal)
+                && apiScript.Contains("func get_admin_machine_detail", StringComparison.Ordinal)
+                && apiScript.Contains("func reset_admin_machine", StringComparison.Ordinal)
+                && apiScript.Contains("func set_admin_machine_door_state", StringComparison.Ordinal)
+                && apiScript.Contains("func get_admin_audit", StringComparison.Ordinal)
+                && apiScript.Contains("func get_cabinet_devices", StringComparison.Ordinal)
+                && apiScript.Contains("func provision_cabinet_device", StringComparison.Ordinal)
+                && apiScript.Contains("func revoke_cabinet_device", StringComparison.Ordinal)
+                && rootScript.Contains("[\"OVERVIEW\", _on_admin_overview]", StringComparison.Ordinal)
+                && rootScript.Contains("[\"DEVICES\", _on_admin_devices]", StringComparison.Ordinal)
+                && rootScript.Contains("[\"AUDIT\", _on_admin_audit]", StringComparison.Ordinal)
+                && rootScript.Contains("var admin_overview_list: VBoxContainer", StringComparison.Ordinal)
+                && rootScript.Contains("var admin_devices_list: VBoxContainer", StringComparison.Ordinal)
+                && rootScript.Contains("var admin_audit_list: VBoxContainer", StringComparison.Ordinal)
+                && rootScript.Contains("api.get_admin_dashboard()", StringComparison.Ordinal)
+                && rootScript.Contains("api.get_cabinet_devices()", StringComparison.Ordinal)
+                && rootScript.Contains("api.get_admin_audit()", StringComparison.Ordinal)
+                && rootScript.Contains("api.admin_credit_user(admin_selected_user_id", StringComparison.Ordinal)
+                && rootScript.Contains("api.provision_cabinet_device(machine_id, display_name, serial_number)", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet should keep the Lucky 5 dealer-switch glow scoped to the active dealer slot instead of marking every 5S trail card during no-lose mode",
+            rootScript.Contains("_set_du_board_slot(slot_index, code, label, slot_index == dealer_index and _is_lucky_du_card(du_data, code))", StringComparison.Ordinal));
+
+        Assert(
+            failures,
             "dev.ps1 must launch the Godot cabinet by default and keep the legacy web cabinet behind an explicit -Web fallback",
             devScript.Contains("[switch]$Web", StringComparison.Ordinal)
                 && devScript.Contains("$launchGodot = -not $Headless -and -not $Web", StringComparison.Ordinal)
@@ -515,8 +546,8 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("const BONUS_COIN_SIZE := Vector2(28, 28)", StringComparison.Ordinal)
                 && rootScript.Contains("var bonus_stage_label: Label", StringComparison.Ordinal)
                 && rootScript.Contains("var bonus_stage_amount_label: Label", StringComparison.Ordinal)
-                && rootScript.Contains("bonus_stage_label = _make_label(\"FREE GAMES\", 13, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)", StringComparison.Ordinal)
-                && rootScript.Contains("bonus_stage_amount_label = _make_label(\"BONUS 0\", 13, COLOR_RED, HORIZONTAL_ALIGNMENT_RIGHT)", StringComparison.Ordinal)
+                && rootScript.Contains("bonus_stage_label = _make_label(\"FREE GAMES\", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)", StringComparison.Ordinal)
+                && rootScript.Contains("bonus_stage_amount_label = _make_label(\"BONUS 0\", 12, COLOR_RED, HORIZONTAL_ALIGNMENT_RIGHT)", StringComparison.Ordinal)
                 && rootScript.Contains("func _refresh_bonus_stage() -> void:", StringComparison.Ordinal)
                 && rootScript.Contains("var bonus: Dictionary = _bonus_presentation()", StringComparison.Ordinal)
                 && rootScript.Contains("func _fallback_bonus_presentation() -> Dictionary:", StringComparison.Ordinal)

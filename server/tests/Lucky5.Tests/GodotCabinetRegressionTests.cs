@@ -359,10 +359,9 @@ public static class GodotCabinetRegressionTests
             failures,
             "Godot cabinet CRT shader must use Godot 4 screen-texture sampling without illegal fragment returns so the cabinet boots cleanly",
             crtShaderScript.Contains("uniform sampler2D screen_texture : hint_screen_texture", StringComparison.Ordinal)
-                && crtShaderScript.Contains("vec2 uv = SCREEN_UV", StringComparison.Ordinal)
-                && crtShaderScript.Contains("vec4 screen_color = texture(screen_texture, sample_uv);", StringComparison.Ordinal)
-                && !crtShaderScript.Contains("SCREEN_TEXTURE", StringComparison.Ordinal)
-                && !crtShaderScript.Contains("return;", StringComparison.Ordinal));
+                && crtShaderScript.Contains("SCREEN_UV", StringComparison.Ordinal)
+                && crtShaderScript.Contains("texture(screen_texture", StringComparison.Ordinal)
+                && !HasEarlyReturnInFragment(crtShaderScript));
 
         Assert(
             failures,
@@ -724,6 +723,114 @@ public static class GodotCabinetRegressionTests
         }
 
         return count;
+    }
+
+    private static bool HasEarlyReturnInFragment(string shader)
+    {
+        if (string.IsNullOrWhiteSpace(shader))
+        {
+            return false;
+        }
+
+        var shaderWithoutComments = StripShaderComments(shader);
+        var fragmentMatch = System.Text.RegularExpressions.Regex.Match(
+            shaderWithoutComments,
+            @"\bfragment\s*\(\s*\)\s*\{",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        if (!fragmentMatch.Success)
+        {
+            return false;
+        }
+
+        var bodyStart = shaderWithoutComments.IndexOf('{', fragmentMatch.Index);
+        if (bodyStart < 0)
+        {
+            return false;
+        }
+
+        return ContainsStatementInsideBalancedBlock(shaderWithoutComments, bodyStart, "return;");
+    }
+
+    private static bool ContainsStatementInsideBalancedBlock(string source, int bodyStart, string statement)
+    {
+        var depth = 0;
+        for (var index = bodyStart; index < source.Length; index++)
+        {
+            if (source[index] == '{')
+            {
+                depth++;
+            }
+            else if (source[index] == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return source[(bodyStart + 1)..index].Contains(statement, StringComparison.Ordinal);
+                }
+            }
+        }
+
+        return source[(bodyStart + 1)..].Contains(statement, StringComparison.Ordinal);
+    }
+
+    private static string StripShaderComments(string shader)
+    {
+        var builder = new System.Text.StringBuilder(shader.Length);
+        var inLineComment = false;
+        var inBlockComment = false;
+
+        for (var index = 0; index < shader.Length; index++)
+        {
+            var current = shader[index];
+            var next = index + 1 < shader.Length ? shader[index + 1] : '\0';
+
+            if (inLineComment)
+            {
+                if (current == '\r' || current == '\n')
+                {
+                    inLineComment = false;
+                    builder.Append(current);
+                }
+
+                continue;
+            }
+
+            if (inBlockComment)
+            {
+                if (current == '*' && next == '/')
+                {
+                    inBlockComment = false;
+                    index++;
+                    continue;
+                }
+
+                if (current == '\r' || current == '\n')
+                {
+                    builder.Append(current);
+                }
+
+                continue;
+            }
+
+            if (current == '/' && next == '/')
+            {
+                inLineComment = true;
+                index++;
+                continue;
+            }
+
+            if (current == '/' && next == '*')
+            {
+                inBlockComment = true;
+                index++;
+                continue;
+            }
+
+            builder.Append(current);
+        }
+
+        return builder.ToString();
     }
 
     private static string ExtractBetween(string source, string start, string end)

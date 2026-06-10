@@ -79,14 +79,14 @@ const DEFAULT_OTP = "";
 
 // APK clone rainbow colors — hand order matches APK paytable top-to-bottom.
 const PAYTABLE_ROWS: Array<{ key: string; label: string; color: string }> = [
-    { key: "RoyalFlush", label: "ROYAL FLUSH", color: "#ff4444" },
-    { key: "StraightFlush", label: "STRAIGHT FLUSH", color: "#ff7700" },
-    { key: "FourOfAKind", label: "4 OF A KIND", color: "#44ffcc" },
-    { key: "FullHouse", label: "FULL HOUSE", color: "#ffff00" },
-    { key: "Flush", label: "FLUSH", color: "#ff6666" },
-    { key: "Straight", label: "STRAIGHT", color: "#44ff88" },
-    { key: "ThreeOfAKind", label: "3 OF A KIND", color: "#44ddff" },
-    { key: "TwoPair", label: "2 PAIR", color: "#ddddaa" },
+    { key: "RoyalFlush", label: "ROYAL FLUSH", color: "#f7de59" },
+    { key: "StraightFlush", label: "STRAIGHT FLUSH", color: "#ff5a67" },
+    { key: "FourOfAKind", label: "4 OF A KIND", color: "#4be471" },
+    { key: "FullHouse", label: "FULL HOUSE", color: "#f6f6f6" },
+    { key: "Flush", label: "FLUSH", color: "#f4a532" },
+    { key: "Straight", label: "STRAIGHT", color: "#5ca8ff" },
+    { key: "ThreeOfAKind", label: "3 OF A KIND", color: "#ffc34f" },
+    { key: "TwoPair", label: "2 PAIR", color: "#59d8ff" },
 ];
 
 type MessageTone = "ready" | "warning" | "danger";
@@ -102,9 +102,9 @@ type DoubleUpBoardSlot = {
 const DOUBLE_UP_BOARD_SLOT_COUNT = 5;
 const CARD_SLOT_COUNT = 5;
 const CARD_SLOT_INDEXES = Array.from({ length: CARD_SLOT_COUNT }, (_, index) => index);
-const CARD_REVEAL_STAGGER_MS = 90;
-const CARD_REVEAL_ANIMATION_MS = 180;
-const IDLE_FH_REVEAL_DELAY_MS = 2200;
+const CARD_REVEAL_STAGGER_MS = 100;
+const CARD_REVEAL_ANIMATION_MS = 210;
+const IDLE_FH_REVEAL_DELAY_MS = 2000;
 const CABINET_STORAGE_KEY = "GetStorage";
 
 type PersistedCabinetStorage = {
@@ -435,7 +435,7 @@ function PaytablePanel({
                         className={`apk-pay-row${isActive ? " apk-pay-row--active" : ""}`}
                         style={{ color }}
                     >
-                        <span className="apk-hand-name">{label}</span>
+                        <span className={`apk-hand-name${isActive ? " apk-hand-name--active" : ""}`}>{label}</span>
                         <span className="apk-pay-amount">{display}</span>
                     </div>
                 );
@@ -445,11 +445,17 @@ function PaytablePanel({
 }
 
 // ── CreditBar ───────────────────────────────────────────────────────────────
-function CreditBar({ credit }: { credit: number }) {
+function CreditBar({ credit, stake }: { credit: number; stake: number | string }) {
     return (
-        <div className="apk-credit-stake apk-credit-only">
-            <div className="apk-credit-label">CREDIT</div>
-            <div className="apk-credit-value">{formatMoney(credit)}</div>
+        <div className="apk-credit-stake">
+            <div className="apk-credit-only">
+                <div className="apk-credit-label">CREDIT</div>
+                <div className="apk-credit-value">{formatMoney(credit)}</div>
+            </div>
+            <div className="apk-credit-only">
+                <div className="apk-stake-label">STAKE</div>
+                <div className="apk-stake-value">{formatMoney(Math.max(0, Number(stake) || 0))}</div>
+            </div>
         </div>
     );
 }
@@ -474,22 +480,28 @@ function MachineInfoBlock({
     kentStreak?: number | null;
     fullHouseRank?: number | null;
 }) {
+    const machineSeries = machineName?.match(/\d+/)?.[0] ?? machineName ?? "—";
+
     return (
         <div className="apk-machine-info">
             <div className="apk-identity-row">
-                <span className="apk-mi-label">SERIE</span>
-                <span className="apk-mi-sep"> - </span>
-                <span className="apk-mi-val">{machineName ?? ""}</span>
-                {machineSerial && (
-                    <>
-                        <span className="apk-mi-label" style={{ marginLeft: 12 }}>S/N</span>
+                <div className="apk-identity-copy">
+                    <div className="apk-identity-line">
+                        <span className="apk-mi-label">SERIE</span>
                         <span className="apk-mi-sep"> - </span>
-                        <span className="apk-mi-val">{machineSerial}</span>
-                    </>
-                )}
-                <span className="apk-mi-label" style={{ marginLeft: 12 }}>KENT /3</span>
-                <span className="apk-mi-sep"> . </span>
-                <span className="apk-mi-val">{kentStreak ?? 0}</span>
+                        <span className="apk-mi-val">{machineSeries}</span>
+                    </div>
+                    <div className="apk-identity-line">
+                        <span className="apk-mi-label">KENT /3</span>
+                        <span className="apk-mi-sep"> - </span>
+                        <span className="apk-mi-val">{kentStreak ?? 0}</span>
+                    </div>
+                </div>
+                {machineSerial && <div className="apk-serial-chip">S/N: {machineSerial}</div>}
+            </div>
+            <div className="apk-jp-fh-row">
+                <span className="apk-jp-fh-label">{rankLabelFromValue(fullHouseRank)}</span>
+                <span className="apk-jp-fh-val">{jackpots ? formatMoney(jackpots.fullHouse) : "--"}</span>
             </div>
             <div className="apk-jp-counters">
                 <div className="apk-jp apk-jp-side">
@@ -502,10 +514,6 @@ function MachineInfoBlock({
                 <div className="apk-jp apk-jp-side">
                     <span className="apk-jp-val">{jackpots ? formatMoney(fourOfAKindB) : "--"}</span>
                 </div>
-            </div>
-            <div className="apk-jp-fh-row">
-                <span className="apk-jp-fh-label">{rankLabelFromValue(fullHouseRank)}</span>
-                <span className="apk-jp-fh-val">{jackpots ? formatMoney(jackpots.fullHouse) : "--"}</span>
             </div>
             {bonusText && <div className="apk-bonus-bar">{bonusText}</div>}
         </div>
@@ -1618,7 +1626,7 @@ export function Lucky5Cabinet() {
                             stake={betAmount || "5000"}
                             activeWinAmount={displayedWinAmount}
                         />
-                        <CreditBar credit={cabinetCredit} />
+                        <CreditBar credit={cabinetCredit} stake={betAmount || "5000"} />
                     </div>
 
                     {/* ── Label band ── */}
@@ -1632,10 +1640,14 @@ export function Lucky5Cabinet() {
                             <DoubleUpBoard viewModel={doubleUpViewModel} />
                         ) : !dealResult && !drawResult ? (
                             <div className={`apk-idle-stage${idleFhCard ? " apk-idle-stage--fh" : ""}`}>
-                                <div className="apk-idle-logo">LUCKY 5</div>
-                                {idleFhCard && (
+                                {idleFhCard ? (
                                     <div className="apk-idle-fh-card">
                                         <PlayingCard card={idleFhCard} label="FULL HOUSE" />
+                                    </div>
+                                ) : (
+                                    <div className="apk-idle-logo">
+                                        <span>LUCKY5</span>
+                                        <span>POKER</span>
                                     </div>
                                 )}
                             </div>
@@ -1757,7 +1769,7 @@ export function Lucky5Cabinet() {
                                             onClick={() => toggleHold(index)}
                                             disabled={!dealResult || !!drawResult || busy || isInDoubleUp || isCardRevealRunning}
                                         >
-                                            {index === 0 && !dealResult && !drawResult && !isInDoubleUp && hasPressedBetThisSession ? "FH" : "HOLD"}
+                                            HOLD
                                         </button>
                                     ))}
                                 </div>
@@ -1796,8 +1808,8 @@ export function Lucky5Cabinet() {
                                         onClick={() => void handleDealOrDraw()}
                                         disabled={busy || !machineId || isInDoubleUp || isCardRevealRunning}
                                     >
-                                        {busy ? "WAIT" : dealResult && !drawResult ? "DRAW" : "DEAL"}<br />
-                                        {dealResult && !drawResult ? "" : "DRAW"}
+                                        DEAL<br />
+                                        DRAW
                                     </button>
                                     <button
                                         className="apk-btn apk-btn-bet"
@@ -1827,7 +1839,12 @@ export function Lucky5Cabinet() {
 
                                     {/* MENU — machine selector overlay */}
                                     <div className="apk-menu-wrap">
-                                        <div className="apk-menu-btn-label">MENU</div>
+                                        <div className="apk-menu-btn-label" aria-hidden="true">
+                                            <span className="apk-menu-icon-line" />
+                                            <span className="apk-menu-icon-line" />
+                                            <span className="apk-menu-icon-line" />
+                                        </div>
+                                        <div className="apk-menu-text">MENU</div>
                                         <div className="apk-menu-popup">
                                             <div className="cash-console cash-console-menu">
                                                 <div className="cash-console-card">

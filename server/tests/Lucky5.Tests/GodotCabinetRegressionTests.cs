@@ -10,6 +10,7 @@ public static class GodotCabinetRegressionTests
         string rootScript;
         string storeScript;
         string apiScript;
+        string crtShaderScript;
         string cabinetContracts;
         string gameService;
         string cardSkinScript;
@@ -33,6 +34,7 @@ public static class GodotCabinetRegressionTests
             rootScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_root.gd"));
             storeScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_store.gd"));
             apiScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "scripts", "cabinet_api.gd"));
+            crtShaderScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "shaders", "crt_effect.gdshader"));
             cabinetContracts = await File.ReadAllTextAsync(ResolveRepoFilePath("server", "src", "Lucky5.Application", "Dtos", "CabinetContractsDto.cs"));
             gameService = await File.ReadAllTextAsync(ResolveRepoFilePath("server", "src", "Lucky5.Infrastructure", "Services", "GameService.cs"));
             cardSkinScript = await File.ReadAllTextAsync(ResolveRepoFilePath("godot", "cabinet", "skins", "lucky5", "CardSkin_Lucky5.gd"));
@@ -342,7 +344,8 @@ public static class GodotCabinetRegressionTests
         Assert(
             failures,
             "Godot cabinet must stage card backs before arcade reveals and track pending/displayed card codes to avoid blank or duplicate deal states",
-            cardSkinScript.Contains("static func back_texture", StringComparison.Ordinal)
+            cardSkinScript.Contains("const CARD_BASE_PATH := \"res://skins/lucky5/cards/\"", StringComparison.Ordinal)
+                && cardSkinScript.Contains("static func back_texture", StringComparison.Ordinal)
                 && cardSkinScript.Contains("HOLD_BACK if held else BACK", StringComparison.Ordinal)
                 && rootScript.Contains("\"displayed_code\": \"\"", StringComparison.Ordinal)
                 && rootScript.Contains("\"pending_code\": \"\"", StringComparison.Ordinal)
@@ -351,6 +354,15 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("slot[\"pending_code\"] = code", StringComparison.Ordinal)
                 && rootScript.Contains("slot[\"displayed_code\"] = code", StringComparison.Ordinal)
                 && rootScript.Contains("slot[\"pending_code\"] = \"\"", StringComparison.Ordinal));
+
+        Assert(
+            failures,
+            "Godot cabinet CRT shader must use Godot 4 screen-texture sampling without illegal fragment returns so the cabinet boots cleanly",
+            crtShaderScript.Contains("uniform sampler2D screen_texture : hint_screen_texture", StringComparison.Ordinal)
+                && crtShaderScript.Contains("vec2 uv = SCREEN_UV", StringComparison.Ordinal)
+                && crtShaderScript.Contains("vec4 screen_color = texture(screen_texture, sample_uv);", StringComparison.Ordinal)
+                && !crtShaderScript.Contains("SCREEN_TEXTURE", StringComparison.Ordinal)
+                && !crtShaderScript.Contains("return;", StringComparison.Ordinal));
 
         Assert(
             failures,

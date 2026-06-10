@@ -3,6 +3,7 @@
 import { useCallback, startTransition, useEffect, useRef, useState } from "react";
 
 import {
+    getActiveRound,
     adjustAdminUserWallet,
     applyRechargeBonus,
     assignUserToAgent,
@@ -12,6 +13,8 @@ import {
     createAgent,
     deal,
     draw,
+    listAdminAudit,
+    listCabinetDevices,
     getAdminDashboard,
     getAdminMachineDetail,
     getAdminUserDetail,
@@ -29,21 +32,27 @@ import {
     login,
     loadAgentCredit,
     resetAdminMachine,
+    revokeCabinetDevice,
     searchAdminUsers,
     setAdminMachineDoorState,
     signup,
     switchDealer,
     switchFhRank,
     takeHalf,
+    provisionCabinetDevice,
     verifyOtp,
 } from "@/lib/api";
 import type {
+    ActiveRoundState,
+    AdminAuditEntry,
     AdminDashboard,
     AdminMachine,
     AdminMachineDetail,
     AdminUser,
     AdminUserDetail,
     AgentInfo,
+    CabinetDevice,
+    CabinetDeviceProvisioning,
     DealResult,
     DefaultRules,
     DoubleUpResult,
@@ -70,18 +79,18 @@ const DEFAULT_OTP = "";
 
 // APK clone rainbow colors — hand order matches APK paytable top-to-bottom.
 const PAYTABLE_ROWS: Array<{ key: string; label: string; color: string }> = [
-    { key: "RoyalFlush", label: "ROYAL FLUSH", color: "#ff4444" },
-    { key: "StraightFlush", label: "STRAIGHT FLUSH", color: "#ff7700" },
-    { key: "FourOfAKind", label: "4 OF A KIND", color: "#44ffcc" },
-    { key: "FullHouse", label: "FULL HOUSE", color: "#ffff00" },
-    { key: "Flush", label: "FLUSH", color: "#ff6666" },
-    { key: "Straight", label: "STRAIGHT", color: "#44ff88" },
-    { key: "ThreeOfAKind", label: "3 OF A KIND", color: "#44ddff" },
-    { key: "TwoPair", label: "2 PAIR", color: "#ddddaa" },
+    { key: "RoyalFlush", label: "ROYAL FLUSH", color: "#f7de59" },
+    { key: "StraightFlush", label: "STRAIGHT FLUSH", color: "#ff5a67" },
+    { key: "FourOfAKind", label: "4 OF A KIND", color: "#4be471" },
+    { key: "FullHouse", label: "FULL HOUSE", color: "#f6f6f6" },
+    { key: "Flush", label: "FLUSH", color: "#f4a532" },
+    { key: "Straight", label: "STRAIGHT", color: "#5ca8ff" },
+    { key: "ThreeOfAKind", label: "3 OF A KIND", color: "#ffc34f" },
+    { key: "TwoPair", label: "2 PAIR", color: "#59d8ff" },
 ];
 
 type MessageTone = "ready" | "warning" | "danger";
-type AdminPanelTab = "overview" | "users" | "agents" | "machines";
+type AdminPanelTab = "overview" | "users" | "agents" | "machines" | "devices" | "audit";
 type DoubleUpBoardSlot = {
     key: string;
     card: PokerCard | null;
@@ -93,9 +102,25 @@ type DoubleUpBoardSlot = {
 const DOUBLE_UP_BOARD_SLOT_COUNT = 5;
 const CARD_SLOT_COUNT = 5;
 const CARD_SLOT_INDEXES = Array.from({ length: CARD_SLOT_COUNT }, (_, index) => index);
-const CARD_REVEAL_STAGGER_MS = 110;
-const CARD_REVEAL_ANIMATION_MS = 260;
-const IDLE_FH_REVEAL_DELAY_MS = 60000;
+const CARD_REVEAL_STAGGER_MS = 100;
+const CARD_REVEAL_ANIMATION_MS = 210;
+const IDLE_FH_REVEAL_DELAY_MS = 2000;
+const CABINET_STORAGE_KEY = "GetStorage";
+
+type PersistedCabinetStorage = {
+    userData?: {
+        AccessToken?: string;
+        User?: MemberProfile | null;
+    };
+    cabinet?: {
+        machineId?: number | null;
+        betAmount?: string;
+        adminTab?: AdminPanelTab;
+        selectedAgentId?: number | null;
+        selectedUserId?: string;
+        selectedDeviceId?: string;
+    };
+};
 
 function formatMoney(value: number) {
     return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
@@ -103,6 +128,53 @@ function formatMoney(value: number) {
 
 function formatPercent(value: number) {
     return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatDateTime(value?: string | null) {
+    if (!value) {
+        return "—";
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return value;
+    }
+
+    return parsed.toLocaleString();
+}
+
+function loadPersistedCabinetStorage(): PersistedCabinetStorage | null {
+    if (typeof window === "undefined") {
+        return null;
+    }
+
+    try {
+        const raw = window.localStorage.getItem(CABINET_STORAGE_KEY);
+        if (!raw) {
+            return null;
+        }
+
+        const parsed = JSON.parse(raw) as PersistedCabinetStorage;
+        return typeof parsed === "object" && parsed !== null ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function savePersistedCabinetStorage(next: PersistedCabinetStorage) {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    window.localStorage.setItem(CABINET_STORAGE_KEY, JSON.stringify(next));
+}
+
+function clearPersistedCabinetStorage() {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    window.localStorage.removeItem(CABINET_STORAGE_KEY);
 }
 
 function rankLabelFromValue(rank?: number | null) {
@@ -363,7 +435,7 @@ function PaytablePanel({
                         className={`apk-pay-row${isActive ? " apk-pay-row--active" : ""}`}
                         style={{ color }}
                     >
-                        <span className="apk-hand-name">{label}</span>
+                        <span className={`apk-hand-name${isActive ? " apk-hand-name--active" : ""}`}>{label}</span>
                         <span className="apk-pay-amount">{display}</span>
                     </div>
                 );
@@ -373,11 +445,17 @@ function PaytablePanel({
 }
 
 // ── CreditBar ───────────────────────────────────────────────────────────────
-function CreditBar({ credit }: { credit: number }) {
+function CreditBar({ credit, stake }: { credit: number; stake: number | string }) {
     return (
-        <div className="apk-credit-stake apk-credit-only">
-            <div className="apk-credit-label">CREDIT</div>
-            <div className="apk-credit-value">{formatMoney(credit)}</div>
+        <div className="apk-credit-stake">
+            <div className="apk-credit-only">
+                <div className="apk-credit-label">CREDIT</div>
+                <div className="apk-credit-value">{formatMoney(credit)}</div>
+            </div>
+            <div className="apk-credit-only">
+                <div className="apk-stake-label">STAKE</div>
+                <div className="apk-stake-value">{formatMoney(Math.max(0, Number(stake) || 0))}</div>
+            </div>
         </div>
     );
 }
@@ -402,22 +480,28 @@ function MachineInfoBlock({
     kentStreak?: number | null;
     fullHouseRank?: number | null;
 }) {
+    const machineSeries = machineName?.match(/\d+/)?.[0] ?? machineName ?? "—";
+
     return (
         <div className="apk-machine-info">
             <div className="apk-identity-row">
-                <span className="apk-mi-label">SERIE</span>
-                <span className="apk-mi-sep"> - </span>
-                <span className="apk-mi-val">{machineName ?? ""}</span>
-                {machineSerial && (
-                    <>
-                        <span className="apk-mi-label" style={{ marginLeft: 12 }}>S/N</span>
+                <div className="apk-identity-copy">
+                    <div className="apk-identity-line">
+                        <span className="apk-mi-label">SERIE</span>
                         <span className="apk-mi-sep"> - </span>
-                        <span className="apk-mi-val">{machineSerial}</span>
-                    </>
-                )}
-                <span className="apk-mi-label" style={{ marginLeft: 12 }}>KENT /3</span>
-                <span className="apk-mi-sep"> . </span>
-                <span className="apk-mi-val">{kentStreak ?? 0}</span>
+                        <span className="apk-mi-val">{machineSeries}</span>
+                    </div>
+                    <div className="apk-identity-line">
+                        <span className="apk-mi-label">KENT /3</span>
+                        <span className="apk-mi-sep"> - </span>
+                        <span className="apk-mi-val">{kentStreak ?? 0}</span>
+                    </div>
+                </div>
+                {machineSerial && <div className="apk-serial-chip">S/N: {machineSerial}</div>}
+            </div>
+            <div className="apk-jp-fh-row">
+                <span className="apk-jp-fh-label">{rankLabelFromValue(fullHouseRank)}</span>
+                <span className="apk-jp-fh-val">{jackpots ? formatMoney(jackpots.fullHouse) : "--"}</span>
             </div>
             <div className="apk-jp-counters">
                 <div className="apk-jp apk-jp-side">
@@ -430,10 +514,6 @@ function MachineInfoBlock({
                 <div className="apk-jp apk-jp-side">
                     <span className="apk-jp-val">{jackpots ? formatMoney(fourOfAKindB) : "--"}</span>
                 </div>
-            </div>
-            <div className="apk-jp-fh-row">
-                <span className="apk-jp-fh-label">{rankLabelFromValue(fullHouseRank)}</span>
-                <span className="apk-jp-fh-val">{jackpots ? formatMoney(jackpots.fullHouse) : "--"}</span>
             </div>
             {bonusText && <div className="apk-bonus-bar">{bonusText}</div>}
         </div>
@@ -457,8 +537,11 @@ export function Lucky5Cabinet() {
     const [adminDashboard, setAdminDashboard] = useState<AdminDashboard | null>(null);
     const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
     const [adminMachines, setAdminMachines] = useState<AdminMachine[]>([]);
+    const [adminAudit, setAdminAudit] = useState<AdminAuditEntry[]>([]);
     const [adminUserDetail, setAdminUserDetail] = useState<AdminUserDetail | null>(null);
     const [adminMachineDetail, setAdminMachineDetail] = useState<AdminMachineDetail | null>(null);
+    const [cabinetDevices, setCabinetDevices] = useState<CabinetDevice[]>([]);
+    const [deviceProvisioning, setDeviceProvisioning] = useState<CabinetDeviceProvisioning | null>(null);
     const [agents, setAgents] = useState<AgentInfo[]>([]);
     const [adminSearch, setAdminSearch] = useState("");
     const [adminSearchQuery, setAdminSearchQuery] = useState("");
@@ -471,6 +554,11 @@ export function Lucky5Cabinet() {
     const [rechargeAmount, setRechargeAmount] = useState("500000");
     const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
     const [selectedUserId, setSelectedUserId] = useState("");
+    const [selectedDeviceId, setSelectedDeviceId] = useState("");
+    const [deviceDisplayName, setDeviceDisplayName] = useState("");
+    const [deviceSerialNumber, setDeviceSerialNumber] = useState("");
+    const [deviceMachineId, setDeviceMachineId] = useState("");
+    const [deviceRevokeReason, setDeviceRevokeReason] = useState("operator revoked");
     const [betAmount, setBetAmount] = useState("5000");
     const [holdIndexes, setHoldIndexes] = useState<number[]>([]);
     const [dealResult, setDealResult] = useState<DealResult | null>(null);
@@ -516,6 +604,7 @@ export function Lucky5Cabinet() {
     const canGuessBigSmall = isInDoubleUp ? !!doubleUpViewModel?.canGuess : canEnterDoubleUp;
     const isAdmin = profile?.role?.toLowerCase() === "admin";
     const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) ?? null;
+    const selectedDevice = cabinetDevices.find((device) => device.deviceId === selectedDeviceId) ?? null;
     const visibleCardIndexSet = new Set(visibleCardIndexes);
     const revealingCardIndexSet = new Set(revealingCardIndexes);
     const activeCardCount = Math.min(activeCards.length, CARD_SLOT_COUNT);
@@ -585,6 +674,88 @@ export function Lucky5Cabinet() {
         resetCardReveal();
     }
     const isMachineClosed = machineSession?.isMachineClosed ?? false;
+
+    function showRecoveredCards(cardCount: number) {
+        clearRevealTimeouts();
+        setVisibleCardIndexes(CARD_SLOT_INDEXES.slice(0, Math.min(cardCount, CARD_SLOT_COUNT)));
+        setRevealingCardIndexes([]);
+    }
+
+    function hydrateActiveRound(
+        activeRound: ActiveRoundState | null,
+        nextSession: MachineSession | null,
+        nextMachineState: MachineState | null,
+    ) {
+        if (!activeRound) {
+            clearActiveRoundState();
+            setDoubleUpResult(null);
+            return;
+        }
+
+        const walletBalance = nextSession?.walletBalance ?? profile?.walletBalance ?? 0;
+        const jackpots = nextMachineState?.jackpots ?? null;
+
+        setBetAmount(String(activeRound.betAmount));
+        setDealResult({
+            roundId: activeRound.roundId,
+            cards: activeRound.cards,
+            betAmount: activeRound.betAmount,
+            walletBalanceAfterBet: walletBalance,
+            jackpots,
+            advisedHolds: activeRound.phase === "Dealt" ? activeRound.heldIndexes : [],
+        });
+
+        if (activeRound.phase === "Dealt") {
+            setHoldIndexes([...activeRound.heldIndexes]);
+            setDrawResult(null);
+            setDoubleUpResult(null);
+            showRecoveredCards(activeRound.cards.length);
+            setMessage("Recovered an in-progress hand. Choose holds and press DRAW.");
+            setMessageTone("warning");
+            return;
+        }
+
+        setHoldIndexes([]);
+        setDrawResult({
+            roundId: activeRound.roundId,
+            cards: activeRound.resultCards.length > 0 ? activeRound.resultCards : activeRound.cards,
+            handRank: activeRound.handRank,
+            winAmount: activeRound.pendingWinAmount,
+            walletBalanceAfterRound: walletBalance,
+            jackpotWon: 0,
+            jackpots,
+            doubleUpAvailable: activeRound.doubleUpAvailable,
+        });
+        showRecoveredCards((activeRound.resultCards.length > 0 ? activeRound.resultCards : activeRound.cards).length);
+
+        if (activeRound.phase === "DoubleUp" && activeRound.doubleUpSession) {
+            setDoubleUpResult({
+                roundId: activeRound.roundId,
+                status: "Recovered",
+                currentAmount: activeRound.doubleUpSession.currentAmount,
+                walletBalance,
+                dealerCard: activeRound.doubleUpSession.dealerCard,
+                challengerCard: null,
+                cardTrail: activeRound.doubleUpSession.cardTrail ?? [],
+                switchesRemaining: activeRound.doubleUpSession.switchesRemaining,
+                isNoLoseActive: activeRound.doubleUpSession.isNoLoseActive,
+                isLucky5Active: activeRound.doubleUpSession.isLucky5Active,
+                luckyMultiplier: activeRound.doubleUpSession.luckyMultiplier,
+                noise: null,
+            });
+            setMessage("Recovered an active double-up sequence.");
+            setMessageTone("warning");
+            return;
+        }
+
+        setDoubleUpResult(null);
+        setMessage(
+            activeRound.pendingWinAmount > 0
+                ? `${activeRound.handRank} is waiting. Take score or press BIG/SMALL.`
+                : "Recovered the last round state.",
+        );
+        setMessageTone(activeRound.pendingWinAmount > 0 ? "warning" : "ready");
+    }
 
     const payoutRows = Object.entries(rules?.payoutMultipliers ?? {}).sort(
         (left, right) => Number(right[1]) - Number(left[1]),
@@ -657,6 +828,23 @@ export function Lucky5Cabinet() {
         setMachineSession(await getMachineSession(machineId, accessToken));
     }, [accessToken, machineId]);
 
+    const loadMachineContext = useCallback(async (machineIdToLoad: number) => {
+        if (!accessToken) {
+            return;
+        }
+
+        const [nextMachineState, nextSession, nextActiveRound] = await Promise.all([
+            getMachineState(machineIdToLoad, accessToken),
+            getMachineSession(machineIdToLoad, accessToken),
+            getActiveRound(machineIdToLoad, accessToken),
+        ]);
+
+        setMachineState(nextMachineState);
+        setMachineSession(nextSession);
+        syncWallet(nextSession.walletBalance);
+        hydrateActiveRound(nextActiveRound, nextSession, nextMachineState);
+    }, [accessToken, profile]);
+
     async function refreshSelectedSessionSnapshot() {
         if (!accessToken || !machineId) {
             return null;
@@ -694,15 +882,109 @@ export function Lucky5Cabinet() {
             return;
         }
 
+        if (adminTab === "devices") {
+            const [nextMachines, nextDevices] = await Promise.all([
+                listAdminMachines(accessToken),
+                listCabinetDevices(accessToken),
+            ]);
+            setAdminMachines(nextMachines);
+            setCabinetDevices(nextDevices);
+            if (!deviceMachineId && nextMachines.length > 0) {
+                setDeviceMachineId(String(nextMachines[0].machineId));
+            }
+            if (!selectedDeviceId && nextDevices.length > 0) {
+                setSelectedDeviceId(nextDevices[0].deviceId);
+            }
+            return;
+        }
+
+        if (adminTab === "audit") {
+            setAdminAudit(await listAdminAudit(accessToken, 30));
+            return;
+        }
+
         setAdminMachines(await listAdminMachines(accessToken));
-    }, [accessToken, adminSearchQuery, adminTab, isAdmin, selectedAgentId]);
+    }, [accessToken, adminSearchQuery, adminTab, deviceMachineId, isAdmin, selectedAgentId, selectedDeviceId]);
+
+    useEffect(() => {
+        const persisted = loadPersistedCabinetStorage();
+        if (!persisted) {
+            return;
+        }
+
+        const persistedToken = persisted.userData?.AccessToken?.trim();
+        if (persistedToken) {
+            setAccessToken(persistedToken);
+        }
+
+        if (persisted.userData?.User) {
+            setProfile(persisted.userData.User);
+        }
+
+        const nextCabinet = persisted.cabinet;
+        if (typeof nextCabinet?.machineId === "number") {
+            setMachineId(nextCabinet.machineId);
+        }
+        if (nextCabinet?.betAmount) {
+            setBetAmount(nextCabinet.betAmount);
+        }
+        if (nextCabinet?.adminTab) {
+            setAdminTab(nextCabinet.adminTab);
+        }
+        if (typeof nextCabinet?.selectedAgentId === "number") {
+            setSelectedAgentId(nextCabinet.selectedAgentId);
+        }
+        if (nextCabinet?.selectedUserId) {
+            setSelectedUserId(nextCabinet.selectedUserId);
+        }
+        if (nextCabinet?.selectedDeviceId) {
+            setSelectedDeviceId(nextCabinet.selectedDeviceId);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!accessToken && !profile && !machineId) {
+            clearPersistedCabinetStorage();
+            return;
+        }
+
+        savePersistedCabinetStorage({
+            userData: {
+                AccessToken: accessToken ?? undefined,
+                User: profile,
+            },
+            cabinet: {
+                machineId,
+                betAmount,
+                adminTab,
+                selectedAgentId,
+                selectedUserId,
+                selectedDeviceId,
+            },
+        });
+    }, [accessToken, adminTab, betAmount, machineId, profile, selectedAgentId, selectedDeviceId, selectedUserId]);
 
     useEffect(() => {
         if (!accessToken) {
             return;
         }
 
-        void refreshBootstrap();
+        void (async () => {
+            try {
+                await refreshBootstrap();
+            } catch {
+                setAccessToken(null);
+                setProfile(null);
+                setMachineId(null);
+                setMachineState(null);
+                setMachineSession(null);
+                clearActiveRoundState();
+                setDoubleUpResult(null);
+                clearPersistedCabinetStorage();
+                setMessage("Saved session expired. Boot the cabinet again.");
+                setMessageTone("warning");
+            }
+        })();
     }, [accessToken, refreshBootstrap]);
 
     useEffect(() => {
@@ -710,14 +992,13 @@ export function Lucky5Cabinet() {
             return;
         }
 
-        void refreshMachineState();
-        void refreshMachineSession();
+        void loadMachineContext(machineId);
         const timer = window.setInterval(() => {
             void refreshMachineState();
             void refreshMachineSession();
         }, 5000);
         return () => window.clearInterval(timer);
-    }, [accessToken, machineId, refreshMachineState, refreshMachineSession]);
+    }, [accessToken, loadMachineContext, machineId, refreshMachineState, refreshMachineSession]);
 
     useEffect(() => {
         if (!isAdmin) {
@@ -786,13 +1067,7 @@ export function Lucky5Cabinet() {
 
         if (accessToken) {
             await runAction(async () => {
-                const [nextMachineState, nextSession] = await Promise.all([
-                    getMachineState(machine.id, accessToken),
-                    getMachineSession(machine.id, accessToken),
-                ]);
-                setMachineState(nextMachineState);
-                setMachineSession(nextSession);
-                syncWallet(nextSession.walletBalance);
+                await loadMachineContext(machine.id);
                 await refreshLobby();
             });
         }
@@ -1200,6 +1475,66 @@ export function Lucky5Cabinet() {
         });
     }
 
+    async function handleProvisionCabinetDevice() {
+        if (!accessToken) {
+            return;
+        }
+
+        const machineIdValue = Number(deviceMachineId);
+        const displayName = deviceDisplayName.trim();
+        const serialNumber = deviceSerialNumber.trim();
+
+        if (!Number.isInteger(machineIdValue) || machineIdValue <= 0) {
+            setMessage("Select a machine before provisioning a cabinet device.");
+            setMessageTone("warning");
+            return;
+        }
+
+        if (!displayName || !serialNumber) {
+            setMessage("Device display name and serial number are required.");
+            setMessageTone("warning");
+            return;
+        }
+
+        await runAction(async () => {
+            const provisioning = await provisionCabinetDevice({
+                machineId: machineIdValue,
+                displayName,
+                serialNumber,
+            }, accessToken);
+            setDeviceProvisioning(provisioning);
+            setSelectedDeviceId(provisioning.device.deviceId);
+            setDeviceDisplayName("");
+            setDeviceSerialNumber("");
+            await refreshAdminPanel();
+            setMessage(`Provisioned cabinet ${provisioning.device.displayName}. Save the one-time secret now.`);
+            setMessageTone("ready");
+        });
+    }
+
+    async function handleRevokeCabinetDevice() {
+        if (!accessToken || !selectedDevice) {
+            setMessage("Select a cabinet device before revoking it.");
+            setMessageTone("warning");
+            return;
+        }
+
+        const reason = deviceRevokeReason.trim();
+        if (!reason) {
+            setMessage("Revocation reason is required.");
+            setMessageTone("warning");
+            return;
+        }
+
+        await runAction(async () => {
+            await revokeCabinetDevice(selectedDevice.deviceId, reason, accessToken);
+            setDeviceProvisioning(null);
+            await refreshAdminPanel();
+            setMessage(`Revoked cabinet ${selectedDevice.displayName}.`);
+            setMessageTone("warning");
+        });
+    }
+
     function toggleHold(index: number) {
         if (isCardRevealRunning) {
             return;
@@ -1291,7 +1626,7 @@ export function Lucky5Cabinet() {
                             stake={betAmount || "5000"}
                             activeWinAmount={displayedWinAmount}
                         />
-                        <CreditBar credit={cabinetCredit} />
+                        <CreditBar credit={cabinetCredit} stake={betAmount || "5000"} />
                     </div>
 
                     {/* ── Label band ── */}
@@ -1305,10 +1640,14 @@ export function Lucky5Cabinet() {
                             <DoubleUpBoard viewModel={doubleUpViewModel} />
                         ) : !dealResult && !drawResult ? (
                             <div className={`apk-idle-stage${idleFhCard ? " apk-idle-stage--fh" : ""}`}>
-                                <div className="apk-idle-logo">LUCKY 5</div>
-                                {idleFhCard && (
+                                {idleFhCard ? (
                                     <div className="apk-idle-fh-card">
                                         <PlayingCard card={idleFhCard} label="FULL HOUSE" />
+                                    </div>
+                                ) : (
+                                    <div className="apk-idle-logo">
+                                        <span>LUCKY5</span>
+                                        <span>POKER</span>
                                     </div>
                                 )}
                             </div>
@@ -1430,7 +1769,7 @@ export function Lucky5Cabinet() {
                                             onClick={() => toggleHold(index)}
                                             disabled={!dealResult || !!drawResult || busy || isInDoubleUp || isCardRevealRunning}
                                         >
-                                            {index === 0 && !dealResult && !drawResult && !isInDoubleUp && hasPressedBetThisSession ? "FH" : "HOLD"}
+                                            HOLD
                                         </button>
                                     ))}
                                 </div>
@@ -1469,8 +1808,8 @@ export function Lucky5Cabinet() {
                                         onClick={() => void handleDealOrDraw()}
                                         disabled={busy || !machineId || isInDoubleUp || isCardRevealRunning}
                                     >
-                                        {busy ? "WAIT" : dealResult && !drawResult ? "DRAW" : "DEAL"}<br />
-                                        {dealResult && !drawResult ? "" : "DRAW"}
+                                        DEAL<br />
+                                        DRAW
                                     </button>
                                     <button
                                         className="apk-btn apk-btn-bet"
@@ -1500,7 +1839,12 @@ export function Lucky5Cabinet() {
 
                                     {/* MENU — machine selector overlay */}
                                     <div className="apk-menu-wrap">
-                                        <div className="apk-menu-btn-label">MENU</div>
+                                        <div className="apk-menu-btn-label" aria-hidden="true">
+                                            <span className="apk-menu-icon-line" />
+                                            <span className="apk-menu-icon-line" />
+                                            <span className="apk-menu-icon-line" />
+                                        </div>
+                                        <div className="apk-menu-text">MENU</div>
                                         <div className="apk-menu-popup">
                                             <div className="cash-console cash-console-menu">
                                                 <div className="cash-console-card">
@@ -1684,7 +2028,7 @@ export function Lucky5Cabinet() {
                         </div>
 
                         <div className="admin-tabs" role="tablist" aria-label="Admin menu">
-                            {(["overview", "agents", "users", "machines"] as AdminPanelTab[]).map((tab) => (
+                            {(["overview", "agents", "users", "machines", "devices", "audit"] as AdminPanelTab[]).map((tab) => (
                                 <button
                                     key={tab}
                                     className={`admin-tab${adminTab === tab ? " active" : ""}`}
@@ -2012,6 +2356,133 @@ export function Lucky5Cabinet() {
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {adminTab === "devices" && (
+                            <div className="admin-stack">
+                                <div className="admin-form-grid">
+                                    <select
+                                        aria-label="Provision machine"
+                                        value={deviceMachineId}
+                                        onChange={(event) => setDeviceMachineId(event.target.value)}
+                                    >
+                                        <option value="">SELECT MACHINE</option>
+                                        {adminMachines.map((machine) => (
+                                            <option key={machine.machineId} value={machine.machineId}>
+                                                {machine.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        aria-label="Cabinet display name"
+                                        placeholder="DISPLAY NAME"
+                                        value={deviceDisplayName}
+                                        onChange={(event) => setDeviceDisplayName(event.target.value)}
+                                    />
+                                    <input
+                                        aria-label="Cabinet serial number"
+                                        placeholder="SERIAL NUMBER"
+                                        value={deviceSerialNumber}
+                                        onChange={(event) => setDeviceSerialNumber(event.target.value)}
+                                    />
+                                </div>
+                                <button
+                                    className="admin-command"
+                                    type="button"
+                                    onClick={() => void handleProvisionCabinetDevice()}
+                                    disabled={busy}
+                                >
+                                    PROVISION CABINET
+                                </button>
+                                {deviceProvisioning && (
+                                    <div className="admin-detail-card">
+                                        <div className="admin-detail-head">
+                                            <strong>{deviceProvisioning.device.displayName}</strong>
+                                            <span>One-time secret</span>
+                                        </div>
+                                        <div className="admin-tool-grid admin-tool-grid-secret">
+                                            <input readOnly value={deviceProvisioning.deviceSecret} aria-label="Provisioned device secret" />
+                                        </div>
+                                        <div className="admin-mini-list">
+                                            <span>{deviceProvisioning.device.machineName} · {deviceProvisioning.device.serialNumber}</span>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="admin-list">
+                                    {cabinetDevices.length === 0 && <div className="hint">No cabinet devices loaded.</div>}
+                                    {cabinetDevices.map((device) => (
+                                        <button
+                                            key={device.deviceId}
+                                            className={`admin-list-row admin-list-row-button${selectedDeviceId === device.deviceId ? " active" : ""}`}
+                                            type="button"
+                                            onClick={() => setSelectedDeviceId(device.deviceId)}
+                                        >
+                                            <span>
+                                                <strong>{device.displayName}</strong>
+                                                <small>{device.machineName} · {device.serialNumber}</small>
+                                            </span>
+                                            <em>{device.isRevoked ? "REVOKED" : `${device.activeSessionCount} LIVE`}</em>
+                                        </button>
+                                    ))}
+                                </div>
+                                {selectedDevice && (
+                                    <div className="admin-detail-card">
+                                        <div className="admin-detail-head">
+                                            <strong>{selectedDevice.displayName}</strong>
+                                            <span>{selectedDevice.machineName} · {selectedDevice.serialNumber}</span>
+                                        </div>
+                                        <div className="admin-detail-grid">
+                                            <span>Fingerprint {selectedDevice.secretFingerprint}</span>
+                                            <span>Firmware {selectedDevice.lastFirmwareVersion || "—"}</span>
+                                            <span>Client {selectedDevice.lastClientVersion || "—"}</span>
+                                            <span>Created {formatDateTime(selectedDevice.createdUtc)}</span>
+                                            <span>Last auth {formatDateTime(selectedDevice.lastAuthenticatedUtc)}</span>
+                                            <span>Last seen {formatDateTime(selectedDevice.lastSeenUtc)}</span>
+                                        </div>
+                                        <div className="admin-tool-grid admin-tool-grid-compact">
+                                            <input
+                                                aria-label="Revocation reason"
+                                                value={deviceRevokeReason}
+                                                onChange={(event) => setDeviceRevokeReason(event.target.value)}
+                                            />
+                                            <button
+                                                className="admin-mini-button danger"
+                                                type="button"
+                                                onClick={() => void handleRevokeCabinetDevice()}
+                                                disabled={busy || selectedDevice.isRevoked}
+                                            >
+                                                {selectedDevice.isRevoked ? "REVOKED" : "REVOKE DEVICE"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {adminTab === "audit" && (
+                            <div className="admin-stack">
+                                <div className="admin-list admin-audit-list">
+                                    {adminAudit.length === 0 && <div className="hint">No audit records loaded.</div>}
+                                    {adminAudit.map((entry) => (
+                                        <div key={entry.id} className="admin-list-row admin-audit-row">
+                                            <span>
+                                                <strong>{entry.action}</strong>
+                                                <small>{entry.actorRole} · {entry.targetType} · {entry.targetId}</small>
+                                            </span>
+                                            <em>{entry.outcome}</em>
+                                            <small>{formatDateTime(entry.createdUtc)}</small>
+                                            {entry.reason && <small>{entry.reason}</small>}
+                                            {Object.keys(entry.metadata ?? {}).length > 0 && (
+                                                <div className="admin-audit-meta">
+                                                    {Object.entries(entry.metadata).map(([key, value]) => (
+                                                        <span key={`${entry.id}-${key}`}>{key}: {value}</span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </section>

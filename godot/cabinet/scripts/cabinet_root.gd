@@ -145,7 +145,17 @@ var diag_fps_counter := 0
 var admin_search_results: Array = []
 var admin_machine_list: Array = []
 var admin_agent_list: Array = []
+var admin_dashboard_data: Dictionary = {}
+var admin_user_detail_data: Dictionary = {}
+var admin_machine_detail_data: Dictionary = {}
+var admin_cabinet_devices: Array = []
+var admin_audit_entries: Array = []
+var admin_device_provisioning: Dictionary = {}
 var admin_selected_agent_id := 0
+var admin_selected_user_id := ""
+var admin_selected_machine_id := 0
+var admin_selected_device_id := ""
+var admin_active_section := "overview"
 var pending_command_id := ""
 var pending_idempotency_key := ""
 var pending_command_type := ""
@@ -214,16 +224,30 @@ var du_guess_node: Label
 var du_switch_node: Label
 var du_lucky_node: Label
 var admin_screen: VBoxContainer
+var admin_overview_list: VBoxContainer
 var admin_user_search_row: HBoxContainer
 var admin_agent_tools: VBoxContainer
 var admin_users_list: VBoxContainer
+var admin_user_detail_panel: VBoxContainer
 var admin_machines_list: VBoxContainer
+var admin_machine_detail_panel: VBoxContainer
 var admin_agents_list: VBoxContainer
+var admin_devices_tools: VBoxContainer
+var admin_devices_list: VBoxContainer
+var admin_device_detail_panel: VBoxContainer
+var admin_audit_list: VBoxContainer
 var admin_search_edit: LineEdit
 var admin_agent_name_edit: LineEdit
 var admin_agent_code_edit: LineEdit
 var admin_agent_phone_edit: LineEdit
 var admin_agent_credit_edit: LineEdit
+var admin_wallet_amount_edit: LineEdit
+var admin_wallet_reason_edit: LineEdit
+var admin_recharge_amount_edit: LineEdit
+var admin_device_machine_edit: LineEdit
+var admin_device_display_name_edit: LineEdit
+var admin_device_serial_edit: LineEdit
+var admin_device_revoke_reason_edit: LineEdit
 var win_amount_label: Label
 var win_slot_label: Label
 var machine_info_bg: Panel
@@ -1030,7 +1054,7 @@ func _build_paytable(parent: Node) -> void:
 	paytable_amount_colors.clear()
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(0, 162)
+	panel.custom_minimum_size = Vector2(0, 168)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var ps := StyleBoxFlat.new()
 	ps.bg_color = Color(0, 0, 0, 0.94)
@@ -1039,19 +1063,19 @@ func _build_paytable(parent: Node) -> void:
 	ps.border_width_top = 1; ps.border_width_bottom = 1
 	ps.corner_radius_top_left = 2; ps.corner_radius_top_right = 2
 	ps.corner_radius_bottom_left = 2; ps.corner_radius_bottom_right = 2
-	ps.content_margin_left = 6; ps.content_margin_right = 6
-	ps.content_margin_top = 4; ps.content_margin_bottom = 4
+	ps.content_margin_left = 8; ps.content_margin_right = 8
+	ps.content_margin_top = 5; ps.content_margin_bottom = 5
 	panel.add_theme_stylebox_override("panel", ps)
 	parent.add_child(panel)
 
 	# ── ai9 layout: paytable column on the left, CREDIT / STAKE column on the right ──
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 10)
+	columns.add_theme_constant_override("separation", 8)
 	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_child(columns)
 
 	var pbox := VBoxContainer.new()
-	pbox.add_theme_constant_override("separation", 2)
+	pbox.add_theme_constant_override("separation", 1)
 	pbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pbox.size_flags_stretch_ratio = 1.7
 	columns.add_child(pbox)
@@ -1070,24 +1094,24 @@ func _build_paytable(parent: Node) -> void:
 	]
 	for hand in hands:
 		var row_panel := PanelContainer.new()
-		row_panel.custom_minimum_size = Vector2(0, 16)
+		row_panel.custom_minimum_size = Vector2(0, 15)
 		var rps := StyleBoxFlat.new()
 		rps.bg_color = Color(0, 0, 0, 0)
 		rps.border_color = Color(0, 0, 0, 0)
 		rps.border_width_left = 0; rps.border_width_right = 0
 		rps.border_width_top = 0; rps.border_width_bottom = 0
-		rps.content_margin_left = 3; rps.content_margin_right = 3
+		rps.content_margin_left = 2; rps.content_margin_right = 2
 		rps.content_margin_top = 1; rps.content_margin_bottom = 1
 		row_panel.add_theme_stylebox_override("panel", rps)
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
+		row.add_theme_constant_override("separation", 4)
 		row_panel.add_child(row)
-		var name_l := _make_label(hand[1], 13, hand[3])
+		var name_l := _make_label(hand[1], 12, hand[3])
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_l.clip_text = true
 		row.add_child(name_l)
-		var amount_l := _make_label("0", 13, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
-		amount_l.custom_minimum_size = Vector2(110, 0)
+		var amount_l := _make_label("0", 12, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
+		amount_l.custom_minimum_size = Vector2(96, 0)
 		row.add_child(amount_l)
 		paytable_rows[str(hand[0])] = row_panel
 		paytable_amount_labels[str(hand[0])] = amount_l
@@ -1096,11 +1120,11 @@ func _build_paytable(parent: Node) -> void:
 		pbox.add_child(row_panel)
 
 	var fh_rank_row := HBoxContainer.new()
-	fh_rank_row.add_theme_constant_override("separation", 4)
+	fh_rank_row.add_theme_constant_override("separation", 6)
 	pbox.add_child(fh_rank_row)
-	full_house_rank_label = _make_label(_full_house_rank_text(), 13, COLOR_GOLD)
+	full_house_rank_label = _make_label(_full_house_rank_text(), 12, COLOR_GOLD)
 	fh_rank_row.add_child(full_house_rank_label)
-	full_house_jackpot_label = _make_label("0", 13, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	full_house_jackpot_label = _make_label("0", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 	full_house_jackpot_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	fh_rank_row.add_child(full_house_jackpot_label)
 	jackpot_counters["fh"] = full_house_jackpot_label
@@ -1113,23 +1137,23 @@ func _build_credit_stake_column(parent: Node) -> void:
 	column.alignment = BoxContainer.ALIGNMENT_BEGIN
 	parent.add_child(column)
 
-	credit_label = _make_label("CREDIT", 13, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
+	credit_label = _make_label("CREDIT", 12, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
 	credit_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_label)
 
-	credit_value_label = _make_label("0", 20, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	credit_value_label = _make_label("0", 21, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	credit_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_value_label)
 
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 6)
+	spacer.custom_minimum_size = Vector2(0, 8)
 	column.add_child(spacer)
 
-	var stake_caption := _make_label("STAKE", 13, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	var stake_caption := _make_label("STAKE", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 	stake_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(stake_caption)
 
-	stake_value_label = _make_label("0", 20, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	stake_value_label = _make_label("0", 21, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	stake_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(stake_value_label)
 
@@ -1169,15 +1193,15 @@ func _build_card_area(parent: Node) -> void:
 	card_container.add_theme_constant_override("separation", CARD_GAP)
 	card_center.add_child(card_container)
 
-	idle_title_label = _make_label(IDLE_TITLE_TEXT, 64, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
+	idle_title_label = _make_label(IDLE_TITLE_TEXT, 76, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER, "impact")
 	idle_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	idle_title_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	idle_title_label.add_theme_color_override("font_color", Color(0.298, 0.792, 1.0))
 	idle_title_label.add_theme_color_override("font_shadow_color", Color(0.02, 0.20, 0.36, 0.95))
 	idle_title_label.add_theme_constant_override("shadow_offset_x", 0)
-	idle_title_label.add_theme_constant_override("shadow_offset_y", 4)
-	idle_title_label.add_theme_constant_override("shadow_outline_size", 6)
-	idle_title_label.add_theme_constant_override("line_spacing", 8)
+	idle_title_label.add_theme_constant_override("shadow_offset_y", 3)
+	idle_title_label.add_theme_constant_override("shadow_outline_size", 4)
+	idle_title_label.add_theme_constant_override("line_spacing", 2)
 	idle_title_label.visible = false
 	card_area_panel.add_child(idle_title_label)
 
@@ -1250,7 +1274,7 @@ func _build_machine_info(parent: Node) -> void:
 	margin.add_child(rows)
 
 	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 8)
+	hbox.add_theme_constant_override("separation", 10)
 	rows.add_child(hbox)
 
 	machine_serie_label = _make_label("0", 13, COLOR_WHITE)
@@ -1263,14 +1287,14 @@ func _build_machine_info(parent: Node) -> void:
 
 	var jp_row := HBoxContainer.new()
 	jp_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	jp_row.add_theme_constant_override("separation", 10)
-	jp_row.custom_minimum_size = Vector2(0, 34)
+	jp_row.add_theme_constant_override("separation", 8)
+	jp_row.custom_minimum_size = Vector2(0, 32)
 	rows.add_child(jp_row)
 
 	jackpot_counter_panels.clear()
 	for slot in [["*", "4k-a", COLOR_GREEN_DIM], ["SF", "sf", COLOR_GOLD], ["*", "4k-b", COLOR_GREEN_DIM]]:
 		var counter_panel := Panel.new()
-		counter_panel.custom_minimum_size = Vector2(150, 34)
+		counter_panel.custom_minimum_size = Vector2(144, 32)
 		var cps := StyleBoxFlat.new()
 		cps.bg_color = Color(0, 0, 0, 0)
 		counter_panel.add_theme_stylebox_override("panel", cps)
@@ -1279,9 +1303,9 @@ func _build_machine_info(parent: Node) -> void:
 		counter_box.alignment = BoxContainer.ALIGNMENT_CENTER
 		counter_box.add_theme_constant_override("separation", 1)
 		counter_panel.add_child(counter_box)
-		var tag := _make_label(slot[0], 10, slot[2], HORIZONTAL_ALIGNMENT_CENTER)
+		var tag := _make_label(slot[0], 9, slot[2], HORIZONTAL_ALIGNMENT_CENTER)
 		counter_box.add_child(tag)
-		var val := _make_label("0", 14, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+		var val := _make_label("0", 13, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 		counter_box.add_child(val)
 		jackpot_counters[str(slot[1])] = val
 		jackpot_counter_panels[str(slot[1])] = counter_panel
@@ -1289,23 +1313,23 @@ func _build_machine_info(parent: Node) -> void:
 
 	var bonus_row := HBoxContainer.new()
 	bonus_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	bonus_row.add_theme_constant_override("separation", 6)
-	bonus_row.custom_minimum_size = Vector2(0, 40)
+	bonus_row.add_theme_constant_override("separation", 4)
+	bonus_row.custom_minimum_size = Vector2(0, 36)
 	rows.add_child(bonus_row)
 
-	bonus_message_label = _make_label("4 OF A KIND   WINS BONUS", 15, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	bonus_message_label = _make_label("4 OF A KIND   WINS BONUS", 14, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	bonus_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bonus_message_label.custom_minimum_size = Vector2(0, 34)
+	bonus_message_label.custom_minimum_size = Vector2(0, 30)
 	bonus_message_label.visible = true
 	bonus_row.add_child(bonus_message_label)
 
-	bonus_stage_label = _make_label("FREE GAMES", 13, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
-	bonus_stage_label.custom_minimum_size = Vector2(220, 18)
+	bonus_stage_label = _make_label("FREE GAMES", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	bonus_stage_label.custom_minimum_size = Vector2(206, 18)
 	bonus_stage_label.visible = false
 	bonus_row.add_child(bonus_stage_label)
 
-	bonus_stage_amount_label = _make_label("BONUS 0", 13, COLOR_RED, HORIZONTAL_ALIGNMENT_RIGHT)
-	bonus_stage_amount_label.custom_minimum_size = Vector2(180, 18)
+	bonus_stage_amount_label = _make_label("BONUS 0", 12, COLOR_RED, HORIZONTAL_ALIGNMENT_RIGHT)
+	bonus_stage_amount_label.custom_minimum_size = Vector2(168, 18)
 	bonus_stage_amount_label.visible = false
 	bonus_row.add_child(bonus_stage_amount_label)
 
@@ -1385,7 +1409,7 @@ func _build_admin_screen(parent: Node) -> void:
 	tabs.add_theme_constant_override("separation", 6)
 	admin_screen.add_child(tabs)
 
-	for tup in [["ADMIN PANEL", null], ["AGENTS", _on_admin_agents], ["USERS", _on_admin_users], ["MACHINES", _on_admin_machines], ["CLOSE", _on_admin_close]]:
+	for tup in [["ADMIN PANEL", null], ["OVERVIEW", _on_admin_overview], ["AGENTS", _on_admin_agents], ["USERS", _on_admin_users], ["MACHINES", _on_admin_machines], ["DEVICES", _on_admin_devices], ["AUDIT", _on_admin_audit], ["CLOSE", _on_admin_close]]:
 		if tup[0] == "ADMIN PANEL":
 			var l := _make_label(tup[0], 18, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1404,6 +1428,11 @@ func _build_admin_screen(parent: Node) -> void:
 	var sb := _make_button("SEARCH", 34, COLOR_PANEL_BG.lightened(0.2), COLOR_GOLD, COLOR_GOLD_DARK)
 	sb.pressed.connect(_on_admin_search)
 	admin_user_search_row.add_child(sb)
+
+	admin_overview_list = VBoxContainer.new()
+	admin_overview_list.add_theme_constant_override("separation", 4)
+	admin_overview_list.visible = false
+	admin_screen.add_child(admin_overview_list)
 
 	admin_agent_tools = VBoxContainer.new()
 	admin_agent_tools.add_theme_constant_override("separation", 4)
@@ -1444,10 +1473,66 @@ func _build_admin_screen(parent: Node) -> void:
 	admin_users_list.visible = false
 	admin_screen.add_child(admin_users_list)
 
+	admin_user_detail_panel = VBoxContainer.new()
+	admin_user_detail_panel.add_theme_constant_override("separation", 4)
+	admin_user_detail_panel.visible = false
+	admin_screen.add_child(admin_user_detail_panel)
+
 	admin_machines_list = VBoxContainer.new()
 	admin_machines_list.add_theme_constant_override("separation", 2)
 	admin_machines_list.visible = false
 	admin_screen.add_child(admin_machines_list)
+
+	admin_machine_detail_panel = VBoxContainer.new()
+	admin_machine_detail_panel.add_theme_constant_override("separation", 4)
+	admin_machine_detail_panel.visible = false
+	admin_screen.add_child(admin_machine_detail_panel)
+
+	admin_devices_tools = VBoxContainer.new()
+	admin_devices_tools.add_theme_constant_override("separation", 4)
+	admin_devices_tools.visible = false
+	admin_screen.add_child(admin_devices_tools)
+
+	var device_create_row := HBoxContainer.new()
+	device_create_row.add_theme_constant_override("separation", 5)
+	admin_devices_tools.add_child(device_create_row)
+	admin_device_machine_edit = _make_admin_edit("MACHINE ID", 92)
+	device_create_row.add_child(admin_device_machine_edit)
+	admin_device_display_name_edit = _make_admin_edit("DISPLAY NAME", 126)
+	device_create_row.add_child(admin_device_display_name_edit)
+	admin_device_serial_edit = _make_admin_edit("SERIAL NUMBER", 126)
+	device_create_row.add_child(admin_device_serial_edit)
+	var provision_device_button := _make_button("PROVISION", 34, COLOR_PANEL_BG.lightened(0.2), COLOR_GREEN, COLOR_GREEN_DIM)
+	provision_device_button.pressed.connect(_on_admin_provision_device)
+	device_create_row.add_child(provision_device_button)
+
+	var device_refresh_row := HBoxContainer.new()
+	device_refresh_row.add_theme_constant_override("separation", 5)
+	admin_devices_tools.add_child(device_refresh_row)
+	admin_device_revoke_reason_edit = _make_admin_edit("REVOKE REASON")
+	admin_device_revoke_reason_edit.text = "operator revoked"
+	device_refresh_row.add_child(admin_device_revoke_reason_edit)
+	var refresh_devices_button := _make_button("REFRESH", 34, COLOR_PANEL_BG.lightened(0.2), COLOR_CREAM, COLOR_GOLD_DARK)
+	refresh_devices_button.pressed.connect(_on_admin_devices)
+	device_refresh_row.add_child(refresh_devices_button)
+	var revoke_device_button := _make_button("REVOKE", 34, COLOR_PANEL_BG.lightened(0.2), COLOR_RED, COLOR_RED)
+	revoke_device_button.pressed.connect(_on_admin_revoke_device)
+	device_refresh_row.add_child(revoke_device_button)
+
+	admin_devices_list = VBoxContainer.new()
+	admin_devices_list.add_theme_constant_override("separation", 2)
+	admin_devices_list.visible = false
+	admin_screen.add_child(admin_devices_list)
+
+	admin_device_detail_panel = VBoxContainer.new()
+	admin_device_detail_panel.add_theme_constant_override("separation", 4)
+	admin_device_detail_panel.visible = false
+	admin_screen.add_child(admin_device_detail_panel)
+
+	admin_audit_list = VBoxContainer.new()
+	admin_audit_list.add_theme_constant_override("separation", 2)
+	admin_audit_list.visible = false
+	admin_screen.add_child(admin_audit_list)
 
 	_build_diagnostics_panel(admin_screen)
 
@@ -1623,7 +1708,7 @@ func _refresh_connection_ui() -> void:
 
 # ─── API response handler ───
 func _on_api_response(kind: String, ok: bool, body, _status_code: int, error_message: String) -> void:
-	if kind in ["admin_users", "admin_users_search", "admin_machines", "admin_agents", "admin_agent_create", "admin_agent_load_credit", "admin_agent_assign_user"]:
+	if kind in ["admin_dashboard", "admin_users", "admin_users_search", "admin_user_detail", "admin_user_credit", "admin_user_recharge_bonus", "admin_machines", "admin_machine_detail", "admin_machine_reset", "admin_machine_door_state", "admin_agents", "admin_agent_create", "admin_agent_load_credit", "admin_agent_assign_user", "admin_cabinet_devices", "admin_cabinet_device_provision", "admin_cabinet_device_revoke", "admin_audit"]:
 		_handle_admin_response(kind, ok, body, error_message)
 		return
 
@@ -1673,12 +1758,35 @@ func _handle_admin_response(kind: String, ok: bool, body, error_message: String)
 	if not ok:
 		recovery_label.text = "Admin error: " + error_message; return
 	var data = _unwrap_response_data(body)
-	if kind == "admin_users" or kind == "admin_users_search":
+	if kind == "admin_dashboard":
+		admin_dashboard_data = data if typeof(data) == TYPE_DICTIONARY else {}
+		_refresh_admin_overview()
+	elif kind == "admin_users" or kind == "admin_users_search":
 		admin_search_results = data if typeof(data) == TYPE_ARRAY else []
 		_refresh_admin_users()
+	elif kind == "admin_user_detail":
+		admin_user_detail_data = data if typeof(data) == TYPE_DICTIONARY else {}
+		_refresh_admin_user_detail()
+	elif kind == "admin_user_credit" or kind == "admin_user_recharge_bonus":
+		recovery_label.text = "Admin user updated."
+		if not admin_selected_user_id.is_empty() and not access_token.is_empty():
+			api.get_admin_user_detail(admin_selected_user_id)
+		if admin_active_section == "audit" and not access_token.is_empty():
+			api.get_admin_audit()
 	elif kind == "admin_machines":
 		admin_machine_list = data if typeof(data) == TYPE_ARRAY else []
 		_refresh_admin_machines()
+	elif kind == "admin_machine_detail":
+		admin_machine_detail_data = data if typeof(data) == TYPE_DICTIONARY else {}
+		_refresh_admin_machine_detail()
+	elif kind == "admin_machine_reset" or kind == "admin_machine_door_state":
+		recovery_label.text = "Admin machine updated."
+		if admin_selected_machine_id > 0 and not access_token.is_empty():
+			api.get_admin_machine_detail(admin_selected_machine_id)
+		if not access_token.is_empty():
+			api.get_admin_machines()
+		if admin_active_section == "audit" and not access_token.is_empty():
+			api.get_admin_audit()
 	elif kind == "admin_agents":
 		admin_agent_list = data if typeof(data) == TYPE_ARRAY else []
 		if admin_selected_agent_id == 0 and not admin_agent_list.is_empty():
@@ -1693,6 +1801,32 @@ func _handle_admin_response(kind: String, ok: bool, body, error_message: String)
 	elif kind == "admin_agent_assign_user":
 		recovery_label.text = "Admin user assigned to agent."
 		if not access_token.is_empty(): api.get_admin_agents()
+	elif kind == "admin_cabinet_devices":
+		admin_cabinet_devices = data if typeof(data) == TYPE_ARRAY else []
+		if admin_selected_device_id.is_empty() and not admin_cabinet_devices.is_empty():
+			var first_device: Dictionary = admin_cabinet_devices[0] if typeof(admin_cabinet_devices[0]) == TYPE_DICTIONARY else {}
+			admin_selected_device_id = str(first_device.get("deviceId", ""))
+		_refresh_admin_devices()
+	elif kind == "admin_cabinet_device_provision":
+		admin_device_provisioning = data if typeof(data) == TYPE_DICTIONARY else {}
+		if typeof(data) == TYPE_DICTIONARY and data.has("device") and typeof(data["device"]) == TYPE_DICTIONARY:
+			var provisioned_device: Dictionary = data["device"]
+			admin_selected_device_id = str(provisioned_device.get("deviceId", ""))
+		recovery_label.text = "Cabinet device provisioned."
+		if not access_token.is_empty():
+			api.get_cabinet_devices()
+			api.get_admin_machines()
+		if admin_active_section == "audit" and not access_token.is_empty():
+			api.get_admin_audit()
+	elif kind == "admin_cabinet_device_revoke":
+		recovery_label.text = "Cabinet device revoked."
+		if not access_token.is_empty():
+			api.get_cabinet_devices()
+		if admin_active_section == "audit" and not access_token.is_empty():
+			api.get_admin_audit()
+	elif kind == "admin_audit":
+		admin_audit_entries = data if typeof(data) == TYPE_ARRAY else []
+		_refresh_admin_audit()
 
 func _unwrap_response_data(body):
 	if typeof(body) == TYPE_DICTIONARY and body.has("data"): return body["data"]
@@ -2329,7 +2463,7 @@ func _refresh_du_trail(du_data: Dictionary, dealer_code: String, challenger_code
 				label = "DEALER"
 			elif slot_index == challenger_index:
 				label = _du_result_label(status)
-			_set_du_board_slot(slot_index, code, label, _is_lucky_du_card(du_data, code))
+			_set_du_board_slot(slot_index, code, label, slot_index == dealer_index and _is_lucky_du_card(du_data, code))
 		elif slot_index == reveal_index and dealer_code.length() >= 2:
 			_set_du_board_back(slot_index, "BIG / SMALL ?", 1.0)
 		else:
@@ -3382,41 +3516,194 @@ func _snapshot_first_value(keys: Array, fallback: Variant = null) -> Variant:
 			return store.snapshot[name]
 	return fallback
 
+func _clear_admin_list(container: VBoxContainer) -> void:
+	if container == null:
+		return
+	for child in container.get_children():
+		child.queue_free()
+
+func _append_admin_info_row(parent: VBoxContainer, title_text: String, value_text: String, value_color: Color = COLOR_WHITE) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var title := _make_label(title_text, 11, COLOR_CREAM)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(title)
+	row.add_child(_make_label(value_text, 11, value_color, HORIZONTAL_ALIGNMENT_RIGHT))
+	parent.add_child(row)
+
+func _format_admin_datetime(value: Variant) -> String:
+	var text := str(value).strip_edges()
+	if text.is_empty() or text == "null":
+		return "--"
+	return text.replace("T", " ").replace("Z", " UTC")
+
+func _format_admin_percent(value: Variant) -> String:
+	return "%s%%" % snappedf(float(value) * 100.0, 0.1)
+
+func _refresh_admin_overview() -> void:
+	_clear_admin_list(admin_overview_list)
+	if admin_dashboard_data.is_empty():
+		admin_overview_list.add_child(_make_label("No dashboard metrics loaded", 12, COLOR_GREY, HORIZONTAL_ALIGNMENT_CENTER))
+	else:
+		_append_admin_info_row(admin_overview_list, "Players", str(admin_dashboard_data.get("playerCount", 0)), COLOR_GREEN)
+		_append_admin_info_row(admin_overview_list, "Wallet bank", _format_amount(admin_dashboard_data.get("totalWalletBalance", 0)), COLOR_GREEN)
+		_append_admin_info_row(admin_overview_list, "Machine credits", _format_amount(admin_dashboard_data.get("totalMachineCredits", 0)), COLOR_GREEN)
+		_append_admin_info_row(admin_overview_list, "Open machines", "%s / %s" % [str(admin_dashboard_data.get("openMachineCount", 0)), str(admin_dashboard_data.get("machineCount", 0))], COLOR_BLUE)
+		_append_admin_info_row(admin_overview_list, "Active sessions", str(admin_dashboard_data.get("activeMachineSessions", 0)), COLOR_BLUE)
+		_append_admin_info_row(admin_overview_list, "Recoverable rounds", str(admin_dashboard_data.get("recoverableRounds", 0)), COLOR_GOLD)
+		_append_admin_info_row(admin_overview_list, "Cabinet devices", "%s / %s" % [str(admin_dashboard_data.get("activeCabinetDeviceSessions", 0)), str(admin_dashboard_data.get("cabinetDeviceCount", 0))], COLOR_GOLD)
+		_append_admin_info_row(admin_overview_list, "Floor RTP", _format_admin_percent(admin_dashboard_data.get("observedRtp", 0.0)), COLOR_RED)
+	if admin_overview_list != null:
+		admin_overview_list.visible = admin_active_section == "overview"
+
 func _refresh_admin_users() -> void:
-	for c in admin_users_list.get_children(): c.queue_free()
+	_clear_admin_list(admin_users_list)
 	if admin_search_results.is_empty():
-		admin_users_list.add_child(_make_label("No users found", 12, COLOR_GREY, HORIZONTAL_ALIGNMENT_CENTER)); return
+		admin_users_list.add_child(_make_label("No users found", 12, COLOR_GREY, HORIZONTAL_ALIGNMENT_CENTER))
+		return
 	for user in admin_search_results:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		var ud: Dictionary = user if typeof(user) == TYPE_DICTIONARY else {}
-		var name_l := _make_label(str(ud.get("username", "?")), 12, COLOR_CREAM)
+		var selected := str(ud.get("userId", "")) == admin_selected_user_id
+		var name_l := _make_label(("> " if selected else "") + str(ud.get("username", "?")), 12, COLOR_CREAM)
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(name_l)
 		row.add_child(_make_label(_format_amount(ud.get("walletBalance", "0")), 12, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT))
 		row.add_child(_make_label(str(ud.get("role", "")), 12, COLOR_BLUE, HORIZONTAL_ALIGNMENT_RIGHT))
+		var detail_button := _make_button("DETAILS", 30, COLOR_PANEL_BG.lightened(0.2), COLOR_CREAM, COLOR_GOLD_DARK)
+		detail_button.pressed.connect(_on_admin_user_detail.bind(str(ud.get("userId", ""))))
+		row.add_child(detail_button)
 		var assign_button := _make_button("ASSIGN", 30, COLOR_PANEL_BG.lightened(0.2), COLOR_GOLD, COLOR_GOLD_DARK)
 		assign_button.disabled = admin_selected_agent_id <= 0
 		assign_button.pressed.connect(_on_admin_assign_user.bind(str(ud.get("userId", ""))))
 		row.add_child(assign_button)
 		admin_users_list.add_child(row)
+	_refresh_admin_user_detail()
+
+func _refresh_admin_user_detail() -> void:
+	_clear_admin_list(admin_user_detail_panel)
+	if admin_user_detail_data.is_empty():
+		if admin_user_detail_panel != null:
+			admin_user_detail_panel.visible = false
+		return
+	var user: Dictionary = admin_user_detail_data.get("user", {})
+	admin_user_detail_panel.add_child(_make_label(str(user.get("username", "USER")), 14, COLOR_GOLD, HORIZONTAL_ALIGNMENT_LEFT))
+	_append_admin_info_row(admin_user_detail_panel, "Wallet", _format_amount(user.get("walletBalance", 0)), COLOR_GREEN)
+	_append_admin_info_row(admin_user_detail_panel, "Credit", _format_amount(admin_user_detail_data.get("credit", 0)), COLOR_GREEN)
+	_append_admin_info_row(admin_user_detail_panel, "Agent", str(admin_user_detail_data.get("agentId", "none")), COLOR_BLUE)
+	_append_admin_info_row(admin_user_detail_panel, "Wins", str(admin_user_detail_data.get("totalWins", 0)), COLOR_GOLD)
+	var sessions: Array = admin_user_detail_data.get("sessions", []) if typeof(admin_user_detail_data.get("sessions", [])) == TYPE_ARRAY else []
+	var active_rounds: Array = admin_user_detail_data.get("activeRounds", []) if typeof(admin_user_detail_data.get("activeRounds", [])) == TYPE_ARRAY else []
+	_append_admin_info_row(admin_user_detail_panel, "Sessions", str(sessions.size()), COLOR_BLUE)
+	_append_admin_info_row(admin_user_detail_panel, "Active rounds", str(active_rounds.size()), COLOR_RED)
+
+	var wallet_row := HBoxContainer.new()
+	wallet_row.add_theme_constant_override("separation", 5)
+	admin_user_detail_panel.add_child(wallet_row)
+	admin_wallet_amount_edit = _make_admin_edit("AMOUNT", 96)
+	admin_wallet_amount_edit.text = "100000"
+	wallet_row.add_child(admin_wallet_amount_edit)
+	admin_wallet_reason_edit = _make_admin_edit("REASON", 150)
+	admin_wallet_reason_edit.text = "operator adjustment"
+	wallet_row.add_child(admin_wallet_reason_edit)
+	var credit_button := _make_button("CREDIT", 30, COLOR_PANEL_BG.lightened(0.2), COLOR_GREEN, COLOR_GREEN_DIM)
+	credit_button.pressed.connect(_on_admin_adjust_user_wallet.bind(1))
+	wallet_row.add_child(credit_button)
+	var debit_button := _make_button("DEBIT", 30, COLOR_PANEL_BG.lightened(0.2), COLOR_RED, COLOR_RED)
+	debit_button.pressed.connect(_on_admin_adjust_user_wallet.bind(-1))
+	wallet_row.add_child(debit_button)
+
+	var bonus_row := HBoxContainer.new()
+	bonus_row.add_theme_constant_override("separation", 5)
+	admin_user_detail_panel.add_child(bonus_row)
+	admin_recharge_amount_edit = _make_admin_edit("RECHARGE", 110)
+	admin_recharge_amount_edit.text = "500000"
+	bonus_row.add_child(admin_recharge_amount_edit)
+	var recharge_button := _make_button("RECHARGE BONUS", 30, COLOR_PANEL_BG.lightened(0.2), COLOR_GOLD, COLOR_GOLD_DARK)
+	recharge_button.pressed.connect(_on_admin_recharge_bonus)
+	bonus_row.add_child(recharge_button)
+
+	for round in active_rounds.slice(0, 3):
+		if typeof(round) != TYPE_DICTIONARY:
+			continue
+		var rd: Dictionary = round
+		_append_admin_info_row(admin_user_detail_panel, str(rd.get("machineName", "Machine")), "%s · %s" % [str(rd.get("phase", "")), _format_amount(rd.get("winAmount", rd.get("betAmount", 0)))], COLOR_BLUE)
+	if admin_user_detail_panel != null:
+		admin_user_detail_panel.visible = admin_active_section == "users"
 
 func _refresh_admin_machines() -> void:
-	for c in admin_machines_list.get_children(): c.queue_free()
+	_clear_admin_list(admin_machines_list)
 	if admin_machine_list.is_empty():
-		admin_machines_list.add_child(_make_label("No machines found", 12, COLOR_GREY, HORIZONTAL_ALIGNMENT_CENTER)); return
+		admin_machines_list.add_child(_make_label("No machines found", 12, COLOR_GREY, HORIZONTAL_ALIGNMENT_CENTER))
+		return
 	for machine in admin_machine_list:
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
+		row.add_theme_constant_override("separation", 6)
 		var md: Dictionary = machine if typeof(machine) == TYPE_DICTIONARY else {}
-		row.add_child(_make_label("#%s %s" % [str(md.get("machineId", "?")), str(md.get("name", "?"))], 12, COLOR_CREAM))
-		row.add_child(_make_label(str(md.get("machineCredits", "0")), 12, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT))
+		var machine_id := store._to_int(md.get("machineId", 0))
+		var selected := machine_id == admin_selected_machine_id
+		var machine_label := _make_label(("%s " % (">" if selected else "")) + "#%s %s" % [str(md.get("machineId", "?")), str(md.get("name", "?"))], 12, COLOR_CREAM)
+		machine_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(machine_label)
+		row.add_child(_make_label(_format_admin_percent(md.get("observedRtp", 0.0)), 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT))
+		var detail_button := _make_button("DETAILS", 30, COLOR_PANEL_BG.lightened(0.2), COLOR_CREAM, COLOR_GOLD_DARK)
+		detail_button.pressed.connect(_on_admin_machine_detail.bind(machine_id))
+		row.add_child(detail_button)
 		admin_machines_list.add_child(row)
+	if admin_device_machine_edit != null and admin_device_machine_edit.text.strip_edges().is_empty() and not admin_machine_list.is_empty():
+		var first: Dictionary = admin_machine_list[0] if typeof(admin_machine_list[0]) == TYPE_DICTIONARY else {}
+		admin_device_machine_edit.text = str(first.get("machineId", ""))
+	_refresh_admin_machine_detail()
+
+func _refresh_admin_machine_detail() -> void:
+	_clear_admin_list(admin_machine_detail_panel)
+	if admin_machine_detail_data.is_empty():
+		if admin_machine_detail_panel != null:
+			admin_machine_detail_panel.visible = false
+		return
+	var machine: Dictionary = admin_machine_detail_data.get("machine", {})
+	admin_machine_detail_panel.add_child(_make_label(str(machine.get("name", "MACHINE")), 14, COLOR_GOLD, HORIZONTAL_ALIGNMENT_LEFT))
+	_append_admin_info_row(admin_machine_detail_panel, "Door", str(admin_machine_detail_data.get("doorState", "--")), COLOR_BLUE)
+	_append_admin_info_row(admin_machine_detail_panel, "Capital in", _format_amount(admin_machine_detail_data.get("capitalIn", 0)), COLOR_GREEN)
+	_append_admin_info_row(admin_machine_detail_panel, "Capital out", _format_amount(admin_machine_detail_data.get("capitalOut", 0)), COLOR_RED)
+	_append_admin_info_row(admin_machine_detail_panel, "Jackpot out", _format_amount(admin_machine_detail_data.get("jackpotCapitalOut", 0)), COLOR_GOLD)
+	_append_admin_info_row(admin_machine_detail_panel, "Profit", _format_amount(admin_machine_detail_data.get("profit", 0)), COLOR_WHITE)
+
+	var machine_id := store._to_int(machine.get("machineId", 0))
+	var controls := HBoxContainer.new()
+	controls.add_theme_constant_override("separation", 5)
+	admin_machine_detail_panel.add_child(controls)
+	var open_button := _make_button("DOOR OPEN", 30, COLOR_PANEL_BG.lightened(0.2), COLOR_GOLD, COLOR_GOLD_DARK)
+	open_button.pressed.connect(_on_admin_set_machine_door_state.bind(machine_id, 1))
+	controls.add_child(open_button)
+	var closed_button := _make_button("DOOR CLOSED", 30, COLOR_PANEL_BG.lightened(0.2), COLOR_CREAM, COLOR_GOLD_DARK)
+	closed_button.pressed.connect(_on_admin_set_machine_door_state.bind(machine_id, 0))
+	controls.add_child(closed_button)
+	var reset_button := _make_button("RESET", 30, COLOR_PANEL_BG.lightened(0.2), COLOR_RED, COLOR_RED)
+	reset_button.pressed.connect(_on_admin_reset_machine.bind(machine_id))
+	controls.add_child(reset_button)
+
+	var machine_rounds: Array = admin_machine_detail_data.get("activeRounds", []) if typeof(admin_machine_detail_data.get("activeRounds", [])) == TYPE_ARRAY else []
+	for round in machine_rounds.slice(0, 3):
+		if typeof(round) != TYPE_DICTIONARY:
+			continue
+		var rd: Dictionary = round
+		_append_admin_info_row(admin_machine_detail_panel, str(rd.get("username", "user")), "%s · %s" % [str(rd.get("phase", "")), _format_amount(rd.get("winAmount", rd.get("betAmount", 0)))], COLOR_BLUE)
+	var machine_devices: Array = admin_machine_detail_data.get("cabinetDevices", []) if typeof(admin_machine_detail_data.get("cabinetDevices", [])) == TYPE_ARRAY else []
+	for device in machine_devices.slice(0, 3):
+		if typeof(device) != TYPE_DICTIONARY:
+			continue
+		var dd: Dictionary = device
+		_append_admin_info_row(admin_machine_detail_panel, str(dd.get("displayName", "device")), "%s · %s" % [str(dd.get("serialNumber", "")), ("REVOKED" if bool(dd.get("isRevoked", false)) else "%s LIVE" % str(dd.get("activeSessionCount", 0)))], COLOR_GOLD)
+	if admin_machine_detail_panel != null:
+		admin_machine_detail_panel.visible = admin_active_section == "machines"
 
 func _refresh_admin_agents() -> void:
-	for c in admin_agents_list.get_children(): c.queue_free()
+	_clear_admin_list(admin_agents_list)
 	if admin_agent_list.is_empty():
-		admin_agents_list.add_child(_make_label("No agents found", 12, COLOR_GREY, HORIZONTAL_ALIGNMENT_CENTER)); return
+		admin_agents_list.add_child(_make_label("No agents found", 12, COLOR_GREY, HORIZONTAL_ALIGNMENT_CENTER))
+		return
 	for agent in admin_agent_list:
 		var ad: Dictionary = agent if typeof(agent) == TYPE_DICTIONARY else {}
 		var agent_id := int(ad.get("id", 0))
@@ -3426,12 +3713,102 @@ func _refresh_admin_agents() -> void:
 		row_button.pressed.connect(_on_admin_select_agent.bind(agent_id))
 		admin_agents_list.add_child(row_button)
 
+func _refresh_admin_devices() -> void:
+	_clear_admin_list(admin_devices_list)
+	if admin_device_provisioning.has("device") and typeof(admin_device_provisioning["device"]) == TYPE_DICTIONARY:
+		var card := VBoxContainer.new()
+		card.add_theme_constant_override("separation", 2)
+		var provisioned: Dictionary = admin_device_provisioning["device"]
+		card.add_child(_make_label("ONE-TIME DEVICE SECRET", 13, COLOR_GOLD, HORIZONTAL_ALIGNMENT_LEFT))
+		_append_admin_info_row(card, str(provisioned.get("displayName", "device")), str(admin_device_provisioning.get("deviceSecret", "")), COLOR_GREEN)
+		admin_devices_list.add_child(card)
+	if admin_cabinet_devices.is_empty():
+		admin_devices_list.add_child(_make_label("No cabinet devices loaded", 12, COLOR_GREY, HORIZONTAL_ALIGNMENT_CENTER))
+		_refresh_admin_device_detail()
+		return
+	for device in admin_cabinet_devices:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var dd: Dictionary = device if typeof(device) == TYPE_DICTIONARY else {}
+		var device_id := str(dd.get("deviceId", ""))
+		var selected := device_id == admin_selected_device_id
+		var title := _make_label(("> " if selected else "") + str(dd.get("displayName", "DEVICE")), 12, COLOR_CREAM)
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(title)
+		row.add_child(_make_label(str(dd.get("serialNumber", "")), 11, COLOR_BLUE, HORIZONTAL_ALIGNMENT_RIGHT))
+		var state_text := "REVOKED" if bool(dd.get("isRevoked", false)) else "%s LIVE" % str(dd.get("activeSessionCount", 0))
+		var select_button := _make_button(state_text, 30, COLOR_PANEL_BG.lightened(0.2), COLOR_GOLD if not bool(dd.get("isRevoked", false)) else COLOR_RED, COLOR_GOLD_DARK)
+		select_button.pressed.connect(_on_admin_select_device.bind(device_id))
+		row.add_child(select_button)
+		admin_devices_list.add_child(row)
+	_refresh_admin_device_detail()
+	if admin_devices_list != null:
+		admin_devices_list.visible = admin_active_section == "devices"
+
+func _refresh_admin_device_detail() -> void:
+	_clear_admin_list(admin_device_detail_panel)
+	if admin_selected_device_id.is_empty():
+		if admin_device_detail_panel != null:
+			admin_device_detail_panel.visible = false
+		return
+	for device in admin_cabinet_devices:
+		if typeof(device) != TYPE_DICTIONARY:
+			continue
+		var dd: Dictionary = device
+		if str(dd.get("deviceId", "")) != admin_selected_device_id:
+			continue
+		admin_device_detail_panel.add_child(_make_label(str(dd.get("displayName", "DEVICE")), 14, COLOR_GOLD, HORIZONTAL_ALIGNMENT_LEFT))
+		_append_admin_info_row(admin_device_detail_panel, "Machine", str(dd.get("machineName", "--")), COLOR_BLUE)
+		_append_admin_info_row(admin_device_detail_panel, "Fingerprint", str(dd.get("secretFingerprint", "--")), COLOR_GREEN)
+		_append_admin_info_row(admin_device_detail_panel, "Firmware", str(dd.get("lastFirmwareVersion", "--")), COLOR_WHITE)
+		_append_admin_info_row(admin_device_detail_panel, "Client", str(dd.get("lastClientVersion", "--")), COLOR_WHITE)
+		_append_admin_info_row(admin_device_detail_panel, "Created", _format_admin_datetime(dd.get("createdUtc", "")), COLOR_BLUE)
+		_append_admin_info_row(admin_device_detail_panel, "Last auth", _format_admin_datetime(dd.get("lastAuthenticatedUtc", "")), COLOR_BLUE)
+		_append_admin_info_row(admin_device_detail_panel, "Last seen", _format_admin_datetime(dd.get("lastSeenUtc", "")), COLOR_BLUE)
+		_append_admin_info_row(admin_device_detail_panel, "State", "REVOKED" if bool(dd.get("isRevoked", false)) else "ACTIVE", COLOR_RED if bool(dd.get("isRevoked", false)) else COLOR_GREEN)
+		break
+	if admin_device_detail_panel != null:
+		admin_device_detail_panel.visible = admin_active_section == "devices"
+
+func _refresh_admin_audit() -> void:
+	_clear_admin_list(admin_audit_list)
+	if admin_audit_entries.is_empty():
+		admin_audit_list.add_child(_make_label("No audit records loaded", 12, COLOR_GREY, HORIZONTAL_ALIGNMENT_CENTER))
+	else:
+		for entry in admin_audit_entries:
+			if typeof(entry) != TYPE_DICTIONARY:
+				continue
+			var ed: Dictionary = entry
+			var row := VBoxContainer.new()
+			row.add_theme_constant_override("separation", 1)
+			row.add_child(_make_label(str(ed.get("action", "")), 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_LEFT))
+			row.add_child(_make_label("%s · %s · %s" % [str(ed.get("actorRole", "")), str(ed.get("targetType", "")), str(ed.get("targetId", ""))], 11, COLOR_CREAM, HORIZONTAL_ALIGNMENT_LEFT))
+			row.add_child(_make_label("%s · %s" % [str(ed.get("outcome", "")), _format_admin_datetime(ed.get("createdUtc", ""))], 11, COLOR_BLUE, HORIZONTAL_ALIGNMENT_LEFT))
+			var reason := str(ed.get("reason", "")).strip_edges()
+			if not reason.is_empty():
+				row.add_child(_make_label(reason, 11, COLOR_WHITE, HORIZONTAL_ALIGNMENT_LEFT))
+			var meta: Dictionary = ed.get("metadata", {})
+			if typeof(meta) == TYPE_DICTIONARY:
+				for key in meta.keys():
+					row.add_child(_make_label("%s: %s" % [str(key), str(meta[key])], 10, COLOR_GREEN, HORIZONTAL_ALIGNMENT_LEFT))
+			admin_audit_list.add_child(row)
+	if admin_audit_list != null:
+		admin_audit_list.visible = admin_active_section == "audit"
+
 func _show_admin_section(section: String) -> void:
+	admin_active_section = section
+	if admin_overview_list != null: admin_overview_list.visible = section == "overview"
 	if admin_agent_tools != null: admin_agent_tools.visible = section == "agents"
 	if admin_agents_list != null: admin_agents_list.visible = section == "agents"
 	if admin_user_search_row != null: admin_user_search_row.visible = section == "users"
 	if admin_users_list != null: admin_users_list.visible = section == "users"
+	if admin_user_detail_panel != null: admin_user_detail_panel.visible = section == "users" and not admin_user_detail_data.is_empty()
 	if admin_machines_list != null: admin_machines_list.visible = section == "machines"
+	if admin_machine_detail_panel != null: admin_machine_detail_panel.visible = section == "machines" and not admin_machine_detail_data.is_empty()
+	if admin_devices_tools != null: admin_devices_tools.visible = section == "devices"
+	if admin_devices_list != null: admin_devices_list.visible = section == "devices"
+	if admin_device_detail_panel != null: admin_device_detail_panel.visible = section == "devices" and not admin_selected_device_id.is_empty()
+	if admin_audit_list != null: admin_audit_list.visible = section == "audit"
 
 # ─── input handlers ───
 func _on_card_gui_input(event: InputEvent, index: int) -> void:
@@ -3512,8 +3889,7 @@ func _on_action_pressed(id: String) -> void:
 			active_screen = "admin" if opening else "game"
 			menu_open = false
 			if opening:
-				_show_admin_section("agents")
-				if not access_token.is_empty(): api.get_admin_agents()
+				_on_admin_overview()
 			_refresh_ui()
 		"admin_agents": _on_admin_agents()
 		"admin_users": _on_admin_users()
@@ -3540,6 +3916,11 @@ func _on_verify_otp_pressed() -> void:
 	auth_status = "VERIFYING OTP"; _refresh_ui()
 	if not api.verify_otp(username, otp_code): auth_status = "OTP REQUEST IS BUSY"; _refresh_ui()
 
+func _on_admin_overview() -> void:
+	_show_admin_section("overview")
+	if not access_token.is_empty():
+		api.get_admin_dashboard()
+
 func _on_admin_agents() -> void:
 	_show_admin_section("agents")
 	if not access_token.is_empty(): api.get_admin_agents()
@@ -3551,6 +3932,17 @@ func _on_admin_machines() -> void:
 func _on_admin_users() -> void:
 	_show_admin_section("users")
 	if not access_token.is_empty(): api.get_admin_users()
+
+func _on_admin_devices() -> void:
+	_show_admin_section("devices")
+	if not access_token.is_empty():
+		api.get_cabinet_devices()
+		api.get_admin_machines()
+
+func _on_admin_audit() -> void:
+	_show_admin_section("audit")
+	if not access_token.is_empty():
+		api.get_admin_audit()
 
 func _on_admin_search() -> void:
 	_show_admin_section("users")
@@ -3565,6 +3957,41 @@ func _on_admin_select_agent(agent_id: int) -> void:
 	admin_selected_agent_id = agent_id
 	_refresh_admin_agents()
 	_refresh_admin_users()
+
+func _on_admin_user_detail(user_id: String) -> void:
+	admin_selected_user_id = user_id.strip_edges()
+	if admin_selected_user_id.is_empty():
+		return
+	_show_admin_section("users")
+	if not access_token.is_empty():
+		api.get_admin_user_detail(admin_selected_user_id)
+
+func _on_admin_adjust_user_wallet(direction: int) -> void:
+	if admin_selected_user_id.is_empty():
+		recovery_label.text = "Select a user before adjusting wallet."
+		return
+	var amount_text := admin_wallet_amount_edit.text.strip_edges() if admin_wallet_amount_edit != null else ""
+	var amount := int(float(amount_text)) if amount_text.is_valid_float() else 0
+	if amount <= 0:
+		recovery_label.text = "Enter a positive wallet adjustment."
+		return
+	var reason := admin_wallet_reason_edit.text.strip_edges() if admin_wallet_reason_edit != null else ""
+	if reason.is_empty():
+		reason = "operator adjustment"
+	if not access_token.is_empty():
+		api.admin_credit_user(admin_selected_user_id, amount * direction, reason)
+
+func _on_admin_recharge_bonus() -> void:
+	if admin_selected_user_id.is_empty():
+		recovery_label.text = "Select a user before sending a recharge bonus."
+		return
+	var amount_text := admin_recharge_amount_edit.text.strip_edges() if admin_recharge_amount_edit != null else ""
+	var amount := int(float(amount_text)) if amount_text.is_valid_float() else 0
+	if amount <= 0:
+		recovery_label.text = "Enter a positive recharge amount."
+		return
+	if not access_token.is_empty():
+		api.admin_recharge_bonus(admin_selected_user_id, amount)
 
 func _on_admin_create_agent() -> void:
 	var name := admin_agent_name_edit.text.strip_edges()
@@ -3592,6 +4019,55 @@ func _on_admin_assign_user(user_id: String) -> void:
 		recovery_label.text = "Select an agent before assigning a user."; return
 	if user_id.strip_edges().is_empty(): return
 	if not access_token.is_empty(): api.assign_admin_user_to_agent(admin_selected_agent_id, user_id.strip_edges())
+
+func _on_admin_machine_detail(machine_id: int) -> void:
+	admin_selected_machine_id = machine_id
+	_show_admin_section("machines")
+	if not access_token.is_empty():
+		api.get_admin_machine_detail(machine_id)
+
+func _on_admin_set_machine_door_state(machine_id: int, door_state: int) -> void:
+	if machine_id <= 0:
+		recovery_label.text = "Select a machine before changing door state."
+		return
+	if not access_token.is_empty():
+		api.set_admin_machine_door_state(machine_id, door_state)
+
+func _on_admin_reset_machine(machine_id: int) -> void:
+	if machine_id <= 0:
+		recovery_label.text = "Select a machine before reset."
+		return
+	if not access_token.is_empty():
+		api.reset_admin_machine(machine_id)
+
+func _on_admin_select_device(device_id: String) -> void:
+	admin_selected_device_id = device_id.strip_edges()
+	_refresh_admin_devices()
+
+func _on_admin_provision_device() -> void:
+	var machine_id_text := admin_device_machine_edit.text.strip_edges() if admin_device_machine_edit != null else ""
+	var machine_id := int(machine_id_text) if machine_id_text.is_valid_int() else 0
+	var display_name := admin_device_display_name_edit.text.strip_edges() if admin_device_display_name_edit != null else ""
+	var serial_number := admin_device_serial_edit.text.strip_edges() if admin_device_serial_edit != null else ""
+	if machine_id <= 0:
+		recovery_label.text = "Select a machine before provisioning a cabinet device."
+		return
+	if display_name.is_empty() or serial_number.is_empty():
+		recovery_label.text = "Device display name and serial number are required."
+		return
+	if not access_token.is_empty() and api.provision_cabinet_device(machine_id, display_name, serial_number):
+		admin_device_display_name_edit.text = ""
+		admin_device_serial_edit.text = ""
+
+func _on_admin_revoke_device() -> void:
+	if admin_selected_device_id.is_empty():
+		recovery_label.text = "Select a cabinet device before revoking it."
+		return
+	var reason := admin_device_revoke_reason_edit.text.strip_edges() if admin_device_revoke_reason_edit != null else ""
+	if reason.is_empty():
+		reason = "operator revoked"
+	if not access_token.is_empty():
+		api.revoke_cabinet_device(admin_selected_device_id, reason)
 
 func _on_admin_close() -> void: active_screen = "game"; admin_screen.visible = false; _refresh_ui()
 

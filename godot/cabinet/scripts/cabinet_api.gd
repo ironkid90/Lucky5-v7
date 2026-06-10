@@ -73,11 +73,59 @@ func post_refresh_token(refresh_token_val: String) -> bool:
 func get_admin_users() -> bool:
     return _request_get("admin_users", "/api/Admin/users")
 
+func get_admin_dashboard() -> bool:
+    return _request_get("admin_dashboard", "/api/Admin/dashboard")
+
 func search_admin_users(query: String) -> bool:
     return _request_get("admin_users_search", "/api/Admin/users/search?q=%s" % query.uri_encode())
 
+func get_admin_user_detail(user_id: String) -> bool:
+    return _request_get("admin_user_detail", "/api/Admin/users/%s/detail" % user_id.uri_encode())
+
+func admin_credit_user(user_id: String, amount: int, reason: String) -> bool:
+    return _request("admin_user_credit", HTTPClient.METHOD_POST, "/api/Admin/users/credit", {
+        "targetUserId": user_id.strip_edges(),
+        "amount": amount,
+        "reason": reason.strip_edges()
+    })
+
+func admin_recharge_bonus(user_id: String, recharge_amount: int) -> bool:
+    return _request("admin_user_recharge_bonus", HTTPClient.METHOD_POST, "/api/Admin/users/recharge-bonus", {
+        "userId": user_id.strip_edges(),
+        "rechargeAmount": recharge_amount
+    })
+
 func get_admin_machines() -> bool:
     return _request_get("admin_machines", "/api/Admin/machines")
+
+func get_admin_machine_detail(machine_id: int) -> bool:
+    return _request_get("admin_machine_detail", "/api/Admin/machines/%d/detail" % machine_id)
+
+func reset_admin_machine(machine_id: int) -> bool:
+    return _request("admin_machine_reset", HTTPClient.METHOD_POST, "/api/Admin/machines/%d/reset" % machine_id, {})
+
+func set_admin_machine_door_state(machine_id: int, door_state: int) -> bool:
+    return _request("admin_machine_door_state", HTTPClient.METHOD_POST, "/api/Admin/machines/%d/door-state" % machine_id, {
+        "doorState": door_state
+    })
+
+func get_admin_audit(take: int = 25) -> bool:
+    return _request_get("admin_audit", "/api/Admin/audit?take=%d" % max(1, take))
+
+func get_cabinet_devices() -> bool:
+    return _request_get("admin_cabinet_devices", "/api/Admin/cabinet-devices")
+
+func provision_cabinet_device(machine_id: int, display_name: String, serial_number: String) -> bool:
+    return _request("admin_cabinet_device_provision", HTTPClient.METHOD_POST, "/api/Admin/cabinet-devices", {
+        "machineId": machine_id,
+        "displayName": display_name.strip_edges(),
+        "serialNumber": serial_number.strip_edges()
+    })
+
+func revoke_cabinet_device(device_id: String, reason: String) -> bool:
+    return _request("admin_cabinet_device_revoke", HTTPClient.METHOD_POST, "/api/Admin/cabinet-devices/%s/revoke" % device_id.uri_encode(), {
+        "reason": reason.strip_edges()
+    })
 
 func get_admin_agents() -> bool:
     return _request_get("admin_agents", "/api/Agent")

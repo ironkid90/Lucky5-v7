@@ -66,15 +66,15 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
-            "Godot cabinet project must stay portrait, iconed, GL Compatibility based for desktop/web, and Mobile-rendered for Android",
+            "Godot cabinet project must stay iconed, GL Compatibility based for desktop/web, Mobile-rendered for Android, and use the upgraded portrait canvas layout",
             project.Contains("config/icon=\"res://icon-512.png\"", StringComparison.Ordinal)
                 && project.Contains("config/features=PackedStringArray(\"4.6\", \"GL Compatibility\")", StringComparison.Ordinal)
-                && project.Contains("window/size/viewport_width=720", StringComparison.Ordinal)
-                && project.Contains("window/size/viewport_height=1280", StringComparison.Ordinal)
+                && project.Contains("window/size/viewport_width=1080", StringComparison.Ordinal)
+                && project.Contains("window/size/viewport_height=1920", StringComparison.Ordinal)
                 && project.Contains("window/size/window_width_override=540", StringComparison.Ordinal)
                 && project.Contains("window/size/window_height_override=960", StringComparison.Ordinal)
                 && project.Contains("window/handheld/orientation=1", StringComparison.Ordinal)
-                && project.Contains("window/stretch/mode=\"viewport\"", StringComparison.Ordinal)
+                && project.Contains("window/stretch/mode=\"canvas_items\"", StringComparison.Ordinal)
                 && project.Contains("window/stretch/aspect=\"keep\"", StringComparison.Ordinal)
                 && project.Contains("renderer/rendering_method=\"gl_compatibility\"", StringComparison.Ordinal)
                 && project.Contains("renderer/rendering_method.mobile=\"mobile\"", StringComparison.Ordinal)
@@ -388,19 +388,19 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
-            "Godot cabinet must expose the AI9Poker-style physical control deck and route double-up switch through BET",
+            "Godot cabinet must expose the upgraded three-zone portrait cabinet layout and still route double-up switch through BET",
             rootScript.Contains("var hold_buttons: Array = []", StringComparison.Ordinal)
-                && rootScript.Contains("root.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED", StringComparison.Ordinal)
-                && rootScript.Contains("vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL", StringComparison.Ordinal)
-                && rootScript.Contains("content.size_flags_vertical = Control.SIZE_EXPAND_FILL", StringComparison.Ordinal)
-                && rootScript.Contains("bottom_spacer.name = \"CabinetBottomDeckSpacer\"", StringComparison.Ordinal)
-                && rootScript.Contains("bottom_spacer.custom_minimum_size = Vector2(0, 4)", StringComparison.Ordinal)
-                && !rootScript.Contains("bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL", StringComparison.Ordinal)
-                && rootScript.Contains("const CONTROL_DECK_MIN_HEIGHT := 324", StringComparison.Ordinal)
-                && rootScript.Contains("const CONTROL_HOLD_BUTTON_HEIGHT := 70", StringComparison.Ordinal)
-                && rootScript.Contains("const CONTROL_ACTION_BUTTON_HEIGHT := 80", StringComparison.Ordinal)
-                && rootScript.Contains("const CONTROL_BOTTOM_BUTTON_HEIGHT := 72", StringComparison.Ordinal)
-                && rootScript.Contains("deck.custom_minimum_size = Vector2(0, CONTROL_DECK_MIN_HEIGHT)", StringComparison.Ordinal)
+                && rootScript.Contains("cabinet_layout.name = \"CabinetLayout\"", StringComparison.Ordinal)
+                && rootScript.Contains("cabinet_layout.add_theme_constant_override(\"separation\", 0)", StringComparison.Ordinal)
+                && rootScript.Contains("top_shell.name = \"PaytableShell\"", StringComparison.Ordinal)
+                && rootScript.Contains("top_shell.size_flags_stretch_ratio = 1.5", StringComparison.Ordinal)
+                && rootScript.Contains("middle_shell.name = \"PlayAreaShell\"", StringComparison.Ordinal)
+                && rootScript.Contains("middle_shell.size_flags_stretch_ratio = 3.0", StringComparison.Ordinal)
+                && rootScript.Contains("bottom_section.name = \"ButtonDeckSection\"", StringComparison.Ordinal)
+                && rootScript.Contains("bottom_section.size_flags_stretch_ratio = 2.5", StringComparison.Ordinal)
+                && rootScript.Contains("const CONTROL_HOLD_BUTTON_HEIGHT := 116", StringComparison.Ordinal)
+                && rootScript.Contains("const CONTROL_ACTION_BUTTON_HEIGHT := 124", StringComparison.Ordinal)
+                && rootScript.Contains("const CONTROL_BOTTOM_BUTTON_HEIGHT := 112", StringComparison.Ordinal)
                 && rootScript.Contains("var menu_overlay: PanelContainer", StringComparison.Ordinal)
                 && rootScript.Contains("var menu_panel: VBoxContainer", StringComparison.Ordinal)
                 && rootScript.Contains("var menu_balance_label: Label", StringComparison.Ordinal)
@@ -418,12 +418,12 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("menu_overlay.visible = menu_open and active_screen == \"game\"", StringComparison.Ordinal)
                 && rootScript.Contains("[\"big\", \"BIG\"", StringComparison.Ordinal)
                 && rootScript.Contains("[\"small\", \"SMALL\"", StringComparison.Ordinal)
-                && rootScript.Contains("[\"cancel_hold\", \"CANCEL\\nHOLD\"", StringComparison.Ordinal)
-                && rootScript.Contains("[\"deal_draw\", \"DEAL\\nDRAW\"", StringComparison.Ordinal)
+                && rootScript.Contains("[\"cancel_hold\", \"CANCEL HOLD\"", StringComparison.Ordinal)
+                && rootScript.Contains("[\"deal_draw\", \"DEAL DRAW\"", StringComparison.Ordinal)
                 && rootScript.Contains("[\"bet\", \"BET\"", StringComparison.Ordinal)
-                && rootScript.Contains("[\"take_half\", \"TAKE\\nHALF\"", StringComparison.Ordinal)
-                && rootScript.Contains("[\"menu\", \"MENU\"", StringComparison.Ordinal)
-                && rootScript.Contains("[\"take_score\", \"TAKE\\nSCORE\"", StringComparison.Ordinal)
+                && rootScript.Contains("[\"take_half\", \"TAKE HALF\"", StringComparison.Ordinal)
+                && rootScript.Contains("[\"menu\", \"\"", StringComparison.Ordinal)
+                && rootScript.Contains("[\"take_score\", \"TAKE SCORE\"", StringComparison.Ordinal)
                 && rootScript.Contains("_on_hold_button_pressed.bind(index)", StringComparison.Ordinal)
                 && rootScript.Contains("func _can_switch_double_up_dealer() -> bool:", StringComparison.Ordinal)
                 && rootScript.Contains("var du := _double_up_data()", StringComparison.Ordinal)
@@ -467,20 +467,16 @@ public static class GodotCabinetRegressionTests
         Assert(
             failures,
             "Godot cabinet control deck must render as a warm wood-grain arcade surface with beveled physical button depth",
-            rootScript.Contains("const COLOR_CONTROL_DECK_TOP", StringComparison.Ordinal)
-                && rootScript.Contains("const COLOR_CONTROL_DECK_MID", StringComparison.Ordinal)
-                && rootScript.Contains("const COLOR_CONTROL_DECK_BOTTOM", StringComparison.Ordinal)
-                && rootScript.Contains("const COLOR_WOOD_GRAIN_LIGHT", StringComparison.Ordinal)
+            rootScript.Contains("const COLOR_WOOD_GRAIN_LIGHT", StringComparison.Ordinal)
                 && rootScript.Contains("const COLOR_WOOD_GRAIN_DARK", StringComparison.Ordinal)
                 && rootScript.Contains("const BUTTON_BEVEL_SHADOW_SIZE := 5", StringComparison.Ordinal)
                 && rootScript.Contains("const BUTTON_PRESSED_SHADOW_SIZE := 1", StringComparison.Ordinal)
-                && rootScript.Contains("func _decorate_control_deck(deck: Control) -> void:", StringComparison.Ordinal)
-                && rootScript.Contains("_add_control_deck_band(deck, \"ControlDeckBandTop\"", StringComparison.Ordinal)
-                && rootScript.Contains("_add_control_deck_band(deck, \"ControlDeckBandMid\"", StringComparison.Ordinal)
-                && rootScript.Contains("_add_control_deck_band(deck, \"ControlDeckBandBottom\"", StringComparison.Ordinal)
-                && rootScript.Contains("grain.name = \"ControlDeckGrain\"", StringComparison.Ordinal)
+                && rootScript.Contains("func _make_wood_grain_texture(width: int, height: int) -> Texture2D:", StringComparison.Ordinal)
+                && rootScript.Contains("deck_background.name = \"ButtonDeckWood\"", StringComparison.Ordinal)
+                && rootScript.Contains("deck_background.texture = _make_wood_grain_texture(640, 640)", StringComparison.Ordinal)
+                && rootScript.Contains("deck_shade.color = Color(0.06, 0.03, 0.01, 0.18)", StringComparison.Ordinal)
                 && rootScript.Contains("style.shadow_size = BUTTON_BEVEL_SHADOW_SIZE", StringComparison.Ordinal)
-                && rootScript.Contains("style.shadow_offset = Vector2(0, 3)", StringComparison.Ordinal)
+                && rootScript.Contains("style.shadow_offset = Vector2(0, 5)", StringComparison.Ordinal)
                 && rootScript.Contains("pressed.shadow_size = BUTTON_PRESSED_SHADOW_SIZE", StringComparison.Ordinal)
                 && rootScript.Contains("disabled.shadow_size = 0", StringComparison.Ordinal));
 
@@ -507,30 +503,27 @@ public static class GodotCabinetRegressionTests
 
         Assert(
             failures,
-            "Godot cabinet physical controls must use the same AI9Poker-style photographed button assets from the dedicated AI9 cabinet skin",
+            "Godot cabinet physical controls must use the upgraded stylebox-based cabinet buttons while keeping cabinet-skin resources available",
             rootScript.Contains("const BUTTON_ASSET_BASE_PATH := \"res://skins/cabinet_ai9/buttons/\"", StringComparison.Ordinal)
-                && rootScript.Contains("func _apply_button_asset_styles(button: Button, asset_key: String) -> bool:", StringComparison.Ordinal)
-                && rootScript.Contains("var style := StyleBoxTexture.new()", StringComparison.Ordinal)
-                && rootScript.Contains("ResourceLoader.load(path) as Texture2D", StringComparison.Ordinal)
-                && rootScript.Contains("var button_asset_textures: Dictionary = {}", StringComparison.Ordinal)
-                && rootScript.Contains("button_asset_textures[asset_name] = texture", StringComparison.Ordinal)
-                && rootScript.Contains("button.set_meta(\"uses_ai9_button_asset\", true)", StringComparison.Ordinal)
-                && rootScript.Contains("_make_button(\"HOLD\", CONTROL_HOLD_BUTTON_HEIGHT, COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK, \"hold\")", StringComparison.Ordinal)
-                && rootScript.Contains("return \"hold_off\"", StringComparison.Ordinal)
-                && rootScript.Contains("return \"hold_on\"", StringComparison.Ordinal)
+                && rootScript.Contains("func _make_button(text_str: String, min_h: int, bg: Color, fg: Color, border: Color, asset_key: String = \"\") -> Button:", StringComparison.Ordinal)
+                && rootScript.Contains("var style := StyleBoxFlat.new()", StringComparison.Ordinal)
+                && rootScript.Contains("func _make_menu_button(size_px: int) -> Button:", StringComparison.Ordinal)
+                && rootScript.Contains("button.tooltip_text = \"Menu\"", StringComparison.Ordinal)
+                && rootScript.Contains("_make_button(\"HOLD\", CONTROL_HOLD_BUTTON_HEIGHT, COLOR_BUTTON_YELLOW, COLOR_BUTTON_TEXT, COLOR_GOLD_DARK)", StringComparison.Ordinal)
                 && rootScript.Contains("var asset_key := str(def[0])", StringComparison.Ordinal)
-                && rootScript.Contains("hold_button.text = \"HOLD\" if held else (\"\" if _button_uses_asset(hold_button) else (\"FH\" if fh_switch else \"HOLD\"))", StringComparison.Ordinal)
+                && rootScript.Contains("hold_button.text = \"FH\" if fh_switch and not held else \"HOLD\"", StringComparison.Ordinal)
                 && ai9ButtonAssetNames.All(name => RepoFileExists("godot", "cabinet", "skins", "cabinet_ai9", "buttons", name))
                 && ai9CabinetImageAssetNames.All(name => RepoFileExists("godot", "cabinet", "skins", "cabinet_ai9", "images", name))
                 && ai9CabinetAnimationAssetNames.All(name => RepoFileExists("godot", "cabinet", "skins", "cabinet_ai9", "animations", name)));
 
         Assert(
             failures,
-            "Godot cabinet physical controls must preserve the reference button colors: amber BIG/SMALL, red TAKE HALF, and orange TAKE SCORE",
-            rootScript.Contains("[\"big\", \"BIG\", COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK]", StringComparison.Ordinal)
-                && rootScript.Contains("[\"small\", \"SMALL\", COLOR_BUTTON_YELLOW, COLOR_BG, COLOR_GOLD_DARK]", StringComparison.Ordinal)
-                && rootScript.Contains("[\"take_half\", \"TAKE\\nHALF\", COLOR_BUTTON_RED, COLOR_WHITE", StringComparison.Ordinal)
-                && rootScript.Contains("[\"take_score\", \"TAKE\\nSCORE\", COLOR_BUTTON_ORANGE, COLOR_BG, COLOR_GOLD_DARK]", StringComparison.Ordinal));
+            "Godot cabinet physical controls must preserve the Lucky5 cabinet button colors for the upgraded deck",
+            rootScript.Contains("[\"big\", \"BIG\", COLOR_BUTTON_ORANGE, COLOR_BUTTON_TEXT, COLOR_GOLD_DARK]", StringComparison.Ordinal)
+                && rootScript.Contains("[\"small\", \"SMALL\", COLOR_BUTTON_ORANGE, COLOR_BUTTON_TEXT, COLOR_GOLD_DARK]", StringComparison.Ordinal)
+                && rootScript.Contains("[\"take_half\", \"TAKE HALF\", COLOR_BUTTON_RED, COLOR_BUTTON_TEXT", StringComparison.Ordinal)
+                && rootScript.Contains("[\"take_score\", \"TAKE SCORE\", COLOR_BUTTON_ORANGE, COLOR_BUTTON_TEXT, COLOR_GOLD_DARK]", StringComparison.Ordinal)
+                && rootScript.Contains("[\"bet\", \"BET\", COLOR_BUTTON_GREEN, COLOR_BUTTON_TEXT", StringComparison.Ordinal));
 
         Assert(
             failures,
@@ -538,7 +531,7 @@ public static class GodotCabinetRegressionTests
             rootScript.Contains("var bonus_message_label: Label", StringComparison.Ordinal)
                 && rootScript.Contains("func _add_machine_info_segment(row: HBoxContainer, title_text: String, separator_text: String, value_label: Label, expand := false) -> void:", StringComparison.Ordinal)
                 && rootScript.Contains("_add_machine_info_segment(hbox, \"KENT /3\", \" . \", machine_kent_label, true)", StringComparison.Ordinal)
-                && rootScript.Contains("bonus_message_label = _make_label(\"4 OF A KIND   WINS BONUS\"", StringComparison.Ordinal)
+                && rootScript.Contains("bonus_message_label = _make_label(\"4 OF A KIND WINS BONUS\"", StringComparison.Ordinal)
                 && rootScript.Contains("bonus_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL", StringComparison.Ordinal)
                 && rootScript.Contains("machine_kent_label.text = str(_du_first_value(jackpots, [\"kent_streak\", \"kentStreak\", \"KentStreak\"], machine.get(\"machine_kent\", \"0\")))", StringComparison.Ordinal)
                 && rootScript.Contains("bonus_message_label.visible = true", StringComparison.Ordinal));
@@ -557,8 +550,8 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("const BONUS_COIN_SIZE := Vector2(28, 28)", StringComparison.Ordinal)
                 && rootScript.Contains("var bonus_stage_label: Label", StringComparison.Ordinal)
                 && rootScript.Contains("var bonus_stage_amount_label: Label", StringComparison.Ordinal)
-                && rootScript.Contains("bonus_stage_label = _make_label(\"FREE GAMES\", 12, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)", StringComparison.Ordinal)
-                && rootScript.Contains("bonus_stage_amount_label = _make_label(\"BONUS 0\", 12, COLOR_RED, HORIZONTAL_ALIGNMENT_RIGHT)", StringComparison.Ordinal)
+                && rootScript.Contains("bonus_stage_label = _make_label(\"FREE GAMES\", 16, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)", StringComparison.Ordinal)
+                && rootScript.Contains("bonus_stage_amount_label = _make_label(\"BONUS 0\", 16, COLOR_RED, HORIZONTAL_ALIGNMENT_RIGHT)", StringComparison.Ordinal)
                 && rootScript.Contains("func _refresh_bonus_stage() -> void:", StringComparison.Ordinal)
                 && rootScript.Contains("var bonus: Dictionary = _bonus_presentation()", StringComparison.Ordinal)
                 && rootScript.Contains("func _fallback_bonus_presentation() -> Dictionary:", StringComparison.Ordinal)
@@ -566,7 +559,7 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("bonus_stage_label.visible = active", StringComparison.Ordinal)
                 && rootScript.Contains("bonus_stage_amount_label.visible = active", StringComparison.Ordinal)
                 && rootScript.Contains("\"FREE GAMES %03d\"", StringComparison.Ordinal)
-                && rootScript.Contains("bonus_message_label.text = message if active else \"4 OF A KIND   WINS BONUS\"", StringComparison.Ordinal)
+                && rootScript.Contains("bonus_message_label.text = message if active else \"4 OF A KIND WINS BONUS\"", StringComparison.Ordinal)
                 && rootScript.Contains("const CABINET_AI9_SKIN_ROOT := \"res://skins/cabinet_ai9/\"", StringComparison.Ordinal)
                 && rootScript.Contains("func _load_cabinet_skin_resources() -> void:", StringComparison.Ordinal)
                 && rootScript.Contains("arcade_font = _load_cabinet_font(\"fonts/ARCADE.ttf\")", StringComparison.Ordinal)
@@ -588,7 +581,7 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("var credit_target_amount := -1", StringComparison.Ordinal)
                 && rootScript.Contains("var credit_transfer_active := false", StringComparison.Ordinal)
                 && rootScript.Contains("var credit_counter_tween: Tween", StringComparison.Ordinal)
-                && rootScript.Contains("func _build_win_display(_parent: Node) -> void:", StringComparison.Ordinal)
+                && rootScript.Contains("func _build_win_display(parent: Node) -> void:", StringComparison.Ordinal)
                 && rootScript.Contains("win_slot_label.visible = false", StringComparison.Ordinal)
                 && rootScript.Contains("win_amount_label.visible = false", StringComparison.Ordinal)
                 && rootScript.Contains("_refresh_credit_display()", StringComparison.Ordinal)
@@ -619,11 +612,16 @@ public static class GodotCabinetRegressionTests
             "Godot cabinet paytable must mirror AI9Poker with dynamic stake payouts, paytable-row score drain, and backend-compatible Full House jackpot lookup",
             rootScript.Contains("var paytable_rows: Dictionary = {}", StringComparison.Ordinal)
                 && rootScript.Contains("var paytable_amount_labels: Dictionary = {}", StringComparison.Ordinal)
+                && rootScript.Contains("var paytable_amount_panels: Dictionary = {}", StringComparison.Ordinal)
+                && rootScript.Contains("var paytable_name_labels: Dictionary = {}", StringComparison.Ordinal)
+                && rootScript.Contains("var paytable_name_panels: Dictionary = {}", StringComparison.Ordinal)
                 && rootScript.Contains("var paytable_multipliers: Dictionary = {}", StringComparison.Ordinal)
                 && rootScript.Contains("var full_house_rank_label: Label", StringComparison.Ordinal)
                 && rootScript.Contains("var full_house_jackpot_label: Label", StringComparison.Ordinal)
                 && rootScript.Contains("paytable_rows[str(hand[0])] = row_panel", StringComparison.Ordinal)
                 && rootScript.Contains("paytable_amount_labels[str(hand[0])] = amount_l", StringComparison.Ordinal)
+                && rootScript.Contains("paytable_amount_panels[str(hand[0])] = amount_panel", StringComparison.Ordinal)
+                && rootScript.Contains("paytable_name_labels[str(hand[0])] = name_l", StringComparison.Ordinal)
                 && rootScript.Contains("paytable_multipliers[str(hand[0])] = int(hand[2])", StringComparison.Ordinal)
                 && rootScript.Contains("jackpot_counters[\"fh\"] = full_house_jackpot_label", StringComparison.Ordinal)
                 && rootScript.Contains("if win_displayed_amount > 0 and str(key) == score_key:", StringComparison.Ordinal)
@@ -633,8 +631,8 @@ public static class GodotCabinetRegressionTests
                 && rootScript.Contains("_refresh_jackpot_counter(\"fh\", store._to_int(_du_first_value(jp, [\"full_house\", \"fullHouse\", \"FullHouse\"], 0)))", StringComparison.Ordinal)
                 && rootScript.Contains("_refresh_paytable_values()", StringComparison.Ordinal)
                 && rootScript.Contains("_refresh_paytable_highlights()", StringComparison.Ordinal)
-                && rootScript.Contains("sty.bg_color = Color(1.0, 0.86, 0.16, 0.36)", StringComparison.Ordinal)
-                && rootScript.Contains("sty.border_color = COLOR_GOLD", StringComparison.Ordinal)
+                && rootScript.Contains("sty.bg_color = Color.WHITE", StringComparison.Ordinal)
+                && rootScript.Contains("name_panel_style.bg_color = Color.WHITE", StringComparison.Ordinal)
                 && rootScript.Contains("sty.border_width_left = 1; sty.border_width_right = 1", StringComparison.Ordinal));
 
         Assert(

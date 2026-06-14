@@ -196,7 +196,6 @@ var full_house_rank_label: Label
 var full_house_jackpot_label: Label
 var credit_label: Label
 var credit_value_label: Label
-var stake_value_label: Label
 var cabinet_status_label: Label
 var control_hint_label: Label
 var jackpot_counters: Dictionary = {}
@@ -1325,18 +1324,6 @@ func _build_credit_stake_column(parent: Node) -> void:
 	credit_value_label = _make_label("0", 42, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	credit_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_value_label)
-
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 18)
-	column.add_child(spacer)
-
-	var stake_caption := _make_label("STAKE", 20, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
-	stake_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_child(stake_caption)
-
-	stake_value_label = _make_label("0", 42, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
-	stake_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_child(stake_value_label)
 
 	var bottom_spacer := Control.new()
 	bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -2951,20 +2938,23 @@ func _start_du_dealer_replace_shuffle(new_dealer_code: String) -> void:
 		return
 	if du_shuffle_timer != null:
 		du_shuffle_timer.stop()
-	du_shuffle_replace_dealer_only = false
+	du_shuffle_target_dealer = new_dealer_code
+	du_shuffle_target_challenger = ""
+	du_shuffle_replace_dealer_only = true
+	du_shuffle_ticks_remaining = DU_SHUFFLE_TICKS
+	du_shuffle_index = 0
 	if du_dealer_label != null:
 		du_dealer_label.text = "DEALER"
 		du_dealer_label.add_theme_color_override("font_color", COLOR_BLUE)
 	if du_challenger_label != null:
 		du_challenger_label.text = "BIG / SMALL ?"
 		du_challenger_label.add_theme_color_override("font_color", COLOR_GOLD)
-	_set_du_card_texture(du_dealer_rect, new_dealer_code)
-	du_dealer_rect.scale = Vector2(0.90, 0.90)
-	var tw := create_tween()
-	tw.tween_property(du_dealer_rect, "scale", Vector2(1.0, 1.0), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	du_challenger_rect.texture = _card_back_texture(false)
 	du_challenger_rect.modulate = Color(1, 1, 1, 1.0)
 	du_challenger_rect.scale = Vector2(1.0, 1.0)
+	_process_du_shuffle()
+	if du_shuffle_timer != null and du_shuffle_timer.is_stopped():
+		du_shuffle_timer.start()
 
 func _process_du_shuffle() -> void:
 	var code: String = DU_SHUFFLE_CODES[du_shuffle_index % DU_SHUFFLE_CODES.size()]
@@ -3282,8 +3272,6 @@ func _refresh_machine_info() -> void:
 		bonus_message_label.visible = true
 
 func _refresh_credit_display() -> void:
-	if stake_value_label != null:
-		stake_value_label.text = _format_amount(max(0, store.stake()))
 	if credit_value_label == null:
 		return
 	var machine_credits := store.machine_credits()
@@ -3433,9 +3421,6 @@ func _refresh_win_display() -> void:
 	var eval: Dictionary = _evaluation_data()
 	if pending > 0:
 		win_paytable_rank_key = _paytable_rank_key(str(_du_first_value(eval, ["hand_rank", "handRank", "HandRank"], store.hand_rank())))
-		if win_slot_label != null:
-			win_slot_label.text = _paytable_display_name(win_paytable_rank_key)
-			win_slot_label.visible = not win_paytable_rank_key.is_empty()
 		if pending != win_target_amount:
 			_animate_win_amount_to(pending)
 		elif win_displayed_amount <= 0:
@@ -3473,11 +3458,10 @@ func _set_win_display_amount(value: Variant) -> void:
 	win_displayed_amount = max(0, int(round(float(value))))
 	if win_amount_label != null:
 		win_amount_label.text = ""
-		win_amount_label.visible = win_displayed_amount > 0
-		if win_displayed_amount > 0:
-			win_amount_label.text = "+%s" % _format_amount(win_displayed_amount)
+		win_amount_label.visible = false
 	if win_slot_label != null:
-		win_slot_label.visible = win_displayed_amount > 0 and not win_paytable_rank_key.is_empty()
+		win_slot_label.text = ""
+		win_slot_label.visible = false
 	_refresh_paytable_values()
 	_refresh_paytable_highlights()
 

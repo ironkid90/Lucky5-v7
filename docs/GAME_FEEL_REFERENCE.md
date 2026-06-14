@@ -15,7 +15,7 @@ Secondary source: the ai9poker clone screenshot (Google Drive `Recording-2026-03
 
 - black CRT-like playfield with minimal chrome
 - rainbow pixel paytable fixed at the top-left
-- credit and stake counters fixed at the top-right
+- credit counter fixed at the top-right; stake and wallet details live in the menu
 - oversized card row centered in the upper-middle
 - warm brown control deck occupying the lower third
 - beveled, glowing cabinet buttons instead of flat mobile controls
@@ -32,10 +32,10 @@ The clone at ai9poker.com is the closest existing playable reference for our tar
    - Active jackpot hand has a **solid box/selection highlight** around the text (not just a glow)
    - Payout values update dynamically based on stake: RF×1000, SF×75, 4K×15, FH×12, Fl×10, St×8, 3K×3, 2P×2
 
-2. **Credit & Stake** — Top-right area
+2. **Credit Meter** — Top-right area
    - "CREDIT" label in green, value in white below
-   - "STAKE" label in gold/amber, value in white below
-   - Both use pixel font at ~18px
+   - Stake, wallet, bonus credit, and cash-in totals are consolidated into the menu so only credit remains outside during play
+   - Uses pixel font at ~18px
 
 3. **Card Area** — Center of screen, large
    - During normal play: 5 cards across
@@ -43,12 +43,11 @@ The clone at ai9poker.com is the closest existing playable reference for our tar
    - During idle: black CRT field shows the `LUCKY 5` title first; after the idle delay, show only the armed Full House rank card in the middle slot
    - Card art is crisp, white background with standard suit/rank imagery
 
-4. **Win Amount Display** — Below cards during double-up
-   - Large golden number with **outlined/embossed** styling (e.g., "25000000")
-   - Active jackpot slot indicator letter next to it (e.g., "A")
-   - Gold color with text shadow/outline effect
+4. **Paytable Win Drain** — No separate winnings HUD
+   - Active winnings appear on the matching paytable row, then drain from that row into the credit counter
+   - Do not render a separate winnings score below the card area
 
-5. **Jackpot Info Block** — Below win amount, above controls
+5. **Jackpot Info Block** — Below cards, above controls
    - "SERIE - 1" in green text
    - "KENT /3 : 1" in green text  
    - Three jackpot counter values in a row: "× 368977" / "10000000" / "999999" in amber/gold
@@ -153,7 +152,7 @@ Notes:
 Notes:
 
 - card art remains crisp and simple
-- score, credit, and stake stay persistent
+- score drains through the paytable row; credit remains persistent while stake stays in the menu
 - there is no extra HUD clutter beyond machine essentials
 
 ### 00:06:00

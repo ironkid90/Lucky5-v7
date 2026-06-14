@@ -104,7 +104,7 @@ const CARD_SLOT_COUNT = 5;
 const CARD_SLOT_INDEXES = Array.from({ length: CARD_SLOT_COUNT }, (_, index) => index);
 const CARD_REVEAL_STAGGER_MS = 100;
 const CARD_REVEAL_ANIMATION_MS = 210;
-const IDLE_FH_REVEAL_DELAY_MS = 2000;
+const IDLE_FH_REVEAL_DELAY_MS = 60_000;
 const CABINET_STORAGE_KEY = "GetStorage";
 
 type PersistedCabinetStorage = {
@@ -445,16 +445,12 @@ function PaytablePanel({
 }
 
 // ── CreditBar ───────────────────────────────────────────────────────────────
-function CreditBar({ credit, stake }: { credit: number; stake: number | string }) {
+function CreditBar({ credit }: { credit: number }) {
     return (
         <div className="apk-credit-stake">
             <div className="apk-credit-only">
                 <div className="apk-credit-label">CREDIT</div>
                 <div className="apk-credit-value">{formatMoney(credit)}</div>
-            </div>
-            <div className="apk-credit-only">
-                <div className="apk-stake-label">STAKE</div>
-                <div className="apk-stake-value">{formatMoney(Math.max(0, Number(stake) || 0))}</div>
             </div>
         </div>
     );
@@ -1617,7 +1613,7 @@ export function Lucky5Cabinet() {
             <section className="cabinet">
                 <div className="screen">
 
-                    {/* ── Top band: paytable (left 62%) + credit/stake (right 38%) ── */}
+                    {/* ── Top band: paytable left, credit-only meter right ── */}
                     <div className="apk-top-band">
                         <PaytablePanel
                             payouts={rules?.payoutMultipliers ?? {}}
@@ -1626,7 +1622,7 @@ export function Lucky5Cabinet() {
                             stake={betAmount || "5000"}
                             activeWinAmount={displayedWinAmount}
                         />
-                        <CreditBar credit={cabinetCredit} stake={betAmount || "5000"} />
+                        <CreditBar credit={cabinetCredit} />
                     </div>
 
                     {/* ── Label band ── */}

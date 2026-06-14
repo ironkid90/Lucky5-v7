@@ -197,6 +197,8 @@ var full_house_jackpot_label: Label
 var credit_label: Label
 var credit_value_label: Label
 var stake_value_label: Label
+var cabinet_status_label: Label
+var control_hint_label: Label
 var jackpot_counters: Dictionary = {}
 var jackpot_counter_panels: Dictionary = {}
 var message_label: Label
@@ -870,6 +872,12 @@ func _build_ui() -> void:
 
 	_build_du_info(play_stack)
 
+	cabinet_status_label = _make_label("", 12, COLOR_CREAM, HORIZONTAL_ALIGNMENT_CENTER, "ui")
+	cabinet_status_label.custom_minimum_size = Vector2(0, 24)
+	cabinet_status_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
+	cabinet_status_label.add_theme_constant_override("shadow_outline_size", 2)
+	play_stack.add_child(cabinet_status_label)
+
 	message_label = _make_label("INSERT COIN", 22, COLOR_GREEN_DIM, HORIZONTAL_ALIGNMENT_CENTER)
 	message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	message_label.custom_minimum_size = Vector2(0, 48)
@@ -947,8 +955,9 @@ func _build_control_deck(parent: Node) -> void:
 	rows.add_child(hold_row)
 	hold_buttons.clear()
 	for index in range(5):
-		var hold_button := _make_button("HOLD", CONTROL_HOLD_BUTTON_HEIGHT, COLOR_BUTTON_YELLOW, COLOR_BUTTON_TEXT, COLOR_GOLD_DARK)
+		var hold_button := _make_button("HOLD", CONTROL_HOLD_BUTTON_HEIGHT, COLOR_BUTTON_YELLOW, COLOR_BUTTON_TEXT, COLOR_GOLD_DARK, "hold")
 		hold_button.name = "HoldButton%d" % (index + 1)
+		hold_button.toggle_mode = true
 		hold_button.pressed.connect(_on_hold_button_pressed.bind(index))
 		hold_buttons.append(hold_button)
 		hold_row.add_child(hold_button)
@@ -977,6 +986,12 @@ func _build_control_deck(parent: Node) -> void:
 	_add_deck_action_button(bottom_row, ["take_half", "TAKE HALF", COLOR_BUTTON_RED, COLOR_BUTTON_TEXT, Color(0.950, 0.180, 0.180)], CONTROL_BOTTOM_BUTTON_HEIGHT)
 	_add_deck_action_button(bottom_row, ["menu", "", COLOR_BUTTON_BLACK, COLOR_WHITE, COLOR_GREY], 108)
 	_add_deck_action_button(bottom_row, ["take_score", "TAKE SCORE", COLOR_BUTTON_ORANGE, COLOR_BUTTON_TEXT, COLOR_GOLD_DARK], CONTROL_BOTTOM_BUTTON_HEIGHT)
+
+	control_hint_label = _make_label("", 12, COLOR_CREAM, HORIZONTAL_ALIGNMENT_CENTER, "ui")
+	control_hint_label.custom_minimum_size = Vector2(0, 24)
+	control_hint_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
+	control_hint_label.add_theme_constant_override("shadow_outline_size", 2)
+	rows.add_child(control_hint_label)
 
 	bet_label = _make_label("BET 0", 16, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 	bet_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL

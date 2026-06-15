@@ -208,6 +208,7 @@ var paytable_amount_panels: Dictionary = {}
 var paytable_name_labels: Dictionary = {}
 var paytable_name_panels: Dictionary = {}
 var paytable_multipliers: Dictionary = {}
+var paytable_lebanese_multipliers: Dictionary = {}
 var paytable_amount_colors: Dictionary = {}
 var full_house_rank_label: Label
 var full_house_jackpot_label: Label
@@ -219,6 +220,7 @@ var cabinet_status_label: Label
 var control_hint_label: Label
 var jackpot_counters: Dictionary = {}
 var jackpot_counter_panels: Dictionary = {}
+var jackpot_counter_tags: Dictionary = {}
 var message_label: Label
 var recovery_label: Label
 var auth_panel: VBoxContainer
@@ -280,6 +282,7 @@ var machine_info_bg: Panel
 var machine_serie_label: Label
 var machine_kent_label: Label
 var machine_serial_label: Label
+var machine_identity_serial_label: Label
 var bonus_message_label: Label
 var bonus_stage_label: Label
 var bonus_stage_amount_label: Label
@@ -582,6 +585,10 @@ func _set_responsive_dimensions(scale: float) -> void:
 	JACKPOT_COUNTER_MIN_HEIGHT = int(40.0 * scale)
 	DU_BOARD_CARD_SIZE = Vector2(int(116.0 * scale), int(196.0 * scale))
 	DU_TRAIL_CARD_SIZE = Vector2(int(136.0 * scale), int(228.0 * scale))
+
+func _set_responsive_font_sizes(scale: float) -> void:
+	IDLE_TITLE_FONT_SIZE = max(1, int(round(92.0 * scale)))
+	IDLE_TITLE_MIN_FONT_SIZE = max(1, int(round(40.0 * scale)))
 
 func _refresh_responsive_dimensions() -> void:
 	if paytable_panel != null:
@@ -1328,6 +1335,16 @@ func _build_paytable(parent: Node) -> void:
 	paytable_name_panels.clear()
 	paytable_multipliers.clear()
 	paytable_amount_colors.clear()
+	paytable_lebanese_multipliers = {
+		"RoyalFlush": 1000,
+		"StraightFlush": 75,
+		"FourOfAKind": 15,
+		"FullHouse": 12,
+		"Flush": 10,
+		"Straight": 8,
+		"ThreeOfAKind": 3,
+		"TwoPair": 2
+	}
 
 	var panel := PanelContainer.new()
 	paytable_panel = panel
@@ -1343,7 +1360,7 @@ func _build_paytable(parent: Node) -> void:
 	parent.add_child(panel)
 
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", _scaled_int(18))
+	columns.add_theme_constant_override("separation", _scaled_int(15))
 	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_child(columns)
 
@@ -1354,23 +1371,24 @@ func _build_paytable(parent: Node) -> void:
 	columns.add_child(left_column)
 
 	var hands := [
-		["RoyalFlush", "ROYAL FLUSH", 1000, COLOR_PAYTABLE_ROYAL],
-		["StraightFlush", "STRAIGHT FLUSH", 75, COLOR_PAYTABLE_STRAIGHT_FLUSH],
-		["FourOfAKind", "4 OF A KIND", 15, COLOR_PAYTABLE_FOUR_KIND],
-		["FullHouse", "FULL HOUSE", 12, COLOR_PAYTABLE_FULL_HOUSE],
-		["Flush", "FLUSH", 10, COLOR_PAYTABLE_FLUSH],
-		["Straight", "STRAIGHT", 8, COLOR_PAYTABLE_STRAIGHT],
-		["ThreeOfAKind", "3 OF A KIND", 3, COLOR_PAYTABLE_THREE_KIND],
-		["TwoPair", "2 PAIR", 2, COLOR_PAYTABLE_TWO_PAIR],
+		["RoyalFlush", "ROYAL FLUSH", COLOR_PAYTABLE_ROYAL],
+		["StraightFlush", "STRAIGHT FLUSH", COLOR_PAYTABLE_STRAIGHT_FLUSH],
+		["FourOfAKind", "4 OF A KIND", COLOR_PAYTABLE_FOUR_KIND],
+		["FullHouse", "FULL HOUSE", COLOR_PAYTABLE_FULL_HOUSE],
+		["Flush", "FLUSH", COLOR_PAYTABLE_FLUSH],
+		["Straight", "STRAIGHT", COLOR_PAYTABLE_STRAIGHT],
+		["ThreeOfAKind", "3 OF A KIND", COLOR_PAYTABLE_THREE_KIND],
+		["TwoPair", "2 PAIR", COLOR_PAYTABLE_TWO_PAIR],
 	]
 
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", _scaled_int(4))
-	grid.add_theme_constant_override("v_separation", _scaled_int(1))
+	grid.add_theme_constant_override("h_separation", _scaled_int(15))
+	grid.add_theme_constant_override("v_separation", _scaled_int(4))
 	left_column.add_child(grid)
 	for hand in hands:
+		var key := str(hand[0])
 		var row_panel := PanelContainer.new()
 		row_panel.custom_minimum_size = Vector2(0, PAYTABLE_ROW_MIN_HEIGHT)
 		row_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1387,7 +1405,7 @@ func _build_paytable(parent: Node) -> void:
 		var name_panel := PanelContainer.new()
 		name_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var nps := StyleBoxFlat.new()
-		nps.bg_color = Color.WHITE if str(hand[0]) == "FullHouse" else Color(0, 0, 0, 0)
+		nps.bg_color = Color.WHITE if key == "FullHouse" else Color(0, 0, 0, 0)
 		nps.content_margin_left = _scaled_int(6)
 		nps.content_margin_right = _scaled_int(6)
 		nps.content_margin_top = _scaled_int(2)
@@ -1395,7 +1413,7 @@ func _build_paytable(parent: Node) -> void:
 		name_panel.add_theme_stylebox_override("panel", nps)
 		row_panel.add_child(name_panel)
 
-		var name_l := _make_label(hand[1], 26, Color.BLACK if str(hand[0]) == "FullHouse" else hand[3], HORIZONTAL_ALIGNMENT_LEFT)
+		var name_l := _make_label(hand[1], 23, Color.BLACK if key == "FullHouse" else hand[2], HORIZONTAL_ALIGNMENT_LEFT)
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_panel.add_child(name_l)
 
@@ -1410,17 +1428,17 @@ func _build_paytable(parent: Node) -> void:
 		amount_panel.add_theme_stylebox_override("panel", aps)
 		grid.add_child(amount_panel)
 
-		var amount_l := _make_label("0", 26, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
+		var amount_l := _make_label("0", 23, hand[2], HORIZONTAL_ALIGNMENT_RIGHT)
 		amount_l.custom_minimum_size = Vector2(PAYTABLE_AMOUNT_MIN_WIDTH, 0)
 		amount_l.clip_text = true
 		amount_panel.add_child(amount_l)
-		paytable_rows[str(hand[0])] = row_panel
-		paytable_amount_panels[str(hand[0])] = amount_panel
-		paytable_name_labels[str(hand[0])] = name_l
-		paytable_name_panels[str(hand[0])] = name_panel
-		paytable_amount_labels[str(hand[0])] = amount_l
-		paytable_multipliers[str(hand[0])] = int(hand[2])
-		paytable_amount_colors[str(hand[0])] = hand[3]
+		paytable_rows[key] = row_panel
+		paytable_amount_panels[key] = amount_panel
+		paytable_name_labels[key] = name_l
+		paytable_name_panels[key] = name_panel
+		paytable_amount_labels[key] = amount_l
+		paytable_multipliers[key] = int(paytable_lebanese_multipliers[key])
+		paytable_amount_colors[key] = hand[2]
 
 	var fh_rank_row := HBoxContainer.new()
 	fh_rank_row.add_theme_constant_override("separation", _scaled_int(10))
@@ -1468,9 +1486,8 @@ func _build_credit_stake_column(parent: Node) -> void:
 	column.add_child(bottom_spacer)
 
 func _add_machine_info_segment(row: HBoxContainer, title_text: String, separator_text: String, value_label: Label, expand := false) -> void:
-	row.add_child(_make_label(title_text, 15, COLOR_GREEN))
-	row.add_child(_make_label(separator_text, 15, COLOR_GREEN))
-	value_label.add_theme_color_override("font_color", COLOR_WHITE)
+	row.add_child(_make_label(title_text, 20, COLOR_GREEN))
+	row.add_child(_make_label(separator_text, 20, COLOR_GREEN))
 	if expand:
 		value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(value_label)
@@ -1589,17 +1606,19 @@ func _build_machine_info(parent: Node) -> void:
 	rows.add_theme_constant_override("separation", _scaled_int(6))
 	margin.add_child(rows)
 
-	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", _scaled_int(10))
-	rows.add_child(hbox)
+	var identity_row := HBoxContainer.new()
+	identity_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	identity_row.add_theme_constant_override("separation", _scaled_int(10))
+	rows.add_child(identity_row)
 
-	machine_serie_label = _make_label("0", 18, COLOR_WHITE)
-	_add_machine_info_segment(hbox, "SERIE", " - ", machine_serie_label)
-	machine_serial_label = _make_label("0", 18, COLOR_WHITE)
-	_add_machine_info_segment(hbox, "S/N", " - ", machine_serial_label)
-	machine_kent_label = _make_label("0", 18, COLOR_WHITE)
-	_add_machine_info_segment(hbox, "KENT /3", " . ", machine_kent_label, true)
-	machine_kent_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	machine_serie_label = _make_label("0", 20, COLOR_GREEN)
+	_add_machine_info_segment(identity_row, "SERIE", " - ", machine_serie_label)
+	machine_kent_label = _make_label("0", 20, COLOR_GREEN)
+	_add_machine_info_segment(identity_row, "KENT /3", " : ", machine_kent_label)
+	machine_serial_label = _make_label("0", 26, COLOR_GREEN, HORIZONTAL_ALIGNMENT_LEFT)
+	machine_identity_serial_label = machine_serial_label
+	machine_serial_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity_row.add_child(machine_identity_serial_label)
 
 	var jp_row := HBoxContainer.new()
 	jp_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1614,28 +1633,39 @@ func _build_machine_info(parent: Node) -> void:
 		var cps := StyleBoxFlat.new()
 		cps.bg_color = Color(0, 0, 0, 0)
 		counter_panel.add_theme_stylebox_override("panel", cps)
-		var counter_box := VBoxContainer.new()
+		var counter_box := HBoxContainer.new()
 		counter_box.set_anchors_preset(Control.PRESET_FULL_RECT)
 		counter_box.alignment = BoxContainer.ALIGNMENT_CENTER
-		counter_box.add_theme_constant_override("separation", 1)
+		counter_box.add_theme_constant_override("separation", _scaled_int(6))
 		counter_panel.add_child(counter_box)
-		var tag := _make_label(slot[0], 11, slot[2], HORIZONTAL_ALIGNMENT_CENTER)
+		var tag := _make_label(slot[0], 28 if str(slot[0]) == "*" else 18, slot[2], HORIZONTAL_ALIGNMENT_CENTER)
 		counter_box.add_child(tag)
-		var val := _make_label("0", 18, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+		var val := _make_label("0", 28, COLOR_GREEN, HORIZONTAL_ALIGNMENT_LEFT)
+		val.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		counter_box.add_child(val)
 		jackpot_counters[str(slot[1])] = val
 		jackpot_counter_panels[str(slot[1])] = counter_panel
+		jackpot_counter_tags[str(slot[1])] = tag
 		jp_row.add_child(counter_panel)
+
+	var sn_row := HBoxContainer.new()
+	sn_row.add_theme_constant_override("separation", _scaled_int(4))
+	rows.add_child(sn_row)
+	sn_row.add_child(_make_label("S/N:", 20, COLOR_WHITE))
+	var sn_value := _make_label("0", 26, COLOR_GREEN, HORIZONTAL_ALIGNMENT_LEFT)
+	sn_value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sn_row.add_child(sn_value)
+	machine_serial_label = sn_value
 
 	var bonus_row := HBoxContainer.new()
 	bonus_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	bonus_row.add_theme_constant_override("separation", _scaled_int(10))
-	bonus_row.custom_minimum_size = Vector2(0, _scaled_int(44))
+	bonus_row.add_theme_constant_override("separation", _scaled_int(30))
+	bonus_row.custom_minimum_size = Vector2(0, _scaled_int(38))
 	rows.add_child(bonus_row)
 
-	bonus_message_label = _make_label("4 OF A KIND WINS BONUS", 22, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	bonus_message_label = _make_label("4 OF A KIND WINS BONUS", 30, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	bonus_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bonus_message_label.custom_minimum_size = Vector2(0, 36)
+	bonus_message_label.custom_minimum_size = Vector2(0, _scaled_int(38))
 	bonus_message_label.visible = true
 	bonus_row.add_child(bonus_message_label)
 
@@ -1924,7 +1954,7 @@ func _refresh_diagnostics() -> void:
 
 	diag_hand_rank_label.text = "HAND: %s  (%s)" % [store.hand_rank(), store.game_state()]
 	var win_amount = store.pending_win_amount()
-	var multiplier: int = int(paytable_multipliers.get(_paytable_rank_key(store.hand_rank()), 0))
+	var multiplier: int = _paytable_multiplier(_paytable_rank_key(store.hand_rank()))
 	diag_payout_label.text = "PAYOUT: %s (%dx stk)" % [_format_amount(win_amount), multiplier]
 
 	var du_data := _double_up_data()
@@ -3196,6 +3226,10 @@ func _set_jackpot_counter_active(slot_key: String, active: bool) -> void:
 	if sty == null: return
 	var active_colors := { "4k-a": Color(1.0, 1.0, 0.3, 1.0), "4k-b": Color(1.0, 1.0, 0.3, 1.0) }
 	sty.bg_color = active_colors.get(slot_key, Color(0, 0, 0, 0)) if active else Color(0, 0, 0, 0)
+	var tag: Label = jackpot_counter_tags.get(slot_key, null)
+	if tag != null:
+		tag.add_theme_color_override("font_color", Color(1.0, 0.4, 0.0, 1.0) if slot_key.begins_with("4k") else COLOR_GOLD)
+		tag.add_theme_color_override("font_outline_color", Color(1.0, 0.4, 0.0, 1.0) if slot_key.begins_with("4k") else COLOR_GOLD)
 	if active:
 		sty.border_color = COLOR_GOLD
 		sty.border_width_left = 1; sty.border_width_right = 1
@@ -3338,18 +3372,26 @@ func _four_kind_rank_card_code() -> String:
 			return str(rank_sample[rank])
 	return "AS"
 
+func _server_paytable() -> Dictionary:
+	var machine: Dictionary = store.snapshot.get("machine", {})
+	var machine_paytable: Variant = machine.get("paytable", null)
+	if typeof(machine_paytable) == TYPE_DICTIONARY:
+		return machine_paytable
+	var variant: Dictionary = store.snapshot.get("variant", {})
+	var variant_paytable: Variant = variant.get("paytable", null)
+	if typeof(variant_paytable) == TYPE_DICTIONARY:
+		return variant_paytable
+	return {}
+
+func _paytable_multiplier(key: String) -> int:
+	var server_paytable := _server_paytable()
+	if server_paytable.has(key):
+		return max(0, store._to_int(server_paytable[key]))
+	return int(paytable_lebanese_multipliers.get(key, 0))
+
 func _refresh_paytable_values() -> void:
 	if full_house_jackpot_label == null or full_house_rank_label == null: return
 	var stake: int = max(0, store.stake())
-	# Data-driven paytable: override the baked-in Lebanese multipliers with the
-	# server's machine rules when present; otherwise keep the local fallback.
-	var machine_rules: Dictionary = store.snapshot.get("machine", {})
-	var server_paytable: Variant = machine_rules.get("paytable", {})
-	if typeof(server_paytable) == TYPE_DICTIONARY:
-		for pkey in (server_paytable as Dictionary).keys():
-			var pkey_s := str(pkey)
-			if paytable_multipliers.has(pkey_s):
-				paytable_multipliers[pkey_s] = int((server_paytable as Dictionary)[pkey])
 	var score_key := win_paytable_rank_key
 	if score_key.is_empty() and win_displayed_amount > 0:
 		score_key = _paytable_rank_key(store.hand_rank())
@@ -3361,7 +3403,7 @@ func _refresh_paytable_values() -> void:
 			amount_l.add_theme_color_override("font_color", COLOR_GOLD)
 			amount_l.add_theme_color_override("font_outline_color", COLOR_GOLD)
 			continue
-		var multiplier: int = int(paytable_multipliers.get(key, 0))
+		var multiplier: int = _paytable_multiplier(str(key))
 		amount_l.text = _format_amount(stake * multiplier)
 		amount_l.add_theme_color_override("font_color", paytable_amount_colors.get(str(key), COLOR_WHITE))
 		amount_l.add_theme_color_override("font_outline_color", paytable_amount_colors.get(str(key), COLOR_WHITE))

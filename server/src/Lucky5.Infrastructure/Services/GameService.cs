@@ -1910,7 +1910,8 @@ return guessResult;
                 FirstRechargeCredit: ToDecimalString(machine.FirstRechargeCredit),
                 SecondRechargeCredit: ToDecimalString(machine.SecondRechargeCredit),
                 FirstRechargeBonus: ToDecimalString(machine.FirstRechargeBonus),
-                SecondRechargeBonus: ToDecimalString(machine.SecondRechargeBonus)),
+                SecondRechargeBonus: ToDecimalString(machine.SecondRechargeBonus),
+                Paytable: new Dictionary<string, decimal>(Rules)),
             Variant: new CabinetVariantRefDto(
                 VariantId: CabinetVariantId,
                 VariantSchemaVersion: CabinetVariantSchemaVersion,

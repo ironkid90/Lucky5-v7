@@ -68,7 +68,8 @@ public sealed record CabinetMachineStateDto(
     [property: JsonPropertyName("first_recharge_bonus")]
     string FirstRechargeBonus,
     [property: JsonPropertyName("second_recharge_bonus")]
-    string SecondRechargeBonus);
+    string SecondRechargeBonus,
+    IReadOnlyDictionary<string, decimal> Paytable);
 
 public sealed record CabinetVariantRefDto(
     [property: JsonPropertyName("variant_id")]

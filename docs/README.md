@@ -510,7 +510,7 @@ docker compose -f infra/docker-compose.yml --env-file infra/.env.local.example u
 
 - Target: VM deployment (always-running, required for SignalR WebSocket state)
 - Run command: `bash -c "cd server && dotnet run --project src/Lucky5.Api/Lucky5.Api.csproj --launch-profile http"`
-- Runtime: .NET 9.0
+- Runtime: .NET 10.0
 
 ---
 

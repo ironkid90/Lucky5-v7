@@ -2,13 +2,13 @@
 
 A clean-room recreation of a Lebanese amusement video poker machine (1990-2010 era).
 
-**Godot 4.6 portrait cabinet** + **.NET 9 API server**
+**Godot 4.6 portrait cabinet** + **.NET 10 API server**
 
 Features authentic Lebanese arcade aesthetics, machine-credit vs wallet-credit economy, progressive jackpots, inline double-up Hi-Lo mechanic, switch-only Lucky 5 protection, admin telemetry, agent lobby, daily reward bonuses, agent-based user tracking, and deterministic policy logic targeting ~80% RTP.
 
 ## Prerequisites
 
-- **.NET 9 SDK** (or later) — https://dotnet.microsoft.com
+- **.NET 10 SDK** (or later) — https://dotnet.microsoft.com
 - **Godot 4.6** (or later) — https://godotengine.org
 - PowerShell 7+ (Windows) or bash (Linux/macOS)
 

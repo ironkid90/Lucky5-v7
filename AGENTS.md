@@ -19,7 +19,7 @@ Ground factual claims in this repository's source files, linked docs, and comman
 
 ## Lucky5 Invariants
 - `docs/` is the source of truth for product and engineering behavior.
-- This repo is a Godot 4.6 portrait cabinet client plus a .NET 9 API server.
+- This repo is a Godot 4.6 portrait cabinet client plus a .NET 10 API server.
 - `godot/cabinet/` is the primary playable client; `server/src/Lucky5.Api/` is the sole backend.
 - `server/src/Lucky5.Domain/Game/CleanRoom/` owns deterministic authoritative game logic.
 - The backend owns balance, machine state, session state, and realtime behavior.

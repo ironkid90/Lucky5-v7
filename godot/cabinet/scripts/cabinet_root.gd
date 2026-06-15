@@ -324,7 +324,9 @@ func _ready() -> void:
 	_load_shaders()
 	_build_ui()
 	get_viewport().size_changed.connect(_update_crt_viewport_size)
+	get_viewport().size_changed.connect(_apply_responsive_metrics)
 	_update_crt_viewport_size()
+	_apply_responsive_metrics()
 	_create_press_audio_player()
 	_load_fixture_snapshot()
 

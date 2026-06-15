@@ -19,6 +19,10 @@ run/main_scene="res://scenes/CabinetRoot.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon-512.png"
 
+[autoload]
+
+CG="*uid://di2oxtaq5vhmh"
+
 [display]
 
 window/size/viewport_width=1080
@@ -32,7 +36,15 @@ window/handheld/orientation=1
 
 project/assembly_name="Lucky5 Cabinet"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/RHSM/plugin.cfg", "res://addons/godette_agent/plugin.cfg", "res://addons/shader_library/plugin.cfg", "res://addons/simple_cards/plugin.cfg")
+
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
 textures/vram_compression/import_etc2_astc=true
+
+[shader_library]
+
+internal/previous_shaders_folder="res://shaders/shaderlib/"

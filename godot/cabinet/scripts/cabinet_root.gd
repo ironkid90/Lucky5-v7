@@ -63,10 +63,18 @@ const CABINET_SHUFFLE_TICK := "audio/shuffle_tick.mp3"
 const CABINET_CREDIT_TRICKLE := "audio/credit_trickle.mp3"
 const BUTTON_ASSET_FONT_SIZE := 13
 
-const CARD_AREA_MIN_HEIGHT := 560
+var CARD_AREA_MIN_HEIGHT := 560
 # AI9 fronts are 313x528; keep slot boxes on that portrait ratio so cards stay crisp.
 const AI9_CARD_ASPECT := 313.0 / 528.0
 # Base sizes (scale 1.0 = 1080x1920); runtime values updated by _apply_responsive_metrics()
+var cabinet_ui_scale := 1.0
+var PAYTABLE_PANEL_MIN_HEIGHT := 320
+var PAYTABLE_ROW_MIN_HEIGHT := 28
+var PAYTABLE_AMOUNT_MIN_WIDTH := 168
+var PAYTABLE_STYLE_MARGIN_LEFT := 18
+var PAYTABLE_STYLE_MARGIN_RIGHT := 18
+var PAYTABLE_STYLE_MARGIN_TOP := 12
+var PAYTABLE_STYLE_MARGIN_BOTTOM := 8
 var CARD_SIZE := Vector2(184, 310)
 var CARD_SMALL_SIZE := Vector2(70, 118)
 var CARD_GAP := 14
@@ -74,14 +82,18 @@ var CONTROL_DECK_MIN_HEIGHT := 324
 var CONTROL_HOLD_BUTTON_HEIGHT := 116
 var CONTROL_ACTION_BUTTON_HEIGHT := 124
 var CONTROL_BOTTOM_BUTTON_HEIGHT := 112
+var MACHINE_INFO_MIN_HEIGHT := 138
+var JACKPOT_COUNTER_MIN_WIDTH := 172
+var JACKPOT_COUNTER_MIN_HEIGHT := 40
+var DU_BOARD_CARD_SIZE := Vector2(116, 196)
+var DU_TRAIL_CARD_SIZE := Vector2(136, 228)
+var responsive_label_bases: Dictionary = {}
 const DEAL_DURATION := 0.12
 const DEAL_STAGGER := 0.10
 const DRAW_OUT_DURATION := 0.08
 const DRAW_IN_DURATION := 0.12
 const DRAW_STAGGER := 0.10
 const DU_SWITCH_DURATION := 0.40
-const DU_BOARD_CARD_SIZE := Vector2(116, 196)
-const DU_TRAIL_CARD_SIZE := Vector2(136, 228)
 const BONUS_COIN_SIZE := Vector2(28, 28)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
 const DU_SHUFFLE_INTERVAL := 0.08
@@ -539,35 +551,71 @@ func _apply_responsive_metrics() -> void:
 	var base_height := 1920.0
 	var scale_x := viewport_size.x / base_width
 	var scale_y := viewport_size.y / base_height
-	var ui_scale := min(scale_x, scale_y)
-	ui_scale = clampf(ui_scale, 0.5, 2.0)
+	cabinet_ui_scale = clampf(min(scale_x, scale_y), 0.5, 2.0)
 	
-	# Update responsive metrics for cards, buttons, and fonts
-	# These are stored as runtime variables that the UI builders will use
-	_set_responsive_card_size(ui_scale)
-	_set_responsive_control_heights(ui_scale)
-	_set_responsive_font_sizes(ui_scale)
+	# Update responsive metrics for cards, buttons, fonts, panels and jackpot blocks.
+	_set_responsive_card_size(cabinet_ui_scale)
+	_set_responsive_control_heights(cabinet_ui_scale)
+	_set_responsive_font_sizes(cabinet_ui_scale)
+	_set_responsive_dimensions(cabinet_ui_scale)
+	_refresh_responsive_dimensions()
+	_refresh_responsive_labels()
 	_fit_idle_title()
 
-func _set_responsive_card_size(scale: float) -> void:
-	# Card size scales with UI scale, maintaining aspect ratio
-	var base_card_w := 184.0
-	var base_card_h := 310.0
-	CARD_SIZE = Vector2(int(base_card_w * scale), int(base_card_h * scale))
-	CARD_SMALL_SIZE = Vector2(int(70.0 * scale), int(118.0 * scale))
-	CARD_GAP = int(14.0 * scale)
+func _scaled_int(value: float) -> int:
+	return max(1, int(round(value * cabinet_ui_scale)))
 
-func _set_responsive_control_heights(scale: float) -> void:
-	# Control deck button heights scale with UI
-	CONTROL_HOLD_BUTTON_HEIGHT = int(116.0 * scale)
-	CONTROL_ACTION_BUTTON_HEIGHT = int(124.0 * scale)
-	CONTROL_BOTTOM_BUTTON_HEIGHT = int(112.0 * scale)
-	CONTROL_DECK_MIN_HEIGHT = int(324.0 * scale)
+func _scaled_font_size(value: int) -> int:
+	return max(8, int(round(float(value) * cabinet_ui_scale)))
 
-func _set_responsive_font_sizes(scale: float) -> void:
-	# Font sizes scale with UI
-	IDLE_TITLE_FONT_SIZE = int(92.0 * scale)
-	IDLE_TITLE_MIN_FONT_SIZE = int(40.0 * scale)
+func _set_responsive_dimensions(scale: float) -> void:
+	CARD_AREA_MIN_HEIGHT = int(560.0 * scale)
+	PAYTABLE_PANEL_MIN_HEIGHT = int(320.0 * scale)
+	PAYTABLE_ROW_MIN_HEIGHT = int(28.0 * scale)
+	PAYTABLE_AMOUNT_MIN_WIDTH = int(168.0 * scale)
+	PAYTABLE_STYLE_MARGIN_LEFT = int(18.0 * scale)
+	PAYTABLE_STYLE_MARGIN_RIGHT = int(18.0 * scale)
+	PAYTABLE_STYLE_MARGIN_TOP = int(12.0 * scale)
+	PAYTABLE_STYLE_MARGIN_BOTTOM = int(8.0 * scale)
+	MACHINE_INFO_MIN_HEIGHT = int(138.0 * scale)
+	JACKPOT_COUNTER_MIN_WIDTH = int(172.0 * scale)
+	JACKPOT_COUNTER_MIN_HEIGHT = int(40.0 * scale)
+	DU_BOARD_CARD_SIZE = Vector2(int(116.0 * scale), int(196.0 * scale))
+	DU_TRAIL_CARD_SIZE = Vector2(int(136.0 * scale), int(228.0 * scale))
+
+func _refresh_responsive_dimensions() -> void:
+	if paytable_panel != null:
+		paytable_panel.custom_minimum_size = Vector2(0, PAYTABLE_PANEL_MIN_HEIGHT)
+	if card_area_panel != null:
+		card_area_panel.custom_minimum_size = Vector2(0, CARD_AREA_MIN_HEIGHT)
+	if machine_info_bg != null:
+		machine_info_bg.custom_minimum_size = Vector2(0, MACHINE_INFO_MIN_HEIGHT)
+	for key in paytable_rows.keys():
+		var row_panel: PanelContainer = paytable_rows.get(key, null)
+		if row_panel != null:
+			row_panel.custom_minimum_size = Vector2(0, PAYTABLE_ROW_MIN_HEIGHT)
+	for key in paytable_amount_labels.keys():
+		var amount_l: Label = paytable_amount_labels.get(key, null)
+		if amount_l != null:
+			amount_l.custom_minimum_size = Vector2(PAYTABLE_AMOUNT_MIN_WIDTH, 0)
+	for key in jackpot_counter_panels.keys():
+		var counter_panel: Panel = jackpot_counter_panels.get(key, null)
+		if counter_panel != null:
+			counter_panel.custom_minimum_size = Vector2(JACKPOT_COUNTER_MIN_WIDTH, JACKPOT_COUNTER_MIN_HEIGHT)
+	if du_trail_container != null:
+		du_trail_container.add_theme_constant_override("separation", CARD_GAP)
+	if card_container != null:
+		card_container.add_theme_constant_override("separation", CARD_GAP)
+
+func _refresh_responsive_labels() -> void:
+	for label in responsive_label_bases.keys():
+		if not is_instance_valid(label):
+			responsive_label_bases.erase(label)
+			continue
+		var base_size: int = int(responsive_label_bases[label])
+		var size := _scaled_font_size(base_size)
+		label.add_theme_font_size_override("font_size", size)
+		label.add_theme_constant_override("outline_size", max(1, int(round(float(size) * 0.09))))
 
 func _fit_idle_title() -> void:
 	if idle_title_label == null:
@@ -663,9 +711,11 @@ func _font_for_key(font_key: String) -> Font:
 func _make_label(text_str: String, size: int, color_val: Color, align := HORIZONTAL_ALIGNMENT_LEFT, font_key := "arcade") -> Label:
 	var l := Label.new()
 	l.text = text_str
-	l.add_theme_font_size_override("font_size", size)
+	responsive_label_bases[l] = size
+	var font_size := _scaled_font_size(size)
+	l.add_theme_font_size_override("font_size", font_size)
 	l.add_theme_color_override("font_color", color_val)
-	var outline_px := int(max(1.0, round(float(size) * 0.09)))
+	var outline_px := max(1, int(round(float(font_size) * 0.09)))
 	l.add_theme_constant_override("outline_size", outline_px)
 	l.add_theme_color_override("font_outline_color", color_val)
 	var label_font := _font_for_key(font_key)
@@ -712,7 +762,7 @@ func _make_button(text_str: String, min_h: int, bg: Color, fg: Color, border: Co
 	var button_font := _font_for_key("ui")
 	if button_font != null:
 		b.add_theme_font_override("font", button_font)
-	b.add_theme_font_size_override("font_size", 15)
+	b.add_theme_font_size_override("font_size", _scaled_font_size(15))
 	b.add_theme_color_override("font_disabled_color", Color(0.3, 0.3, 0.3, 0.6))
 	if _apply_button_asset_styles(b, asset_key):
 		b.text = ""
@@ -1280,14 +1330,15 @@ func _build_paytable(parent: Node) -> void:
 	paytable_amount_colors.clear()
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(0, 320)
+	paytable_panel = panel
+	panel.custom_minimum_size = Vector2(0, PAYTABLE_PANEL_MIN_HEIGHT)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var ps := StyleBoxFlat.new()
 	ps.bg_color = Color.BLACK
-	ps.content_margin_left = 18
-	ps.content_margin_right = 18
-	ps.content_margin_top = 12
-	ps.content_margin_bottom = 8
+	ps.content_margin_left = PAYTABLE_STYLE_MARGIN_LEFT
+	ps.content_margin_right = PAYTABLE_STYLE_MARGIN_RIGHT
+	ps.content_margin_top = PAYTABLE_STYLE_MARGIN_TOP
+	ps.content_margin_bottom = PAYTABLE_STYLE_MARGIN_BOTTOM
 	panel.add_theme_stylebox_override("panel", ps)
 	parent.add_child(panel)
 
@@ -1321,7 +1372,7 @@ func _build_paytable(parent: Node) -> void:
 	left_column.add_child(grid)
 	for hand in hands:
 		var row_panel := PanelContainer.new()
-		row_panel.custom_minimum_size = Vector2(0, 28)
+		row_panel.custom_minimum_size = Vector2(0, PAYTABLE_ROW_MIN_HEIGHT)
 		row_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var rps := StyleBoxFlat.new()
 		rps.bg_color = Color(0, 0, 0, 0)
@@ -1360,7 +1411,7 @@ func _build_paytable(parent: Node) -> void:
 		grid.add_child(amount_panel)
 
 		var amount_l := _make_label("0", 26, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
-		amount_l.custom_minimum_size = Vector2(168, 0)
+		amount_l.custom_minimum_size = Vector2(PAYTABLE_AMOUNT_MIN_WIDTH, 0)
 		amount_l.clip_text = true
 		amount_panel.add_child(amount_l)
 		paytable_rows[str(hand[0])] = row_panel
@@ -1519,7 +1570,7 @@ func _build_win_display(parent: Node) -> void:
 
 func _build_machine_info(parent: Node) -> void:
 	var panel := Panel.new()
-	panel.custom_minimum_size = Vector2(0, 138)
+	panel.custom_minimum_size = Vector2(0, MACHINE_INFO_MIN_HEIGHT)
 	var ps := StyleBoxFlat.new()
 	ps.bg_color = Color(0, 0, 0, 0.0)
 	panel.add_theme_stylebox_override("panel", ps)
@@ -1528,10 +1579,10 @@ func _build_machine_info(parent: Node) -> void:
 
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_top", 4)
-	margin.add_theme_constant_override("margin_bottom", 4)
+	margin.add_theme_constant_override("margin_left", _scaled_int(8))
+	margin.add_theme_constant_override("margin_right", _scaled_int(8))
+	margin.add_theme_constant_override("margin_top", _scaled_int(4))
+	margin.add_theme_constant_override("margin_bottom", _scaled_int(4))
 	panel.add_child(margin)
 
 	var rows := VBoxContainer.new()
@@ -1552,14 +1603,14 @@ func _build_machine_info(parent: Node) -> void:
 
 	var jp_row := HBoxContainer.new()
 	jp_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	jp_row.add_theme_constant_override("separation", 10)
-	jp_row.custom_minimum_size = Vector2(0, 40)
+	jp_row.add_theme_constant_override("separation", _scaled_int(10))
+	jp_row.custom_minimum_size = Vector2(0, _scaled_int(40))
 	rows.add_child(jp_row)
 
 	jackpot_counter_panels.clear()
 	for slot in [["*", "4k-a", COLOR_GREEN_DIM], ["SF", "sf", COLOR_GOLD], ["*", "4k-b", COLOR_GREEN_DIM]]:
 		var counter_panel := Panel.new()
-		counter_panel.custom_minimum_size = Vector2(172, 40)
+		counter_panel.custom_minimum_size = Vector2(JACKPOT_COUNTER_MIN_WIDTH, JACKPOT_COUNTER_MIN_HEIGHT)
 		var cps := StyleBoxFlat.new()
 		cps.bg_color = Color(0, 0, 0, 0)
 		counter_panel.add_theme_stylebox_override("panel", cps)
@@ -1578,8 +1629,8 @@ func _build_machine_info(parent: Node) -> void:
 
 	var bonus_row := HBoxContainer.new()
 	bonus_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	bonus_row.add_theme_constant_override("separation", 10)
-	bonus_row.custom_minimum_size = Vector2(0, 44)
+	bonus_row.add_theme_constant_override("separation", _scaled_int(10))
+	bonus_row.custom_minimum_size = Vector2(0, _scaled_int(44))
 	rows.add_child(bonus_row)
 
 	bonus_message_label = _make_label("4 OF A KIND WINS BONUS", 22, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)

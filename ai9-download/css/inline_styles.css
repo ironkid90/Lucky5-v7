@@ -1,0 +1,104 @@
+
+        body {
+          background: #000;
+          margin: 0;
+          overflow: hidden;
+        }
+
+        #loading-container {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          background-color: black;
+        }
+
+        .loader {
+          border: 6px solid rgba(255, 255, 255, 0.2);
+          border-top: 6px solid #87ceeb;
+          border-radius: 50%;
+          width: 50px;
+          height: 50px;
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+    
+
+
+        html {
+          height: 100%
+        }
+
+        body {
+          margin: 0;
+          min-height: 100%;
+          background-color: #000000;
+          background-size: 100% 100%;
+        }
+
+        .center {
+          margin: 0;
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          -ms-transform: translate(-50%, -50%);
+          transform: translate(-50%, -50%);
+        }
+
+        .contain {
+          display:block;
+          width:100%; height:100%;
+          object-fit: contain;
+        }
+
+        .stretch {
+          display:block;
+          width:100%; height:100%;
+        }
+
+        .cover {
+          display:block;
+          width:100%; height:100%;
+          object-fit: cover;
+        }
+
+        .bottom {
+          position: absolute;
+          bottom: 0;
+          left: 50%;
+          -ms-transform: translate(-50%, 0);
+          transform: translate(-50%, 0);
+        }
+
+        .bottomLeft {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+        }
+
+        .bottomRight {
+          position: absolute;
+          bottom: 0;
+          right: 0;
+        }
+    
+
+
+
+
+
+
+
+@font-face{font-family:simply-circular;src:url(https://images.simplycodes.com/fonts/simply-circular/CircularXXWeb-Regular.woff2)format("woff2");font-display:swap;font-feature-settings:"'ss08'on";font-style:normal;font-weight:400}@font-face{font-family:simply-circular;src:url(https://images.simplycodes.com/fonts/simply-circular/CircularXXWeb-Italic.woff2)format("woff2");font-display:swap;font-feature-settings:"'ss08'on";font-style:italic;font-weight:400}@font-face{font-family:simply-circular;src:url(https://images.simplycodes.com/fonts/simply-circular/CircularXXWeb-Medium.woff2)format("woff2");font-display:swap;font-feature-settings:"'ss08'on";font-style:normal;font-weight:500}@font-face{font-family:simply-circular;src:url(https://images.simplycodes.com/fonts/simply-circular/CircularXXWeb-MediumItalic.woff2)format("woff2");font-display:swap;font-feature-settings:"'ss08'on";font-style:italic;font-weight:500}@font-face{font-family:simply-circular;src:url(https://images.simplycodes.com/fonts/simply-circular/CircularXXWeb-Bold.woff2)format("woff2");font-display:swap;font-feature-settings:"'ss08'on";font-style:normal;font-weight:700}@font-face{font-family:simply-circular;src:url(https://images.simplycodes.com/fonts/simply-circular/CircularXXWeb-BoldItalic.woff2)format("woff2");font-display:swap;font-feature-settings:"'ss08'on";font-style:italic;font-weight:700}@font-face{font-family:degular;src:url(https://images.simplycodes.com/fonts/degular/Degular-Bold.woff2)format("woff2");font-display:swap;font-style:normal;font-weight:700}@font-face{font-family:neue-haas-grotesk;src:url(https://images.simplycodes.com/fonts/neue-haas-grotesk/NHaasGroteskDSPro-55Rg.woff2)format("woff2");font-display:swap;font-style:normal;font-weight:400}@font-face{font-family:neue-haas-grotesk;src:url(https://images.simplycodes.com/fonts/neue-haas-grotesk/NHaasGroteskDSPro-65Md.woff2)format("woff2");font-display:swap;font-style:normal;font-weight:500}@font-face{font-family:neue-haas-grotesk;src:url(https://images.simplycodes.com/fonts/neue-haas-grotesk/NHaasGroteskDSPro-75Bd.woff2)format("woff2");font-display:swap;font-style:normal;font-weight:700}[id^=SCExtension]{all:initial;z-index:calc(Infinity);transition-property:opacity;transition-duration:.25s;position:absolute}
+
+flutter-view flt-scene-host {  font: normal normal 14px sans-serif;}flutter-view flt-semantics input[type=range] {  appearance: none;  -webkit-appearance: none;  width: 100%;  position: absolute;  border: none;  top: 0;  right: 0;  bottom: 0;  left: 0;}flutter-view input::selection {  background-color: transparent;}flutter-view textarea::selection {  background-color: transparent;}flutter-view flt-semantics input,flutter-view flt-semantics textarea,flutter-view flt-semantics [contentEditable="true"] {  caret-color: transparent;}flutter-view .flt-text-editing::placeholder {  opacity: 0;}flutter-view:focus { outline: none;}flutter-view .transparentTextEditing:-webkit-autofill,flutter-view .transparentTextEditing:-webkit-autofill:hover,flutter-view .transparentTextEditing:-webkit-autofill:focus,flutter-view .transparentTextEditing:-webkit-autofill:active {  opacity: 0 !important;}

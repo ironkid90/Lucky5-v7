@@ -1038,10 +1038,10 @@ func _build_ui() -> void:
 
 	var deck_margin := MarginContainer.new()
 	deck_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	deck_margin.add_theme_constant_override("margin_left", 22)
-	deck_margin.add_theme_constant_override("margin_right", 22)
-	deck_margin.add_theme_constant_override("margin_top", 22)
-	deck_margin.add_theme_constant_override("margin_bottom", 18)
+	deck_margin.add_theme_constant_override("margin_left", _scaled_int(22))
+	deck_margin.add_theme_constant_override("margin_right", _scaled_int(22))
+	deck_margin.add_theme_constant_override("margin_top", _scaled_int(22))
+	deck_margin.add_theme_constant_override("margin_bottom", _scaled_int(18))
 	bottom_section.add_child(deck_margin)
 
 	_build_control_deck(deck_margin)
@@ -1137,7 +1137,7 @@ func _decorate_control_deck(deck: Control) -> void:
 	var grain_offsets := [12, 26, 39, 57, 73, 91, 108, 126, 145, 164, 184]
 	for i in range(grain_offsets.size()):
 		var color := COLOR_WOOD_GRAIN_LIGHT if i % 2 == 0 else COLOR_WOOD_GRAIN_DARK
-		_add_control_deck_grain(deck, int(grain_offsets[i]), color, 1 + (i % 3))
+		_add_control_deck_grain(deck, int(grain_offsets[i] * cabinet_ui_scale), color, max(1, int((1 + (i % 3)) * cabinet_ui_scale)))
 
 func _add_control_deck_band(deck: Control, node_name: String, from_anchor: float, to_anchor: float, color: Color) -> void:
 	var band := ColorRect.new()

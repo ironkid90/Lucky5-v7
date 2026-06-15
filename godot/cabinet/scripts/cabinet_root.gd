@@ -202,6 +202,7 @@ var crt_time := 0.0
 
 # ─── node refs ───
 var title_label: Label
+var paytable_panel: PanelContainer
 var paytable_rows: Dictionary = {}
 var paytable_amount_labels: Dictionary = {}
 var paytable_amount_panels: Dictionary = {}
@@ -571,6 +572,17 @@ func _scaled_int(value: float) -> int:
 func _scaled_font_size(value: int) -> int:
 	return max(8, int(round(float(value) * cabinet_ui_scale)))
 
+func _set_responsive_card_size(scale: float) -> void:
+	CARD_SIZE = Vector2(int(184.0 * scale), int(310.0 * scale))
+	CARD_SMALL_SIZE = Vector2(int(70.0 * scale), int(118.0 * scale))
+	CARD_GAP = int(14.0 * scale)
+
+func _set_responsive_control_heights(scale: float) -> void:
+	CONTROL_DECK_MIN_HEIGHT = int(324.0 * scale)
+	CONTROL_HOLD_BUTTON_HEIGHT = int(116.0 * scale)
+	CONTROL_ACTION_BUTTON_HEIGHT = int(124.0 * scale)
+	CONTROL_BOTTOM_BUTTON_HEIGHT = int(112.0 * scale)
+
 func _set_responsive_dimensions(scale: float) -> void:
 	CARD_AREA_MIN_HEIGHT = int(560.0 * scale)
 	PAYTABLE_PANEL_MIN_HEIGHT = int(320.0 * scale)
@@ -722,7 +734,7 @@ func _make_label(text_str: String, size: int, color_val: Color, align := HORIZON
 	var font_size := _scaled_font_size(size)
 	l.add_theme_font_size_override("font_size", font_size)
 	l.add_theme_color_override("font_color", color_val)
-	var outline_px := max(1, int(round(float(font_size) * 0.09)))
+	var outline_px: int = max(1, int(round(float(font_size) * 0.09)))
 	l.add_theme_constant_override("outline_size", outline_px)
 	l.add_theme_color_override("font_outline_color", color_val)
 	var label_font := _font_for_key(font_key)
@@ -3464,7 +3476,10 @@ func _refresh_machine_info() -> void:
 	var machine: Dictionary = store.snapshot.get("machine", {})
 	var jackpots := _jackpot_data()
 	machine_serie_label.text = str(machine.get("machine_serie", machine.get("name", "0")))
-	machine_serial_label.text = str(_du_first_value(jackpots, ["machine_serial", "machineSerial", "MachineSerial"], machine.get("machine_serial", "0")))
+	var serial := str(_du_first_value(jackpots, ["machine_serial", "machineSerial", "MachineSerial"], machine.get("machine_serial", "0")))
+	if machine_identity_serial_label != null:
+		machine_identity_serial_label.text = serial
+	machine_serial_label.text = serial
 	machine_kent_label.text = str(_du_first_value(jackpots, ["kent_streak", "kentStreak", "KentStreak"], machine.get("machine_kent", "0")))
 	if bonus_message_label != null:
 		bonus_message_label.visible = true

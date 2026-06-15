@@ -977,17 +977,17 @@ func _build_ui() -> void:
 
 	var middle_margin := MarginContainer.new()
 	middle_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	middle_margin.add_theme_constant_override("margin_left", 20)
-	middle_margin.add_theme_constant_override("margin_right", 20)
-	middle_margin.add_theme_constant_override("margin_top", 12)
-	middle_margin.add_theme_constant_override("margin_bottom", 12)
+	middle_margin.add_theme_constant_override("margin_left", _scaled_int(20))
+	middle_margin.add_theme_constant_override("margin_right", _scaled_int(20))
+	middle_margin.add_theme_constant_override("margin_top", _scaled_int(12))
+	middle_margin.add_theme_constant_override("margin_bottom", _scaled_int(12))
 	middle_section.add_child(middle_margin)
 
 	var play_stack := VBoxContainer.new()
 	play_stack.name = "PlayAreaStack"
 	play_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	play_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	play_stack.add_theme_constant_override("separation", 10)
+	play_stack.add_theme_constant_override("separation", _scaled_int(10))
 	middle_margin.add_child(play_stack)
 
 	_build_card_area(play_stack)
@@ -1067,7 +1067,7 @@ func _add_cabinet_board_background(parent: Control, alpha: float) -> TextureRect
 func _build_control_deck(parent: Node) -> void:
 	var rows := VBoxContainer.new()
 	rows.name = "ControlDeckRows"
-	rows.add_theme_constant_override("separation", 16)
+	rows.add_theme_constant_override("separation", _scaled_int(16))
 	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rows.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	parent.add_child(rows)
@@ -1078,7 +1078,7 @@ func _build_control_deck(parent: Node) -> void:
 
 	var hold_row := HBoxContainer.new()
 	hold_row.name = "ArcadeHoldRow"
-	hold_row.add_theme_constant_override("separation", 12)
+	hold_row.add_theme_constant_override("separation", _scaled_int(12))
 	hold_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	rows.add_child(hold_row)
 	hold_buttons.clear()
@@ -1092,7 +1092,7 @@ func _build_control_deck(parent: Node) -> void:
 
 	var action_row := HBoxContainer.new()
 	action_row.name = "ArcadeActionRow"
-	action_row.add_theme_constant_override("separation", 12)
+	action_row.add_theme_constant_override("separation", _scaled_int(12))
 	action_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	rows.add_child(action_row)
 	var action_defs := [
@@ -1107,7 +1107,7 @@ func _build_control_deck(parent: Node) -> void:
 
 	var bottom_row := HBoxContainer.new()
 	bottom_row.name = "ArcadeBottomRow"
-	bottom_row.add_theme_constant_override("separation", 24)
+	bottom_row.add_theme_constant_override("separation", _scaled_int(24))
 	bottom_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	rows.add_child(bottom_row)
 
@@ -1343,12 +1343,12 @@ func _build_paytable(parent: Node) -> void:
 	parent.add_child(panel)
 
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 18)
+	columns.add_theme_constant_override("separation", _scaled_int(18))
 	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_child(columns)
 
 	var left_column := VBoxContainer.new()
-	left_column.add_theme_constant_override("separation", 4)
+	left_column.add_theme_constant_override("separation", _scaled_int(4))
 	left_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_column.size_flags_stretch_ratio = 1.75
 	columns.add_child(left_column)
@@ -1367,8 +1367,8 @@ func _build_paytable(parent: Node) -> void:
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", 4)
-	grid.add_theme_constant_override("v_separation", 1)
+	grid.add_theme_constant_override("h_separation", _scaled_int(4))
+	grid.add_theme_constant_override("v_separation", _scaled_int(1))
 	left_column.add_child(grid)
 	for hand in hands:
 		var row_panel := PanelContainer.new()
@@ -1379,8 +1379,8 @@ func _build_paytable(parent: Node) -> void:
 		rps.border_color = Color(0, 0, 0, 0)
 		rps.border_width_left = 0; rps.border_width_right = 0
 		rps.border_width_top = 0; rps.border_width_bottom = 0
-		rps.content_margin_left = 4; rps.content_margin_right = 4
-		rps.content_margin_top = 2; rps.content_margin_bottom = 2
+		rps.content_margin_left = _scaled_int(4); rps.content_margin_right = _scaled_int(4)
+		rps.content_margin_top = _scaled_int(2); rps.content_margin_bottom = _scaled_int(2)
 		row_panel.add_theme_stylebox_override("panel", rps)
 		grid.add_child(row_panel)
 
@@ -1388,10 +1388,10 @@ func _build_paytable(parent: Node) -> void:
 		name_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var nps := StyleBoxFlat.new()
 		nps.bg_color = Color.WHITE if str(hand[0]) == "FullHouse" else Color(0, 0, 0, 0)
-		nps.content_margin_left = 6
-		nps.content_margin_right = 6
-		nps.content_margin_top = 2
-		nps.content_margin_bottom = 2
+		nps.content_margin_left = _scaled_int(6)
+		nps.content_margin_right = _scaled_int(6)
+		nps.content_margin_top = _scaled_int(2)
+		nps.content_margin_bottom = _scaled_int(2)
 		name_panel.add_theme_stylebox_override("panel", nps)
 		row_panel.add_child(name_panel)
 
@@ -1403,10 +1403,10 @@ func _build_paytable(parent: Node) -> void:
 		amount_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var aps := StyleBoxFlat.new()
 		aps.bg_color = Color(0, 0, 0, 0)
-		aps.content_margin_left = 6
-		aps.content_margin_right = 6
-		aps.content_margin_top = 2
-		aps.content_margin_bottom = 2
+		aps.content_margin_left = _scaled_int(6)
+		aps.content_margin_right = _scaled_int(6)
+		aps.content_margin_top = _scaled_int(2)
+		aps.content_margin_bottom = _scaled_int(2)
 		amount_panel.add_theme_stylebox_override("panel", aps)
 		grid.add_child(amount_panel)
 
@@ -1423,7 +1423,7 @@ func _build_paytable(parent: Node) -> void:
 		paytable_amount_colors[str(hand[0])] = hand[3]
 
 	var fh_rank_row := HBoxContainer.new()
-	fh_rank_row.add_theme_constant_override("separation", 10)
+	fh_rank_row.add_theme_constant_override("separation", _scaled_int(10))
 	left_column.add_child(fh_rank_row)
 	fh_rank_row.add_child(_make_label("FULL HOUSE RANK", 16, COLOR_WHITE))
 	full_house_rank_label = _make_label(_full_house_rank_text(), 18, COLOR_GOLD)
@@ -1437,7 +1437,7 @@ func _build_paytable(parent: Node) -> void:
 
 func _build_credit_stake_column(parent: Node) -> void:
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 2)
+	column.add_theme_constant_override("separation", _scaled_int(2))
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.size_flags_stretch_ratio = 1.0
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1517,7 +1517,7 @@ func _build_card_area(parent: Node) -> void:
 
 	for index in range(5):
 		var slot := VBoxContainer.new()
-		slot.add_theme_constant_override("separation", 6)
+		slot.add_theme_constant_override("separation", _scaled_int(6))
 		slot.alignment = BoxContainer.ALIGNMENT_CENTER
 
 		var hold_label := _make_label("", 20, COLOR_BUTTON_YELLOW, HORIZONTAL_ALIGNMENT_CENTER)
@@ -1586,11 +1586,11 @@ func _build_machine_info(parent: Node) -> void:
 	panel.add_child(margin)
 
 	var rows := VBoxContainer.new()
-	rows.add_theme_constant_override("separation", 6)
+	rows.add_theme_constant_override("separation", _scaled_int(6))
 	margin.add_child(rows)
 
 	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 10)
+	hbox.add_theme_constant_override("separation", _scaled_int(10))
 	rows.add_child(hbox)
 
 	machine_serie_label = _make_label("0", 18, COLOR_WHITE)
@@ -1652,7 +1652,7 @@ func _build_machine_info(parent: Node) -> void:
 func _build_du_info(parent: Node) -> void:
 	du_info_panel = VBoxContainer.new()
 	du_info_panel.visible = false
-	du_info_panel.add_theme_constant_override("separation", 4)
+	du_info_panel.add_theme_constant_override("separation", _scaled_int(4))
 	parent.add_child(du_info_panel)
 
 	du_label_node = _make_label("HI LO GAMBLE", 18, COLOR_GOLD, HORIZONTAL_ALIGNMENT_CENTER)
@@ -1660,7 +1660,7 @@ func _build_du_info(parent: Node) -> void:
 
 	var du_infos := HBoxContainer.new()
 	du_infos.alignment = BoxContainer.ALIGNMENT_CENTER
-	du_infos.add_theme_constant_override("separation", 12)
+	du_infos.add_theme_constant_override("separation", _scaled_int(12))
 	du_info_panel.add_child(du_infos)
 
 	du_infos.add_child(_make_label("ACE COUNTS", 12, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER))
@@ -1686,7 +1686,7 @@ func _build_du_deck_row(parent: Node) -> void:
 		var slot := VBoxContainer.new()
 		slot.name = "DoubleUpDeckSlot%d" % index
 		slot.alignment = BoxContainer.ALIGNMENT_CENTER
-		slot.add_theme_constant_override("separation", 4)
+		slot.add_theme_constant_override("separation", _scaled_int(4))
 		var slot_label := _make_label("", 12, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
 		slot_label.custom_minimum_size = Vector2(0, 20)
 		slot.add_child(slot_label)

@@ -79,9 +79,9 @@ var CARD_SIZE := Vector2(184, 310)
 var CARD_SMALL_SIZE := Vector2(70, 118)
 var CARD_GAP := 14
 var CONTROL_DECK_MIN_HEIGHT := 324
-var CONTROL_HOLD_BUTTON_HEIGHT := 116
-var CONTROL_ACTION_BUTTON_HEIGHT := 124
-var CONTROL_BOTTOM_BUTTON_HEIGHT := 112
+const CONTROL_HOLD_BUTTON_HEIGHT := 116
+const CONTROL_ACTION_BUTTON_HEIGHT := 124
+const CONTROL_BOTTOM_BUTTON_HEIGHT := 112
 var MACHINE_INFO_MIN_HEIGHT := 138
 var JACKPOT_COUNTER_MIN_WIDTH := 172
 var JACKPOT_COUNTER_MIN_HEIGHT := 40
@@ -579,9 +579,6 @@ func _set_responsive_card_size(scale: float) -> void:
 
 func _set_responsive_control_heights(scale: float) -> void:
 	CONTROL_DECK_MIN_HEIGHT = int(324.0 * scale)
-	CONTROL_HOLD_BUTTON_HEIGHT = int(116.0 * scale)
-	CONTROL_ACTION_BUTTON_HEIGHT = int(124.0 * scale)
-	CONTROL_BOTTOM_BUTTON_HEIGHT = int(112.0 * scale)
 
 func _set_responsive_dimensions(scale: float) -> void:
 	CARD_AREA_MIN_HEIGHT = int(560.0 * scale)
@@ -1444,11 +1441,11 @@ func _build_paytable(parent: Node) -> void:
 		amount_l.custom_minimum_size = Vector2(PAYTABLE_AMOUNT_MIN_WIDTH, 0)
 		amount_l.clip_text = true
 		amount_panel.add_child(amount_l)
-		paytable_rows[key] = row_panel
-		paytable_amount_panels[key] = amount_panel
-		paytable_name_labels[key] = name_l
-		paytable_name_panels[key] = name_panel
-		paytable_amount_labels[key] = amount_l
+		paytable_rows[str(hand[0])] = row_panel
+		paytable_amount_panels[str(hand[0])] = amount_panel
+		paytable_name_labels[str(hand[0])] = name_l
+		paytable_name_panels[str(hand[0])] = name_panel
+		paytable_amount_labels[str(hand[0])] = amount_l
 		paytable_multipliers[str(hand[0])] = int(hand[2])
 		paytable_amount_colors[key] = hand[3]
 

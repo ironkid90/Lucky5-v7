@@ -1,0 +1,1939 @@
+/*!*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/.pnpm/next@15.3.0_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[2]!./node_modules/.pnpm/next@15.3.0_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[3]!./app/globals.css ***!
+  \*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/* Lucky5 cabinet display font. Sourced from the .NET API at
+   /assets/fonts/ARCADE.ttf, proxied through next.config.mjs in dev. */
+@font-face {
+  font-family: "Lucky5Arcade";
+  src: url("/assets/fonts/ARCADE.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 400;
+  font-style: normal;
+}
+
+:root {
+  --bg-0: #060606;
+  --panel-soft: rgba(30, 27, 21, 0.92);
+  --amber: #ff9f1a;
+  --amber-hot: #ffd447;
+  --signal: #84ff55;
+  --danger: #ff5e47;
+  --card-bg: #fcf4dd;
+  --card-edge: #d5b16a;
+  --ink: #171514;
+  --status-cyan: #9ce6ff;
+  --grid: rgba(255, 212, 71, 0.08);
+  --line: rgba(255, 212, 71, 0.18);
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  --font-display: "Lucky5Arcade", "Press Start 2P", "Courier New", monospace;
+  --font-body: "Lucky5Arcade", "Courier New", ui-monospace, monospace;
+  --display-font: var(--font-display);
+  --body-font: var(--font-body);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  color: #f6e9c9;
+  background:
+    radial-gradient(circle at top, rgba(255, 159, 26, 0.12), transparent 30%),
+    radial-gradient(circle at bottom, rgba(132, 255, 85, 0.08), transparent 20%),
+    linear-gradient(180deg, #090909 0%, #050505 100%);
+  font-family: var(--body-font);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.page-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px 48px;
+}
+
+.godot-web-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  min-height: 100dvh;
+  background: #060606;
+}
+
+.godot-web-frame {
+  width: 100%;
+  height: 100dvh;
+  border: 0;
+  background: #060606;
+}
+
+.godot-web-missing {
+  width: min(560px, calc(100vw - 32px));
+  align-self: center;
+  justify-self: center;
+  display: grid;
+  grid-gap: 14px;
+  gap: 14px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(12, 12, 12, 0.94);
+  box-shadow: var(--shadow);
+}
+
+.godot-web-missing h1,
+.godot-web-missing p {
+  margin: 0;
+}
+
+.godot-web-missing h1 {
+  color: var(--amber-hot);
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+
+.godot-web-missing p {
+  color: #f6e9c9;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.godot-web-kicker {
+  color: var(--status-cyan);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+}
+
+.godot-web-missing code {
+  overflow-wrap: anywhere;
+  color: var(--signal);
+  font-size: 0.78rem;
+}
+
+.cabinet-shell {
+  width: min(540px, calc(100vw - 16px));
+  display: grid;
+  grid-gap: 18px;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: center;
+  align-items: start;
+}
+
+.cabinet-shell:has(.side-column) {
+  width: min(1040px, 100%);
+  grid-template-columns: minmax(0, 700px) minmax(180px, 260px);
+}
+
+.cabinet {
+  position: relative;
+  border-radius: 22px;
+  padding: 10px 10px 12px;
+  background: linear-gradient(180deg, #9b531f 0%, #5c2a0e 24%, #241209 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -18px 36px rgba(0, 0, 0, 0.5),
+    var(--shadow);
+}
+
+.cabinet::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 226, 173, 0.25);
+  pointer-events: none;
+}
+
+.screen {
+  border-radius: 16px 16px 12px 12px;
+  background:
+    linear-gradient(180deg, rgba(11, 11, 11, 0.98), rgba(3, 3, 3, 0.995)),
+    radial-gradient(circle at top, rgba(255, 176, 42, 0.08), transparent 34%);
+  border: 2px solid rgba(255, 200, 93, 0.25);
+  padding: 8px;
+  min-height: min(850px, calc(100dvh - 24px));
+  display: grid;
+  grid-gap: 7px;
+  gap: 7px;
+}
+
+/* Sprint 1 visual checkpoints:
+   - jackpot strip visually stronger than telemetry
+   - lower control deck reads like cabinet hardware
+   - darker playfield, tighter APK-inspired hierarchy
+*/
+
+.screen-body,
+.playfield-stack {
+  display: grid;
+  grid-gap: 12px;
+  gap: 12px;
+}
+
+.screen-header {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  grid-gap: 12px;
+  gap: 12px;
+}
+
+.paytable,
+.status-box,
+.message-box,
+.diagnostics,
+.admin-agent-panel,
+.history-panel {
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.paytable,
+.status-box,
+.message-box,
+.diagnostics,
+.admin-agent-panel,
+.history-panel,
+.auth-panel,
+.double-up-panel {
+  border-radius: 16px;
+}
+
+.paytable {
+  padding: 12px;
+}
+
+.paytable-title,
+.status-title,
+.section-title,
+.machine-title,
+.label-kicker {
+  font-family: var(--display-font);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.paytable-title,
+.section-title {
+  color: var(--amber-hot);
+}
+
+.paytable-title {
+  font-size: 0.66rem;
+  margin-bottom: 10px;
+}
+
+.paytable-grid,
+.status-stack,
+.machine-bar,
+.card-stage,
+.control-deck,
+.side-column,
+.admin-stack,
+.admin-list,
+.history-list,
+.double-up-panel,
+.auth-panel {
+  display: grid;
+  grid-gap: 10px;
+  gap: 10px;
+}
+
+.paytable-row,
+.status-grid,
+.status-grid-three,
+.machine-buttons,
+.control-row.primary,
+.control-row.secondary,
+.control-row.tertiary,
+.diagnostic-grid,
+.admin-tabs,
+.admin-form-grid,
+.admin-load-row,
+.admin-search-row,
+.admin-list-row,
+.double-up-cards,
+.double-up-meta,
+.auth-grid {
+  display: grid;
+}
+
+.paytable-row {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  font-size: 0.78rem;
+  padding: 4px 0;
+  border-bottom: 1px dotted rgba(255, 212, 71, 0.14);
+}
+
+.paytable-row:last-child {
+  border-bottom: 0;
+}
+
+.paytable-row strong {
+  color: var(--amber-hot);
+}
+
+.status-title {
+  font-size: 0.56rem;
+  color: var(--status-cyan);
+  margin-bottom: 8px;
+}
+
+.status-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.status-grid-three,
+.double-up-meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.status-chip {
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.status-chip span,
+.diagnostic-card span {
+  display: block;
+  color: #a7a091;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.status-chip strong,
+.diagnostic-card strong {
+  display: block;
+  color: #fff4d4;
+  font-family: var(--display-font);
+  font-size: 0.72rem;
+  margin-top: 6px;
+}
+
+.status-chip.ledger {
+  padding: 10px 14px;
+}
+
+.status-chip.ledger span {
+  font-family: var(--display-font);
+  font-size: 0.52rem;
+  color: var(--status-cyan);
+  letter-spacing: 0.12em;
+}
+
+.status-chip.ledger strong {
+  font-size: 1.3rem;
+  color: var(--signal);
+  margin-top: 8px;
+  letter-spacing: 0.04em;
+}
+
+.machine-title {
+  font-size: 0.68rem;
+  color: #fff1c1;
+}
+
+.machine-buttons {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.machine-button,
+.guess-button,
+.action-button,
+.auth-button,
+.hold-button {
+  border: 0;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+
+.machine-button:hover,
+.guess-button:hover,
+.action-button:hover,
+.auth-button:hover,
+.hold-button:hover {
+  transform: translateY(-1px);
+}
+
+.machine-button {
+  border-radius: 14px;
+  padding: 10px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f9e4b3;
+  text-align: left;
+  border: 1px solid rgba(255, 212, 71, 0.14);
+}
+
+.machine-button.active {
+  background: linear-gradient(180deg, rgba(255, 212, 71, 0.26), rgba(255, 159, 26, 0.16));
+  box-shadow: 0 0 0 1px rgba(255, 212, 71, 0.28);
+}
+
+.machine-button small {
+  display: block;
+  color: #d0b88d;
+  margin-top: 4px;
+}
+
+.message-box {
+  padding: 12px 14px;
+  color: #fff6de;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.message-pill {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(132, 255, 85, 0.12);
+  color: var(--signal);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.jackpot-strip {
+  display: grid;
+  grid-gap: 10px;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(20, 10, 5, 0.96), rgba(48, 18, 7, 0.96));
+  border: 1px solid rgba(255, 185, 69, 0.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 22px rgba(0, 0, 0, 0.35);
+}
+
+.jackpot-strip-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-gap: 12px;
+  gap: 12px;
+  align-items: end;
+}
+
+.jackpot-strip-header strong {
+  color: #fff4d3;
+  font-family: var(--display-font);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.jackpot-strip-grid {
+  display: grid;
+  grid-template-columns: 0.9fr 1fr 1fr 0.9fr;
+  grid-gap: 8px;
+  gap: 8px;
+}
+
+.jackpot-meter {
+  display: grid;
+  grid-gap: 6px;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 208, 118, 0.12);
+}
+
+.jackpot-meter span {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  color: #f1c67d;
+  letter-spacing: 0.08em;
+}
+
+.jackpot-meter strong {
+  font-family: var(--display-font);
+  font-size: 0.92rem;
+}
+
+.jackpot-meter-main strong {
+  color: #9ce6ff;
+}
+
+.jackpot-meter-center strong {
+  color: #ff6655;
+}
+
+.jackpot-meter-side strong {
+  color: #84ff55;
+}
+
+.card-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-gap: 10px;
+  gap: 10px;
+}
+
+.card-slot {
+  display: grid;
+  grid-gap: 8px;
+  gap: 8px;
+}
+
+.playing-card {
+  min-height: 200px;
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 30%),
+    var(--card-bg);
+  border: 2px solid var(--card-edge);
+  color: var(--ink);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 8px 18px rgba(0, 0, 0, 0.25);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.playing-card.hearts,
+.playing-card.diamonds {
+  color: #bb1622;
+}
+
+.card-corner {
+  font-family: var(--display-font);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.card-center {
+  text-align: center;
+  font-size: 3.8rem;
+}
+
+.hold-button {
+  border: 1px solid rgba(116, 69, 0, 0.42);
+  background: linear-gradient(180deg, #ffd64d 0%, #c78200 100%);
+  color: #332003;
+  border-radius: 16px;
+  min-height: 74px;
+  font-family: var(--display-font);
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 5px 12px rgba(0, 0, 0, 0.38);
+}
+
+.hold-button.active {
+  background: linear-gradient(180deg, #ffe07a 0%, #d78e00 100%);
+  color: #241505;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 0 16px rgba(255, 212, 71, 0.38),
+    0 5px 12px rgba(0, 0, 0, 0.38);
+}
+
+.hold-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-gap: 8px;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.deal-banner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-gap: 12px;
+  gap: 12px;
+  align-items: center;
+  background: rgba(255, 159, 26, 0.09);
+  border: 1px solid rgba(255, 159, 26, 0.25);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.deal-banner strong {
+  font-family: var(--display-font);
+  font-size: 0.68rem;
+}
+
+.control-deck {
+  position: relative;
+  margin-top: 6px;
+  border-radius: 20px 20px 28px 28px;
+  padding: 18px 18px 20px;
+  background:
+    linear-gradient(180deg, rgba(120, 52, 14, 0.96), rgba(64, 24, 8, 0.98)),
+    linear-gradient(90deg, rgba(255, 211, 90, 0.06), transparent);
+  border: 1px solid rgba(255, 224, 157, 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -18px 24px rgba(0, 0, 0, 0.25);
+}
+
+.control-deck::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 16px 16px 22px 22px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+.control-row.primary {
+  grid-template-columns: 1fr 1fr;
+}
+
+.control-row.secondary,
+.control-row.tertiary,
+.double-up-cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.double-up-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.bet-input {
+  background: rgba(18, 10, 5, 0.78);
+  color: #fff3ca;
+  border: 1px solid rgba(255, 212, 71, 0.24);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.bet-input label,
+.auth-panel label {
+  display: grid;
+  grid-gap: 6px;
+  gap: 6px;
+  text-transform: uppercase;
+  color: #f7ddb1;
+  font-size: 0.76rem;
+}
+
+.bet-input input,
+.auth-panel input {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 212, 71, 0.22);
+  background: rgba(255, 250, 242, 0.08);
+  color: #fff8e9;
+  padding: 10px 12px;
+}
+
+.action-button,
+.guess-button {
+  min-height: 74px;
+  border-radius: 16px;
+  font-family: var(--display-font);
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  color: #fff8e5;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 8px 16px rgba(0, 0, 0, 0.24);
+}
+
+.action-button.main {
+  background: linear-gradient(180deg, #ff5845 0%, #ae1f12 100%);
+}
+
+.action-button.warning {
+  background: linear-gradient(180deg, #ffd54e 0%, #b97100 100%);
+  color: #2c1804;
+}
+
+.action-button.success {
+  background: linear-gradient(180deg, #53e8ff 0%, #1171ac 100%);
+}
+
+.action-button.ghost {
+  background: linear-gradient(180deg, #f7edd6 0%, #bca57a 100%);
+  color: #28190d;
+}
+
+.guess-button.big {
+  background: linear-gradient(180deg, #ffbf3b 0%, #c26b00 100%);
+  color: #2b1703;
+}
+
+.guess-button.small {
+  background: linear-gradient(180deg, #53e8ff 0%, #1171ac 100%);
+}
+
+.auth-panel,
+.double-up-panel,
+.diagnostics,
+.history-panel {
+  padding: 14px 18px;
+}
+
+.auth-grid,
+.diagnostic-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.diagnostic-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.side-column {
+  gap: 12px;
+}
+
+.diagnostics-secondary {
+  opacity: 0.82;
+  background: rgba(20, 18, 14, 0.82);
+}
+
+.admin-agent-panel {
+  padding: 12px;
+  background: rgba(13, 16, 16, 0.88);
+  border-color: rgba(156, 230, 255, 0.2);
+}
+
+.admin-panel-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-gap: 8px;
+  gap: 8px;
+  align-items: start;
+}
+
+.admin-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.admin-tab,
+.admin-mini-button,
+.admin-command {
+  border: 1px solid rgba(255, 212, 71, 0.2);
+  background: rgba(0, 0, 0, 0.38);
+  color: #f9e6b4;
+  border-radius: 8px;
+  min-height: 32px;
+  padding: 7px 8px;
+  font-size: 0.48rem;
+  text-transform: uppercase;
+}
+
+.admin-tab.active,
+.admin-list-row.active {
+  border-color: rgba(132, 255, 85, 0.52);
+  color: var(--signal);
+}
+
+.admin-command {
+  color: #211403;
+  background: linear-gradient(180deg, #ffd447 0%, #b87318 100%);
+}
+
+.admin-form-grid {
+  grid-template-columns: minmax(0, 1.3fr) minmax(58px, 0.7fr);
+  gap: 6px;
+}
+
+.admin-form-grid input:last-child {
+  grid-column: 1 / -1;
+}
+
+.admin-load-row {
+  grid-template-columns: minmax(0, 1fr) minmax(70px, 0.45fr) auto;
+  gap: 6px;
+}
+
+.admin-search-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+}
+
+.admin-agent-panel input,
+.admin-agent-panel select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(255, 212, 71, 0.18);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.42);
+  color: #fff6df;
+  min-height: 34px;
+  padding: 7px 8px;
+  font-size: 0.5rem;
+}
+
+.admin-list-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(156, 230, 255, 0.12);
+  background: rgba(255, 255, 255, 0.035);
+  color: #fff6df;
+  text-align: left;
+}
+
+.admin-list-row-button {
+  cursor: pointer;
+}
+
+.admin-list-row span,
+.admin-list-row strong,
+.admin-list-row small,
+.admin-list-row em {
+  min-width: 0;
+}
+
+.admin-list-row strong,
+.admin-list-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-list-row strong {
+  color: #fff6df;
+  font-size: 0.54rem;
+}
+
+.admin-list-row small {
+  color: #b8ddec;
+  font-size: 0.44rem;
+  margin-top: 4px;
+}
+
+.admin-list-row em {
+  color: var(--amber-hot);
+  font-style: normal;
+  font-size: 0.5rem;
+}
+
+.admin-list-row .admin-mini-button {
+  min-height: 28px;
+  padding: 5px 6px;
+}
+
+.admin-user-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.admin-machine-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.admin-audit-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.admin-audit-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.admin-audit-meta span {
+  color: #d7f4ff;
+  font-size: 0.42rem;
+}
+
+.diagnostic-card {
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 212, 71, 0.08);
+}
+
+.auth-button {
+  border-radius: 14px;
+  min-height: 48px;
+  background: linear-gradient(180deg, #ffd54e 0%, #a9640f 100%);
+  color: #261502;
+  font-family: var(--display-font);
+  font-size: 0.58rem;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-gap: 12px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 212, 71, 0.1);
+}
+
+.history-item strong {
+  color: #fff6df;
+}
+
+.history-item span,
+.section-subtitle,
+.auth-hint,
+.hint {
+  color: #c8b9a4;
+}
+
+.history-amount.positive {
+  color: var(--signal);
+}
+
+.history-amount.negative {
+  color: var(--danger);
+}
+
+.section-title {
+  font-size: 0.68rem;
+  margin-bottom: 10px;
+}
+
+.label-kicker {
+  font-size: 0.54rem;
+  color: var(--amber);
+  margin-bottom: 4px;
+}
+
+.machine-button:disabled,
+.guess-button:disabled,
+.action-button:disabled,
+.auth-button:disabled,
+.admin-tab:disabled,
+.admin-mini-button:disabled,
+.admin-command:disabled,
+.hold-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   APK clone layout — cabinet-faithful classes
+   Mirrors the portrait cabinet coordinate system from the APK
+   screenshots: paytable fills the left, CREDIT is the only outside meter,
+   3-row wood control deck, clone rainbow paytable colors.
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Top band ───────────────────────────────────────────────── */
+.apk-top-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(88px, 112px);
+  grid-gap: 0;
+  gap: 0;
+  background: #000;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ── Paytable ───────────────────────────────────────────────── */
+.apk-paytable {
+  padding: 6px 8px;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+
+.apk-pay-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--display-font);
+  font-size: 0.58rem;
+  letter-spacing: 0.02em;
+  padding: 2px 0;
+  line-height: 1.42;
+}
+
+.apk-pay-row--active {
+  text-shadow: 0 0 7px rgba(255,255,255,0.22);
+}
+
+.apk-hand-name {
+  flex: 1 1;
+}
+
+.apk-hand-name--active {
+  background: #f7f7f7;
+  color: #050505;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+  padding: 1px 4px 0;
+}
+
+.apk-pay-amount {
+  text-align: right;
+  min-width: 5rem;
+}
+
+/* ── Credit meter ───────────────────────────────────────────── */
+.apk-credit-stake {
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  background: #000;
+}
+
+.apk-credit-only {
+  min-width: 0;
+  text-align: right;
+}
+
+.apk-credit-label {
+  font-family: var(--display-font);
+  font-size: 0.52rem;
+  color: #00ff44;
+  letter-spacing: 0.06em;
+}
+
+.apk-credit-value {
+  font-family: var(--display-font);
+  font-size: 1.05rem;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+}
+
+/* ── Label band ─────────────────────────────────────────────── */
+.apk-label-band {
+  text-align: center;
+  font-family: var(--display-font);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  padding: 5px 0;
+  background: #000;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.apk-du-label {
+  color: #44ddff;
+  animation: apk-label-flicker 1.4s steps(1) infinite;
+}
+
+@keyframes apk-label-flicker {
+  0%, 90%  { opacity: 1; }
+  92%       { opacity: 0; }
+  94%       { opacity: 1; }
+  96%       { opacity: 0; }
+  100%      { opacity: 1; }
+}
+
+/* ── Card stage ─────────────────────────────────────────────── */
+.apk-card-stage {
+  background: #000;
+  padding: 16px 10px 8px;
+  min-height: 276px;
+  display: flex;
+  align-items: center;
+}
+
+.apk-idle-stage {
+  width: 100%;
+  min-height: 244px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at center, rgba(28, 28, 28, 0.72), transparent 58%),
+    #000;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.apk-idle-stage--fh {
+  padding: 8px 0;
+}
+
+.apk-idle-logo {
+  display: grid;
+  grid-gap: 6px;
+  gap: 6px;
+  font-family: var(--display-font);
+  font-size: clamp(1.2rem, 8vw, 2.9rem);
+  color: #3ecbff;
+  letter-spacing: 0;
+  text-shadow:
+    2px 0 0 rgba(62,203,255,0.7),
+    0 2px 0 rgba(62,203,255,0.7),
+    0 0 10px rgba(62,203,255,0.3);
+}
+
+.apk-idle-logo span {
+  display: block;
+  text-align: center;
+}
+
+.apk-idle-fh-card {
+  width: min(124px, 32vw);
+}
+
+.apk-card-row,
+.apk-du-card-row,
+.apk-du-board {
+  display: grid;
+  grid-gap: 6px;
+  gap: 6px;
+  width: 100%;
+}
+
+.apk-card-row {
+  grid-template-columns: repeat(5, minmax(52px, 78px));
+  justify-content: space-between;
+}
+
+.apk-du-card-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.apk-du-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.apk-du-board {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+}
+
+.apk-du-slot {
+  min-width: 0;
+}
+
+.apk-du-slot .playing-card-apk {
+  border-color: #656565;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2);
+}
+
+.apk-du-slot--dealer .playing-card-apk {
+  border-color: #44ddff;
+  box-shadow: 0 0 10px rgba(68,221,255,0.35);
+}
+
+.apk-du-slot--active .playing-card-apk {
+  border-color: #ffd700;
+  animation: apk-du-active-pulse 0.64s steps(2) infinite;
+}
+
+.apk-du-slot--challenger .playing-card-apk {
+  border-color: #ffcc44;
+  box-shadow: 0 0 12px rgba(255,204,68,0.38);
+}
+
+.apk-du-slot--empty {
+  opacity: 0.34;
+}
+
+.apk-du-slot--lucky .playing-card-apk {
+  border-color: #44ff88;
+  box-shadow: 0 0 14px rgba(68,255,136,0.5);
+}
+
+.apk-du-slot .card-label-apk {
+  color: #111;
+  background: rgba(255,255,255,0.74);
+  bottom: 0;
+}
+
+.apk-du-copy-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-gap: 4px;
+  gap: 4px;
+  align-items: center;
+}
+
+.apk-du-copy {
+  min-width: 0;
+  text-align: center;
+  font-family: var(--display-font);
+  font-size: 0.42rem;
+  line-height: 1.25;
+  color: #44ddff;
+  text-shadow: 0 0 5px rgba(68,221,255,0.45);
+}
+
+.apk-du-copy--lucky {
+  color: #44ff88;
+  text-shadow: 0 0 7px rgba(68,255,136,0.62);
+}
+
+@keyframes apk-du-active-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(255,215,0,0.25); }
+  50% { box-shadow: 0 0 16px rgba(255,215,0,0.62); }
+}
+
+.playing-card-apk {
+  position: relative;
+  border-radius: 8px;
+  border: 2px solid #c9c9c9;
+  background: #fff;
+  aspect-ratio: 2/3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: default;
+  box-shadow:
+    0 3px 0 rgba(110,110,110,0.8),
+    0 7px 18px rgba(0,0,0,0.48);
+  transition: transform 100ms ease, box-shadow 100ms ease;
+}
+
+.playing-card-apk.clickable {
+  cursor: pointer;
+}
+
+.playing-card-apk.clickable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.5);
+}
+
+.playing-card-apk.held {
+  border-color: #ffd700;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+}
+
+.playing-card-apk.revealing {
+  transform-origin: center top;
+  animation: apk-card-reveal 180ms cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.playing-card-apk.shuffling {
+  border-color: #ffd700;
+  box-shadow:
+    0 0 16px rgba(255, 215, 0, 0.46),
+    inset 0 0 0 1px rgba(255, 245, 180, 0.36);
+}
+
+.playing-card-apk.shuffling .card-img {
+  animation: apk-du-card-shuffle 180ms steps(2, end) infinite;
+}
+
+.playing-card-apk.shuffling::after {
+  content: "";
+  position: absolute;
+  inset: -18% -35%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.12) 38%,
+    rgba(255,245,168,0.58) 50%,
+    rgba(255,255,255,0.12) 62%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+  transform: translateX(-45%) rotate(16deg);
+  animation: apk-du-shuffle-scan 360ms linear infinite;
+}
+
+@keyframes apk-card-reveal {
+  0% {
+    opacity: 0.2;
+    transform: translateY(-18px) rotateX(82deg) scale(0.96);
+    filter: brightness(1.35);
+  }
+  58% {
+    opacity: 1;
+    transform: translateY(2px) rotateX(-8deg) scale(1.015);
+    filter: brightness(1.14);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg) scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes apk-du-card-shuffle {
+  0% {
+    transform: translateY(-2px) rotate(-1.4deg) scale(1.01);
+    filter: brightness(1.05) saturate(1.05);
+  }
+  50% {
+    transform: translateY(2px) rotate(1.4deg) scale(0.99);
+    filter: brightness(1.28) saturate(1.2) hue-rotate(18deg);
+  }
+  100% {
+    transform: translateY(-1px) rotate(-0.8deg) scale(1.01);
+    filter: brightness(1.08) saturate(1.08);
+  }
+}
+
+@keyframes apk-du-shuffle-scan {
+  0% {
+    transform: translateX(-55%) rotate(16deg);
+    opacity: 0.32;
+  }
+  48% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(55%) rotate(16deg);
+    opacity: 0.25;
+  }
+}
+
+.card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.card-back-apk {
+  width: 100%;
+  height: 100%;
+  background:
+    repeating-linear-gradient(45deg, #1a3a6e 0px, #1a3a6e 4px, #122b52 4px, #122b52 8px);
+}
+
+.hold-badge-apk {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffd700;
+  color: #000;
+  font-family: var(--display-font);
+  font-size: 0.45rem;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  z-index: 1;
+}
+
+.card-label-apk {
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--display-font);
+  font-size: 0.38rem;
+  color: #999;
+  letter-spacing: 0.04em;
+}
+
+/* ── Win amount display is retired; active wins drain in paytable rows. */
+.apk-win-amount {
+  display: none;
+}
+
+/* ── Machine info block ─────────────────────────────────────── */
+.apk-machine-info {
+  background: #000;
+  padding: 6px 8px 4px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.apk-identity-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.apk-identity-copy {
+  min-width: 0;
+}
+
+.apk-identity-line {
+  font-family: var(--display-font);
+  font-size: 0.52rem;
+  color: #ff4444;
+  letter-spacing: 0.04em;
+  line-height: 1.22;
+}
+
+.apk-mi-label { color: #ff4444; }
+.apk-mi-sep   { color: #ff4444; }
+.apk-mi-val   { color: #6ee07c; }
+
+.apk-serial-chip {
+  font-family: var(--display-font);
+  font-size: 0.48rem;
+  color: #f5f5f5;
+  white-space: nowrap;
+}
+
+.apk-jp-counters {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  grid-gap: 6px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.apk-jp {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--display-font);
+  font-size: 0.62rem;
+}
+
+.apk-jp-side .apk-jp-val { color: #00cc00; text-shadow: 0 0 6px #00cc00; }
+.apk-jp-center .apk-jp-val { color: #ff4444; font-size: 0.72rem; text-shadow: 0 0 6px #ff4444; }
+.apk-jp-tag { color: #fff; }
+
+/* Full house: black text on white pill */
+.apk-jp-fh-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff;
+  color: #000;
+  font-family: var(--display-font);
+  font-size: 0.6rem;
+  padding: 1px 8px;
+  border-radius: 2px;
+  margin: 2px 0 4px auto;
+}
+
+.apk-jp-fh-label { color: #000; }
+.apk-jp-fh-val   { color: #000; font-weight: bold; }
+
+/* Bonus bar */
+.apk-bonus-bar {
+  font-family: var(--display-font);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: #fff;
+  background: #050505;
+  text-align: center;
+  padding: 4px 0 2px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playing-card-apk.revealing,
+  .playing-card-apk.shuffling .card-img,
+  .playing-card-apk.shuffling::after {
+    animation: none;
+  }
+}
+
+/* ── Control deck (APK 3-row wood layout) ───────────────────── */
+.apk-control-deck {
+  border-radius: 0 0 20px 20px;
+  padding: 14px 10px 16px;
+  background:
+    linear-gradient(180deg, rgba(255,185,94,0.1), rgba(0,0,0,0)),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 9px),
+    linear-gradient(90deg, rgba(58,21,6,0.25), rgba(138,63,18,0.08) 18%, rgba(58,21,6,0.24) 36%, rgba(138,63,18,0.08) 56%, rgba(58,21,6,0.26) 74%, rgba(138,63,18,0.1) 100%),
+    linear-gradient(180deg, #7a3410 0%, #4b1f09 42%, #210d04 100%);
+  border-top: 2px solid rgba(255,224,157,0.22);
+  display: grid;
+  grid-gap: 10px;
+  gap: 10px;
+}
+
+/* Row 1 — HOLD row */
+.apk-hold-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-gap: 6px;
+  gap: 6px;
+}
+
+.apk-hold-btn {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(80, 40, 0, 0.5);
+  background: linear-gradient(180deg, #ffe979 0%, #ffbf29 38%, #c97a07 100%);
+  color: #2a1500;
+  border-radius: 14px;
+  min-height: clamp(64px, 11vw, 78px);
+  font-family: var(--display-font);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,0.42),
+    inset 0 -4px 0 rgba(91,47,8,0.32),
+    0 4px 0 rgba(69,30,9,0.9),
+    0 10px 18px rgba(0,0,0,0.36);
+  cursor: pointer;
+  transition: transform 80ms ease;
+}
+
+.apk-hold-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.apk-hold-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.apk-hold-btn.active {
+  background: linear-gradient(180deg, #fff3a4 0%, #ffd94e 38%, #d88711 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,0.5),
+    inset 0 -4px 0 rgba(91,47,8,0.32),
+    0 0 10px rgba(255,215,0,0.35),
+    0 4px 0 rgba(69,30,9,0.9),
+    0 10px 18px rgba(0,0,0,0.36);
+}
+
+/* Row 2 — Action row: BIG | SMALL | CANCEL HOLD | DEAL/DRAW | BET */
+.apk-action-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-gap: 6px;
+  gap: 6px;
+}
+
+/* Row 3 — Bottom row: TAKE HALF | MENU | TAKE SCORE */
+.apk-bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-gap: 6px;
+  gap: 6px;
+  align-items: start;
+}
+
+/* Generic APK button base */
+.apk-btn {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  min-height: clamp(64px, 11vw, 78px);
+  font-family: var(--display-font);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(0,0,0,0.3);
+  color: #fff9e8;
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,0.22),
+    inset 0 -4px 0 rgba(0,0,0,0.22),
+    0 4px 0 rgba(58,23,8,0.88),
+    0 10px 18px rgba(0,0,0,0.3);
+  cursor: pointer;
+  transition: transform 80ms ease, opacity 80ms ease;
+  line-height: 1.3;
+}
+
+.apk-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.apk-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.apk-btn-big   { background: linear-gradient(180deg, #ffd96d 0%, #ffb227 42%, #c56f08 100%); color: #2a1500; }
+.apk-btn-small { background: linear-gradient(180deg, #ffd96d 0%, #ffb227 42%, #c56f08 100%); color: #2a1500; }
+.apk-btn-cancel { background: linear-gradient(180deg, #f7efe2 0%, #dfcdaa 40%, #b89d74 100%); color: #1e1005; }
+.apk-btn-deal  { background: linear-gradient(180deg, #ff6458 0%, #ff3420 40%, #a71f11 100%); box-shadow: inset 0 2px 0 rgba(255,255,255,0.18), inset 0 -4px 0 rgba(92,12,12,0.4), 0 4px 0 rgba(102,15,10,0.9), 0 10px 18px rgba(0,0,0,0.3); }
+.apk-btn-bet   { background: linear-gradient(180deg, #60ef5d 0%, #28c133 40%, #17852c 100%); box-shadow: inset 0 2px 0 rgba(255,255,255,0.18), inset 0 -4px 0 rgba(8,70,18,0.35), 0 4px 0 rgba(10,82,24,0.9), 0 10px 18px rgba(0,0,0,0.3); }
+
+.apk-btn-take-half  { background: linear-gradient(180deg, #ff6458 0%, #ff3420 40%, #a71f11 100%); min-height: clamp(72px, 12vw, 88px); box-shadow: inset 0 2px 0 rgba(255,255,255,0.18), inset 0 -4px 0 rgba(92,12,12,0.4), 0 4px 0 rgba(102,15,10,0.9), 0 10px 18px rgba(0,0,0,0.3); }
+.apk-btn-take-score { background: linear-gradient(180deg, #ffd16b 0%, #ffae1d 42%, #c8740b 100%); color: #2a1500; min-height: clamp(72px, 12vw, 88px); }
+
+/* MENU widget */
+.apk-menu-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.apk-menu-btn-label {
+  width: clamp(62px, 10vw, 74px);
+  height: clamp(62px, 10vw, 74px);
+  border-radius: 50%;
+  background: linear-gradient(180deg, #555 0%, #111 100%);
+  border: 2px solid rgba(255,255,255,0.22);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,0.16),
+    inset 0 -4px 0 rgba(0,0,0,0.45),
+    0 4px 0 rgba(0,0,0,0.78),
+    0 10px 18px rgba(0,0,0,0.45);
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+}
+
+.apk-menu-icon-line {
+  display: block;
+  width: 28px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f7f7f7 0%, #bfbfbf 100%);
+}
+
+.apk-menu-text {
+  font-family: var(--display-font);
+  font-size: 0.56rem;
+  color: #f8f2dd;
+  letter-spacing: 0.04em;
+}
+
+.apk-menu-popup {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1208;
+  border: 1px solid rgba(255,212,71,0.28);
+  border-radius: 8px;
+  padding: 10px;
+  width: min(320px, calc(100vw - 28px));
+  max-height: min(520px, calc(100dvh - 160px));
+  overflow-y: auto;
+  z-index: 100;
+  gap: 6px;
+  flex-direction: column;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.6);
+}
+
+.apk-menu-wrap:hover .apk-menu-popup,
+.apk-menu-wrap:focus-within .apk-menu-popup {
+  display: flex;
+}
+
+/* DU status row */
+.apk-du-status-row {
+  display: grid;
+  padding: 6px 0 0;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.apk-du-info {
+  font-family: var(--display-font);
+  font-size: 0.55rem;
+  color: #fff4d3;
+  padding: 5px 8px;
+  background: rgba(0,0,0,0.35);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-gap: 8px;
+  gap: 8px;
+  align-items: center;
+  min-height: 28px;
+}
+
+.apk-du-status  { color: #ffd700; }
+.apk-du-amount  { color: #fff; font-size: 0.65rem; }
+.apk-du-switches { color: #44ddff; }
+
+/* Message bar */
+.apk-message-bar {
+  font-family: var(--display-font);
+  font-size: 0.54rem;
+  letter-spacing: 0.04em;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.4);
+  color: #f0ddb5;
+  border: 1px solid rgba(255,212,71,0.14);
+}
+
+.apk-message-danger  { border-color: rgba(255,80,60,0.5); color: #ff8070; }
+.apk-message-warning { border-color: rgba(255,200,40,0.4); color: #ffe090; }
+.apk-message-ready   { border-color: rgba(80,255,100,0.25); }
+
+/* ═══════════════════════════════════════════════════════════════ */
+
+.player-lobby-panel,
+.cash-console,
+.admin-detail-card {
+  border: 1px solid rgba(255, 212, 71, 0.18);
+  border-radius: 14px;
+  background: rgba(9, 8, 6, 0.64);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.player-lobby-panel {
+  display: grid;
+  grid-gap: 12px;
+  gap: 12px;
+  padding: 12px;
+}
+
+.player-lobby-head,
+.machine-card-top,
+.admin-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lobby-wallet-chip,
+.cash-console-card,
+.admin-metric-card {
+  display: grid;
+  grid-gap: 4px;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.lobby-wallet-chip span,
+.cash-console-card span,
+.admin-metric-card span,
+.machine-card-meta,
+.machine-card-meter,
+.machine-card-jackpots,
+.machine-card-session,
+.admin-detail-grid span,
+.admin-mini-list span {
+  color: #bcb29c;
+  font-size: 0.54rem;
+  text-transform: uppercase;
+}
+
+.lobby-wallet-chip strong,
+.cash-console-card strong,
+.admin-metric-card strong {
+  color: var(--signal);
+  font-family: var(--display-font);
+  font-size: 0.72rem;
+}
+
+.player-lobby-grid,
+.admin-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-gap: 10px;
+  gap: 10px;
+}
+
+.player-machine-card {
+  display: grid;
+  grid-gap: 7px;
+  gap: 7px;
+  text-align: left;
+  padding: 12px;
+  border: 1px solid rgba(255, 212, 71, 0.18);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(55, 32, 12, 0.92), rgba(16, 11, 6, 0.94));
+  color: #f8e9c2;
+  cursor: pointer;
+}
+
+.player-machine-card:hover:not(:disabled),
+.player-machine-card.has-round {
+  border-color: rgba(132, 255, 85, 0.42);
+  box-shadow: 0 0 18px rgba(132, 255, 85, 0.12);
+}
+
+.player-machine-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.machine-card-top strong,
+.admin-detail-head strong,
+.admin-mini-list strong {
+  color: var(--amber-hot);
+  font-family: var(--display-font);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+}
+
+.machine-card-top em,
+.machine-card-action,
+.admin-detail-head span {
+  color: var(--status-cyan);
+  font-size: 0.5rem;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+.machine-card-action {
+  color: var(--signal);
+  font-family: var(--display-font);
+}
+
+.cash-console {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-gap: 8px;
+  gap: 8px;
+  padding: 10px;
+}
+
+.cash-console-menu {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0 0 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255,212,71,0.18);
+}
+
+.cash-console-button,
+.admin-mini-button.danger {
+  border: 1px solid rgba(255, 212, 71, 0.2);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #2f7f32 0%, #145217 100%);
+  color: #fffce6;
+  cursor: pointer;
+  font-family: var(--display-font);
+  font-size: 0.52rem;
+}
+
+.cash-console-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.cash-console-out,
+.admin-mini-button.danger {
+  background: linear-gradient(180deg, #9f3528 0%, #5b160f 100%);
+}
+
+.admin-metric-card.warning strong {
+  color: var(--amber-hot);
+}
+
+.admin-detail-card {
+  display: grid;
+  grid-gap: 10px;
+  gap: 10px;
+  padding: 10px;
+}
+
+.admin-detail-grid,
+.admin-tool-grid,
+.admin-mini-list {
+  display: grid;
+  grid-gap: 7px;
+  gap: 7px;
+}
+
+.admin-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-tool-grid {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) auto auto;
+}
+
+.admin-tool-grid-compact {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.admin-tool-grid-secret {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-tool-grid input {
+  min-width: 0;
+}
+
+.admin-mini-list {
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 212, 71, 0.12);
+}
+
+@media (max-width: 820px) {
+  .cabinet-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .jackpot-strip-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .page-shell {
+    padding: 18px 10px 28px;
+  }
+
+  .screen {
+    min-height: auto;
+  }
+
+  .screen-header,
+  .jackpot-strip-grid,
+  .control-row.primary,
+  .control-row.secondary,
+  .control-row.tertiary,
+  .status-grid,
+  .status-grid-three,
+  .double-up-cards,
+  .double-up-meta,
+  .auth-grid,
+  .admin-form-grid,
+  .admin-load-row,
+  .admin-search-row,
+  .admin-user-row,
+  .admin-machine-row,
+  .diagnostic-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .player-lobby-grid,
+  .admin-metric-grid,
+  .cash-console,
+  .admin-detail-grid,
+  .admin-tool-grid,
+  .admin-tool-grid-compact {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form-grid input:last-child {
+    grid-column: auto;
+  }
+
+  .card-row,
+  .hold-row,
+  .machine-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .apk-card-row { grid-template-columns: repeat(3, 1fr); }
+  .apk-du-board,
+  .apk-du-copy-row { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .apk-du-board { gap: 4px; }
+  .apk-du-copy { font-size: 0.34rem; }
+  .apk-hold-row { grid-template-columns: repeat(3, 1fr); }
+  .apk-action-row { grid-template-columns: repeat(3, 1fr); }
+}
+

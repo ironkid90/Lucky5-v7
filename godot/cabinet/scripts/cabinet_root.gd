@@ -28,30 +28,30 @@ const COLOR_RED := Color(1.0, 0.2, 0.2, 1.0)
 const COLOR_BLUE := Color(0.267, 0.867, 1.0, 1.0)            # #44ddff
 const COLOR_LIGHT_BLUE := Color(0.486, 0.867, 1.0, 1.0)
 const COLOR_LIGHT_GREEN := Color(0.667, 1.0, 0.533, 1.0)
-const COLOR_WHITE := Color(0.95, 0.95, 0.95, 1.0)
+const COLOR_WHITE := Color(1.0, 1.0, 1.0, 1.0)
 const COLOR_GREY := Color(0.4, 0.4, 0.4, 1.0)
-const COLOR_PAYTABLE_ROYAL := Color(1.0, 0.902, 0.302, 1.0)
-const COLOR_PAYTABLE_STRAIGHT_FLUSH := Color(0.973, 0.290, 0.243, 1.0)
-const COLOR_PAYTABLE_FOUR_KIND := COLOR_LIGHT_GREEN
-const COLOR_PAYTABLE_FULL_HOUSE := Color.WHITE
-const COLOR_PAYTABLE_FLUSH := Color(1.0, 0.902, 0.302, 1.0)
-const COLOR_PAYTABLE_STRAIGHT := COLOR_LIGHT_BLUE
-const COLOR_PAYTABLE_THREE_KIND := Color(1.0, 0.902, 0.302, 1.0)
-const COLOR_PAYTABLE_TWO_PAIR := COLOR_LIGHT_BLUE
+const COLOR_PAYTABLE_ROYAL := Color(1.0, 1.0, 0.0, 1.0)             # #FFFF00 royal flush
+const COLOR_PAYTABLE_STRAIGHT_FLUSH := Color(1.0, 0.0, 0.0, 1.0)    # #FF0000 straight flush
+const COLOR_PAYTABLE_FOUR_KIND := Color(0.0, 1.0, 0.0, 1.0)         # #00FF00 four of a kind
+const COLOR_PAYTABLE_FULL_HOUSE := Color(1.0, 1.0, 0.0, 1.0)        # #FFFF00 amount (name renders black on white panel)
+const COLOR_PAYTABLE_FLUSH := Color(1.0, 1.0, 0.0, 1.0)            # #FFFF00 flush
+const COLOR_PAYTABLE_STRAIGHT := Color(0.0, 1.0, 1.0, 1.0)         # #00FFFF straight
+const COLOR_PAYTABLE_THREE_KIND := Color(1.0, 1.0, 0.0, 1.0)       # #FFFF00 three of a kind
+const COLOR_PAYTABLE_TWO_PAIR := Color(0.0, 1.0, 1.0, 1.0)         # #00FFFF two pair
 const COLOR_PANEL_BG := Color(0.196, 0.125, 0.051, 0.97)    # #32200d
 const COLOR_PANEL_BORDER := Color(0.651, 0.486, 0.078, 1.0)
 const COLOR_CONTROL_DECK := Color(0.290, 0.125, 0.034, 0.98)
 const COLOR_CONTROL_DECK_TOP := Color(0.455, 0.224, 0.063, 0.98)
 const COLOR_CONTROL_DECK_MID := Color(0.333, 0.137, 0.035, 0.98)
 const COLOR_CONTROL_DECK_BOTTOM := Color(0.204, 0.071, 0.020, 0.98)
-const COLOR_WOOD_GRAIN_LIGHT := Color(0.780, 0.420, 0.120, 0.34)
-const COLOR_WOOD_GRAIN_DARK := Color(0.080, 0.024, 0.008, 0.46)
-const COLOR_BUTTON_YELLOW := Color(1.0, 0.710, 0.070, 1.0)
-const COLOR_BUTTON_ORANGE := Color(0.890, 0.345, 0.078, 1.0)
-const COLOR_BUTTON_RED := Color(0.820, 0.055, 0.055, 1.0)
-const COLOR_BUTTON_GREEN := Color(0.047, 0.645, 0.137, 1.0)
+const COLOR_WOOD_GRAIN_LIGHT := Color(0.870, 0.560, 0.250, 0.40)
+const COLOR_WOOD_GRAIN_DARK := Color(0.300, 0.140, 0.050, 0.45)
+const COLOR_BUTTON_YELLOW := Color(1.0, 1.0, 0.0, 1.0)             # #FFFF00 hold buttons
+const COLOR_BUTTON_ORANGE := Color(1.0, 0.647, 0.0, 1.0)          # #FFA500 big/small/take score
+const COLOR_BUTTON_RED := Color(1.0, 0.0, 0.0, 1.0)               # #FF0000 deal draw / take half
+const COLOR_BUTTON_GREEN := Color(0.0, 1.0, 0.0, 1.0)             # #00FF00 bet
 const COLOR_BUTTON_BLACK := Color(0.035, 0.035, 0.035, 1.0)
-const COLOR_BUTTON_TEXT := Color(0.05, 0.05, 0.05, 1.0)
+const COLOR_BUTTON_TEXT := Color(0.0, 0.0, 0.0, 1.0)              # pure black button text
 const BUTTON_BEVEL_SHADOW_SIZE := 5
 const BUTTON_PRESSED_SHADOW_SIZE := 1
 const BUTTON_ASSET_BASE_PATH := "res://skins/cabinet_ai9/buttons/"
@@ -196,6 +196,8 @@ var full_house_rank_label: Label
 var full_house_jackpot_label: Label
 var credit_label: Label
 var credit_value_label: Label
+var stake_label: Label
+var stake_value_label: Label
 var cabinet_status_label: Label
 var control_hint_label: Label
 var jackpot_counters: Dictionary = {}
@@ -589,6 +591,9 @@ func _make_label(text_str: String, size: int, color_val: Color, align := HORIZON
 	l.text = text_str
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color_val)
+	var outline_px := int(max(1.0, round(float(size) * 0.09)))
+	l.add_theme_constant_override("outline_size", outline_px)
+	l.add_theme_color_override("font_outline_color", color_val)
 	var label_font := _font_for_key(font_key)
 	if label_font != null:
 		l.add_theme_font_override("font", label_font)
@@ -603,9 +608,9 @@ func _make_button(text_str: String, min_h: int, bg: Color, fg: Color, border: Co
 	b.focus_mode = Control.FOCUS_NONE
 	var style := StyleBoxFlat.new()
 	style.bg_color = bg
-	style.border_color = bg.lightened(0.22)
-	style.border_width_left = 3; style.border_width_right = 3
-	style.border_width_top = 3; style.border_width_bottom = 3
+	style.border_color = bg.lightened(0.55)
+	style.border_width_left = 4; style.border_width_right = 2
+	style.border_width_top = 4; style.border_width_bottom = 2
 	style.corner_radius_top_left = 8; style.corner_radius_top_right = 8
 	style.corner_radius_bottom_left = 8; style.corner_radius_bottom_right = 8
 	style.content_margin_left = 8; style.content_margin_right = 8
@@ -702,7 +707,7 @@ func _make_wood_grain_texture(width: int, height: int) -> Texture2D:
 			var y_ratio := float(y) / float(max(1, height - 1))
 			var warm_mix := 0.14 + (y_ratio * 0.12)
 			var knot_wave := sin((x_ratio * 9.0 + y_ratio * 0.9) * TAU) * 0.03
-			var base := Color(0.17, 0.08, 0.03, 1.0).lerp(Color(0.38, 0.20, 0.08, 1.0), dark_mix + warm_mix + knot_wave)
+			var base := Color(0.34, 0.18, 0.07, 1.0).lerp(Color(0.62, 0.38, 0.17, 1.0), dark_mix + warm_mix + knot_wave)
 			image.set_pixel(x, y, base)
 	var texture := ImageTexture.create_from_image(image)
 	return texture
@@ -804,7 +809,7 @@ func _build_ui() -> void:
 	add_child(bg)
 
 	crt_overlay = ColorRect.new()
-	crt_overlay.color = Color(0, 0, 0, 0.06)
+	crt_overlay.color = Color(0, 0, 0, 0.0)
 	crt_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	crt_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if crt_shader_material != null:
@@ -954,7 +959,7 @@ func _build_control_deck(parent: Node) -> void:
 	rows.add_child(hold_row)
 	hold_buttons.clear()
 	for index in range(5):
-		var hold_button := _make_button("HOLD", CONTROL_HOLD_BUTTON_HEIGHT, COLOR_BUTTON_YELLOW, COLOR_BUTTON_TEXT, COLOR_GOLD_DARK, "hold")
+		var hold_button := _make_button("HOLD", CONTROL_HOLD_BUTTON_HEIGHT, COLOR_BUTTON_YELLOW, COLOR_BUTTON_TEXT, COLOR_GOLD_DARK)
 		hold_button.name = "HoldButton%d" % (index + 1)
 		hold_button.toggle_mode = true
 		hold_button.pressed.connect(_on_hold_button_pressed.bind(index))
@@ -1265,7 +1270,7 @@ func _build_paytable(parent: Node) -> void:
 		name_panel.add_theme_stylebox_override("panel", nps)
 		row_panel.add_child(name_panel)
 
-		var name_l := _make_label(hand[1], 20, Color.BLACK if str(hand[0]) == "FullHouse" else hand[3], HORIZONTAL_ALIGNMENT_LEFT)
+		var name_l := _make_label(hand[1], 26, Color.BLACK if str(hand[0]) == "FullHouse" else hand[3], HORIZONTAL_ALIGNMENT_LEFT)
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_panel.add_child(name_l)
 
@@ -1280,8 +1285,8 @@ func _build_paytable(parent: Node) -> void:
 		amount_panel.add_theme_stylebox_override("panel", aps)
 		grid.add_child(amount_panel)
 
-		var amount_l := _make_label("0", 20, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
-		amount_l.custom_minimum_size = Vector2(150, 0)
+		var amount_l := _make_label("0", 26, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
+		amount_l.custom_minimum_size = Vector2(168, 0)
 		amount_l.clip_text = true
 		amount_panel.add_child(amount_l)
 		paytable_rows[str(hand[0])] = row_panel
@@ -1317,13 +1322,21 @@ func _build_credit_stake_column(parent: Node) -> void:
 	top_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(top_spacer)
 
-	credit_label = _make_label("CREDIT", 20, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
+	credit_label = _make_label("CREDIT", 22, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
 	credit_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_label)
 
-	credit_value_label = _make_label("0", 42, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	credit_value_label = _make_label("0", 46, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	credit_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_value_label)
+
+	stake_label = _make_label("STAKE", 22, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	stake_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(stake_label)
+
+	stake_value_label = _make_label("0", 46, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	stake_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(stake_value_label)
 
 	var bottom_spacer := Control.new()
 	bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1367,8 +1380,9 @@ func _build_card_area(parent: Node) -> void:
 	idle_title_label = _make_label(IDLE_TITLE_TEXT, 92, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
 	idle_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	idle_title_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	idle_title_label.add_theme_color_override("font_color", Color(0.298, 0.792, 1.0))
-	idle_title_label.add_theme_color_override("font_shadow_color", Color(0.02, 0.20, 0.36, 0.95))
+	idle_title_label.add_theme_color_override("font_color", Color(0.0, 1.0, 1.0, 1.0))
+	idle_title_label.add_theme_color_override("font_outline_color", Color(0.0, 1.0, 1.0, 1.0))
+	idle_title_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.32, 0.42, 0.95))
 	idle_title_label.add_theme_constant_override("shadow_offset_x", 0)
 	idle_title_label.add_theme_constant_override("shadow_offset_y", 6)
 	idle_title_label.add_theme_constant_override("shadow_outline_size", 6)
@@ -3202,6 +3216,15 @@ func _four_kind_rank_card_code() -> String:
 func _refresh_paytable_values() -> void:
 	if full_house_jackpot_label == null or full_house_rank_label == null: return
 	var stake: int = max(0, store.stake())
+	# Data-driven paytable: override the baked-in Lebanese multipliers with the
+	# server's machine rules when present; otherwise keep the local fallback.
+	var machine_rules: Dictionary = store.snapshot.get("machine", {})
+	var server_paytable: Variant = machine_rules.get("paytable", {})
+	if typeof(server_paytable) == TYPE_DICTIONARY:
+		for pkey in (server_paytable as Dictionary).keys():
+			var pkey_s := str(pkey)
+			if paytable_multipliers.has(pkey_s):
+				paytable_multipliers[pkey_s] = int((server_paytable as Dictionary)[pkey])
 	var score_key := win_paytable_rank_key
 	if score_key.is_empty() and win_displayed_amount > 0:
 		score_key = _paytable_rank_key(store.hand_rank())
@@ -3211,10 +3234,14 @@ func _refresh_paytable_values() -> void:
 		if win_displayed_amount > 0 and str(key) == score_key:
 			amount_l.text = "+%s" % _format_amount(win_displayed_amount)
 			amount_l.add_theme_color_override("font_color", COLOR_GOLD)
+			amount_l.add_theme_color_override("font_outline_color", COLOR_GOLD)
 			continue
 		var multiplier: int = int(paytable_multipliers.get(key, 0))
 		amount_l.text = _format_amount(stake * multiplier)
 		amount_l.add_theme_color_override("font_color", paytable_amount_colors.get(str(key), COLOR_WHITE))
+		amount_l.add_theme_color_override("font_outline_color", paytable_amount_colors.get(str(key), COLOR_WHITE))
+	if stake_value_label != null:
+		stake_value_label.text = _format_amount(stake)
 	var jp: Dictionary = _jackpot_data()
 	_refresh_jackpot_counter("fh", store._to_int(_du_first_value(jp, ["full_house", "fullHouse", "FullHouse"], 0)))
 	full_house_rank_label.text = _full_house_rank_text()
@@ -3251,6 +3278,8 @@ func _refresh_paytable_highlights() -> void:
 			amount_panel_style.bg_color = Color.WHITE
 			name_label.add_theme_color_override("font_color", Color.BLACK)
 			amount_label.add_theme_color_override("font_color", Color.BLACK)
+			name_label.add_theme_color_override("font_outline_color", Color.BLACK)
+			amount_label.add_theme_color_override("font_outline_color", Color.BLACK)
 		else:
 			sty.bg_color = Color(0, 0, 0, 0)
 			sty.border_color = Color(0, 0, 0, 0)
@@ -3260,6 +3289,8 @@ func _refresh_paytable_highlights() -> void:
 			amount_panel_style.bg_color = Color(0, 0, 0, 0)
 			name_label.add_theme_color_override("font_color", Color.BLACK if str(key) == "FullHouse" else paytable_amount_colors.get(str(key), COLOR_WHITE))
 			amount_label.add_theme_color_override("font_color", paytable_amount_colors.get(str(key), COLOR_WHITE))
+			name_label.add_theme_color_override("font_outline_color", Color.BLACK if str(key) == "FullHouse" else paytable_amount_colors.get(str(key), COLOR_WHITE))
+			amount_label.add_theme_color_override("font_outline_color", paytable_amount_colors.get(str(key), COLOR_WHITE))
 		row_panel.queue_redraw()
 
 func _refresh_machine_info() -> void:

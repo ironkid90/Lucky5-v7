@@ -66,13 +66,14 @@ const BUTTON_ASSET_FONT_SIZE := 13
 const CARD_AREA_MIN_HEIGHT := 560
 # AI9 fronts are 313x528; keep slot boxes on that portrait ratio so cards stay crisp.
 const AI9_CARD_ASPECT := 313.0 / 528.0
-const CARD_SIZE := Vector2(184, 310)
-const CARD_SMALL_SIZE := Vector2(70, 118)
-const CARD_GAP := 14
-const CONTROL_DECK_MIN_HEIGHT := 324
-const CONTROL_HOLD_BUTTON_HEIGHT := 116
-const CONTROL_ACTION_BUTTON_HEIGHT := 124
-const CONTROL_BOTTOM_BUTTON_HEIGHT := 112
+# Base sizes (scale 1.0 = 1080x1920); runtime values updated by _apply_responsive_metrics()
+var CARD_SIZE := Vector2(184, 310)
+var CARD_SMALL_SIZE := Vector2(70, 118)
+var CARD_GAP := 14
+var CONTROL_DECK_MIN_HEIGHT := 324
+var CONTROL_HOLD_BUTTON_HEIGHT := 116
+var CONTROL_ACTION_BUTTON_HEIGHT := 124
+var CONTROL_BOTTOM_BUTTON_HEIGHT := 112
 const DEAL_DURATION := 0.12
 const DEAL_STAGGER := 0.10
 const DRAW_OUT_DURATION := 0.08
@@ -523,6 +524,73 @@ func _update_crt_viewport_size() -> void:
 	if crt_shader_material == null:
 		return
 	crt_shader_material.set_shader_parameter("viewport_size", get_viewport_rect().size)
+
+func _apply_responsive_metrics() -> void:
+	# Compute a UI scale from actual viewport vs the 1080x1920 baseline, clamp it,
+	# and push derived sizes into cards, control-deck buttons, fonts, separations and
+	# the centered max-width so: full-HD scales up crisply, tall phones fill, and
+	# ultra-wide is centered with side panels (no stretch).
+	var viewport_size := get_viewport_rect().size
+	var base_width := 1080.0
+	var base_height := 1920.0
+	var scale_x := viewport_size.x / base_width
+	var scale_y := viewport_size.y / base_height
+	var ui_scale := min(scale_x, scale_y)
+	ui_scale = clampf(ui_scale, 0.5, 2.0)
+	
+	# Update responsive metrics for cards, buttons, and fonts
+	# These are stored as runtime variables that the UI builders will use
+	_set_responsive_card_size(ui_scale)
+	_set_responsive_control_heights(ui_scale)
+	_set_responsive_font_sizes(ui_scale)
+	_fit_idle_title()
+
+func _set_responsive_card_size(scale: float) -> void:
+	# Card size scales with UI scale, maintaining aspect ratio
+	var base_card_w := 184.0
+	var base_card_h := 310.0
+	CARD_SIZE = Vector2(int(base_card_w * scale), int(base_card_h * scale))
+	CARD_SMALL_SIZE = Vector2(int(70.0 * scale), int(118.0 * scale))
+	CARD_GAP = int(14.0 * scale)
+
+func _set_responsive_control_heights(scale: float) -> void:
+	# Control deck button heights scale with UI
+	CONTROL_HOLD_BUTTON_HEIGHT = int(116.0 * scale)
+	CONTROL_ACTION_BUTTON_HEIGHT = int(124.0 * scale)
+	CONTROL_BOTTOM_BUTTON_HEIGHT = int(112.0 * scale)
+	CONTROL_DECK_MIN_HEIGHT = int(324.0 * scale)
+
+func _set_responsive_font_sizes(scale: float) -> void:
+	# Font sizes scale with UI
+	IDLE_TITLE_FONT_SIZE = int(92.0 * scale)
+	IDLE_TITLE_MIN_FONT_SIZE = int(40.0 * scale)
+
+func _fit_idle_title() -> void:
+	if idle_title_label == null:
+		return
+	var font := idle_title_label.get_theme_font("font")
+	if font == null:
+		return
+	var avail := 0.0
+	if card_area_panel != null:
+		avail = card_area_panel.size.x - IDLE_TITLE_SIDE_MARGIN * 2.0
+	if avail <= 0.0:
+		avail = float(get_viewport().get_visible_rect().size.x) - IDLE_TITLE_SIDE_MARGIN * 2.0
+	if avail <= 0.0:
+		return
+	var lines := IDLE_TITLE_TEXT.split("\n")
+	var size := IDLE_TITLE_FONT_SIZE
+	while size > IDLE_TITLE_MIN_FONT_SIZE:
+		var widest := 0.0
+		for line in lines:
+			var trimmed := String(line).strip_edges()
+			var w := font.get_string_size(trimmed, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x
+			if w > widest:
+				widest = w
+		if widest <= avail:
+			break
+		size -= 2
+	idle_title_label.add_theme_font_size_override("font_size", size)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:

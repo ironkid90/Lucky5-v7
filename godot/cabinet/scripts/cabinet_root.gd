@@ -92,6 +92,10 @@ const DU_END_HOLD_SECONDS := 0.50
 const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 1.00
 const IDLE_FH_CARD_DELAY_SECONDS := 60.0
 const IDLE_TITLE_TEXT := "LUCKY5\n  POKER"
+const IDLE_TITLE_SIDE_MARGIN := 48.0
+# Base font sizes (scale 1.0 = 1080x1920); runtime values updated by _apply_responsive_metrics()
+var IDLE_TITLE_FONT_SIZE := 92
+var IDLE_TITLE_MIN_FONT_SIZE := 40
 const WIN_COUNTER_MIN_DURATION := 0.18
 const WIN_COUNTER_MAX_DURATION := 0.75
 const CREDIT_DRAIN_MIN_DURATION := 1.20
@@ -1058,7 +1062,7 @@ func _build_control_deck(parent: Node) -> void:
 	rows.add_child(bottom_row)
 
 	_add_deck_action_button(bottom_row, ["take_half", "TAKE HALF", COLOR_BUTTON_RED, COLOR_BUTTON_TEXT, Color(0.950, 0.180, 0.180)], CONTROL_BOTTOM_BUTTON_HEIGHT)
-	_add_deck_action_button(bottom_row, ["menu", "", COLOR_BUTTON_BLACK, COLOR_WHITE, COLOR_GREY], 108)
+	_add_deck_action_button(bottom_row, ["menu", "", COLOR_BUTTON_BLACK, COLOR_WHITE, COLOR_GREY], CONTROL_BOTTOM_BUTTON_HEIGHT)
 	_add_deck_action_button(bottom_row, ["take_score", "TAKE SCORE", COLOR_BUTTON_ORANGE, COLOR_BUTTON_TEXT, COLOR_GOLD_DARK], CONTROL_BOTTOM_BUTTON_HEIGHT)
 
 	control_hint_label = _make_label("", 12, COLOR_CREAM, HORIZONTAL_ALIGNMENT_CENTER, "ui")
@@ -1447,7 +1451,7 @@ func _build_card_area(parent: Node) -> void:
 	card_container.add_theme_constant_override("separation", CARD_GAP)
 	card_center.add_child(card_container)
 
-	idle_title_label = _make_label(IDLE_TITLE_TEXT, 92, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
+	idle_title_label = _make_label(IDLE_TITLE_TEXT, IDLE_TITLE_FONT_SIZE, COLOR_BLUE, HORIZONTAL_ALIGNMENT_CENTER)
 	idle_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	idle_title_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	idle_title_label.add_theme_color_override("font_color", Color(0.0, 1.0, 1.0, 1.0))

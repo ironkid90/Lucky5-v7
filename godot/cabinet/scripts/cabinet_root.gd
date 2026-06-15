@@ -26,6 +26,8 @@ const COLOR_GREEN := Color(0.2, 1.0, 0.2, 1.0)               # #33ff33
 const COLOR_GREEN_DIM := Color(0.0, 0.733, 0.0, 1.0)          # #00bb00
 const COLOR_RED := Color(1.0, 0.2, 0.2, 1.0)
 const COLOR_BLUE := Color(0.267, 0.867, 1.0, 1.0)            # #44ddff
+const COLOR_CYAN := Color(0.0, 1.0, 1.0, 1.0)                # #00FFFF
+const COLOR_YELLOW := Color(1.0, 1.0, 0.0, 1.0)              # #FFFF00
 const COLOR_LIGHT_BLUE := Color(0.486, 0.867, 1.0, 1.0)
 const COLOR_LIGHT_GREEN := Color(0.667, 1.0, 0.533, 1.0)
 const COLOR_WHITE := Color(1.0, 1.0, 1.0, 1.0)
@@ -75,9 +77,9 @@ var PAYTABLE_STYLE_MARGIN_LEFT := 18
 var PAYTABLE_STYLE_MARGIN_RIGHT := 18
 var PAYTABLE_STYLE_MARGIN_TOP := 12
 var PAYTABLE_STYLE_MARGIN_BOTTOM := 8
-var CARD_SIZE := Vector2(184, 310)
+var CARD_SIZE := Vector2(196, 330)
 var CARD_SMALL_SIZE := Vector2(70, 118)
-var CARD_GAP := 14
+var CARD_GAP := 12
 var CONTROL_DECK_MIN_HEIGHT := 324
 const CONTROL_HOLD_BUTTON_HEIGHT := 116
 const CONTROL_ACTION_BUTTON_HEIGHT := 124
@@ -88,11 +90,11 @@ var JACKPOT_COUNTER_MIN_HEIGHT := 40
 var DU_BOARD_CARD_SIZE := Vector2(116, 196)
 var DU_TRAIL_CARD_SIZE := Vector2(136, 228)
 var responsive_label_bases: Dictionary = {}
-const DEAL_DURATION := 0.12
-const DEAL_STAGGER := 0.10
-const DRAW_OUT_DURATION := 0.08
-const DRAW_IN_DURATION := 0.12
-const DRAW_STAGGER := 0.10
+const DEAL_DURATION := 0.18
+const DEAL_STAGGER := 0.17
+const DRAW_OUT_DURATION := 0.12
+const DRAW_IN_DURATION := 0.18
+const DRAW_STAGGER := 0.17
 const DU_SWITCH_DURATION := 0.40
 const BONUS_COIN_SIZE := Vector2(28, 28)
 const DOUBLE_UP_BOARD_SLOT_COUNT := 5
@@ -100,7 +102,8 @@ const DU_SHUFFLE_INTERVAL := 0.08
 const DU_SHUFFLE_TICKS := 4
 const DU_SHUFFLE_CODES := ["AS", "KH", "QD", "JC", "10S", "9H", "8D", "7C"]
 const DU_REVEAL_SETTLE_SECONDS := 0.50
-const DU_END_HOLD_SECONDS := 0.50
+const DU_END_HOLD_SECONDS := 1.75
+const LOSING_HAND_REVEAL_SECONDS := 1.75
 const DOUBLE_UP_AUTO_ENTRY_DELAY_SECONDS := 1.00
 const IDLE_FH_CARD_DELAY_SECONDS := 60.0
 const IDLE_TITLE_TEXT := "LUCKY5\n  POKER"
@@ -573,9 +576,15 @@ func _scaled_font_size(value: int) -> int:
 	return max(8, int(round(float(value) * cabinet_ui_scale)))
 
 func _set_responsive_card_size(scale: float) -> void:
-	CARD_SIZE = Vector2(int(184.0 * scale), int(310.0 * scale))
+	# Cards span ~85% of screen width: 5 cards + 4 gaps = 0.85 * base_width
+	var base_width := 1080.0
+	var target_total := base_width * 0.85 * scale
+	var gap_total := 4.0 * 12.0 * scale
+	var card_w := int((target_total - gap_total) / 5.0)
+	var card_h := int(float(card_w) / AI9_CARD_ASPECT)
+	CARD_SIZE = Vector2(card_w, card_h)
 	CARD_SMALL_SIZE = Vector2(int(70.0 * scale), int(118.0 * scale))
-	CARD_GAP = int(14.0 * scale)
+	CARD_GAP = int(12.0 * scale)
 
 func _set_responsive_control_heights(scale: float) -> void:
 	CONTROL_DECK_MIN_HEIGHT = int(324.0 * scale)
@@ -737,6 +746,8 @@ func _make_label(text_str: String, size: int, color_val: Color, align := HORIZON
 	var label_font := _font_for_key(font_key)
 	if label_font != null:
 		l.add_theme_font_override("font", label_font)
+	# Disable anti-aliasing for sharp, pixelated arcade text
+	l.add_theme_font_size_override("font_antialiasing", 0)
 	l.horizontal_alignment = align
 	return l
 
@@ -747,24 +758,27 @@ func _make_button(text_str: String, min_h: int, bg: Color, fg: Color, border: Co
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.focus_mode = Control.FOCUS_NONE
 	var style := StyleBoxFlat.new()
+	# Bright, saturated fill for illuminated arcade button look
 	style.bg_color = bg
-	style.border_color = bg.lightened(0.55)
-	style.border_width_left = 4; style.border_width_right = 2
-	style.border_width_top = 4; style.border_width_bottom = 2
-	style.corner_radius_top_left = 8; style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8; style.corner_radius_bottom_right = 8
+	# Thick dark border for physical button housing
+	style.border_color = Color(0.133, 0.133, 0.133, 1.0)  # #222222
+	style.border_width_left = 6; style.border_width_right = 6
+	style.border_width_top = 6; style.border_width_bottom = 6
+	# Small corner radius for rectangular shape with soft edges
+	style.corner_radius_top_left = 6; style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6; style.corner_radius_bottom_right = 6
 	style.content_margin_left = 8; style.content_margin_right = 8
 	style.content_margin_top = 10; style.content_margin_bottom = 10
-	style.shadow_color = border.darkened(0.35)
+	# 3D bevel effect with shadow
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.6)
 	style.shadow_size = BUTTON_BEVEL_SHADOW_SIZE
 	style.shadow_offset = Vector2(0, 5)
 	b.add_theme_stylebox_override("normal", style)
 	var hover := style.duplicate()
-	hover.bg_color = bg.lightened(0.12)
-	hover.border_color = bg.lightened(0.30)
+	hover.bg_color = bg.lightened(0.15)
 	b.add_theme_stylebox_override("hover", hover)
 	var pressed := style.duplicate()
-	pressed.bg_color = bg.darkened(0.18)
+	pressed.bg_color = bg.darkened(0.15)
 	pressed.content_margin_top = 12
 	pressed.content_margin_bottom = 8
 	pressed.shadow_size = BUTTON_PRESSED_SHADOW_SIZE
@@ -774,11 +788,12 @@ func _make_button(text_str: String, min_h: int, bg: Color, fg: Color, border: Co
 	disabled.bg_color = Color(bg.r * 0.25, bg.g * 0.25, bg.b * 0.25, 0.5)
 	disabled.shadow_size = 0
 	b.add_theme_stylebox_override("disabled", disabled)
-	b.add_theme_color_override("font_color", fg)
-	var button_font := _font_for_key("ui")
+	# Black bold text for maximum contrast on bright buttons
+	b.add_theme_color_override("font_color", Color.BLACK)
+	var button_font := _font_for_key("impact")
 	if button_font != null:
 		b.add_theme_font_override("font", button_font)
-	b.add_theme_font_size_override("font_size", _scaled_font_size(15))
+	b.add_theme_font_size_override("font_size", _scaled_font_size(18))
 	b.add_theme_color_override("font_disabled_color", Color(0.3, 0.3, 0.3, 0.6))
 	if _apply_button_asset_styles(b, asset_key):
 		b.text = ""
@@ -1369,12 +1384,12 @@ func _build_paytable(parent: Node) -> void:
 	parent.add_child(panel)
 
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", _scaled_int(15))
+	columns.add_theme_constant_override("separation", _scaled_int(8))  # Tighter separation
 	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_child(columns)
 
 	var left_column := VBoxContainer.new()
-	left_column.add_theme_constant_override("separation", _scaled_int(4))
+	left_column.add_theme_constant_override("separation", _scaled_int(2))  # Tighter rows
 	left_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_column.size_flags_stretch_ratio = 1.75
 	columns.add_child(left_column)
@@ -1393,8 +1408,8 @@ func _build_paytable(parent: Node) -> void:
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", _scaled_int(15))
-	grid.add_theme_constant_override("v_separation", _scaled_int(4))
+	grid.add_theme_constant_override("h_separation", _scaled_int(6))  # Tighter h gap
+	grid.add_theme_constant_override("v_separation", _scaled_int(2))  # Tighter v gap
 	left_column.add_child(grid)
 	for hand in hands:
 		var key := str(hand[0])
@@ -1406,23 +1421,25 @@ func _build_paytable(parent: Node) -> void:
 		rps.border_color = Color(0, 0, 0, 0)
 		rps.border_width_left = 0; rps.border_width_right = 0
 		rps.border_width_top = 0; rps.border_width_bottom = 0
-		rps.content_margin_left = _scaled_int(4); rps.content_margin_right = _scaled_int(4)
-		rps.content_margin_top = _scaled_int(2); rps.content_margin_bottom = _scaled_int(2)
+		rps.content_margin_left = _scaled_int(2); rps.content_margin_right = _scaled_int(2)
+		rps.content_margin_top = _scaled_int(1); rps.content_margin_bottom = _scaled_int(1)
 		row_panel.add_theme_stylebox_override("panel", rps)
 		grid.add_child(row_panel)
 
 		var name_panel := PanelContainer.new()
 		name_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var nps := StyleBoxFlat.new()
+		# Full House white panel hugs text tightly
 		nps.bg_color = Color.WHITE if key == "FullHouse" else Color(0, 0, 0, 0)
-		nps.content_margin_left = _scaled_int(6)
-		nps.content_margin_right = _scaled_int(6)
-		nps.content_margin_top = _scaled_int(2)
-		nps.content_margin_bottom = _scaled_int(2)
+		nps.content_margin_left = _scaled_int(4) if key == "FullHouse" else _scaled_int(2)
+		nps.content_margin_right = _scaled_int(4) if key == "FullHouse" else _scaled_int(2)
+		nps.content_margin_top = _scaled_int(1) if key == "FullHouse" else _scaled_int(1)
+		nps.content_margin_bottom = _scaled_int(1) if key == "FullHouse" else _scaled_int(1)
 		name_panel.add_theme_stylebox_override("panel", nps)
 		row_panel.add_child(name_panel)
 
-		var name_l := _make_label(hand[1], 23, Color.BLACK if key == "FullHouse" else hand[3], HORIZONTAL_ALIGNMENT_LEFT)
+		# 50% larger paytable font: 23 -> 35
+		var name_l := _make_label(hand[1], 35, Color.BLACK if key == "FullHouse" else hand[3], HORIZONTAL_ALIGNMENT_LEFT)
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_panel.add_child(name_l)
 
@@ -1430,14 +1447,14 @@ func _build_paytable(parent: Node) -> void:
 		amount_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var aps := StyleBoxFlat.new()
 		aps.bg_color = Color(0, 0, 0, 0)
-		aps.content_margin_left = _scaled_int(6)
-		aps.content_margin_right = _scaled_int(6)
-		aps.content_margin_top = _scaled_int(2)
-		aps.content_margin_bottom = _scaled_int(2)
+		aps.content_margin_left = _scaled_int(2)
+		aps.content_margin_right = _scaled_int(2)
+		aps.content_margin_top = _scaled_int(1)
+		aps.content_margin_bottom = _scaled_int(1)
 		amount_panel.add_theme_stylebox_override("panel", aps)
 		grid.add_child(amount_panel)
 
-		var amount_l := _make_label("0", 23, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
+		var amount_l := _make_label("0", 35, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)  # 50% larger
 		amount_l.custom_minimum_size = Vector2(PAYTABLE_AMOUNT_MIN_WIDTH, 0)
 		amount_l.clip_text = true
 		amount_panel.add_child(amount_l)
@@ -1474,19 +1491,23 @@ func _build_credit_stake_column(parent: Node) -> void:
 	top_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(top_spacer)
 
-	credit_label = _make_label("CREDIT", 22, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
+	# Significantly larger CREDIT label (22 -> 36)
+	credit_label = _make_label("CREDIT", 36, COLOR_GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
 	credit_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_label)
 
-	credit_value_label = _make_label("0", 46, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	# Massive credit value (46 -> 96, triple size)
+	credit_value_label = _make_label("0", 96, COLOR_WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	credit_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(credit_value_label)
 
-	stake_label = _make_label("STAKE", 22, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	# Significantly larger STAKE label (22 -> 36)
+	stake_label = _make_label("STAKE", 36, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 	stake_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(stake_label)
 
-	stake_value_label = _make_label("0", 46, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	# Massive stake value (46 -> 96, triple size)
+	stake_value_label = _make_label("0", 96, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 	stake_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(stake_value_label)
 
@@ -1495,8 +1516,10 @@ func _build_credit_stake_column(parent: Node) -> void:
 	column.add_child(bottom_spacer)
 
 func _add_machine_info_segment(row: HBoxContainer, title_text: String, separator_text: String, value_label: Label, expand := false) -> void:
-	row.add_child(_make_label(title_text, 20, COLOR_GREEN))
-	row.add_child(_make_label(separator_text, 20, COLOR_GREEN))
+	# Deep red labels for SERIE and KENT /3, scaled up 200% (20 -> 60)
+	var deep_red := Color(0.85, 0.0, 0.0, 1.0)
+	row.add_child(_make_label(title_text, 60, deep_red))
+	row.add_child(_make_label(separator_text, 60, deep_red))
 	if expand:
 		value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(value_label)
@@ -1624,9 +1647,10 @@ func _build_machine_info(parent: Node) -> void:
 	hbox.add_theme_constant_override("separation", _scaled_int(10))
 	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	identity_row.add_child(hbox)
-	machine_serie_label = _make_label("0", 20, COLOR_GREEN)
+	# Massive bright green/red multiplier values (200% scale: 20 -> 60)
+	machine_serie_label = _make_label("0", 60, COLOR_GREEN)
 	_add_machine_info_segment(hbox, "SERIE", " . ", machine_serie_label)
-	machine_kent_label = _make_label("0", 20, COLOR_GREEN)
+	machine_kent_label = _make_label("0", 60, COLOR_RED)
 	_add_machine_info_segment(hbox, "KENT /3", " . ", machine_kent_label, true)
 	machine_serial_label = _make_label("0", 26, COLOR_GREEN, HORIZONTAL_ALIGNMENT_LEFT)
 	machine_serial_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1639,7 +1663,8 @@ func _build_machine_info(parent: Node) -> void:
 	rows.add_child(jp_row)
 
 	jackpot_counter_panels.clear()
-	for slot in [["*", "4k-a", COLOR_GREEN_DIM], ["SF", "sf", COLOR_GOLD], ["*", "4k-b", COLOR_GREEN_DIM]]:
+	# Massive bright green/red jackpot values (28 -> 56, 200% scale)
+	for slot in [["*", "4k-a", COLOR_GREEN], ["SF", "sf", COLOR_RED], ["*", "4k-b", COLOR_GREEN]]:
 		var counter_panel := Panel.new()
 		counter_panel.custom_minimum_size = Vector2(JACKPOT_COUNTER_MIN_WIDTH, JACKPOT_COUNTER_MIN_HEIGHT)
 		var cps := StyleBoxFlat.new()
@@ -1650,9 +1675,9 @@ func _build_machine_info(parent: Node) -> void:
 		counter_box.alignment = BoxContainer.ALIGNMENT_CENTER
 		counter_box.add_theme_constant_override("separation", _scaled_int(6))
 		counter_panel.add_child(counter_box)
-		var tag := _make_label(slot[0], 28 if str(slot[0]) == "*" else 18, slot[2], HORIZONTAL_ALIGNMENT_CENTER)
+		var tag := _make_label(slot[0], 42 if str(slot[0]) == "*" else 28, slot[2], HORIZONTAL_ALIGNMENT_CENTER)
 		counter_box.add_child(tag)
-		var val := _make_label("0", 28, COLOR_GREEN, HORIZONTAL_ALIGNMENT_LEFT)
+		var val := _make_label("0", 56, slot[2], HORIZONTAL_ALIGNMENT_LEFT)
 		val.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		counter_box.add_child(val)
 		jackpot_counters[str(slot[1])] = val
@@ -1663,8 +1688,9 @@ func _build_machine_info(parent: Node) -> void:
 	var sn_row := HBoxContainer.new()
 	sn_row.add_theme_constant_override("separation", _scaled_int(4))
 	rows.add_child(sn_row)
-	sn_row.add_child(_make_label("S/N:", 20, COLOR_WHITE))
-	var sn_value := _make_label("0", 26, COLOR_GREEN, HORIZONTAL_ALIGNMENT_LEFT)
+	# White S/N label with cyan value
+	sn_row.add_child(_make_label("S/N:", 32, COLOR_WHITE))
+	var sn_value := _make_label("0", 38, COLOR_CYAN, HORIZONTAL_ALIGNMENT_LEFT)
 	sn_value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sn_row.add_child(sn_value)
 	machine_serial_label = sn_value
@@ -1675,10 +1701,13 @@ func _build_machine_info(parent: Node) -> void:
 	bonus_row.custom_minimum_size = Vector2(0, _scaled_int(38))
 	rows.add_child(bonus_row)
 
-	bonus_message_label = _make_label("4 OF A KIND WINS BONUS", 30, COLOR_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	# Thick, bright yellow and white bonus message, scaled up and centered
+	bonus_message_label = _make_label("4 OF A KIND WINS BONUS", 48, COLOR_YELLOW, HORIZONTAL_ALIGNMENT_CENTER)
 	bonus_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bonus_message_label.custom_minimum_size = Vector2(0, _scaled_int(38))
+	bonus_message_label.custom_minimum_size = Vector2(0, _scaled_int(56))
 	bonus_message_label.visible = true
+	bonus_message_label.add_theme_color_override("font_outline_color", COLOR_WHITE)
+	bonus_message_label.add_theme_constant_override("outline_size", 4)
 	bonus_row.add_child(bonus_message_label)
 
 	bonus_stage_label = _make_label("FREE GAMES", 16, COLOR_GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
@@ -3104,10 +3133,12 @@ func _start_du_card_shuffle(new_dealer_code: String, new_player_code: String) ->
 	du_shuffle_replace_dealer_only = false
 	du_shuffle_ticks_remaining = DU_SHUFFLE_TICKS if new_player_code.length() >= 2 else -1
 	du_shuffle_index = 0
+	# Dealer card stays static - set immediately, no animation
 	_set_du_card_texture(du_dealer_rect, new_dealer_code)
 	if du_challenger_label != null and new_player_code.is_empty():
 		du_challenger_label.text = "BIG / SMALL ?"
 		du_challenger_label.add_theme_color_override("font_color", COLOR_GOLD)
+	# Only challenger card animates the shuffle
 	du_challenger_rect.modulate = Color(1, 1, 1, 1)
 	du_challenger_rect.scale = Vector2(0.92, 0.92)
 	_process_du_shuffle()
@@ -3140,11 +3171,14 @@ func _start_du_dealer_replace_shuffle(new_dealer_code: String) -> void:
 func _process_du_shuffle() -> void:
 	var code: String = DU_SHUFFLE_CODES[du_shuffle_index % DU_SHUFFLE_CODES.size()]
 	du_shuffle_index += 1
+	# Only animate challenger card during switch - dealer stays static
 	var target_rect: TextureRect = du_dealer_rect if du_shuffle_replace_dealer_only else du_challenger_rect
 	if target_rect == null:
 		target_rect = du_dealer_rect
-	_set_du_card_texture(target_rect, code)
-	_play_shuffle_tick()
+	# Only play shuffle animation on challenger, not dealer
+	if not du_shuffle_replace_dealer_only:
+		_set_du_card_texture(target_rect, code)
+		_play_shuffle_tick()
 	if du_shuffle_ticks_remaining > 0:
 		du_shuffle_ticks_remaining -= 1
 		if du_shuffle_ticks_remaining <= 0:

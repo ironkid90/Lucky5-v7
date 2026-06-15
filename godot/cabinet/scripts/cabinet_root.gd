@@ -1383,14 +1383,14 @@ func _build_paytable(parent: Node) -> void:
 	columns.add_child(left_column)
 
 	var hands := [
-		["RoyalFlush", "ROYAL FLUSH", COLOR_PAYTABLE_ROYAL],
-		["StraightFlush", "STRAIGHT FLUSH", COLOR_PAYTABLE_STRAIGHT_FLUSH],
-		["FourOfAKind", "4 OF A KIND", COLOR_PAYTABLE_FOUR_KIND],
-		["FullHouse", "FULL HOUSE", COLOR_PAYTABLE_FULL_HOUSE],
-		["Flush", "FLUSH", COLOR_PAYTABLE_FLUSH],
-		["Straight", "STRAIGHT", COLOR_PAYTABLE_STRAIGHT],
-		["ThreeOfAKind", "3 OF A KIND", COLOR_PAYTABLE_THREE_KIND],
-		["TwoPair", "2 PAIR", COLOR_PAYTABLE_TWO_PAIR],
+		["RoyalFlush", "ROYAL FLUSH", 1000, COLOR_PAYTABLE_ROYAL],
+		["StraightFlush", "STRAIGHT FLUSH", 75, COLOR_PAYTABLE_STRAIGHT_FLUSH],
+		["FourOfAKind", "4 OF A KIND", 15, COLOR_PAYTABLE_FOUR_KIND],
+		["FullHouse", "FULL HOUSE", 12, COLOR_PAYTABLE_FULL_HOUSE],
+		["Flush", "FLUSH", 10, COLOR_PAYTABLE_FLUSH],
+		["Straight", "STRAIGHT", 8, COLOR_PAYTABLE_STRAIGHT],
+		["ThreeOfAKind", "3 OF A KIND", 3, COLOR_PAYTABLE_THREE_KIND],
+		["TwoPair", "2 PAIR", 2, COLOR_PAYTABLE_TWO_PAIR],
 	]
 
 	var grid := GridContainer.new()
@@ -1425,7 +1425,7 @@ func _build_paytable(parent: Node) -> void:
 		name_panel.add_theme_stylebox_override("panel", nps)
 		row_panel.add_child(name_panel)
 
-		var name_l := _make_label(hand[1], 23, Color.BLACK if key == "FullHouse" else hand[2], HORIZONTAL_ALIGNMENT_LEFT)
+		var name_l := _make_label(hand[1], 23, Color.BLACK if key == "FullHouse" else hand[3], HORIZONTAL_ALIGNMENT_LEFT)
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_panel.add_child(name_l)
 
@@ -1440,7 +1440,7 @@ func _build_paytable(parent: Node) -> void:
 		amount_panel.add_theme_stylebox_override("panel", aps)
 		grid.add_child(amount_panel)
 
-		var amount_l := _make_label("0", 23, hand[2], HORIZONTAL_ALIGNMENT_RIGHT)
+		var amount_l := _make_label("0", 23, hand[3], HORIZONTAL_ALIGNMENT_RIGHT)
 		amount_l.custom_minimum_size = Vector2(PAYTABLE_AMOUNT_MIN_WIDTH, 0)
 		amount_l.clip_text = true
 		amount_panel.add_child(amount_l)
@@ -1449,8 +1449,8 @@ func _build_paytable(parent: Node) -> void:
 		paytable_name_labels[key] = name_l
 		paytable_name_panels[key] = name_panel
 		paytable_amount_labels[key] = amount_l
-		paytable_multipliers[key] = int(paytable_lebanese_multipliers[key])
-		paytable_amount_colors[key] = hand[2]
+		paytable_multipliers[str(hand[0])] = int(hand[2])
+		paytable_amount_colors[key] = hand[3]
 
 	var fh_rank_row := HBoxContainer.new()
 	fh_rank_row.add_theme_constant_override("separation", _scaled_int(10))
@@ -1623,14 +1623,17 @@ func _build_machine_info(parent: Node) -> void:
 	identity_row.add_theme_constant_override("separation", _scaled_int(10))
 	rows.add_child(identity_row)
 
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", _scaled_int(10))
+	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity_row.add_child(hbox)
 	machine_serie_label = _make_label("0", 20, COLOR_GREEN)
-	_add_machine_info_segment(identity_row, "SERIE", " - ", machine_serie_label)
+	_add_machine_info_segment(hbox, "SERIE", " . ", machine_serie_label)
 	machine_kent_label = _make_label("0", 20, COLOR_GREEN)
-	_add_machine_info_segment(identity_row, "KENT /3", " : ", machine_kent_label)
+	_add_machine_info_segment(hbox, "KENT /3", " . ", machine_kent_label, true)
 	machine_serial_label = _make_label("0", 26, COLOR_GREEN, HORIZONTAL_ALIGNMENT_LEFT)
-	machine_identity_serial_label = machine_serial_label
 	machine_serial_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	identity_row.add_child(machine_identity_serial_label)
+	identity_row.add_child(machine_serial_label)
 
 	var jp_row := HBoxContainer.new()
 	jp_row.alignment = BoxContainer.ALIGNMENT_CENTER
